@@ -408,6 +408,7 @@ export default function DreMontadorPage() {
                 <table className="w-full text-sm">
                   <thead className="sticky top-0 bg-background border-b">
                     <tr className="text-left">
+                      <th className="py-2 px-1 w-6"></th>
                       <th className="py-2 px-2 w-8">
                         <Checkbox
                           checked={contasOrdenadas.length > 0 && contasSelecionadas.size === contasOrdenadas.length}
@@ -418,7 +419,7 @@ export default function DreMontadorPage() {
                       <SortableTh label="Nív." k="nivel" sortBy={sortBy} sortDir={sortDir} onClick={toggleSort} />
                       <SortableTh label="Conta" k="conta" sortBy={sortBy} sortDir={sortDir} onClick={toggleSort} />
                       <th className="py-2 px-2">Nome da conta</th>
-                      <th className="py-2 px-2">Centros de custo</th>
+                      <th className="py-2 px-2 text-right">CCs</th>
                       <SortableTh label="Qtd." k="qtd" sortBy={sortBy} sortDir={sortDir} onClick={toggleSort} align="right" />
                       <SortableTh label="Valor" k="valor" sortBy={sortBy} sortDir={sortDir} onClick={toggleSort} align="right" />
                       <th className="py-2 px-2 w-40">Status</th>
@@ -429,91 +430,36 @@ export default function DreMontadorPage() {
                       const k = contaKey(c);
                       const sel = contasSelecionadas.has(k);
                       const ccs = c.centros_custo ?? [];
-                      const ccsHead = ccs.slice(0, 2);
-                      const ccsExtra = ccs.length - ccsHead.length;
+                      const isOpen = expandidos.has(k);
+                      const toggleExpand = () => {
+                        console.log('[PLANO CONTAS] conta:', c);
+                        console.log('[PLANO CONTAS] centros_custo:', c.centros_custo || []);
+                        setExpandidos((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(k)) next.delete(k); else next.add(k);
+                          return next;
+                        });
+                      };
                       return (
-                        <tr key={k} className={`border-b hover:bg-muted/40 ${sel ? 'bg-primary/5' : ''}`}>
-                          <td className="py-1 px-2">
-                            <Checkbox checked={sel} onCheckedChange={() => toggleConta(k)} />
-                          </td>
-                          <td className="py-1 px-2 font-mono text-xs">{c.cd_mascara || '—'}</td>
-                          <td className="py-1 px-2">
-                            <Badge variant="outline" className="text-[10px]">N{c.nivel ?? 0}</Badge>
-                          </td>
-                          <td className="py-1 px-2 font-mono text-xs">{c.cd_conta_contabil || '—'}</td>
-                          <td className="py-1 px-2 max-w-[260px]">
-                            {c.ds_conta ? (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span className="block truncate cursor-help">{c.ds_conta}</span>
-                                </TooltipTrigger>
-                                <TooltipContent><span className="text-xs">{c.ds_conta}</span></TooltipContent>
-                              </Tooltip>
-                            ) : (
-                              <span className="text-xs text-muted-foreground italic" title="Backend não retornou ds_conta">{c.cd_mascara || '—'}</span>
-                            )}
-                          </td>
-                          <td className="py-1 px-2">
-                            {ccs.length === 0 ? (
-                              <span className="text-xs text-muted-foreground">—</span>
-                            ) : (
-                              <div className="flex flex-wrap gap-1">
-                                {ccsHead.map((cc, i) => (
-                                  <Badge key={i} variant="outline" className="text-[10px] font-mono">
-                                    {cc.cd_centro_custo}{cc.ds_centro_custo ? ` · ${cc.ds_centro_custo}` : ''}
-                                  </Badge>
-                                ))}
-                                {ccsExtra > 0 && (
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Badge variant="secondary" className="text-[10px] cursor-help">+{ccsExtra}</Badge>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <div className="text-xs space-y-0.5 max-w-xs">
-                                        {ccs.map((cc, i) => (
-                                          <div key={i} className="font-mono">
-                                            {cc.cd_centro_custo}{cc.ds_centro_custo ? ` · ${cc.ds_centro_custo}` : ''}
-                                            <span className="text-muted-foreground"> — {BRL.format(cc.valor)} ({cc.qtd})</span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                )}
-                              </div>
-                            )}
-                          </td>
-                          <td className="py-1 px-2 text-right">{c.qtd_lancamentos}</td>
-                          <td className={`py-1 px-2 text-right font-mono ${c.valor_total < 0 ? 'text-destructive' : ''}`}>
-                            {BRL.format(c.valor_total)}
-                          </td>
-                          <td className="py-1 px-2">
-                            {c.ja_vinculada ? (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Badge variant="secondary" className="cursor-help">Vinculada</Badge>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <div className="text-xs space-y-0.5">
-                                    {c.linhas_vinculadas.length
-                                      ? c.linhas_vinculadas.map((ln, i) => <div key={i} className="font-mono">{ln}</div>)
-                                      : <div>Vinculada (sem detalhes)</div>}
-                                  </div>
-                                </TooltipContent>
-                              </Tooltip>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">—</span>
-                            )}
-                          </td>
-                        </tr>
+                        <FragmentRow
+                          key={k}
+                          conta={c}
+                          k={k}
+                          sel={sel}
+                          ccs={ccs}
+                          isOpen={isOpen}
+                          onToggleExpand={toggleExpand}
+                          onToggleSel={() => toggleConta(k)}
+                        />
                       );
                     })}
                     {!loadingContas && contasOrdenadas.length === 0 && (
-                      <tr><td colSpan={9} className="py-8 text-center text-muted-foreground text-sm">
+                      <tr><td colSpan={10} className="py-8 text-center text-muted-foreground text-sm">
                         Nenhuma conta encontrada.
                       </td></tr>
                     )}
                   </tbody>
+
                 </table>
               </div>
 
