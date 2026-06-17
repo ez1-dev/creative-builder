@@ -1,37 +1,38 @@
 ## Objetivo
 
-A spec `docs/backend-bi-contabilidade-dre-matriz.md` já foi atualizada na rodada anterior para instruir o FastAPI a chamar `public.rpc_bi_dre_realizado_regras(p_anomes_ini, p_anomes_fim)` e agrupar por `codigo_linha` × `anomes_referente`. Este ajuste reforça e fecha a documentação para que o backend implemente exatamente esse fluxo.
+Adicionar à spec `docs/backend-bi-contabilidade-dre-matriz.md` uma instrução de **diagnóstico obrigatório**: o handler do endpoint deve logar o traceback completo da exceção e expor a mensagem real no `detail` do 502, em vez de mascarar com "Erro ao carregar DRE".
 
-## Mudanças no documento
+## Mudança no documento
 
-1. **Topo do arquivo** — adicionar nota de implementação em destaque:
-   > O endpoint **deve** obter o realizado exclusivamente via `SELECT * FROM public.rpc_bi_dre_realizado_regras(:ini, :fim)`. Proibido SQL inline contra `bi_vm_lanc_contabil` no Python, proibido qualquer outra RPC.
+Nova seção curta **"Tratamento de erros / Diagnóstico (obrigatório)"** logo antes de `### Erros`, com o trecho exato a aplicar no FastAPI:
 
-2. **Nova subseção "Contrato da RPC consumida"** logo antes do pseudocódigo:
-   - Assinatura: `public.rpc_bi_dre_realizado_regras(p_anomes_ini text, p_anomes_fim text)`.
-   - Retorno: linhas `(codigo_linha text, anomes_referente text, vl_realizado numeric)` já agrupadas por `codigo_linha × anomes_referente` com `sinal` aplicado.
-   - Mapeamento de `ano` → `p_anomes_ini = '<ano>01'`, `p_anomes_fim = '<ano>12'`.
-   - `anomes_referente` retornado é texto `YYYYMM`; mês = `int(anomes[-2:])`.
+````markdown
+## Tratamento de erros / Diagnóstico (obrigatório)
 
-3. **Pseudocódigo FastAPI** — substituir o trecho atual por versão completa e direta:
-   ```python
-   @router.get("/api/bi/contabilidade/dre-matriz")
-   def dre_matriz(ano: str, unidade: str | None = None):
-       p_ini, p_fim = f"{ano}01", f"{ano}12"
-       realizado = pg.fetch(
-           "SELECT codigo_linha, anomes_referente, vl_realizado "
-           "FROM public.rpc_bi_dre_realizado_regras(%(ini)s, %(fim)s)",
-           {"ini": p_ini, "fim": p_fim},
-       )
-       # pivotar por (codigo_linha, mes=int(anomes_referente[-2:]))
-       # juntar com bi_vm_orc_dre (orcado) e bi_dre_estrutura (ordem/desc/nivel/totalizadora)
-       # calcular A.V. contra Receita Líquida
-       return montar_matriz_anual(realizado, orcado, estrutura)
-   ```
+Enquanto o 502 persistir, o handler **deve** logar o traceback completo e devolver a mensagem real da exceção no `detail`. Proibido mascarar com strings genéricas como `"Erro ao carregar DRE"`.
 
-4. **Reforçar "Proibições"** — incluir item explícito: "Não montar SQL inline contra `bi_vm_lanc_contabil` no Python; o realizado vem exclusivamente da RPC."
+```python
+import traceback
+from fastapi import HTTPException
 
-5. **Manter** intactos: contrato HTTP de resposta, valores validados de sanity check, SQL do orçamento, lista de colunas usadas, TODO de `p_unidade`.
+@router.get("/api/bi/contabilidade/dre-matriz")
+def dre_matriz(ano: str, unidade: str | None = None):
+    try:
+        ...  # chamada à RPC + montagem da matriz
+    except Exception as e:
+        print("[ERRO DRE MATRIZ]", repr(e))
+        traceback.print_exc()
+        raise HTTPException(status_code=502, detail=str(e))
+```
+
+Requisitos:
+
+- `print(..., flush=True)` ou logger equivalente, para aparecer no stdout do uvicorn.
+- `detail=str(e)` (não usar mensagem fixa) — o front já exibe `detail`/`message`.
+- Manter esse logging permanentemente (mesmo após estabilizar): apenas o `detail` pode ser sanitizado depois, o `traceback.print_exc()` continua.
+````
+
+Também atualizar a subseção `### Erros` para refletir que `detail` agora carrega o erro real do Python/SQL.
 
 ## Arquivo alterado
 
@@ -39,5 +40,5 @@ A spec `docs/backend-bi-contabilidade-dre-matriz.md` já foi atualizada na rodad
 
 ## Fora de escopo
 
-- Frontend `DrePage.tsx` — contrato HTTP preservado, sem mudanças.
-- Lovable Cloud — a RPC vive no Postgres do FastAPI; nenhuma migração no Cloud.
+- Frontend — `DrePage.tsx` já exibe `detail`/`message` quando presentes; nada a mudar.
+- Lovable Cloud — nenhuma alteração.
