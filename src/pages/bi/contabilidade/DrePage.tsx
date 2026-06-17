@@ -569,11 +569,56 @@ export default function DrePage() {
                           const av = m.isTotal ? l.total_av : l[`${m.key}_av`];
                           const o = m.isTotal ? l.total_orcado : l[`${m.key}_orcado`];
                           const totalCol = !!m.isTotal;
+                          const codLinha = String(l.codigo_linha ?? '').trim().toUpperCase();
+                          const podeReabrir = isLinhaCalculada(codLinha);
+                          const drillOpts: { tipo: DreDrillTipo; label: string }[] = [
+                            ...(podeReabrir
+                              ? [{ tipo: 'REABRIR' as DreDrillTipo, label: DRE_DRILL_LABELS.REABRIR }]
+                              : []),
+                            { tipo: 'CENTRO_CUSTO', label: DRE_DRILL_LABELS.CENTRO_CUSTO },
+                            { tipo: 'CONTA', label: DRE_DRILL_LABELS.CONTA },
+                            { tipo: 'ORIGEM', label: DRE_DRILL_LABELS.ORIGEM },
+                            { tipo: 'TRANSACAO', label: DRE_DRILL_LABELS.TRANSACAO },
+                            { tipo: 'HISTORICO', label: DRE_DRILL_LABELS.HISTORICO },
+                            { tipo: 'LANCAMENTO', label: DRE_DRILL_LABELS.LANCAMENTO },
+                            { tipo: 'UNIDADE', label: DRE_DRILL_LABELS.UNIDADE },
+                          ];
                           return (
                             <Fragment key={`${i}-${m.key}`}>
-                              <td className={cn('px-2 py-1.5 text-right tabular-nums border-b border-l', negClass(r), totalCol && 'bg-primary/10 font-semibold')}>
-                                {fmtSigned(r)}
-                              </td>
+                              <ContextMenu>
+                                <ContextMenuTrigger asChild>
+                                  <td
+                                    className={cn(
+                                      'px-2 py-1.5 text-right tabular-nums border-b border-l cursor-context-menu hover:bg-accent/30',
+                                      negClass(r),
+                                      totalCol && 'bg-primary/10 font-semibold',
+                                    )}
+                                    onDoubleClick={() => codLinha && abrirDrill(codLinha, 'LANCAMENTO', m.key)}
+                                    title="Clique direito para opções de drill; duplo clique = Lançamentos"
+                                  >
+                                    {fmtSigned(r)}
+                                  </td>
+                                </ContextMenuTrigger>
+                                <ContextMenuContent className="w-56">
+                                  <ContextMenuLabel className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                                    {l.descricao} — {m.label}
+                                  </ContextMenuLabel>
+                                  <ContextMenuSeparator />
+                                  {drillOpts.map((opt) => (
+                                    <ContextMenuItem
+                                      key={opt.tipo}
+                                      className="text-xs"
+                                      disabled={!codLinha}
+                                      onSelect={(e) => {
+                                        e.preventDefault();
+                                        if (codLinha) abrirDrill(codLinha, opt.tipo, m.key);
+                                      }}
+                                    >
+                                      {opt.label}
+                                    </ContextMenuItem>
+                                  ))}
+                                </ContextMenuContent>
+                              </ContextMenu>
                               <td className={cn('px-2 py-1.5 text-right tabular-nums border-b', negClass(av), totalCol && 'bg-primary/10 font-semibold')}>
                                 {av != null ? fmtSignedPct(Number(av)) : '-'}
                               </td>
@@ -583,6 +628,7 @@ export default function DrePage() {
                             </Fragment>
                           );
                         })}
+
                       </tr>
                     );
                   })}
