@@ -206,6 +206,39 @@ export type Database = {
         }
         Relationships: []
       }
+      bi_dre_auditoria: {
+        Row: {
+          acao: string
+          created_at: string
+          entidade: string
+          entidade_id: string | null
+          id: string
+          payload_antes: Json | null
+          payload_depois: Json | null
+          usuario_id: string | null
+        }
+        Insert: {
+          acao: string
+          created_at?: string
+          entidade: string
+          entidade_id?: string | null
+          id?: string
+          payload_antes?: Json | null
+          payload_depois?: Json | null
+          usuario_id?: string | null
+        }
+        Update: {
+          acao?: string
+          created_at?: string
+          entidade?: string
+          entidade_id?: string | null
+          id?: string
+          payload_antes?: Json | null
+          payload_depois?: Json | null
+          usuario_id?: string | null
+        }
+        Relationships: []
+      }
       bi_dre_classificacoes: {
         Row: {
           anomes_referente: number | null
@@ -359,6 +392,77 @@ export type Database = {
         }
         Relationships: []
       }
+      bi_dre_estrutura_v2: {
+        Row: {
+          ativo: boolean
+          codigo_linha: string
+          created_at: string
+          descricao: string
+          flag_exibe_dre: boolean
+          flag_inverte_sinal: boolean
+          flag_negrito: boolean
+          flag_permite_drill: boolean
+          flag_soma: boolean
+          flag_totalizadora: boolean
+          formula: string | null
+          id: string
+          linha_pai_codigo: string | null
+          modelo_id: string
+          nivel: number
+          ordem: number
+          tipo_linha: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          codigo_linha: string
+          created_at?: string
+          descricao: string
+          flag_exibe_dre?: boolean
+          flag_inverte_sinal?: boolean
+          flag_negrito?: boolean
+          flag_permite_drill?: boolean
+          flag_soma?: boolean
+          flag_totalizadora?: boolean
+          formula?: string | null
+          id?: string
+          linha_pai_codigo?: string | null
+          modelo_id: string
+          nivel?: number
+          ordem?: number
+          tipo_linha?: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          codigo_linha?: string
+          created_at?: string
+          descricao?: string
+          flag_exibe_dre?: boolean
+          flag_inverte_sinal?: boolean
+          flag_negrito?: boolean
+          flag_permite_drill?: boolean
+          flag_soma?: boolean
+          flag_totalizadora?: boolean
+          formula?: string | null
+          id?: string
+          linha_pai_codigo?: string | null
+          modelo_id?: string
+          nivel?: number
+          ordem?: number
+          tipo_linha?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bi_dre_estrutura_v2_modelo_id_fkey"
+            columns: ["modelo_id"]
+            isOneToOne: false
+            referencedRelation: "bi_dre_modelos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bi_dre_excecoes: {
         Row: {
           anomes_referente: number | null
@@ -422,6 +526,83 @@ export type Database = {
         }
         Relationships: []
       }
+      bi_dre_linha_regra: {
+        Row: {
+          ativo: boolean
+          cd_centro_custos: string | null
+          cd_centro_custos_3: string | null
+          cd_conta_contabil: string | null
+          cd_empresa: string | null
+          cd_filial: string | null
+          cd_mascara: string | null
+          cd_origem_lcto: string | null
+          cd_tns: string | null
+          codigo_linha: string
+          created_at: string
+          ds_historico: string | null
+          id: string
+          modelo_id: string
+          operador: string
+          prioridade: number
+          sinal: number
+          tipo_regra: string
+          updated_at: string
+          valor: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          cd_centro_custos?: string | null
+          cd_centro_custos_3?: string | null
+          cd_conta_contabil?: string | null
+          cd_empresa?: string | null
+          cd_filial?: string | null
+          cd_mascara?: string | null
+          cd_origem_lcto?: string | null
+          cd_tns?: string | null
+          codigo_linha: string
+          created_at?: string
+          ds_historico?: string | null
+          id?: string
+          modelo_id: string
+          operador?: string
+          prioridade?: number
+          sinal?: number
+          tipo_regra: string
+          updated_at?: string
+          valor?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          cd_centro_custos?: string | null
+          cd_centro_custos_3?: string | null
+          cd_conta_contabil?: string | null
+          cd_empresa?: string | null
+          cd_filial?: string | null
+          cd_mascara?: string | null
+          cd_origem_lcto?: string | null
+          cd_tns?: string | null
+          codigo_linha?: string
+          created_at?: string
+          ds_historico?: string | null
+          id?: string
+          modelo_id?: string
+          operador?: string
+          prioridade?: number
+          sinal?: number
+          tipo_regra?: string
+          updated_at?: string
+          valor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bi_dre_linha_regra_modelo_id_fkey"
+            columns: ["modelo_id"]
+            isOneToOne: false
+            referencedRelation: "bi_dre_modelos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bi_dre_mascara: {
         Row: {
           cd_conta: string
@@ -446,6 +627,45 @@ export type Database = {
           mascara?: string
           unidade_negocio?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      bi_dre_modelos: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          descricao: string | null
+          id: string
+          nome: string
+          publicado_em: string | null
+          publicado_por: string | null
+          status: string
+          updated_at: string
+          versao: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          nome: string
+          publicado_em?: string | null
+          publicado_por?: string | null
+          status?: string
+          updated_at?: string
+          versao?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          nome?: string
+          publicado_em?: string | null
+          publicado_por?: string | null
+          status?: string
+          updated_at?: string
+          versao?: number
         }
         Relationships: []
       }
