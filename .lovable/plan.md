@@ -1,37 +1,39 @@
-## Decisão
+## Diagnóstico
 
-Não alterar a tela da DRE agora. A correção é no backend.
+`DrePage` tem 3 problemas que juntos causam lentidão e "sumiço" de valores ao trocar filtros:
 
-## Causa raiz
+1. **Sem AbortController.** A cada mudança de `ano/unidade/mes_ini/mes_fim` dispara um novo `fetch` para `/api/bi/contabilidade/dre-matriz`, mas o anterior continua rodando. Se a resposta antiga chegar depois da nova, sobrescreve `linhasRaw` com dados errados ou vazios.
+2. **`useEffect` sem debounce.** Mudar mês inicial e mês final em sequência dispara 2 requisições; o handler `handleMesInicialChange` ainda pode chamar `setMesFinal` no mesmo ciclo, gerando uma terceira.
+3. **Limpa estado antes de receber.** No início de `carregarDre` o componente fica em `loading=true` mantendo `linhasRaw`, mas em qualquer erro/abort o `catch` faz `setLinhasRaw([])`, então ao trocar de página/filtro a tabela "esvazia" enquanto carrega.
 
-Matriz (`/api/bi/contabilidade/dre-matriz`) e drill (`/api/bi/contabilidade/dre-drill`) estão classificando lançamentos por regras diferentes. A matriz não está aplicando a mesma cadeia do drill (classificações > exceções > de/para conta+centro exato > de/para "TODAS" > `bi_dre_mascara` > `NAO_CLASSIFICADO`), o que produz totais divergentes entre tela e drill.
+A matriz em si pode demorar do lado do backend, mas o sintoma "sai quando troca de página" é causado por race + reset agressivo no front.
 
-## Ação no backend (FastAPI / RPC)
+## Correções (somente frontend, só `src/pages/bi/contabilidade/DrePage.tsx`)
 
-Atualizar a RPC que alimenta `/api/bi/contabilidade/dre-matriz` para reusar exatamente a mesma função/CTE de classificação usada por `bi_dre_drill_realizado`:
+### 1. AbortController por requisição
+- `carregarDre` cria um `AbortController` local e guarda em `useRef`.
+- Antes de iniciar nova chamada, chama `abort()` no controller anterior.
+- Passa `signal` para o `fetch`.
+- No `catch`, ignora `AbortError` (não seta `erro` nem zera linhas).
+- `useEffect` de cleanup chama `abort()` ao desmontar.
 
-1. Extrair a lógica de classificação por lançamento em uma única função SQL reutilizável (ex.: `bi_dre_classificar_lancamento(...)` retornando `cd_mascara_dre`).
-2. Tanto a matriz quanto o drill devem chamar essa função — nenhuma duplicação de regras.
-3. Garantir a ordem de prioridade canônica:
-   - `bi_dre_classificacoes` (lançamento específico aprovado)
-   - `bi_dre_excecoes` (lançamento específico)
-   - `bi_dre_depara_conta_ccu` com `cd_conta_contabil` + `cd_centro_custos` exato
-   - `bi_dre_depara_conta_ccu` com `cd_centro_custos = 'TODAS'`
-   - `bi_dre_mascara` (regra por máscara de conta)
-   - fallback `NAO_CLASSIFICADO`
-4. Após atualizar a RPC: `NOTIFY pgrst, 'reload schema';`
+### 2. Debounce do disparo automático
+Trocar:
+```ts
+useEffect(() => { carregarDre(); }, [ano, unidade, mesInicial, mesFinal]);
+```
+por um `setTimeout` de ~250 ms (cancelado no cleanup) para coalescir múltiplas mudanças de filtro em uma única requisição.
 
-## Ação no frontend (Lovable)
+### 3. Manter dados anteriores durante o load
+- No início de `carregarDre`: apenas `setLoading(true)` + `setErro(null)`. **Não** mexer em `linhasRaw`.
+- No `catch` real (não-abort): `setErro(...)` mas **não** fazer `setLinhasRaw([])` — preservar a última matriz válida; a UI já mostra `erro` em destaque.
+- Só substituir `linhasRaw` após sucesso confirmado.
 
-Nenhuma alteração de código. Após o deploy do backend, `DrePage` apenas chama de novo `GET /api/bi/contabilidade/dre-matriz` (o botão "Atualizar" já existente faz isso). Quando a matriz e o drill bater, a divergência some.
-
-## Documentação
-
-Adicionar nota em `docs/backend-bi-contabilidade-dre-matriz.md` deixando explícito:
-
-> A matriz DRE DEVE usar a mesma função de classificação de lançamento que a RPC `bi_dre_drill_realizado`. Qualquer mudança na cadeia de prioridade precisa refletir nos dois endpoints ao mesmo tempo.
+### 4. Indicador "atualizando" sem ocultar a tabela
+A renderização já trata `loading` mostrando uma linha "Carregando...". Ajustar para, quando já existir `linhasRaw.length > 0`, manter a tabela visível e exibir um badge/spinner discreto no header ("Atualizando..."). Sem mudança de layout.
 
 ## Fora de escopo
 
-- Não mexer em `DrePage.tsx`, `DreDrillDrawer.tsx`, hooks, ou contratos do frontend.
-- Não criar migrações no Lovable Cloud (a RPC fica no Postgres do FastAPI, não no Cloud).
+- Não tocar no backend (`/api/bi/contabilidade/dre-matriz` continua igual).
+- Não mexer no drill, nas regras de classificação, nem em outras páginas.
+- Não alterar contratos nem tipos compartilhados.
