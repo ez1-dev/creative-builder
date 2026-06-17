@@ -85,15 +85,18 @@ export async function fetchDreDrill(params: DreDrillParams): Promise<DreDrillRes
   const base = getApiUrl();
   const unidade =
     params.unidade && params.unidade.toUpperCase() !== 'TODOS' ? params.unidade : '';
+  const tipoDrillFinal = normalizeDreDrillType(params.tipo_drill);
   const qs = new URLSearchParams({
     ano: String(params.ano),
     mes_ini: params.mes_ini,
     mes_fim: params.mes_fim,
     codigo_linha: params.codigo_linha,
-    tipo_drill: params.tipo_drill,
+    tipo_drill: tipoDrillFinal,
     anomes_referente: params.anomes_referente ? String(params.anomes_referente) : '',
     unidade,
   });
+  console.log('[DRE DRILL] tipo_drill enviado:', tipoDrillFinal);
+  console.log('[DRE DRILL] params:', Object.fromEntries(qs.entries()));
   const url = `${base}/api/bi/contabilidade/dre-drill?${qs.toString()}`;
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem('erp_token') : null;
   const resp = await fetch(url, {
