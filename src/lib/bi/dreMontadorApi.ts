@@ -2,10 +2,10 @@ import { api, getApiUrl } from '@/lib/api';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface PlanoContaCentroCusto {
-  cd_centro_custo: string;
-  ds_centro_custo?: string;
-  qtd: number;
-  valor: number;
+  cd_centro_custos: string;
+  cd_centro_custos_3: string;
+  qtd_lancamentos: number;
+  valor_total: number;
 }
 
 export interface PlanoContaErp {
@@ -98,10 +98,10 @@ export async function fetchPlanoContasDinamica(p: PlanoContasParams): Promise<Pl
       ds_conta: pickStr(r, ['ds_conta', 'descricao', 'nome_conta', 'nome', 'conta_descricao', 'ds_conta_contabil', 'ds_conta_descricao']),
       nivel: pickNum(r, ['nivel']) || nivelFallback,
       centros_custo: ccRaw.map((x: any) => ({
-        cd_centro_custo: pickStr(x, ['cd_centro_custo', 'centro_custo', 'cd_ccu', 'codigo', 'cod_ccu', 'cod']),
-        ds_centro_custo: pickStr(x, ['ds_centro_custo', 'descricao', 'nome', 'ds_ccu', 'nome_ccu']) || undefined,
-        qtd: pickNum(x, ['qtd', 'qtde', 'qtd_lancamentos', 'quantidade']),
-        valor: pickNum(x, ['valor', 'valor_total', 'total', 'vl_saldo', 'saldo']),
+        cd_centro_custos: pickStr(x, ['cd_centro_custos', 'cd_centro_custo', 'centro_custo', 'cd_ccu', 'codigo', 'cod_ccu', 'cod']),
+        cd_centro_custos_3: pickStr(x, ['cd_centro_custos_3', 'cd_ccu_3', 'ccu_3', 'nivel_3', 'cd_centro_custo_3']),
+        qtd_lancamentos: pickNum(x, ['qtd_lancamentos', 'qtd', 'qtde', 'quantidade']),
+        valor_total: pickNum(x, ['valor_total', 'valor', 'total', 'vl_saldo', 'saldo']),
       })),
       qtd_lancamentos: pickNum(r, ['qtd_lancamentos', 'qtde', 'qtd', 'quantidade', 'qtd_lanc']),
       valor_total: pickNum(r, ['valor_total', 'total', 'valor', 'vl_saldo', 'saldo']),

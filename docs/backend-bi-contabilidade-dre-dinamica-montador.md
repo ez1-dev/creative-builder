@@ -26,8 +26,8 @@ Lista as contas/máscaras do ERP com totais agregados e indicador de vínculo no
     "ds_conta": "RECEITA DE VENDAS NO MERCADO INTERNO",
     "nivel": 3,
     "centros_custo": [
-      { "cd_centro_custo": "1001", "ds_centro_custo": "ADMINISTRATIVO", "qtd": 12, "valor": -1500.00 },
-      { "cd_centro_custo": "2002", "ds_centro_custo": "COMERCIAL", "qtd": 5, "valor": -800.00 }
+      { "cd_centro_custos": "1001", "cd_centro_custos_3": "100", "qtd_lancamentos": 12, "valor_total": -1500.00 },
+      { "cd_centro_custos": "2002", "cd_centro_custos_3": "200", "qtd_lancamentos": 5, "valor_total": -800.00 }
     ],
     "qtd_lancamentos": 124,
     "valor_total": -53210.55,
@@ -83,21 +83,21 @@ O array `centros_custo[]` é **obrigatório** em cada item da resposta. Pode vir
 
 Regras:
 - Origem: `bi_vm_lanc_contabil`, agrupado por `mascara`/`cd_conta` + `centro_custo` no período `[anomes_ini, anomes_fim]`.
-- Retornar **top 10** por `abs(valor) DESC` para cada conta (limita payload).
-- `ds_centro_custo`: join com o cadastro de centros de custo do ERP (quando disponível). Pode vir `null`/omitido se não houver descrição.
+- Retornar **top 10** por `abs(valor_total) DESC` para cada conta (limita payload).
+- `cd_centro_custos_3`: código de CCU agregado no 3º nível da hierarquia (3 primeiros segmentos da máscara do CCU, ou equivalente do cadastro). Pode vir vazio se não houver hierarquia.
 
 Nomes canônicos por item:
 
 | Campo | Tipo | Descrição |
 |---|---|---|
-| `cd_centro_custo` | string | Código do CCU |
-| `ds_centro_custo` | string? | Descrição do CCU (opcional) |
-| `qtd` | int | `count(*)` no período |
-| `valor` | numeric | `sum(vl_saldo)` no período |
+| `cd_centro_custos` | string | Código completo do CCU |
+| `cd_centro_custos_3` | string | Código do CCU no 3º nível da hierarquia |
+| `qtd_lancamentos` | int | `count(*)` no período |
+| `valor_total` | numeric | `sum(vl_saldo)` no período |
 
 Aliases aceitos pelo frontend (defensivo, prefira os canônicos):
 - Array: `centros_custo` (canônico), `ccu`, `centroscusto`, `centros`, `cc`, `centros_de_custo`.
-- Item: `centro_custo`/`cd_ccu`/`codigo`/`cod_ccu`/`cod` para `cd_centro_custo`; `descricao`/`nome`/`ds_ccu`/`nome_ccu` para `ds_centro_custo`; `qtde`/`qtd_lancamentos`/`quantidade` para `qtd`; `valor_total`/`total`/`vl_saldo`/`saldo` para `valor`.
+- Item: `cd_centro_custo`/`centro_custo`/`cd_ccu`/`codigo`/`cod_ccu`/`cod` para `cd_centro_custos`; `cd_ccu_3`/`ccu_3`/`nivel_3` para `cd_centro_custos_3`; `qtd`/`qtde`/`quantidade` para `qtd_lancamentos`; `valor`/`total`/`vl_saldo`/`saldo` para `valor_total`.
 
 SQL de referência:
 
@@ -105,29 +105,30 @@ SQL de referência:
 WITH base AS (
   SELECT
     l.mascara, l.cd_conta, l.centro_custo,
-    count(*)        AS qtd,
-    sum(l.vl_saldo) AS valor
+    count(*)        AS qtd_lancamentos,
+    sum(l.vl_saldo) AS valor_total
   FROM bi_vm_lanc_contabil l
   WHERE l.anomes_referente BETWEEN :ini AND :fim
   GROUP BY 1,2,3
 ),
 ranked AS (
   SELECT b.*,
-         ccu.descricao AS ds_centro_custo,
-         row_number() OVER (PARTITION BY mascara, cd_conta ORDER BY abs(valor) DESC) AS rn
+         ccu.cd_ccu_nivel_3 AS cd_centro_custos_3,
+         row_number() OVER (PARTITION BY mascara, cd_conta ORDER BY abs(valor_total) DESC) AS rn
   FROM base b
   LEFT JOIN <ccu_cadastro> ccu ON ccu.codigo = b.centro_custo
 )
 SELECT mascara, cd_conta,
        json_agg(json_build_object(
-         'cd_centro_custo', centro_custo,
-         'ds_centro_custo', ds_centro_custo,
-         'qtd', qtd,
-         'valor', valor
-       ) ORDER BY abs(valor) DESC) FILTER (WHERE rn <= 10) AS centros_custo
+         'cd_centro_custos', centro_custo,
+         'cd_centro_custos_3', cd_centro_custos_3,
+         'qtd_lancamentos', qtd_lancamentos,
+         'valor_total', valor_total
+       ) ORDER BY abs(valor_total) DESC) FILTER (WHERE rn <= 10) AS centros_custo
 FROM ranked
 GROUP BY 1,2;
 ```
+
 
 ### Implementação esperada
 
