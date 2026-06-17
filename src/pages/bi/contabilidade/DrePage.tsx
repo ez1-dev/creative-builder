@@ -643,7 +643,21 @@ export default function DrePage() {
           <UserWidgetsSlot section="charts" cols={2} emptyHint={false} />
           <UserWidgetsSlot section="tables" cols={1} emptyHint={false} />
         </div>
+
+        <DreDrillDrawer
+          open={drill.open}
+          onOpenChange={drill.setOpen}
+          stack={drill.stack}
+          onPush={drill.push}
+          onPop={drill.pop}
+          onGoTo={drill.goTo}
+          codigosLinha={codigosLinha}
+          descricoesLinha={descricoesLinha}
+        />
       </div>
     </PageDataProvider>
+  );
+}
+
   );
 }
