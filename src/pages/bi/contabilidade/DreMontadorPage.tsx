@@ -52,7 +52,7 @@ export default function DreMontadorPage() {
 
   const [busca, setBusca] = useState('');
   const [filtroVinculo, setFiltroVinculo] = useState<FiltroVinculo>('todas');
-  const [limite, setLimite] = useState(250);
+  const [limite, setLimite] = useState<number | 'all'>('all');
 
   const [sortBy, setSortBy] = useState<SortKey>('valor');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
