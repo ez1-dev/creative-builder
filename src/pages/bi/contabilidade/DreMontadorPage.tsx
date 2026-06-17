@@ -437,7 +437,8 @@ export default function DreMontadorPage() {
                       const isOpen = expandidos.has(k);
                       const toggleExpand = () => {
                         console.log('[PLANO CONTAS] conta:', c);
-                        console.log('[PLANO CONTAS] centros_custo:', c.centros_custo || []);
+                        console.log('[PLANO CONTAS] centros_custo typeof:', typeof c.centros_custo, 'length:', ccs.length);
+                        if (ccs.length) console.log('[PLANO CONTAS] primeiro centro:', ccs[0]);
                         setExpandidos((prev) => {
                           const next = new Set(prev);
                           if (next.has(k)) next.delete(k); else next.add(k);
