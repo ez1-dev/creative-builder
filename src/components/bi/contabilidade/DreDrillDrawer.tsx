@@ -264,7 +264,7 @@ export function DreDrillDrawer({
                 <table className="w-full text-xs">
                   <thead className="bg-muted/40 text-muted-foreground sticky top-0">
                     <tr>
-                      {data.columns.map((c) => (
+                      {columns.map((c) => (
                         <th
                           key={c.key}
                           className={cn(
@@ -280,10 +280,10 @@ export function DreDrillDrawer({
                     </tr>
                   </thead>
                   <tbody>
-                    {data.rows.map((row, i) => (
+                    {rows.map((row, i) => (
                       <tr key={i} className="border-t hover:bg-accent/40">
-                        {data.columns.map((c) => {
-                          const v = row[c.key];
+                        {columns.map((c) => {
+                          const v = row?.[c.key];
                           const isCur = c.format === 'currency';
                           return (
                             <td
@@ -293,7 +293,7 @@ export function DreDrillDrawer({
                                 isCur && 'text-right',
                               )}
                             >
-                              {isCur ? fmtSigned(Number(v)) : (v ?? '-')}
+                              {isCur ? fmtSigned(Number(v ?? 0)) : (v ?? '-')}
                             </td>
                           );
                         })}
