@@ -84,15 +84,22 @@ export async function fetchPlanoContasDinamica(p: PlanoContasParams): Promise<Pl
   const mapped = arr.map((r: any) => {
     const cd_mascara: string = pickStr(r, ['cd_mascara', 'mascara']);
     const nivelFallback = cd_mascara ? cd_mascara.split('.').filter(Boolean).length : 0;
-    const cc = Array.isArray(r.centros_custo) ? r.centros_custo : Array.isArray(r.ccu) ? r.ccu : [];
+    const ccRaw =
+      (Array.isArray(r.centros_custo) && r.centros_custo) ||
+      (Array.isArray(r.ccu) && r.ccu) ||
+      (Array.isArray(r.centroscusto) && r.centroscusto) ||
+      (Array.isArray(r.centros) && r.centros) ||
+      (Array.isArray(r.cc) && r.cc) ||
+      (Array.isArray(r.centros_de_custo) && r.centros_de_custo) ||
+      [];
     return {
       cd_mascara,
       cd_conta_contabil: pickStr(r, ['cd_conta_contabil', 'cd_conta', 'conta']),
       ds_conta: pickStr(r, ['ds_conta', 'descricao', 'nome_conta', 'nome', 'conta_descricao', 'ds_conta_contabil', 'ds_conta_descricao']),
       nivel: pickNum(r, ['nivel']) || nivelFallback,
-      centros_custo: cc.map((x: any) => ({
-        cd_centro_custo: pickStr(x, ['cd_centro_custo', 'centro_custo', 'cd_ccu']),
-        ds_centro_custo: pickStr(x, ['ds_centro_custo', 'descricao', 'nome', 'ds_ccu']) || undefined,
+      centros_custo: ccRaw.map((x: any) => ({
+        cd_centro_custo: pickStr(x, ['cd_centro_custo', 'centro_custo', 'cd_ccu', 'codigo', 'cod_ccu', 'cod']),
+        ds_centro_custo: pickStr(x, ['ds_centro_custo', 'descricao', 'nome', 'ds_ccu', 'nome_ccu']) || undefined,
         qtd: pickNum(x, ['qtd', 'qtde', 'qtd_lancamentos', 'quantidade']),
         valor: pickNum(x, ['valor', 'valor_total', 'total', 'vl_saldo', 'saldo']),
       })),
@@ -107,9 +114,16 @@ export async function fetchPlanoContasDinamica(p: PlanoContasParams): Promise<Pl
     console.log('[MONTADOR DRE] plano-contas mapped sample:', mapped[0]);
     const semNome = mapped.every((m) => !m.ds_conta);
     const semValor = mapped.every((m) => m.valor_total === 0);
+    const semCcu = mapped.every((m) => !m.centros_custo || m.centros_custo.length === 0);
     if (semNome) console.warn('[MONTADOR DRE] backend não retornou ds_conta em nenhum item');
     if (semValor) console.warn('[MONTADOR DRE] backend retornou valor_total = 0 em todos os itens');
+    if (semCcu) console.warn('[MONTADOR DRE] backend não retornou centros_custo em nenhum item');
+    else {
+      const first = mapped.find((m) => m.centros_custo && m.centros_custo.length > 0);
+      if (first) console.log('[MONTADOR DRE] centros_custo sample:', first.centros_custo[0]);
+    }
   }
+
   return mapped;
 }
 
