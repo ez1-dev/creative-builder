@@ -351,7 +351,7 @@ export function DreDrillDrawer({
                   </tbody>
                   <tfoot className="bg-muted/30 border-t">
                     <tr>
-                      <td colSpan={data.columns.length - 1} className="px-3 py-2 text-right font-semibold">
+                      <td colSpan={Math.max(1, columns.length - 1)} className="px-3 py-2 text-right font-semibold">
                         Total
                       </td>
                       <td className="px-3 py-2 text-right font-semibold tabular-nums">
