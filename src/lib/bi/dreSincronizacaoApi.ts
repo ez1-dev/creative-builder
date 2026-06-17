@@ -98,13 +98,40 @@ export async function buscarColunasCandidatasErp(): Promise<ColunaCandidata[]> {
 }
 
 export async function sincronizarDeparaDreErp(): Promise<SyncDeparaResponse> {
-  const data = await postJson('/api/bi/contabilidade/sync-depara-dre', {});
+  const token = api.getToken();
+  const url = `${getApiUrl()}/api/bi/contabilidade/sync-depara-dre`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token ?? ''}`,
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+    },
+    body: '{}',
+  });
+
+  const raw = await response.text();
+  let json: any = null;
+  try { json = raw ? JSON.parse(raw) : null; } catch { /* mantém raw */ }
+
+  if (!response.ok) {
+    const detail =
+      (json && (json.detail || json.message)) ||
+      raw ||
+      `HTTP ${response.status} ${response.statusText}`;
+    throw new Error(
+      `POST ${url} → ${response.status} ${response.statusText}\n` +
+      (typeof detail === 'string' ? detail : JSON.stringify(detail, null, 2))
+    );
+  }
+
   return {
-    success: Boolean(data?.success ?? true),
-    origem: String(data?.origem ?? 'ERP Senior SQL Server'),
-    destino: String(data?.destino ?? 'Supabase.bi_dre_depara_conta_ccu'),
-    total_registros: Number(data?.total_registros ?? 0),
-    message: String(data?.message ?? 'Sincronização concluída.'),
+    success: Boolean(json?.success ?? true),
+    origem: String(json?.origem ?? 'ERP Senior SQL Server'),
+    destino: String(json?.destino ?? 'Lovable Cloud / bi_dre_depara_conta_ccu'),
+    total_registros: Number(json?.total_registros ?? 0),
+    message: String(json?.message ?? 'Sincronização concluída.'),
   };
 }
 
