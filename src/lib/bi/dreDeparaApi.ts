@@ -73,7 +73,7 @@ export async function atualizarRegra(
   id: string,
   patch: Partial<DreDeParaInput>,
 ): Promise<DreDeParaRegra> {
-  const update: Record<string, unknown> = { ...patch };
+  const update: Partial<DreDeParaInput> = { ...patch };
   if (patch.cd_conta_contabil) update.cd_conta_contabil = normalize(patch.cd_conta_contabil);
   if (patch.cd_centro_custos) update.cd_centro_custos = normalize(patch.cd_centro_custos);
   const { data, error } = await supabase
