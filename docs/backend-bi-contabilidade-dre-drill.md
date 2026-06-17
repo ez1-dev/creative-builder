@@ -3,6 +3,35 @@
 Endpoint **novo**, sem alterar `/api/bi/contabilidade/dre-matriz` nem `bi_dre_regras` /
 `bi_dre_mascara` / `bi_dre_estrutura`.
 
+## 0. Correção PGRST203 — assinatura única da RPC
+
+O PostgREST retorna `PGRST203` quando existem dois overloads de `public.bi_dre_drill_realizado`. Manter **apenas uma** assinatura, com 6 parâmetros `text`, e recarregar o cache do PostgREST:
+
+```sql
+-- Remove a versão antiga (5 parâmetros) que causa o conflito
+DROP FUNCTION IF EXISTS public.bi_dre_drill_realizado(text, text, text, text, text);
+
+-- Recria garantindo a assinatura canônica de 6 parâmetros
+CREATE OR REPLACE FUNCTION public.bi_dre_drill_realizado(
+  p_anomes_ini       text,
+  p_anomes_fim       text,
+  p_codigo_linha     text,
+  p_tipo_drill       text,
+  p_anomes_referente text,
+  p_unidade_negocio  text
+) RETURNS TABLE (...) AS $$ ... $$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+
+-- Forçar recarga do schema no PostgREST
+NOTIFY pgrst, 'reload schema';
+```
+
+Regras permanentes:
+
+- A RPC tem **uma única assinatura**. Mudanças futuras usam `CREATE OR REPLACE` mantendo a mesma lista de parâmetros, ou seguem o ciclo `DROP FUNCTION ... ; CREATE ...`. Nunca criar overloads.
+- O endpoint FastAPI sempre passa os 6 parâmetros — `p_anomes_referente` e `p_unidade_negocio` podem ser `NULL`, e a função trata.
+- O frontend envia `anomes_referente=''` e `unidade=''` quando não houver valor; o FastAPI converte `''` → `None` antes de chamar a RPC.
+
+
 ## 1. Endpoint
 
 ```
