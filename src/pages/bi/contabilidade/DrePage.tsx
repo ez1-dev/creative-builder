@@ -184,11 +184,54 @@ export default function DrePage() {
     { key: 'total', label: 'TOTAL', isTotal: true },
   ];
 
+  // ---- Drill-down -----------------------------------------------------------
+  const drill = useDreDrill();
+  const codigosLinha = useMemo(
+    () => Array.from(
+      new Set(
+        linhas
+          .map((l) => String(l.codigo_linha ?? '').trim().toUpperCase())
+          .filter(Boolean),
+      ),
+    ),
+    [linhas],
+  );
+  const descricoesLinha = useMemo(() => {
+    const map: Record<string, string> = {};
+    linhas.forEach((l) => {
+      const cod = String(l.codigo_linha ?? '').trim().toUpperCase();
+      if (cod) map[cod] = l.descricao ?? cod;
+    });
+    return map;
+  }, [linhas]);
+
+  const abrirDrill = (
+    codigoLinha: string,
+    tipo: DreDrillTipo,
+    mesKey: string,
+  ) => {
+    let anomes_referente: string | null = null;
+    if (mesKey !== 'total') {
+      const numero = MESES.find((m) => m.key === mesKey)?.numero;
+      if (numero) anomes_referente = `${ano}${numero}`;
+    }
+    drill.openWith({
+      ano,
+      mes_ini: mesInicial,
+      mes_fim: mesFinal,
+      codigo_linha: codigoLinha,
+      tipo_drill: tipo,
+      unidade: unidade === 'TODOS' ? undefined : unidade,
+      anomes_referente,
+    });
+  };
+
   const exportarXlsx = async () => {
     if (!linhas.length) {
       toast.info('Nada para exportar.');
       return;
     }
+
     try {
       const ExcelJS = (await import('exceljs')).default;
       const wb = new ExcelJS.Workbook();
