@@ -331,7 +331,7 @@ export default function DrePage() {
             <CardTitle className="text-sm">Filtros</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-5 items-end">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-6 items-end">
               <div>
                 <Label className="text-xs">Ano</Label>
                 <Input
