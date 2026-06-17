@@ -1,44 +1,61 @@
 ## Objetivo
 
-Adicionar à spec `docs/backend-bi-contabilidade-dre-matriz.md` uma instrução de **diagnóstico obrigatório**: o handler do endpoint deve logar o traceback completo da exceção e expor a mensagem real no `detail` do 502, em vez de mascarar com "Erro ao carregar DRE".
+Criar a spec de um endpoint **temporário de diagnóstico** que apenas executa `public.rpc_bi_dre_realizado_regras('202601','202606')` e devolve o resultado bruto, sem orçamento, matriz, linhas sintéticas ou AV. Serve para isolar se o FastAPI consegue chamar a RPC.
 
-## Mudança no documento
+## Mudança
 
-Nova seção curta **"Tratamento de erros / Diagnóstico (obrigatório)"** logo antes de `### Erros`, com o trecho exato a aplicar no FastAPI:
+Criar novo arquivo `docs/backend-bi-contabilidade-teste-rpc-dre.md` com a spec completa do endpoint:
 
-````markdown
-## Tratamento de erros / Diagnóstico (obrigatório)
+- **Rota:** `GET /api/bi/contabilidade/teste-rpc-dre`
+- **Sem parâmetros** (período fixo `202601`–`202606`).
+- **Sem auth extra** além do já usado pelos outros `/api/bi/*`.
+- **Body do handler:**
 
-Enquanto o 502 persistir, o handler **deve** logar o traceback completo e devolver a mensagem real da exceção no `detail`. Proibido mascarar com strings genéricas como `"Erro ao carregar DRE"`.
+  ````python
+  import traceback
+  from fastapi import HTTPException
 
-```python
-import traceback
-from fastapi import HTTPException
+  @router.get("/api/bi/contabilidade/teste-rpc-dre")
+  def teste_rpc_dre():
+      try:
+          rows = pg.fetch(
+              "SELECT codigo_linha, anomes_referente, vl_realizado "
+              "FROM public.rpc_bi_dre_realizado_regras(%(ini)s, %(fim)s)",
+              {"ini": "202601", "fim": "202606"},
+          )
+          return rows
+      except Exception as e:
+          print("[ERRO TESTE RPC DRE]", repr(e), flush=True)
+          traceback.print_exc()
+          raise HTTPException(status_code=502, detail=str(e))
+  ````
 
-@router.get("/api/bi/contabilidade/dre-matriz")
-def dre_matriz(ano: str, unidade: str | None = None):
-    try:
-        ...  # chamada à RPC + montagem da matriz
-    except Exception as e:
-        print("[ERRO DRE MATRIZ]", repr(e))
-        traceback.print_exc()
-        raise HTTPException(status_code=502, detail=str(e))
-```
+- **Response:** array JSON bruto, exatamente como a RPC devolve:
 
-Requisitos:
+  ```json
+  [
+    { "codigo_linha": "DEPRECIACAO",              "anomes_referente": "202601", "vl_realizado": -123456.78 },
+    { "codigo_linha": "DESPESAS_ADMINISTRATIVAS", "anomes_referente": "202601", "vl_realizado": -234567.89 }
+  ]
+  ```
 
-- `print(..., flush=True)` ou logger equivalente, para aparecer no stdout do uvicorn.
-- `detail=str(e)` (não usar mensagem fixa) — o front já exibe `detail`/`message`.
-- Manter esse logging permanentemente (mesmo após estabilizar): apenas o `detail` pode ser sanitizado depois, o `traceback.print_exc()` continua.
-````
+- **Proibições:**
+  - Não juntar com `bi_vm_orc_dre`.
+  - Não juntar com `bi_dre_estrutura`.
+  - Não pivotar por mês.
+  - Não calcular AV.
+  - Não criar linhas sintéticas / totalizadoras.
+  - Não montar SQL inline contra `bi_vm_lanc_contabil`.
 
-Também atualizar a subseção `### Erros` para refletir que `detail` agora carrega o erro real do Python/SQL.
+- **Status:** marcar explicitamente como **temporário / diagnóstico** — remover assim que o endpoint `/api/bi/contabilidade/dre-matriz` estabilizar.
 
-## Arquivo alterado
+- **CORS:** liberar a mesma origem do preview Lovable que os demais `/api/bi/*`.
 
-- `docs/backend-bi-contabilidade-dre-matriz.md` (apenas documentação).
+## Arquivos alterados
+
+- novo: `docs/backend-bi-contabilidade-teste-rpc-dre.md`
 
 ## Fora de escopo
 
-- Frontend — `DrePage.tsx` já exibe `detail`/`message` quando presentes; nada a mudar.
+- Frontend — nenhuma tela consome este endpoint; será testado direto via `curl` / DevTools.
 - Lovable Cloud — nenhuma alteração.
