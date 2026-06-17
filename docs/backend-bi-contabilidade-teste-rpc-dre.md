@@ -26,10 +26,17 @@ def teste_rpc_dre():
     try:
         rows = pg.fetch(
             "SELECT codigo_linha, anomes_referente, vl_realizado "
-            "FROM public.rpc_bi_dre_realizado_regras(%(ini)s, %(fim)s)",
-            {"ini": "202601", "fim": "202606"},
+            "FROM public.rpc_bi_dre_realizado_regras(%(p_anomes_ini)s, %(p_anomes_fim)s)",
+            {"p_anomes_ini": "202601", "p_anomes_fim": "202606"},
         )
-        return rows
+        return [
+            {
+                "codigo_linha": r["codigo_linha"],
+                "anomes_referente": r["anomes_referente"],
+                "vl_realizado": float(r["vl_realizado"]) if r["vl_realizado"] is not None else None,
+            }
+            for r in rows
+        ]
     except Exception as e:
         print("[ERRO TESTE RPC DRE]", repr(e), flush=True)
         traceback.print_exc()
@@ -49,6 +56,9 @@ def teste_rpc_dre():
 
 `502` — `{ "detail": "<mensagem real da exceção Python/SQL>" }`, com o traceback completo
 impresso no stdout do uvicorn.
+
+> **Nomes dos parâmetros:** usar exatamente `p_anomes_ini` e `p_anomes_fim`. Não usar `ini`, `fim`, `anomes_ini`, `anomes_fim`, `ano`, `mes_ini` ou `mes_fim`.
+> **JSON:** converter `vl_realizado numeric`/`Decimal` para `float` antes do retorno.
 
 ## Proibições
 
