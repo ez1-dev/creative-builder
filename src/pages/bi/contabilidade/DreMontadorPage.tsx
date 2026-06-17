@@ -52,7 +52,7 @@ export default function DreMontadorPage() {
 
   const [busca, setBusca] = useState('');
   const [filtroVinculo, setFiltroVinculo] = useState<FiltroVinculo>('todas');
-  const [limite, setLimite] = useState(250);
+  const [limite, setLimite] = useState<number | 'all'>('all');
 
   const [sortBy, setSortBy] = useState<SortKey>('valor');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -108,7 +108,7 @@ export default function DreMontadorPage() {
         busca: busca || undefined,
         somente_nao_vinculadas: filtroVinculo === 'nao_vinculadas' || undefined,
         somente_vinculadas: filtroVinculo === 'vinculadas' || undefined,
-        limite,
+        limite: limite === 'all' ? undefined : limite,
       });
       setContas(arr);
       console.log('[MONTADOR DRE] contas recebidas:', arr.length);
@@ -382,9 +382,10 @@ export default function DreMontadorPage() {
                 </Select>
                 <div>
                   <label className="text-xs text-muted-foreground">Limite</label>
-                  <Select value={String(limite)} onValueChange={(v) => setLimite(Number(v))}>
+                  <Select value={String(limite)} onValueChange={(v) => setLimite(v === 'all' ? 'all' : Number(v))}>
                     <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="all">Todas</SelectItem>
                       {[50, 100, 250, 500, 1000].map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
                     </SelectContent>
                   </Select>

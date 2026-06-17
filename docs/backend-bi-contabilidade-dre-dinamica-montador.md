@@ -15,7 +15,7 @@ Lista as contas/máscaras do ERP com totais agregados e indicador de vínculo no
 | `busca` | string | não | Filtro por máscara ou conta (ILIKE) |
 | `somente_nao_vinculadas` | bool | não | Filtra `ja_vinculada=false` |
 | `somente_vinculadas` | bool | não | Filtra `ja_vinculada=true` |
-| `limite` | int | não | Default 250 |
+| `limite` | int | não | Default 250. **Quando omitido, retornar todas as contas ativas do período** (sem cap). Recomenda-se cap interno de segurança em ~10.000. |
 
 ### Resposta
 ```json
