@@ -265,7 +265,7 @@ export function DreDrillDrawer({
                           {c.label}
                         </th>
                       ))}
-                      {current.tipo_drill === 'LANCAMENTO' && <th className="px-2 py-2 text-center w-44">Ações</th>}
+                      {current.tipo_drill === 'LANCAMENTO' && <th className="px-2 py-2 text-center w-64">Ações</th>}
                       {current.tipo_drill === 'REABRIR' && <th className="px-2 py-2 text-center w-10">Drill</th>}
                     </tr>
                   </thead>
