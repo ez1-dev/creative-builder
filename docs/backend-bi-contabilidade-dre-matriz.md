@@ -178,14 +178,15 @@ def dre_matriz(ano: str, unidade: str | None = None):
     u = (unidade or "").strip().upper()
     p_unidade = None if u in ("", "TODOS", "TODAS", "ALL") else unidade  # reservado p/ futuro
 
-    p_ini, p_fim = f"{ano}01", f"{ano}12"
+    p_anomes_ini = f"{ano}01"
+    p_anomes_fim = f"{ano}12"
 
     # Realizado: SOMENTE via RPC. Já vem agrupado por (codigo_linha, anomes_referente)
     # com o sinal da regra aplicado em vl_realizado.
     realizado = pg.fetch(
         "SELECT codigo_linha, anomes_referente, vl_realizado "
-        "FROM public.rpc_bi_dre_realizado_regras(%(ini)s, %(fim)s)",
-        {"ini": p_ini, "fim": p_fim},
+        "FROM public.rpc_bi_dre_realizado_regras(%(p_anomes_ini)s, %(p_anomes_fim)s)",
+        {"p_anomes_ini": p_anomes_ini, "p_anomes_fim": p_anomes_fim},
     )
 
     orcado    = pg.fetch(SQL_ORCADO, {"ano": ano, "unidade": p_unidade})
@@ -196,6 +197,28 @@ def dre_matriz(ano: str, unidade: str | None = None):
     # calcular A.V. contra a linha de Receita Líquida
     return montar_matriz_anual(realizado, orcado, estrutura)
 ```
+
+## Serialização JSON (Decimal → float)
+
+A RPC retorna `vl_realizado numeric` → no Python vira `decimal.Decimal`, que **não** é serializável pelo JSON do FastAPI e pode disparar `TypeError: Object of type Decimal is not JSON serializable`, resultando em **502**.
+
+Converter para `float` antes de devolver qualquer JSON:
+
+```python
+def _to_float(v):
+    return float(v) if v is not None else None
+
+return [
+    {
+        "codigo_linha": r["codigo_linha"],
+        "anomes_referente": r["anomes_referente"],
+        "vl_realizado": _to_float(r["vl_realizado"]),
+    }
+    for r in rows
+]
+```
+
+Aplicar a mesma conversão a **todos** os campos numéricos do response final do `/dre-matriz`: `*_realizado`, `*_av`, `*_orcado`, `total_realizado`, `total_av`, `total_orcado`, além de qualquer valor vindo de `numeric`/`Decimal` no orçamento ou na estrutura.
 
 
 ## SQL do orçamento (inalterado)
