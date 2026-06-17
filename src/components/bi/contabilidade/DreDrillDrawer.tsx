@@ -310,6 +310,16 @@ export function DreDrillDrawer({
                                 <Sparkles className="h-3 w-3 mr-1" />
                                 Classificar
                               </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-[11px]"
+                                onClick={() => setModalRegra({ open: true, row })}
+                                title="Criar regra de classificação (conta + centro de custos)"
+                              >
+                                <Wand2 className="h-3 w-3 mr-1" />
+                                Criar regra
+                              </Button>
                             </div>
                           </td>
                         )}
