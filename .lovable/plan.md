@@ -1,48 +1,50 @@
-## Contexto
+## Objetivo
+Fazer o Montador da DRE Gerencial reconhecer corretamente o array `centros_custo` que o backend já envia em `/api/bi/contabilidade/dre-dinamica/plano-contas`, parando de exibir o falso alerta "Backend não retornou centros_custo[] em nenhuma conta".
 
-A tela `/bi/contabilidade/dre-dinamica/montador` está exibindo o banner de diagnóstico "backend não retornou `centros_custo` em nenhuma conta" porque o endpoint FastAPI `GET /api/bi/contabilidade/dre-dinamica/plano-contas` está devolvendo cada item **sem** o array `centros_custo[]` (ou devolvendo `[]` em todos).
+## Causa
+O mapper atual em `src/lib/bi/dreMontadorApi.ts` só aceita `centros_custo` se já for `Array.isArray(...)`. Quando o backend serializa como string JSON (caso comum em respostas vindas de `json_agg`/`to_json` repassadas por algumas rotas FastAPI), o array é descartado e o diagnóstico `semCcu` dispara mesmo havendo dados válidos.
 
-O frontend já está preparado para consumir o contrato novo (`cd_centro_custos`, `cd_centro_custos_3`, `qtd_lancamentos`, `valor_total`) com aliases defensivos. **A correção real é no backend FastAPI.** Aqui no Lovable só posso (a) reforçar o contrato na documentação que o time de backend usa e (b) melhorar o diagnóstico para acelerar a investigação.
+## Mudanças
 
-## Escopo do plano
-
-### 1. `docs/backend-bi-contabilidade-dre-dinamica-montador.md`
-Adicionar uma seção destacada **"Checklist de investigação quando `centros_custo` vem vazio"** com:
-- Conferir se a query de agregação por `centro_custo` está sendo executada (não apenas a query de totais por conta).
-- Conferir se o `LEFT JOIN` com o cadastro de CCU não está filtrando linhas (usar `LEFT JOIN`, nunca `INNER`).
-- Conferir se o `json_agg(...) FILTER (WHERE rn <= 10)` está sendo serializado como array no JSON final (não como string).
-- Conferir se o campo está sendo retornado com o nome `centros_custo` (snake_case, plural) — não `centro_custo`, `ccu`, etc.
-- Conferir se o período `[anomes_ini, anomes_fim]` recebido tem lançamentos em `bi_vm_lanc_contabil.centro_custo` não nulo.
-- SQL de smoke-test isolado para o time rodar e validar que a base tem dados:
-  ```sql
-  SELECT mascara, cd_conta, centro_custo, count(*), sum(vl_saldo)
-  FROM bi_vm_lanc_contabil
-  WHERE anomes_referente BETWEEN :ini AND :fim
-    AND centro_custo IS NOT NULL
-  GROUP BY 1,2,3
-  ORDER BY abs(sum(vl_saldo)) DESC
-  LIMIT 20;
+### 1. `src/lib/bi/dreMontadorApi.ts`
+- Criar helper `coerceCentrosCusto(raw)` que:
+  - retorna `[]` para `null`/`undefined`;
+  - se for `string`, faz `JSON.parse` dentro de `try/catch` e segue;
+  - se for array, usa direto;
+  - caso contrário, `[]`.
+- Substituir a leitura atual (`Array.isArray(r.centros_custo) && r.centros_custo || ...`) por:
+  - prioridade absoluta para `r.centros_custo` via `coerceCentrosCusto`;
+  - só cair nos aliases (`ccu`, `centroscusto`, `centros`, `cc`, `centros_de_custo`) se `centros_custo` estiver totalmente ausente.
+- Normalizar cada centro conforme o contrato pedido:
+  ```ts
+  {
+    cd_centro_custos,
+    cd_centro_custos_3: cd_centro_custos_3 || cd_centro_custos.slice(0,3),
+    qtd_lancamentos: Number(qtd_lancamentos || 0),
+    valor_total: Number(valor_total ?? vl_realizado ?? 0),
+    vl_realizado: Number(vl_realizado ?? valor_total ?? 0),
+    ds_centro_custos,
+  }
   ```
-- Resposta de exemplo **mínima válida** (1 conta com 1 CCU) para o time comparar com o que o endpoint está devolvendo hoje.
+- Adicionar campos opcionais `vl_realizado?: number` e `ds_centro_custos?: string` em `PlanoContaCentroCusto`.
+- Trocar os logs `[MONTADOR DRE]` para mostrar:
+  - `Object.keys(arr[0])` (chaves brutas da primeira conta);
+  - `typeof arr[0].centros_custo`;
+  - `mapped[0].centros_custo.length`;
+  - `mapped[0].centros_custo[0]` quando existir.
+- Manter o `console.warn` `semCcu`, porém só dispará-lo se **toda** conta mapeada continuar com `centros_custo.length === 0` após a normalização.
 
-### 2. `src/lib/bi/dreMontadorApi.ts`
-Melhorar o log de diagnóstico quando `semCcu === true`:
-- Logar quantas contas vieram no payload (`mapped.length`).
-- Logar as chaves do primeiro item bruto (`Object.keys(arr[0])`) para o time de backend ver rapidamente quais campos estão sendo enviados (e perceber se está vindo com outro nome).
-- Mensagem do warn mais explícita: incluir o nome canônico esperado (`centros_custo`) e os aliases aceitos.
+### 2. `src/pages/bi/contabilidade/DreMontadorPage.tsx`
+- Recalcular `diag.semCcu` em cima do array já normalizado vindo do mapper (sem mudança de contrato — já é `contas.every(...)`).
+- Atualizar o `console.log('[PLANO CONTAS] ...')` da linha expandida para incluir `typeof c.centros_custo`, `c.centros_custo.length` e o primeiro item.
+- Nenhuma mudança visual na tabela; o aviso âmbar só aparecerá quando realmente não houver centros após a normalização.
 
-### 3. `src/pages/bi/contabilidade/DreMontadorPage.tsx`
-No banner amber de diagnóstico (quando `semCcu`), adicionar:
-- Link/texto curto apontando para o doc `docs/backend-bi-contabilidade-dre-dinamica-montador.md` (seção do checklist).
-- Texto do banner deixar claro que o campo esperado é `centros_custo` (array) por item, com os 4 campos canônicos.
+### 3. Sem alterações em
+- Endpoint, edge functions, esquema de banco.
+- Tela "Contas disponíveis do ERP" (consome o mesmo `fetchPlanoContasDinamica`, então herda o fix automaticamente).
+- Docs já criados; nenhum ajuste necessário no checklist.
 
-## Fora de escopo
-- Mudar o nome do endpoint ou o shape esperado.
-- Alterar `/dre-dinamica`, `/vincular-contas`, ou a UI de expansão (já está pronta para receber o array).
-- Qualquer correção no FastAPI (não está neste repositório).
-
-## Resultado esperado
-Depois do deploy:
-1. O time de backend recebe um checklist claro do que verificar.
-2. O console do navegador mostra exatamente quais chaves o endpoint está devolvendo, acelerando o diagnóstico.
-3. Assim que o backend passar a devolver `centros_custo[]`, o banner desaparece e a expansão por conta começa a popular automaticamente — sem mais nenhuma mudança no frontend.
+## Critério de aceite
+- Ao chamar `/plano-contas` com `anomes_ini=202601&anomes_fim=202601`, o banner âmbar "Backend não retornou centros_custo[]" não aparece quando houver pelo menos uma conta com centros.
+- Expandindo a conta `311020006` na tabela do Montador, a sub-tabela lista vários centros de custo com `cd_centro_custos`, `cd_centro_custos_3`, `qtd_lancamentos` e `valor_total`.
+- Logs `[MONTADOR DRE]` no console mostram tipo, quantidade e o primeiro centro.
