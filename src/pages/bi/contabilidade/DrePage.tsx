@@ -236,26 +236,52 @@ export default function DrePage() {
     return map;
   }, [linhas]);
 
+  const TIPOS_CALCULADOS = new Set(['TOTAL', 'CALCULO', 'CÁLCULO']);
+
   const abrirDrill = (
-    codigoLinha: string,
+    linha: DreLinha,
     tipo: DreDrillTipo,
     mesKey: string,
   ) => {
+    const codigoLinha = String(linha.codigo_linha ?? '').trim().toUpperCase();
+    const tipoLinha = String(linha.tipo_linha ?? '').trim().toUpperCase();
+    const calculada = TIPOS_CALCULADOS.has(tipoLinha) || isLinhaCalculada(codigoLinha);
+
+    let tipoDrillFinal: DreDrillTipo = tipo;
+    if (calculada && tipo !== 'REABRIR') {
+      tipoDrillFinal = 'REABRIR';
+      toast.info('Linha calculada — abrindo componentes da fórmula. Detalhe um componente para ver o drill.');
+    }
+
     let anomes_referente: string | null = null;
     if (mesKey !== 'total') {
       const numero = MESES.find((m) => m.key === mesKey)?.numero;
       if (numero) anomes_referente = `${ano}${numero}`;
     }
+
+    console.log('[DRE DRILL] linha selecionada:', linha);
+    console.log('[DRE DRILL] codigo_linha enviado:', codigoLinha);
+    console.log('[DRE DRILL] mascara exibida:', linha.descricao);
+    console.log('[DRE DRILL] tipo_linha:', linha.tipo_linha);
+    console.log('[DRE DRILL] tipo_drill:', tipoDrillFinal);
+
+    if (!codigoLinha) {
+      console.error('[DRE DRILL] Linha sem codigo_linha — abortando.', linha);
+      toast.error('Linha da DRE sem código técnico para drill.');
+      return;
+    }
+
     drill.openWith({
       ano,
       mes_ini: mesInicial,
       mes_fim: mesFinal,
       codigo_linha: codigoLinha,
-      tipo_drill: tipo,
+      tipo_drill: tipoDrillFinal,
       unidade: unidade === 'TODOS' ? undefined : unidade,
       anomes_referente,
     });
   };
+
 
   const exportarXlsx = async () => {
     if (!linhas.length) {
