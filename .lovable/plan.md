@@ -1,41 +1,61 @@
-# Exportar DRE para XLSX
+## Contexto
 
-Adicionar botão "Exportar XLSX" na tela `Contabilidade — DRE` (`src/pages/bi/contabilidade/DrePage.tsx`) que gera o arquivo direto no navegador, sem depender do backend.
+A tela `DrePage.tsx` já consome `GET /api/bi/contabilidade/dre-matriz` no FastAPI (via ngrok). A RPC `public.bi_dre_matriz_anual` no Cloud é apenas um espelho legado e **não precisa mudar** — a regra nova vive no FastAPI, onde também já existe `public.bi_dre_regras`.
 
-## Escopo
+Logo, esta alteração é **puramente de backend FastAPI + documentação**. Nada muda no frontend nem no schema do Cloud.
 
-- Botão "Exportar XLSX" no cabeçalho de filtros, ao lado de "Atualizar".
-- Desabilitado durante `loading` ou quando `linhas.length === 0`.
-- Usa as linhas já carregadas (mesmo recorte de meses + unidade + ano).
+## O que vou entregar
 
-## Conteúdo do arquivo
+Atualizar `docs/backend-bi-contabilidade-dre-matriz.md` com a nova especificação do endpoint para o time de backend implementar:
 
-Aba única `DRE {ano}`:
+1. **Fonte do realizado** — `public.bi_vm_lanc_contabil` (campos auxiliares vêm de `extras` jsonb: `cd_origem_lcto`, `cd_tns`, `cd_centro_custos`; `centro_custo` direto da coluna; máscara da conta resolvida em `bi_dre_mascara` apenas como fallback).
+2. **Classificação por `public.bi_dre_regras`** via `LEFT JOIN LATERAL`:
+   - Match por (em qualquer combinação preenchida na regra):
+     - `cd_mascara_like` → `m.mascara LIKE regra.cd_mascara_like`
+     - `cd_centro_custos_3` → `left(l.centro_custo,3) = regra.cd_centro_custos_3`
+     - `cd_centro_custos_like` → `l.centro_custo LIKE regra.cd_centro_custos_like`
+     - `cd_origem_lcto` → `l.extras->>'cd_origem_lcto' = regra.cd_origem_lcto`
+     - `cd_tns_like` → `l.extras->>'cd_tns' LIKE regra.cd_tns_like`
+   - Filtro `regra.ativo = true`
+   - `ORDER BY regra.prioridade ASC, regra.id` + `LIMIT 1` → primeira regra vence.
+3. **Fallback** — se nenhuma regra casar, usar a máscara atual de `bi_dre_mascara` (comportamento atual preservado).
+4. **Agregação** — somar `vl_saldo` (ou `vl_credito - vl_debito`) por `codigo_linha` (vindo da regra ou fallback) e `anomes_referente`, depois pivotar por mês como hoje.
+5. **Orçamento** — continua de `public.bi_vm_orc_dre` por `mascara` × mês (inalterado).
+6. **Proibições** — não usar Oracle/UpQuery, não consultar `EZORTEA.V_DRE_V1`, não manter regra fixa por `cd_mascara` no código Python.
+7. **Contrato HTTP** — request/response permanecem idênticos (mesmo shape de linhas, mesmos query params `ano`/`unidade`).
 
-- Linhas 1-3: cabeçalho com Empresa "Sapiens", "DRE — {ano}", filtros aplicados (unidade, período mês inicial-final).
-- Linha 5: cabeçalho merge — coluna A "Máscara" + para cada mês (filtrado) e TOTAL, merge de 3 colunas com o nome do mês.
-- Linha 6: subcabeçalho `Realizado | A.V. | Orçado` para cada bloco.
-- Demais linhas: uma por linha da DRE (`descricao`, depois `<mes>_realizado`, `<mes>_av`, `<mes>_orcado` e `total_realizado`, `total_av`, `total_orcado`).
+## Pseudocódigo SQL (para o doc)
 
-## Formatação
+```sql
+WITH lanc AS (
+  SELECT
+    COALESCE(r.codigo_linha, m.mascara) AS codigo_linha,
+    (l.anomes_referente % 100)::int     AS mes,
+    SUM(COALESCE(l.vl_saldo,
+                 COALESCE(l.vl_credito,0) - COALESCE(l.vl_debito,0))) AS valor
+  FROM public.bi_vm_lanc_contabil l
+  LEFT JOIN public.bi_dre_mascara m ON m.cd_conta = l.cd_conta
+  LEFT JOIN LATERAL (
+    SELECT r.codigo_linha
+    FROM public.bi_dre_regras r
+    WHERE r.ativo
+      AND (r.cd_mascara_like        IS NULL OR m.mascara                 LIKE r.cd_mascara_like)
+      AND (r.cd_centro_custos_3     IS NULL OR left(l.centro_custo,3)    =    r.cd_centro_custos_3)
+      AND (r.cd_centro_custos_like  IS NULL OR l.centro_custo            LIKE r.cd_centro_custos_like)
+      AND (r.cd_origem_lcto         IS NULL OR l.extras->>'cd_origem_lcto' =  r.cd_origem_lcto)
+      AND (r.cd_tns_like            IS NULL OR l.extras->>'cd_tns'       LIKE r.cd_tns_like)
+    ORDER BY r.prioridade ASC, r.id
+    LIMIT 1
+  ) r ON true
+  WHERE (l.anomes_referente / 100)::int = :ano
+    AND (:unidade IS NULL OR m.unidade_negocio IS NULL OR m.unidade_negocio = :unidade)
+  GROUP BY 1, 2
+)
+SELECT ... -- pivot + join com bi_vm_orc_dre, igual ao formato atual
+```
 
-- Valores monetários: `#,##0.00;[Red](#,##0.00);-` (negativos em vermelho entre parênteses, zeros como "-").
-- Colunas A.V.: formato `0.0%;[Red](0.0%);-` (valor já vem como percentual numérico — dividir por 100 ao gravar).
-- Linhas totalizadoras (`RECEITA_LIQUIDA`, `LUCRO_BRUTO`, `EBITDA`, `EBIT`, `RESULTADO_EXERCICIO`): fonte negrito + preenchimento azul claro do tema (cor fixa hex `#DBEAFE`, fonte `#1E3A8A`).
-- Bloco TOTAL com fundo levemente destacado (`#EFF6FF`).
-- Cabeçalhos com fundo cinza claro (`#F1F5F9`) e negrito.
-- Congelar painel após linha 6 / coluna A.
-- Largura: coluna A = 42; demais = 14.
-- Auto-filter na linha 6.
+## Fora do escopo
 
-## Implementação
-
-- Já existe `xlsx` (SheetJS) no projeto? Se não, adicionar `xlsx` via `bun add xlsx` em build mode. Verificarei antes de gerar; se já houver `exceljs` em uso, prefiro `exceljs` (suporta merges + estilos por célula nativamente). Provável escolha: **`exceljs`**, pois precisamos de cores e merges.
-- Adicionar função `exportarXlsx()` em `DrePage.tsx` que monta o workbook com `exceljs`, gera blob e dispara download com nome `dre_{ano}_{unidade}_{mesIni}-{mesFim}.xlsx`.
-- Sem mudanças no backend e sem mudanças em outras telas.
-
-## Fora de escopo
-
-- Exportar via FastAPI.
-- PDF, CSV.
-- Outras telas de BI.
+- RPC `public.bi_dre_matriz_anual` no Cloud (não é mais usada pela tela).
+- Frontend `DrePage.tsx` (contrato preservado).
+- ETL — assume-se que `bi_dre_regras` já está populada e mantida no FastAPI/origem.
