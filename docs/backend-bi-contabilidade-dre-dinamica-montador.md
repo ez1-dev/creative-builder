@@ -42,6 +42,41 @@ Regras adicionais:
 - `nivel`: número de segmentos da `cd_mascara` separados por `.` (ex.: `3.01.01` → 3).
 - `centros_custo`: agregado por `centro_custo` em `bi_vm_lanc_contabil` no período, top 10 por `valor DESC`.
 
+### Campos obrigatórios na resposta
+
+O frontend depende desses campos. Sem eles, a tela mostra nomes vazios e/ou valores zerados (e exibe banner de diagnóstico).
+
+| Campo | Tipo | Origem sugerida |
+|---|---|---|
+| `cd_mascara` | string | `bi_vm_lanc_contabil.mascara` |
+| `cd_conta_contabil` | string | `bi_vm_lanc_contabil.cd_conta` |
+| `ds_conta` | string | join com plano de contas do ERP Senior (`e092cta.desccta` ou equivalente) |
+| `nivel` | int | `array_length(string_to_array(cd_mascara,'.'),1)` |
+| `qtd_lancamentos` | int | `count(*)` no período |
+| `valor_total` | numeric | `sum(vl_saldo)` (ou `sum(vl_credito - vl_debito)`) no período |
+| `centros_custo[]` | array | agregado por `centro_custo`, com `cd_centro_custo`, `ds_centro_custo`, `qtd`, `valor` |
+| `ja_vinculada` | bool | existe `bi_dre_linha_regra` ativa pra `modelo_id` casando essa máscara/conta |
+| `linhas_vinculadas` | string[] | `codigo_linha` das regras que casam |
+
+Aliases aceitos pelo frontend (defensivo): `descricao`/`nome_conta`/`nome` para `ds_conta`; `total`/`valor`/`vl_saldo`/`saldo` para `valor_total`; `qtde`/`qtd`/`quantidade` para `qtd_lancamentos`. Prefira os nomes canônicos.
+
+### SQL de referência
+
+```sql
+SELECT
+  l.mascara                                   AS cd_mascara,
+  l.cd_conta                                  AS cd_conta_contabil,
+  c.desccta                                   AS ds_conta,
+  array_length(string_to_array(l.mascara,'.'),1) AS nivel,
+  count(*)                                    AS qtd_lancamentos,
+  sum(l.vl_saldo)                             AS valor_total
+FROM bi_vm_lanc_contabil l
+LEFT JOIN <plano_contas_senior> c ON c.codcta = l.cd_conta
+WHERE l.anomes_referente BETWEEN :ini AND :fim
+GROUP BY 1,2,3,4
+ORDER BY valor_total DESC;
+```
+
 ### Implementação esperada
 - Agregar `bi_vm_lanc_contabil` por `mascara`/`cd_conta` no período.
 - `ja_vinculada`: existe regra ativa em `bi_dre_linha_regra` para o `modelo_id` referenciando essa máscara/conta.
