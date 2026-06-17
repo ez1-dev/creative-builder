@@ -1,64 +1,60 @@
-## Tela: Sincronização De/Para DRE
+## Objetivo
+Garantir que o botão "Sincronizar De/Para DRE" use exclusivamente `POST` com `Authorization: Bearer <token>` e `Content-Type: application/json`, e que erros do backend apareçam no bloco de debug com status + corpo da resposta.
 
-Nova página administrativa em **Contabilidade/BI** para orquestrar a sincronização do De/Para DRE entre o ERP Senior (via API FastAPI) e a tabela `public.bi_dre_depara_conta_ccu` no Lovable Cloud.
+## Diagnóstico
+O arquivo `src/lib/bi/dreSincronizacaoApi.ts` já chama `postJson('/api/bi/contabilidade/sync-depara-dre', {})`, que usa `method: 'POST'` e os headers exigidos. Não há fallback GET. O que falta é deixar a chamada de sincronização explícita (sem passar pelo helper genérico) e enriquecer a mensagem de erro para o painel de debug.
 
-### Premissas confirmadas
-- Frontend nunca acessa Oracle/UpQuery nem SQL Server direto.
-- Frontend usa apenas: (a) endpoints FastAPI com `Authorization: Bearer <token>`, (b) `supabase-js` com anon key (somente leitura de `bi_dre_depara_conta_ccu`).
-- Nenhum uso de `SUPABASE_SERVICE_ROLE_KEY`.
-- UpQuery permanece apenas como referência visual (aviso fixo).
+## Mudanças
 
-### Arquivos a criar/alterar
+### 1. `src/lib/bi/dreSincronizacaoApi.ts`
+Reescrever apenas a função `sincronizarDeparaDreErp` para uma chamada `fetch` direta, no padrão exato pedido:
 
-1. **`src/pages/bi/contabilidade/DreSincronizacaoDeparaPage.tsx`** (nova)
-   - Layout com 4 cards + banner de aviso fixo no topo.
-   - Estado local (`useState`) para: loading por card, resultados, erro, debug expansível.
+```ts
+export async function sincronizarDeparaDreErp(): Promise<SyncDeparaResponse> {
+  const token = api.getToken();
+  const url = `${getApiUrl()}/api/bi/contabilidade/sync-depara-dre`;
 
-2. **`src/lib/bi/dreSincronizacaoApi.ts`** (novo)
-   - `buscarTabelasCandidatasErp()` → `GET /api/admin/erp/tabelas-candidatas-dre`
-   - `buscarColunasCandidatasErp()` → `GET /api/admin/erp/colunas-candidatas-dre`
-   - `sincronizarDeparaDreErp()` → `POST /api/bi/contabilidade/sync-depara-dre`
-   - `validarDeparaSupabase()` → consulta direta `bi_dre_depara_conta_ccu` via `supabase-js`: total ativos, contas distintas, centros distintos, agrupado por `cd_mascara_dre`, últimos 20 `updated_at`.
-   - Todas as funções retornam `{ dados: T[], ... }` com normalização defensiva (`Array.isArray(...) ? ... : []`).
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token ?? ''}`,
+      "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true",
+    },
+    body: "{}",
+  });
 
-3. **`src/App.tsx`** — adicionar rota `/bi/contabilidade/dre/sincronizacao-depara` apontando para a nova página (com `ProtectedRoute path="/bi/contabilidade/dre"`).
+  const raw = await response.text();
+  let json: any = null;
+  try { json = raw ? JSON.parse(raw) : null; } catch { /* mantém raw */ }
 
-4. **`src/components/AppSidebar.tsx`** — adicionar item de menu "Sincronização De/Para DRE" sob Contabilidade → DRE.
+  if (!response.ok) {
+    const detail =
+      (json && (json.detail || json.message)) ||
+      raw ||
+      `HTTP ${response.status} ${response.statusText}`;
+    throw new Error(
+      `POST ${url} → ${response.status} ${response.statusText}\n` +
+      (typeof detail === 'string' ? detail : JSON.stringify(detail, null, 2))
+    );
+  }
 
-5. **`docs/backend-bi-contabilidade-sync-depara-dre.md`** (novo) — spec dos 3 endpoints FastAPI esperados (entrada, saída, headers, exemplos), para o time backend implementar.
+  return {
+    success: Boolean(json?.success ?? true),
+    origem: String(json?.origem ?? 'ERP Senior SQL Server'),
+    destino: String(json?.destino ?? 'Lovable Cloud / bi_dre_depara_conta_ccu'),
+    total_registros: Number(json?.total_registros ?? 0),
+    message: String(json?.message ?? 'Sincronização concluída.'),
+  };
+}
+```
 
-6. **`mem/features/dre-depara-conta-ccu.md`** — atualizar adicionando a nova tela admin e o fluxo de sincronização ERP→Cloud.
+Restante do arquivo (diagnóstico ERP e validação Cloud) permanece igual.
 
-### Cards (detalhe)
+### 2. `src/pages/bi/contabilidade/DreSincronizacaoDeparaPage.tsx`
+Nenhuma alteração funcional — o `<details>` "Detalhe técnico" já exibe `erroSync`, que agora inclui método, URL, status e corpo retornado pela API.
 
-**Card 1 — Fonte oficial** (informativo)
-- Fonte: `ERP Senior / SQL Server` · Destino: `Supabase / bi_dre_depara_conta_ccu`
-- Última sincronização e total: lidos de `localStorage` (`dre-depara-ultima-sync`) gravados após sucesso. Sem backend novo.
-
-**Card 2 — Diagnóstico ERP**
-- 2 botões → preenchem `DataTable` separados.
-- Empty state: "Nenhuma tabela/coluna candidata encontrada no ERP."
-
-**Card 3 — Sincronização**
-- Botão principal com loading "Sincronizando dados do ERP Senior para o Supabase...".
-- Sucesso → exibe `message`, `origem`, `destino`, `total_registros`, timestamp local. Grava em `localStorage`. **Chama validação Supabase automaticamente.** Mostra botão "Recarregar DRE" que navega para `/bi/contabilidade/dre`.
-- Erro → alerta amigável + `<details>` com stack/payload técnico.
-
-**Card 4 — Validação Supabase**
-- Botão "Validar tabela De/Para no Supabase".
-- 4 KPIs (total ativos / contas distintas / centros distintos / nº máscaras) + tabela agrupada por `cd_mascara_dre` + tabela últimos atualizados.
-- Usa `supabase.from('bi_dre_depara_conta_ccu').select(...)` — RLS já permite SELECT a authenticated.
-
-### Aviso fixo
-Banner amarelo/info no topo: "Importante: esta sincronização usa o ERP Senior como fonte oficial. O UpQuery não é utilizado como origem de dados, apenas como referência de conferência."
-
-### Padrões a respeitar
-- Tokens semânticos (sem `text-white`/`bg-black` hardcoded).
-- Componentes `Card`, `Button`, `DataTableBI`, `Alert` do design system existente.
-- Header `ngrok-skip-browser-warning: true` (padrão da `lib/api.ts`).
-- Toda resposta validada com `Array.isArray` antes de `.length`/`.map`.
-
-### Fora de escopo
-- Implementar endpoints FastAPI (entregues como spec em `docs/`).
-- Alterar a tela DRE existente ou a RPC de matriz.
-- Mexer em RLS de `bi_dre_depara_conta_ccu` (já existente).
+## Itens fora de escopo
+- Lógica da tela DRE (`DrePage.tsx`).
+- Endpoints de diagnóstico ERP (já são GET por contrato).
+- Validação no Lovable Cloud (continua via client Supabase com anon key).
