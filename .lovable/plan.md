@@ -1,43 +1,39 @@
-## Problema
+## Objetivo
 
-A tela `/bi/contabilidade/dre-montador` está mostrando `valor_total = 0` em todas as contas retornadas por `GET /api/bi/contabilidade/dre-dinamica/plano-contas`. O log `[MONTADOR DRE] backend retornou valor_total = 0 em todos os itens` confirma que o problema está no backend (FastAPI), não no mapeamento do frontend — o front já aceita aliases (`total`, `valor`, `vl_saldo`, `saldo`) e ainda assim vem zero.
+Refatorar o consumo de `/api/bi/contabilidade/dre-dinamica/plano-contas` em `src/lib/bi/dreMontadorApi.ts` para seguir exatamente o contrato da RPC `bi_dre_plano_contas_disponivel_v2` e o spec passado pelo usuário, com logs de diagnóstico explícitos.
 
-## Diagnóstico esperado no backend
+## Mudanças em `src/lib/bi/dreMontadorApi.ts`
 
-O endpoint precisa agregar `bi_vm_lanc_contabil` no período `[anomes_ini, anomes_fim]` recebido. Hipóteses prováveis de por que `valor_total` está zerado:
+1. **Extrair função `normalizeCentrosCusto(raw)`** no formato exato do spec:
+   - `!raw` → `[]`
+   - `string` → `JSON.parse` (em catch → `[]`)
+   - `!Array.isArray` → `[]`
+   - `.filter(item => item && typeof item === 'object')`
+   - `.map(...)` produzindo os 6 campos canônicos (`cd_centro_custos`, `cd_centro_custos_3`, `qtd_lancamentos`, `valor_total`, `vl_realizado`, `ds_centro_custos`), com aliases `cd_centro_custo`/`centro_custo` e fallback `cd.slice(0,3)` para o nível 3
+   - `.filter(item => item.cd_centro_custos)` no final (descarta itens sem código)
 
-1. **Filtro de período não aplicado** — query roda sem `WHERE anomes_referente BETWEEN :ini AND :fim`, ou usa `=` em vez de `BETWEEN`, ou compara string com inteiro (`'202601'` vs `202601`).
-2. **Coluna errada na soma** — somando `vl_debito - vl_credito` quando o correto é `vl_saldo` (ou vice-versa), ou somando coluna que está sempre `NULL`/`0` no período.
-3. **JOIN derrubando linhas** — `INNER JOIN` com plano de contas Senior remove contas sem cadastro, zerando o agregado.
-4. **GROUP BY em coluna errada** — agregando por `cd_conta` mas devolvendo `mascara` de outra linha, fazendo a soma cair em buckets vazios.
-5. **Parâmetros do path** — `anomes_ini`/`anomes_fim` chegam como `None` na função Python e a query roda com `BETWEEN NULL AND NULL` → retorna 0.
+2. **Logs `[MONTADOR DRE]` após o `fetch`**, antes da normalização:
+   - `primeira conta (bruta):` `arr[0]`
+   - `Object.keys:` `Object.keys(arr[0])`
+   - `typeof centros_custo:` `typeof arr[0].centros_custo`
+   - `centros_custo (bruto):` `arr[0].centros_custo`
 
-## Plano
+3. **No mapper de cada conta**, ler **apenas** `r.centros_custo` (campo canônico) e passar por `normalizeCentrosCusto`. Remover os fallbacks de aliases de array (`ccu`, `centroscusto`, `centros`, `cc`, `centros_de_custo`) — conforme item 9 do spec, esses nomes não devem ser usados como campo principal.
 
-1. Verificar o smoke-test SQL no Cloud para confirmar que existe movimento em `202601`:
-   ```sql
-   SELECT count(*), sum(vl_saldo)
-   FROM bi_vm_lanc_contabil
-   WHERE anomes_referente BETWEEN 202601 AND 202601;
-   ```
-   Se vier `> 0` aqui, o dado existe e o problema é 100% no endpoint FastAPI.
+4. **Validação semCcu** continua usando o resultado normalizado (`mapped.some(m => m.centros_custo.length > 0)`), mas o warning passa a apontar para a RPC `bi_dre_plano_contas_disponivel_v2` como referência do contrato esperado.
 
-2. Atualizar `docs/backend-bi-contabilidade-dre-dinamica-montador.md` com uma seção nova **"Checklist quando `valor_total` vem 0"**, espelhando o checklist que já existe para `centros_custo` vazio. Itens:
-   - confirmar `WHERE anomes_referente BETWEEN :ini AND :fim` (inteiros, não strings);
-   - confirmar coluna somada (`sum(vl_saldo)` ou `sum(coalesce(vl_credito,0) - coalesce(vl_debito,0))`);
-   - confirmar `LEFT JOIN` no plano de contas;
-   - confirmar que `anomes_ini`/`anomes_fim` chegam preenchidos no handler (logar no FastAPI);
-   - smoke-test SQL acima;
-   - resposta mínima válida com `valor_total != 0`.
+5. **Logs pós-normalização** (mantidos): `mapped[0].centros_custo.length`, primeira amostra, e o warning detalhado quando todas as contas vêm sem CCU.
 
-3. No frontend (`src/lib/bi/dreMontadorApi.ts`), reforçar o aviso quando `valor_total === 0` em todos os itens: incluir no `console.warn` a URL chamada e o período enviado, para facilitar o diagnóstico ("verifique se o endpoint agrega `bi_vm_lanc_contabil` no período `anomes_ini=... anomes_fim=...`"). Não mexer no mapper — os aliases já estão corretos.
+## Não muda
+
+- `PlanoContaCentroCusto` interface (já tem os 6 campos).
+- `fetchPlanoContasDinamica` assinatura, query params, headers.
+- `vincularContasDinamica`, `resolverLinhaId`.
+- Nada em `DreMontadorPage.tsx` — o banner já consome `centros_custo.length` do resultado mapeado.
 
 ## Critério de aceite
 
-- `docs/backend-bi-contabilidade-dre-dinamica-montador.md` tem a nova seção de troubleshooting para `valor_total = 0`.
-- Console do frontend, ao detectar todos os valores zerados, mostra explicitamente o período enviado e a URL chamada, junto com a lista de causas prováveis no backend.
-- Nenhuma alteração de lógica de mapeamento — apenas diagnóstico.
-
-## Pergunta antes de implementar
-
-Você quer que eu rode o smoke-test SQL no banco agora (via read_query) para confirmar se existe movimento em `bi_vm_lanc_contabil` no período `202601`? Isso prova de imediato se o problema é "não há dado" vs "endpoint não agrega".
+- Console mostra os 4 logs brutos pedidos (item 2–5 do spec) antes da normalização.
+- Conta `311020006` aparece com `centros_custo.length === 17`.
+- Banner "Backend não retornou…" só aparece se `contasNormalizadas.every(c => c.centros_custo.length === 0)`.
+- Nenhum uso de `centros_custos`/`centro_custo`/`centros` como campo principal.
