@@ -1,7 +1,8 @@
 // Client da API FastAPI para o módulo "DRE Configurável" (BI Financeiro).
 // Front é apenas interface — não calcula DRE, não acessa ERP, não usa Cloud para valores.
+// Usa o cliente compartilhado `api` (envia Authorization: Bearer <token> e trata 401).
 
-import { api, getApiUrl } from '@/lib/api';
+import { api } from '@/lib/api';
 import type {
   DreFiltrosPainel,
   DreRealizadoResumo,
@@ -9,16 +10,6 @@ import type {
   DreRealizadoMensalRow,
   DreModeloItem,
 } from './dreConfiguravelTypes';
-
-function authHeaders(): Record<string, string> {
-  const token = api.getToken();
-  const h: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'ngrok-skip-browser-warning': 'true',
-  };
-  if (token) h.Authorization = `Bearer ${token}`;
-  return h;
-}
 
 function toNumberBI(v: unknown): number {
   if (v === null || v === undefined || v === '') return 0;
@@ -55,43 +46,54 @@ function normalizarMensal(raw: any[]): DreRealizadoMensalRow[] {
   }));
 }
 
-export async function fetchDreRealizadoResumo(filtros: DreFiltrosPainel): Promise<DreRealizadoResumo> {
-  const url = new URL(`${getApiUrl()}/api/dre/realizado/resumo`);
-  if (filtros.empresa != null && filtros.empresa !== '') url.searchParams.set('empresa', String(filtros.empresa));
-  if (filtros.filial != null && filtros.filial !== '') url.searchParams.set('filial', String(filtros.filial));
-  url.searchParams.set('data_ini', filtros.data_ini);
-  url.searchParams.set('data_fim', filtros.data_fim);
-  if (filtros.modelo_id) url.searchParams.set('modelo_id', filtros.modelo_id);
-  url.searchParams.set('tipo', filtros.tipo ?? 'MENSAL');
-  url.searchParams.set('comparar_orcamento', String(!!filtros.comparar_orcamento));
-
-  console.log('[DRE CONFIGURAVEL] GET resumo', url.toString());
-  const resp = await fetch(url.toString(), { headers: authHeaders() });
-  if (!resp.ok) {
-    const txt = await resp.text();
-    throw new Error(`Resumo DRE indisponível (HTTP ${resp.status}): ${txt.slice(0, 300)}`);
+function rethrowAuthAware(err: any): never {
+  const status = err?.statusCode;
+  const msg = String(err?.message ?? '');
+  if (status === 401 || /not authenticated/i.test(msg)) {
+    const e: any = new Error('Sessão expirada. Faça login novamente.');
+    e.statusCode = 401;
+    e.isAuthError = true;
+    throw e;
   }
-  const data = await resp.json();
-  return {
-    totais: normalizarTotais(data?.totais),
-    mensal: normalizarMensal(data?.mensal ?? data?.linhas ?? []),
+  throw err;
+}
+
+export async function fetchDreRealizadoResumo(filtros: DreFiltrosPainel): Promise<DreRealizadoResumo> {
+  const params: Record<string, any> = {
+    empresa: filtros.empresa || undefined,
+    filial: filtros.filial || undefined,
+    data_ini: filtros.data_ini,
+    data_fim: filtros.data_fim,
+    modelo_id: filtros.modelo_id || undefined,
+    tipo: filtros.tipo ?? 'MENSAL',
+    comparar_orcamento: !!filtros.comparar_orcamento,
   };
+  console.log('[DRE CONFIGURAVEL] GET /api/dre/realizado/resumo', params);
+  try {
+    const data = await api.get<any>('/api/dre/realizado/resumo', params);
+    return {
+      totais: normalizarTotais(data?.totais),
+      mensal: normalizarMensal(data?.mensal ?? data?.linhas ?? []),
+    };
+  } catch (err) {
+    rethrowAuthAware(err);
+  }
 }
 
 export async function fetchDreModelos(): Promise<DreModeloItem[]> {
-  const url = `${getApiUrl()}/api/dre/modelos`;
-  console.log('[DRE CONFIGURAVEL] GET modelos', url);
-  const resp = await fetch(url, { headers: authHeaders() });
-  if (!resp.ok) {
-    const txt = await resp.text();
-    throw new Error(`Modelos DRE indisponíveis (HTTP ${resp.status}): ${txt.slice(0, 200)}`);
+  console.log('[DRE CONFIGURAVEL] GET /api/dre/modelos');
+  try {
+    const data = await api.get<any>('/api/dre/modelos');
+    const arr = Array.isArray(data?.itens) ? data.itens : Array.isArray(data) ? data : [];
+    return arr
+      .map((m: any) => ({
+        id: String(m?.id ?? m?.modelo_id ?? ''),
+        nome: String(m?.nome ?? m?.descricao ?? m?.id ?? '—'),
+        descricao: m?.descricao ?? null,
+        status: m?.status ?? null,
+      }))
+      .filter((m: DreModeloItem) => m.id);
+  } catch (err) {
+    rethrowAuthAware(err);
   }
-  const data = await resp.json();
-  const arr = Array.isArray(data?.itens) ? data.itens : Array.isArray(data) ? data : [];
-  return arr.map((m: any) => ({
-    id: String(m?.id ?? m?.modelo_id ?? ''),
-    nome: String(m?.nome ?? m?.descricao ?? m?.id ?? '—'),
-    descricao: m?.descricao ?? null,
-    status: m?.status ?? null,
-  })).filter((m: DreModeloItem) => m.id);
 }

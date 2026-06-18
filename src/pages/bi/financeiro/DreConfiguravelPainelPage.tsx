@@ -85,12 +85,28 @@ export default function DreConfiguravelPainelPage() {
         }}
       />
 
-      {resumoQ.isError ? (
+      {modelosQ.isError && (modelosQ.error as any)?.statusCode === 401 && (
         <ErrorState
-          title="Não foi possível carregar a DRE"
-          message={(resumoQ.error as Error)?.message}
-          onRetry={() => resumoQ.refetch()}
+          title="Sessão expirada"
+          message="Sua sessão expirou. Faça login novamente para continuar."
+          onRetry={() => window.location.assign('/login')}
         />
+      )}
+
+      {resumoQ.isError ? (
+        (resumoQ.error as any)?.statusCode === 401 ? (
+          <ErrorState
+            title="Sessão expirada"
+            message="Sua sessão expirou. Faça login novamente para continuar."
+            onRetry={() => window.location.assign('/login')}
+          />
+        ) : (
+          <ErrorState
+            title="Não foi possível carregar a DRE"
+            message={(resumoQ.error as Error)?.message}
+            onRetry={() => resumoQ.refetch()}
+          />
+        )
       ) : resumoQ.isLoading ? (
         <LoadingState message="Carregando DRE..." />
       ) : (
