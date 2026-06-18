@@ -129,7 +129,29 @@ FROM ranked
 GROUP BY 1,2;
 ```
 
+### Checklist de investigação quando `valor_total` vem 0
+
+Quando a tela mostra o aviso `[MONTADOR DRE] backend retornou valor_total = 0 em todos os itens`, seguir nesta ordem:
+
+1. **A tabela `bi_vm_lanc_contabil` no Cloud tem dados no período?** Rodar o smoke-test abaixo. Se vier `count(*) = 0`, o ETL `ATU_CONTABILIDADE` (ação `VM_LANC_CONTABIL`) não foi executado para esse período — rodar `/etl/tarefas/ATU_CONTABILIDADE` antes de qualquer outra coisa.
+
+   ```sql
+   SELECT count(*) AS qtd,
+          sum(vl_saldo) AS soma_saldo,
+          sum(coalesce(vl_credito,0) - coalesce(vl_debito,0)) AS soma_cd
+   FROM bi_vm_lanc_contabil
+   WHERE anomes_referente BETWEEN :ini AND :fim;
+   ```
+
+2. **O filtro de período está aplicado corretamente?** `WHERE anomes_referente BETWEEN :ini AND :fim` com `ini`/`fim` como **inteiros** (`202601`), não strings. Comparar `text` com `int` em Postgres devolve 0 linhas silenciosamente em algumas versões.
+3. **Os parâmetros chegaram preenchidos no handler FastAPI?** Logar `anomes_ini` e `anomes_fim` no início da rota. Se vierem `None`, a query roda `BETWEEN NULL AND NULL` → 0 linhas → soma 0.
+4. **A coluna somada existe e está populada?** Preferir `sum(vl_saldo)`. Se `vl_saldo` for sempre `NULL` no período, cair para `sum(coalesce(vl_credito,0) - coalesce(vl_debito,0))`.
+5. **O JOIN com o plano de contas é `LEFT JOIN`?** `INNER JOIN` derruba contas sem cadastro e zera o agregado.
+6. **O `GROUP BY` casa com o `SELECT`?** Agrupar e devolver `mascara`/`cd_conta` consistentes — buckets desalinhados produzem somas vazias.
+
 ### Checklist de investigação quando `centros_custo` vem vazio
+
+
 
 Quando o frontend mostra o banner "Backend não retornou o array `centros_custo` em nenhuma conta", o time de backend deve seguir esta ordem:
 
