@@ -1,39 +1,46 @@
 ## Objetivo
 
-Refatorar o consumo de `/api/bi/contabilidade/dre-dinamica/plano-contas` em `src/lib/bi/dreMontadorApi.ts` para seguir exatamente o contrato da RPC `bi_dre_plano_contas_disponivel_v2` e o spec passado pelo usuário, com logs de diagnóstico explícitos.
+Refatorar `src/lib/bi/dreMontadorApi.ts` para não zerar valores quando o backend devolver `vl_realizado`/`realizado` em vez de `valor_total`, ou quando vier como string pt-BR. Também ajustar a validação de "valores zerados" para considerar valores nos centros de custo.
 
 ## Mudanças em `src/lib/bi/dreMontadorApi.ts`
 
-1. **Extrair função `normalizeCentrosCusto(raw)`** no formato exato do spec:
-   - `!raw` → `[]`
-   - `string` → `JSON.parse` (em catch → `[]`)
-   - `!Array.isArray` → `[]`
-   - `.filter(item => item && typeof item === 'object')`
-   - `.map(...)` produzindo os 6 campos canônicos (`cd_centro_custos`, `cd_centro_custos_3`, `qtd_lancamentos`, `valor_total`, `vl_realizado`, `ds_centro_custos`), com aliases `cd_centro_custo`/`centro_custo` e fallback `cd.slice(0,3)` para o nível 3
-   - `.filter(item => item.cd_centro_custos)` no final (descarta itens sem código)
+1. **Nova função `toNumberBI(value)`** (exportada):
+   - `null`/`undefined`/`""` → `0`
+   - `number` → retorna direto
+   - string com vírgula → trata como pt-BR (`replace(/\./g, '').replace(',', '.')`)
+   - string sem vírgula → `Number(text)` (preserva `"-124811.54"`)
+   - `Number.isFinite` falso → `0`
 
-2. **Logs `[MONTADOR DRE]` após o `fetch`**, antes da normalização:
-   - `primeira conta (bruta):` `arr[0]`
-   - `Object.keys:` `Object.keys(arr[0])`
-   - `typeof centros_custo:` `typeof arr[0].centros_custo`
-   - `centros_custo (bruto):` `arr[0].centros_custo`
+2. **`normalizeCentrosCusto`** passa a usar `toNumberBI` para `valor_total`/`vl_realizado`, casando o spec (espelha `valor_total = vl_realizado = valorCentro`).
 
-3. **No mapper de cada conta**, ler **apenas** `r.centros_custo` (campo canônico) e passar por `normalizeCentrosCusto`. Remover os fallbacks de aliases de array (`ccu`, `centroscusto`, `centros`, `cc`, `centros_de_custo`) — conforme item 9 do spec, esses nomes não devem ser usados como campo principal.
+3. **`fetchPlanoContasDinamica`** — no mapper de cada conta:
+   - `valorConta = toNumberBI(r.valor_total ?? r.vl_realizado ?? r.realizado ?? 0)`
+   - escreve `valor_total = vl_realizado = valorConta` no objeto mapeado
+   - mantém `centros_custo` normalizado
 
-4. **Validação semCcu** continua usando o resultado normalizado (`mapped.some(m => m.centros_custo.length > 0)`), mas o warning passa a apontar para a RPC `bi_dre_plano_contas_disponivel_v2` como referência do contrato esperado.
+4. **Validação `temValor`** substitui a `semValor` atual:
+   - `mapped.some(conta => abs(valor_total) > 0 || centros_custo.some(cc => abs(cc.valor_total) > 0))`
+   - Warning "Valores zerados" só sai quando `!temValor`
 
-5. **Logs pós-normalização** (mantidos): `mapped[0].centros_custo.length`, primeira amostra, e o warning detalhado quando todas as contas vêm sem CCU.
+5. **Logs obrigatórios** (após o mapping):
+   - `primeira conta bruta` (`arr[0]`)
+   - `primeira conta normalizada` (`mapped[0]`)
+   - `qtd contas com valor`
+   - `soma valor_total`
+   - log específico da conta `311020006` (valor + qtd centros)
+
+## Tipo
+
+Adicionar `vl_realizado?: number` e `realizado?: number` opcionais em `PlanoContaErp` para refletir os campos espelhados.
 
 ## Não muda
 
-- `PlanoContaCentroCusto` interface (já tem os 6 campos).
-- `fetchPlanoContasDinamica` assinatura, query params, headers.
-- `vincularContasDinamica`, `resolverLinhaId`.
-- Nada em `DreMontadorPage.tsx` — o banner já consome `centros_custo.length` do resultado mapeado.
+- Assinatura de `fetchPlanoContasDinamica`, `vincularContasDinamica`, `resolverLinhaId`.
+- Logs brutos da primeira conta (`Object.keys`, `typeof centros_custo`) já implementados na rodada anterior — preservados.
+- `DreMontadorPage.tsx` (consome `valor_total` do objeto mapeado).
 
 ## Critério de aceite
 
-- Console mostra os 4 logs brutos pedidos (item 2–5 do spec) antes da normalização.
-- Conta `311020006` aparece com `centros_custo.length === 17`.
-- Banner "Backend não retornou…" só aparece se `contasNormalizadas.every(c => c.centros_custo.length === 0)`.
-- Nenhum uso de `centros_custos`/`centro_custo`/`centros` como campo principal.
+- Conta `311020006` aparece com `valor_total !== 0` e `centros_custo.length === 17`.
+- Aviso "Valores zerados" só dispara quando TODAS as contas e TODOS os centros têm valor 0.
+- Strings pt-BR (`"-124.811,54"`) e en-US (`"-124811.54"`) são ambas parseadas corretamente.
