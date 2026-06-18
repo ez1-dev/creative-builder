@@ -2,7 +2,7 @@ import { Fragment, useState, type ReactNode } from "react";
 import { Barcode } from "./Barcode";
 import { useAuthedBlobUrl } from "@/hooks/useAuthedBlobUrl";
 import type { BlobStateMap } from "@/hooks/useAuthedBlobUrls";
-import type { OpImpressao, OpOperacao, OpComponente, OpDesenho } from "@/lib/producao/opImpressao";
+import { formatarMinutosBR, type OpImpressao, type OpOperacao, type OpComponente, type OpDesenho } from "@/lib/producao/opImpressao";
 import type { OpDesenhoPaginaA4Carregada } from "@/lib/producao/opDesenhosA4";
 import "./op-print.css";
 
@@ -302,13 +302,14 @@ export function OpPrintSheet({
 
           <div className="k op-tempo-destaque">Tmp Unit:</div>
           <div className="v op-tempo-destaque">
-            {op.tmp_unit_formatado || (op.tmp_unit_min != null ? `${op.tmp_unit_min} min` : "—")}
+            {formatarMinutosBR(op.tmp_unit_min ?? op.tmp_unit)}
           </div>
 
           <div className="k op-operacao-destaque">Tmp Total:</div>
           <div className="v op-operacao-destaque">
-            {op.tmp_total_formatado || (op.tmp_total_min != null ? `${op.tmp_total_min} min` : "—")}
+            {formatarMinutosBR(op.tmp_total_min ?? op.tmp_total)}
           </div>
+
 
           <div className="k">U.M.:</div>
           <div className="v">{op.unidade_medida ?? "—"}</div>
