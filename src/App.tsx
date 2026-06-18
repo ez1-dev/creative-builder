@@ -68,6 +68,7 @@ import DreSincronizacaoDeparaPage from "@/pages/bi/contabilidade/DreSincronizaca
 import DreConfiguracaoPage from "@/pages/bi/contabilidade/DreConfiguracaoPage";
 import DreDinamicaPage from "@/pages/bi/contabilidade/DreDinamicaPage";
 import DreMontadorPage from "@/pages/bi/contabilidade/DreMontadorPage";
+import DreConfiguravelPainelPage from "@/pages/bi/financeiro/DreConfiguravelPainelPage";
 import RegrasSeniorDashboardPage from "@/pages/regras-senior/RegrasSeniorDashboardPage";
 import RegrasListPage from "@/pages/regras-senior/RegrasListPage";
 import RegraNovaPage from "@/pages/regras-senior/RegraNovaPage";
@@ -153,6 +154,7 @@ const App = () => (
               <Route path="/bi/contabilidade/dre/configuracao" element={<ProtectedRoute path="/bi/contabilidade/dre/configuracao"><DreConfiguracaoPage /></ProtectedRoute>} />
               <Route path="/bi/contabilidade/dre-dinamica" element={<ProtectedRoute path="/bi/contabilidade/dre-dinamica"><DreDinamicaPage /></ProtectedRoute>} />
               <Route path="/bi/contabilidade/dre-dinamica/montador" element={<ProtectedRoute path="/bi/contabilidade/dre-dinamica/montador"><DreMontadorPage /></ProtectedRoute>} />
+              <Route path="/bi/financeiro/dre-configuravel" element={<ProtectedRoute path="/bi/financeiro/dre-configuravel"><DreConfiguravelPainelPage /></ProtectedRoute>} />
               {/* Regras Senior */}
               <Route path="/regras-senior" element={<ProtectedRoute path="/regras-senior"><RegrasSeniorDashboardPage /></ProtectedRoute>} />
               <Route path="/regras-senior/regras" element={<ProtectedRoute path="/regras-senior/regras"><RegrasListPage /></ProtectedRoute>} />

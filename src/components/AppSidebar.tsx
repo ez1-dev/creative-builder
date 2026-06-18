@@ -49,6 +49,7 @@ const modules = [
 ];
 
 const biSubItems = [
+  { title: 'DRE Configurável', url: '/bi/financeiro/dre-configuravel', icon: Landmark },
   { title: 'BI Comercial', url: '/bi/comercial', icon: BarChart3 },
   { title: 'Metas de Faturamento', url: '/bi/comercial/metas', icon: BarChart3 },
   { title: 'Relatório Executivo', url: '/bi/faturamento/relatorio-executivo', icon: FileCheck },
@@ -115,7 +116,8 @@ export function AppSidebar() {
   const isBiActive =
     location.pathname.startsWith('/bi') ||
     location.pathname.startsWith('/biblioteca-bi') ||
-    location.pathname.startsWith('/etl');
+    location.pathname.startsWith('/etl') ||
+    location.pathname.startsWith('/bi/financeiro');
 
   const ALWAYS_VISIBLE = new Set<string>(['/biblioteca-bi']);
   const isVisible = (url: string) => {
