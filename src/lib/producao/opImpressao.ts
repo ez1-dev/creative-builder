@@ -122,16 +122,3 @@ export interface ImpressaoOpFiltros {
   quebrar_por_operacao?: 'S' | 'N' | '';
 }
 
-const fmtMinBR = new Intl.NumberFormat('pt-BR', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-
-export function formatarMinutosBR(valor: number | string | null | undefined): string {
-  if (valor === null || valor === undefined || valor === '') return '—';
-  const n = typeof valor === 'number' ? valor : Number(String(valor).replace(',', '.'));
-  if (!Number.isFinite(n)) return '—';
-  return `${fmtMinBR.format(n)} min`;
-}
-
-
