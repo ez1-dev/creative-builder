@@ -2,7 +2,7 @@ import { Fragment, useState, type ReactNode } from "react";
 import { Barcode } from "./Barcode";
 import { useAuthedBlobUrl } from "@/hooks/useAuthedBlobUrl";
 import type { BlobStateMap } from "@/hooks/useAuthedBlobUrls";
-import type { OpImpressao, OpOperacao, OpComponente, OpDesenho } from "@/lib/producao/opImpressao";
+import { formatarMinutosBR, type OpImpressao, type OpOperacao, type OpComponente, type OpDesenho } from "@/lib/producao/opImpressao";
 import type { OpDesenhoPaginaA4Carregada } from "@/lib/producao/opDesenhosA4";
 import "./op-print.css";
 
