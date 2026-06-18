@@ -149,7 +149,20 @@ export async function fetchPlanoContasDinamica(p: PlanoContasParams): Promise<Pl
     const semValor = mapped.every((m) => m.valor_total === 0);
     const semCcu = mapped.every((m) => !m.centros_custo || m.centros_custo.length === 0);
     if (semNome) console.warn('[MONTADOR DRE] backend não retornou ds_conta em nenhum item');
-    if (semValor) console.warn('[MONTADOR DRE] backend retornou valor_total = 0 em todos os itens');
+    if (semValor) {
+      console.warn(
+        '[MONTADOR DRE] backend retornou valor_total = 0 em TODOS os', mapped.length, 'itens.',
+        '\n  Período enviado: anomes_ini=', p.anomes_ini, 'anomes_fim=', p.anomes_fim,
+        '\n  URL chamada:', url,
+        '\n  Verifique no FastAPI:',
+        '\n   1) bi_vm_lanc_contabil tem dados no período? (rodar ETL ATU_CONTABILIDADE > VM_LANC_CONTABIL)',
+        '\n   2) WHERE anomes_referente BETWEEN :ini AND :fim com inteiros (não strings)',
+        '\n   3) anomes_ini/anomes_fim chegaram preenchidos no handler? (logar no início da rota)',
+        '\n   4) sum(vl_saldo) — coluna populada? caso contrário: sum(coalesce(vl_credito,0)-coalesce(vl_debito,0))',
+        '\n   5) JOIN com plano de contas é LEFT JOIN (nunca INNER)',
+      );
+    }
+
     if (semCcu) {
       console.warn(
         '[MONTADOR DRE] backend NÃO retornou `centros_custo` válido em nenhum dos',
