@@ -97,8 +97,7 @@ export function AgendamentosTab({ tarefas }: Props) {
                       if (!r.ativo) {
                         await atualizar.mutateAsync({ id: r.id, patch: { ativo: true } });
                       }
-                      await atualizar.mutateAsync({ id: r.id, patch: { proxima_execucao_em: new Date().toISOString() } as any });
-                      const res = await tick.mutateAsync();
+                      const res = await tick.mutateAsync({ agendamento_id: r.id });
                       toast.success(`Execução disparada — ${res?.processados ?? 0} processado(s)`);
                     } catch (e: any) { toast.error(e?.message ?? 'Falha ao executar'); }
                   }}
