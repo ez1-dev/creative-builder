@@ -22,6 +22,17 @@ import type { EtlTarefa } from '@/lib/etl/api';
 
 const fmtDate = (s: string | null | undefined) => (s ? new Date(s).toLocaleString('pt-BR') : '—');
 
+function relativo(s: string | null | undefined): string {
+  if (!s) return '';
+  const diff = new Date(s).getTime() - Date.now();
+  if (diff <= 0) return 'vencida';
+  const min = Math.round(diff / 60000);
+  if (min < 60) return `em ${min} min`;
+  const h = Math.round(min / 60);
+  if (h < 48) return `em ${h} h`;
+  return `em ${Math.round(h / 24)} d`;
+}
+
 interface Props { tarefas: EtlTarefa[]; }
 
 export function AgendamentosTab({ tarefas }: Props) {
