@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Pencil, Trash2, Play, RefreshCw, Calendar } from 'lucide-react';
+import { Plus, Pencil, Trash2, Play, RefreshCw, Calendar, Zap } from 'lucide-react';
 import { toast } from 'sonner';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DataTable, type Column } from '@/components/erp/DataTable';
 import { AgendamentoFormDialog } from './AgendamentoFormDialog';
 import {
