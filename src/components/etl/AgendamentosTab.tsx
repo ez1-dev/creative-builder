@@ -44,7 +44,14 @@ export function AgendamentosTab({ tarefas }: Props) {
     { key: 'nome_tarefa', header: 'Tarefa', render: (_v, r) => <span className="font-mono text-xs font-semibold">{r.nome_tarefa}</span> },
     { key: 'frequencia', header: 'Frequência', render: (_v, r) => <span className="text-xs">{descreverFrequencia(r)}</span> },
     { key: 'janela_tipo', header: 'Período', render: (_v, r) => <span className="text-xs">{descreverJanela(r.janela_tipo, r.janela_n_meses)}</span> },
-    { key: 'proxima_execucao_em', header: 'Próxima execução', render: (_v, r) => <span className="text-xs">{fmtDate(r.proxima_execucao_em)}</span> },
+    { key: 'proxima_execucao_em', header: 'Próxima execução', render: (_v, r) => (
+      <div className="flex flex-col">
+        <span className="text-xs">{fmtDate(r.proxima_execucao_em)}</span>
+        {r.ativo && r.proxima_execucao_em && (
+          <span className="text-[10px] text-muted-foreground">{relativo(r.proxima_execucao_em)}</span>
+        )}
+      </div>
+    ) },
     {
       key: 'ultimo_status', header: 'Último status', render: (_v, r) => {
         if (!r.ultimo_status) return <span className="text-xs text-muted-foreground">—</span>;
