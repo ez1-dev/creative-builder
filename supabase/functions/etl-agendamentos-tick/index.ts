@@ -104,14 +104,32 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    // Lock atômico: marca como "rodando" todos vencidos, retornando snapshot
-    const { data: vencidos, error: lockErr } = await admin
-      .from('etl_agendamentos')
-      .select('*')
-      .eq('ativo', true)
-      .lte('proxima_execucao_em', new Date().toISOString());
+    // Payload opcional: { agendamento_id?: string, forcar?: boolean }
+    let body: { agendamento_id?: string; forcar?: boolean } = {};
+    if (req.method === 'POST') {
+      try { body = await req.json(); } catch { body = {}; }
+    }
 
-    if (lockErr) throw lockErr;
+    let vencidos: any[] | null = null;
+    if (body?.agendamento_id) {
+      const { data, error } = await admin
+        .from('etl_agendamentos')
+        .select('*')
+        .eq('id', body.agendamento_id)
+        .eq('ativo', true)
+        .limit(1);
+      if (error) throw error;
+      vencidos = data ?? [];
+    } else {
+      const { data, error } = await admin
+        .from('etl_agendamentos')
+        .select('*')
+        .eq('ativo', true)
+        .lte('proxima_execucao_em', new Date().toISOString());
+      if (error) throw error;
+      vencidos = data ?? [];
+    }
+
     if (!vencidos || vencidos.length === 0) {
       return new Response(JSON.stringify({ processados: 0 }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
