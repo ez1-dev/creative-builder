@@ -10,6 +10,8 @@ import { DataTable, type Column } from '@/components/erp/DataTable';
 import { ExecutarModal } from '@/components/etl/ExecutarModal';
 import { LogsModal } from '@/components/etl/LogsModal';
 import { TauxPanel } from '@/components/etl/TauxPanel';
+import { AgendamentosTab } from '@/components/etl/AgendamentosTab';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import { listarTarefas, ultimasExecucoes, type EtlTarefa } from '@/lib/etl/api';
 import { supabase } from '@/integrations/supabase/client';
@@ -139,22 +141,32 @@ export default function EtlAdminPage() {
         <KpiCard label="Última execução" value={fmtDate(ultimaExecucaoGlobal)} icon={<Clock className="h-4 w-4" />} small />
       </div>
 
-      
+      <Tabs defaultValue="tarefas">
+        <TabsList>
+          <TabsTrigger value="tarefas">Tarefas</TabsTrigger>
+          <TabsTrigger value="agendamentos">Agendamentos</TabsTrigger>
+        </TabsList>
 
-      <TauxPanel />
+        <TabsContent value="tarefas" className="space-y-4">
+          <TauxPanel />
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Tarefas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <Skeleton className="h-64 w-full" />
+              ) : (
+                <DataTable columns={columns} data={tarefas} emptyMessage="Nenhuma tarefa cadastrada" />
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Tarefas</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <Skeleton className="h-64 w-full" />
-          ) : (
-            <DataTable columns={columns} data={tarefas} emptyMessage="Nenhuma tarefa cadastrada" />
-          )}
-        </CardContent>
-      </Card>
+        <TabsContent value="agendamentos">
+          <AgendamentosTab tarefas={tarefas} />
+        </TabsContent>
+      </Tabs>
 
       <ExecutarModal
         open={execModal.open}
