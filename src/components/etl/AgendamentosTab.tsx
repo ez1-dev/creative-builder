@@ -141,8 +141,25 @@ export function AgendamentosTab({ tarefas }: Props) {
           <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching}>
             <RefreshCw className="h-4 w-4 mr-1" /> Atualizar
           </Button>
-          <Button
-            size="sm" variant="outline"
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm" variant="outline"
+                  onClick={async () => {
+                    try {
+                      const res = await tick.mutateAsync();
+                      toast.success(`Tick disparado — ${res?.processados ?? 0} agendamento(s) processado(s)`);
+                    } catch (e: any) { toast.error(e?.message ?? 'Falha no tick'); }
+                  }}
+                  disabled={tick.isPending}
+                >
+                  <Play className="h-4 w-4 mr-1" /> Verificar pendentes
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Processa apenas agendamentos cuja próxima execução já venceu. Use "Executar agora" na linha para forçar.</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
             onClick={async () => {
               try {
                 const res = await tick.mutateAsync();
