@@ -1848,6 +1848,80 @@ export type Database = {
           },
         ]
       }
+      etl_agendamentos: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          criado_em: string
+          criado_por: string | null
+          dias_semana: number[]
+          frequencia: string
+          hora: number | null
+          id: string
+          intervalo_minutos: number | null
+          janela_n_meses: number
+          janela_tipo: string
+          minuto: number | null
+          nome_tarefa: string
+          parametros_extras: Json
+          proxima_execucao_em: string | null
+          tarefa_id: string
+          ultima_execucao_em: string | null
+          ultima_mensagem: string | null
+          ultimo_status: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          criado_em?: string
+          criado_por?: string | null
+          dias_semana?: number[]
+          frequencia: string
+          hora?: number | null
+          id?: string
+          intervalo_minutos?: number | null
+          janela_n_meses?: number
+          janela_tipo?: string
+          minuto?: number | null
+          nome_tarefa: string
+          parametros_extras?: Json
+          proxima_execucao_em?: string | null
+          tarefa_id: string
+          ultima_execucao_em?: string | null
+          ultima_mensagem?: string | null
+          ultimo_status?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          criado_em?: string
+          criado_por?: string | null
+          dias_semana?: number[]
+          frequencia?: string
+          hora?: number | null
+          id?: string
+          intervalo_minutos?: number | null
+          janela_n_meses?: number
+          janela_tipo?: string
+          minuto?: number | null
+          nome_tarefa?: string
+          parametros_extras?: Json
+          proxima_execucao_em?: string | null
+          tarefa_id?: string
+          ultima_execucao_em?: string | null
+          ultima_mensagem?: string | null
+          ultimo_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "etl_agendamentos_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "etl_tarefas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       etl_conexoes: {
         Row: {
           codigo: string
@@ -3755,6 +3829,17 @@ export type Database = {
         Returns: undefined
       }
       ensure_default_block: { Args: { _dashboard_id: string }; Returns: string }
+      etl_agendamento_calcular_proxima: {
+        Args: {
+          _dias_semana: number[]
+          _frequencia: string
+          _hora: number
+          _intervalo_minutos: number
+          _minuto: number
+          _ref?: string
+        }
+        Returns: string
+      }
       force_user_logout: { Args: { _user_id: string }; Returns: undefined }
       fork_bi_comercial_dashboard: { Args: never; Returns: string }
       get_frota_blocks_via_token: {
