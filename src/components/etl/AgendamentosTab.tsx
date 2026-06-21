@@ -147,7 +147,7 @@ export function AgendamentosTab({ tarefas }: Props) {
                   size="sm" variant="outline"
                   onClick={async () => {
                     try {
-                      const res = await tick.mutateAsync();
+                      const res = await tick.mutateAsync(undefined);
                       toast.success(`Tick disparado — ${res?.processados ?? 0} agendamento(s) processado(s)`);
                     } catch (e: any) { toast.error(e?.message ?? 'Falha no tick'); }
                   }}
