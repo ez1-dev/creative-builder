@@ -160,16 +160,6 @@ export function AgendamentosTab({ tarefas }: Props) {
               <TooltipContent>Processa apenas agendamentos cuja próxima execução já venceu. Use "Executar agora" na linha para forçar.</TooltipContent>
             </Tooltip>
           </TooltipProvider>
-            onClick={async () => {
-              try {
-                const res = await tick.mutateAsync();
-                toast.success(`Tick disparado — ${res?.processados ?? 0} agendamento(s) processado(s)`);
-              } catch (e: any) { toast.error(e?.message ?? 'Falha no tick'); }
-            }}
-            disabled={tick.isPending}
-          >
-            <Play className="h-4 w-4 mr-1" /> Rodar pendentes agora
-          </Button>
           <Button size="sm" onClick={() => setDialog({ open: true, agendamento: null })}>
             <Plus className="h-4 w-4 mr-1" /> Novo agendamento
           </Button>
