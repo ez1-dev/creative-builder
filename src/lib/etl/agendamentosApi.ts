@@ -81,9 +81,9 @@ export async function excluirAgendamento(id: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function dispararTickAgendador(): Promise<any> {
+export async function dispararTickAgendador(opts?: { agendamento_id?: string }): Promise<any> {
   const { data, error } = await supabase.functions.invoke('etl-agendamentos-tick', {
-    body: {},
+    body: opts ?? {},
   });
   if (error) throw error;
   return data;
