@@ -85,6 +85,30 @@ export function AgendamentosTab({ tarefas }: Props) {
       key: 'acoes', header: 'Ações',
       render: (_v, r) => (
         <div className="flex gap-1">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="default"
+                  disabled={tick.isPending || atualizar.isPending}
+                  onClick={async () => {
+                    try {
+                      if (!r.ativo) {
+                        await atualizar.mutateAsync({ id: r.id, patch: { ativo: true } });
+                      }
+                      await atualizar.mutateAsync({ id: r.id, patch: { proxima_execucao_em: new Date().toISOString() } as any });
+                      const res = await tick.mutateAsync();
+                      toast.success(`Execução disparada — ${res?.processados ?? 0} processado(s)`);
+                    } catch (e: any) { toast.error(e?.message ?? 'Falha ao executar'); }
+                  }}
+                >
+                  <Zap className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Executar agora</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           <Button size="sm" variant="outline" onClick={() => setDialog({ open: true, agendamento: r })}>
             <Pencil className="h-3.5 w-3.5" />
           </Button>
@@ -104,7 +128,7 @@ export function AgendamentosTab({ tarefas }: Props) {
         </div>
       ),
     },
-  ], [atualizar, excluir]);
+  ], [atualizar, excluir, tick]);
 
   return (
     <Card>
