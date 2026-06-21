@@ -37,7 +37,7 @@ export function useEtlAgendamentosMutations() {
     onSuccess: invalidate,
   });
   const tick = useMutation({
-    mutationFn: () => dispararTickAgendador(),
+    mutationFn: (opts?: { agendamento_id?: string }) => dispararTickAgendador(opts),
     onSuccess: invalidate,
   });
 
