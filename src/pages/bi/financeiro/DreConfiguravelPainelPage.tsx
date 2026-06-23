@@ -1,12 +1,26 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Button } from '@/components/ui/button';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Plus, Pencil } from 'lucide-react';
+import { toast } from 'sonner';
 import { ErrorState, LoadingState, NoDataState } from '@/components/bi';
 import { DreFiltrosBar } from '@/components/bi/financeiro/DreFiltrosBar';
 import { DreDinamicaTable } from '@/components/bi/financeiro/DreDinamicaTable';
 import { DreConfigurarLinhaDialog } from '@/components/bi/financeiro/DreConfigurarLinhaDialog';
-import { fetchDreModelos } from '@/lib/bi/dreConfiguravelApi';
+import ModeloFormDialog from '@/components/bi/contabilidade/ModeloFormDialog';
+import LinhaFormDialog from '@/components/bi/contabilidade/LinhaFormDialog';
 import { fetchDreDinamica, type DreDinamicaLinha } from '@/lib/bi/dreDinamicaApi';
-import { listarLinhas } from '@/lib/bi/dreConfigApi';
+import {
+  listarModelosFastApi,
+  listarLinhasFastApi,
+  desativarLinha,
+  type MontadorModelo,
+  type MontadorLinha,
+} from '@/lib/bi/dreMontadorModelosApi';
 import type { DreFiltrosPainel } from '@/lib/bi/dreConfiguravelTypes';
 
 function defaultFiltros(): DreFiltrosPainel {
@@ -22,7 +36,6 @@ function defaultFiltros(): DreFiltrosPainel {
 }
 
 function dataToAnomes(iso: string): string {
-  // YYYY-MM-DD -> YYYYMM
   if (!iso || iso.length < 7) return '';
   return iso.slice(0, 4) + iso.slice(5, 7);
 }
@@ -32,24 +45,33 @@ export default function DreConfiguravelPainelPage() {
   const [filtros, setFiltros] = useState<DreFiltrosPainel>(defaultFiltros());
   const [aplicados, setAplicados] = useState<DreFiltrosPainel>(filtros);
   const [linhaConfig, setLinhaConfig] = useState<DreDinamicaLinha | null>(null);
+  const [modeloDialogOpen, setModeloDialogOpen] = useState(false);
+  const [modeloEdit, setModeloEdit] = useState<MontadorModelo | null>(null);
+  const [linhaDialogOpen, setLinhaDialogOpen] = useState(false);
+  const [linhaEdit, setLinhaEdit] = useState<MontadorLinha | null>(null);
+  const [linhaParaExcluir, setLinhaParaExcluir] = useState<MontadorLinha | null>(null);
 
   const modelosQ = useQuery({
     queryKey: ['dre-configuravel', 'modelos'],
-    queryFn: fetchDreModelos,
+    queryFn: listarModelosFastApi,
     staleTime: 5 * 60_000,
   });
 
   useEffect(() => {
     if (!filtros.modelo_id && modelosQ.data && modelosQ.data.length > 0) {
-      const id = modelosQ.data[0].id;
-      setFiltros((f) => ({ ...f, modelo_id: id }));
-      setAplicados((f) => ({ ...f, modelo_id: id }));
+      const padrao = modelosQ.data.find((m) => m.padrao) ?? modelosQ.data[0];
+      setFiltros((f) => ({ ...f, modelo_id: padrao.id }));
+      setAplicados((f) => ({ ...f, modelo_id: padrao.id }));
     }
   }, [modelosQ.data, filtros.modelo_id]);
 
   const anomesIni = dataToAnomes(aplicados.data_ini);
   const anomesFim = dataToAnomes(aplicados.data_fim);
   const modeloId = aplicados.modelo_id ?? null;
+  const modeloAtual = useMemo(
+    () => (modelosQ.data ?? []).find((m) => m.id === modeloId) ?? null,
+    [modelosQ.data, modeloId],
+  );
 
   const dreQ = useQuery({
     queryKey: ['dre-dinamica', { modeloId, anomesIni, anomesFim }],
@@ -62,40 +84,96 @@ export default function DreConfiguravelPainelPage() {
     enabled: !!modeloId && !!anomesIni && !!anomesFim,
   });
 
-  // Estrutura (linhas do modelo) — para resolver codigo_linha → linha_id (UUID)
   const estruturaQ = useQuery({
     queryKey: ['dre-configuravel', 'estrutura', modeloId],
-    queryFn: () => listarLinhas(modeloId!),
+    queryFn: () => listarLinhasFastApi(modeloId!),
     enabled: !!modeloId,
     staleTime: 60_000,
   });
 
   const linhasMap = useMemo(() => {
-    const m = new Map<string, string>();
-    (estruturaQ.data ?? []).forEach(l => m.set(l.codigo_linha, l.id));
+    const m = new Map<string, MontadorLinha>();
+    (estruturaQ.data ?? []).forEach((l) => m.set(l.codigo_linha, l));
     return m;
   }, [estruturaQ.data]);
 
   const dados = dreQ.data?.dados ?? [];
 
-  const handleConfigurar = (l: DreDinamicaLinha) => {
-    setLinhaConfig(l);
+  const handleConfigurar = (l: DreDinamicaLinha) => setLinhaConfig(l);
+
+  const handleEditar = (l: DreDinamicaLinha) => {
+    const linha = linhasMap.get(l.codigo_linha);
+    if (!linha) {
+      toast.error(`Linha "${l.codigo_linha}" não encontrada no modelo.`);
+      return;
+    }
+    setLinhaEdit(linha);
+    setLinhaDialogOpen(true);
   };
 
-  const linhaParaDialog = useMemo(() => {
+  const handleExcluir = (l: DreDinamicaLinha) => {
+    const linha = linhasMap.get(l.codigo_linha);
+    if (!linha) {
+      toast.error(`Linha "${l.codigo_linha}" não encontrada no modelo.`);
+      return;
+    }
+    setLinhaParaExcluir(linha);
+  };
+
+  const confirmarExclusao = async () => {
+    if (!linhaParaExcluir) return;
+    try {
+      await desativarLinha(linhaParaExcluir.id);
+      toast.success('Linha excluída.');
+      qc.invalidateQueries({ queryKey: ['dre-configuravel', 'estrutura', modeloId] });
+      qc.invalidateQueries({ queryKey: ['dre-dinamica'] });
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Falha ao excluir linha.');
+    } finally {
+      setLinhaParaExcluir(null);
+    }
+  };
+
+  const linhaParaConfigDialog = useMemo(() => {
     if (!linhaConfig) return null;
-    const id = linhasMap.get(linhaConfig.codigo_linha);
-    if (!id) return null;
-    return { id, codigo_linha: linhaConfig.codigo_linha, descricao: linhaConfig.descricao };
+    const l = linhasMap.get(linhaConfig.codigo_linha);
+    if (!l) return null;
+    return { id: l.id, codigo_linha: l.codigo_linha, descricao: l.descricao };
   }, [linhaConfig, linhasMap]);
 
   return (
     <div className="space-y-4 p-4">
-      <div>
-        <h1 className="text-xl font-bold text-foreground">DRE Configurável</h1>
-        <p className="text-xs text-muted-foreground">
-          Valores apurados via <code>/api/bi/contabilidade/dre-dinamica</code> conforme o modelo selecionado.
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-foreground">DRE Configurável</h1>
+          <p className="text-xs text-muted-foreground">
+            Modelo e linhas mantidos via <code>/api/dre/modelos</code> e <code>/api/dre/linhas</code>; valores apurados via <code>/api/bi/contabilidade/dre-dinamica</code>.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => { setModeloEdit(null); setModeloDialogOpen(true); }}
+          >
+            <Plus className="mr-1 h-4 w-4" /> Novo modelo
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!modeloAtual}
+            onClick={() => { setModeloEdit(modeloAtual); setModeloDialogOpen(true); }}
+          >
+            <Pencil className="mr-1 h-4 w-4" /> Editar modelo
+          </Button>
+          <Button
+            size="sm"
+            disabled={!modeloId}
+            onClick={() => { setLinhaEdit(null); setLinhaDialogOpen(true); }}
+          >
+            <Plus className="mr-1 h-4 w-4" /> Nova linha
+          </Button>
+        </div>
       </div>
 
       <DreFiltrosBar
@@ -144,7 +222,12 @@ export default function DreConfiguravelPainelPage() {
       ) : dados.length === 0 ? (
         <NoDataState message="Sem lançamentos contábeis carregados em bi_vm_lanc_contabil para o período selecionado." />
       ) : (
-        <DreDinamicaTable data={dados} onConfigurarLinha={handleConfigurar} />
+        <DreDinamicaTable
+          data={dados}
+          onConfigurarLinha={handleConfigurar}
+          onEditarLinha={handleEditar}
+          onExcluirLinha={handleExcluir}
+        />
       )}
 
       <DreConfigurarLinhaDialog
@@ -153,19 +236,58 @@ export default function DreConfiguravelPainelPage() {
         modeloId={modeloId ?? ''}
         anomesIni={anomesIni}
         anomesFim={anomesFim}
-        linha={linhaParaDialog}
+        linha={linhaParaConfigDialog}
         onSuccess={() => {
           qc.invalidateQueries({ queryKey: ['dre-dinamica'] });
         }}
       />
 
-      {linhaConfig && !linhaParaDialog && estruturaQ.isFetched && (
+      {linhaConfig && !linhaParaConfigDialog && estruturaQ.isFetched && (
         <ErrorState
           title="Linha sem ID no modelo"
-          message={`Não foi possível localizar a linha "${linhaConfig.codigo_linha}" no modelo selecionado (bi_dre_estrutura_v2). Verifique se o modelo está sincronizado.`}
+          message={`Não foi possível localizar a linha "${linhaConfig.codigo_linha}" no modelo selecionado. Verifique se o modelo está sincronizado.`}
           onRetry={() => estruturaQ.refetch()}
         />
       )}
+
+      <ModeloFormDialog
+        open={modeloDialogOpen}
+        onOpenChange={setModeloDialogOpen}
+        modelo={modeloEdit}
+        onSaved={(m) => {
+          qc.invalidateQueries({ queryKey: ['dre-configuravel', 'modelos'] });
+          setFiltros((f) => ({ ...f, modelo_id: m.id }));
+          setAplicados((f) => ({ ...f, modelo_id: m.id }));
+        }}
+      />
+
+      {modeloId && (
+        <LinhaFormDialog
+          open={linhaDialogOpen}
+          onOpenChange={setLinhaDialogOpen}
+          modeloId={modeloId}
+          linha={linhaEdit}
+          onSaved={() => {
+            qc.invalidateQueries({ queryKey: ['dre-configuravel', 'estrutura', modeloId] });
+            qc.invalidateQueries({ queryKey: ['dre-dinamica'] });
+          }}
+        />
+      )}
+
+      <AlertDialog open={!!linhaParaExcluir} onOpenChange={(v) => { if (!v) setLinhaParaExcluir(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir linha?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A linha <strong>{linhaParaExcluir?.codigo_linha}</strong> — {linhaParaExcluir?.descricao} será desativada no modelo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmarExclusao}>Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
