@@ -47,7 +47,7 @@ export interface OpOperacao {
   fornecedor?: string;
   servico?: string;
   descricao_servico?: string;
-  tmp_unit?: float | string;
+  tmp_unit?: number | string;
   tmp_total?: number | string;
   tmp_unit_min?: number;
   tmp_total_min?: number;
