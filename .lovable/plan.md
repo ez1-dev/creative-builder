@@ -1,73 +1,37 @@
 ## Objetivo
 
-Atualizar a tela `/bi/contabilidade/dre-montador` para os novos contratos do FastAPI: (1) catálogo de contas com centros de custo expandíveis vindo de `/api/bi/contabilidade/plano-contas-disponivel`, (2) CRUD de modelo e linhas via `/api/dre/modelos` e `/api/dre/linhas`, mantendo o vínculo via `/api/bi/contabilidade/dre-dinamica/vincular-contas`.
+Aplicar na tela `/bi/financeiro/dre-configuravel` (`DreConfiguravelPainelPage`) o mesmo CRUD de modelo/linha que foi adicionado ao Montador, reaproveitando os contratos FastAPI `/api/dre/modelos` e `/api/dre/linhas` e os diálogos já criados.
 
-Escopo restrito ao Montador. Não alterar `DreConfiguravelPainelPage`, `DreConfiguracaoPage`, nem o restante do app (que continua usando `listarModelos`/`listarLinhas` no Cloud).
+## Mudanças
 
-## 1) Catálogo de contas — novo endpoint
+### `src/pages/bi/financeiro/DreConfiguravelPainelPage.tsx`
 
-**Arquivo:** `src/lib/bi/dreMontadorApi.ts`
+- Trocar a fonte do `Select` de modelos:
+  - Hoje: `fetchDreModelos` (que chama `/api/dre/modelos` em formato livre).
+  - Novo: `listarModelosFastApi()` (de `src/lib/bi/dreMontadorModelosApi.ts`), garantindo shape canônico `{ id, nome, padrao }`. Atualizar tipo `DreModeloOpcao` localmente para aceitar `padrao?: boolean` se necessário.
+- Trocar a resolução de `codigo_linha → linha_id`:
+  - Hoje: `listarLinhas(modeloId)` consulta Cloud `bi_dre_estrutura_v2`.
+  - Novo: `listarLinhasFastApi(modeloId)` (FastAPI). Mantém `Map<codigo_linha, id>` igual.
+- No header da página, ao lado do título, adicionar barra de ações:
+  - **Novo modelo** / **Editar modelo** → abrem `ModeloFormDialog`.
+  - **Nova linha** / botões por linha (Editar/Excluir) → reutilizar `LinhaFormDialog` + `desativarLinha`.
+- Como as linhas hoje vêm renderizadas pelo `DreDinamicaTable` (baseado em `dreDinamicaApi`), os botões de Editar/Excluir por linha aparecem dentro da própria tabela. Para não mexer no componente compartilhado, adicionar prop opcional `onEditarLinha?(codigo_linha)` e `onExcluirLinha?(codigo_linha)` em `DreDinamicaTable`, renderizando uma coluna extra "Ações" apenas quando recebidas. A página resolve o `id` via `linhasMap` antes de abrir o diálogo ou chamar `desativarLinha`.
+- Manter a frase de rodapé do cabeçalho ("Valores apurados via …"). Ajustar apenas para refletir o novo fluxo: "Modelo e linhas mantidos via /api/dre/modelos e /api/dre/linhas; valores apurados via /api/bi/contabilidade/dre-dinamica".
+- Após salvar/excluir modelo ou linha: invalidar `['dre-configuravel','modelos']`, `['dre-configuravel','estrutura', modeloId]` e `['dre-dinamica']`.
 
-- Trocar a URL de `fetchPlanoContasDinamica` para `GET /api/bi/contabilidade/plano-contas-disponivel`.
-- Query params canônicos: `modelo_id?`, `empresa_id` (default `"1"`), `somente_resultado` (default `true`), `q?`, `anomes_ini`, `anomes_fim`. **Sempre enviar período.**
-- Parsear resposta `{ total, dados: [...] }`. Mapear:
-  - `cd_mascara`, `ds_mascara`, `cd_conta_contabil` (nullable), `nivel` (nullable).
-  - `qtd_lancamentos`, `vl_realizado` (→ `valor_total` no front, via `toNumberBI`).
-  - `ja_usada` → `ja_vinculada`; `codigo_linha`/`linha_vinculada` → `linhas_vinculadas` (array de 1, se houver).
-  - `qtd_centros`, `centros_custo[]` com campos canônicos `cd_centro_custos`, `cd_centro_custos_3`, `ds_centro_custos`, `qtd_lancamentos`, `valor_total`, `vl_realizado`.
-- Aceitar `vl_realizado` ou `valor_total` (defensivo). Atualizar tipos `PlanoContaErp` / `PlanoContaCentroCusto` para incluir `ds_mascara` e `ds_centro_custos`.
-- Remover filtros que não existem mais (`somente_nao_vinculadas`, `somente_vinculadas`, `limite`, `busca`); usar apenas `q` para busca. Tirar essas opções da UI.
+### `src/components/bi/financeiro/DreDinamicaTable.tsx`
 
-## 2) CRUD de modelo e linha — FastAPI
+- Adicionar props opcionais `onEditarLinha`, `onExcluirLinha` (recebem o `DreDinamicaLinha`). Quando ao menos uma delas estiver definida, renderizar coluna "Ações" com os botões correspondentes; quando ambas indefinidas, layout fica inalterado (preserva uso em outras telas, se houver).
 
-**Novo arquivo:** `src/lib/bi/dreMontadorModelosApi.ts`
+### Itens fora do escopo
 
-Funções com `Authorization: Bearer` + `ngrok-skip-browser-warning: true`:
-
-- `listarModelosFastApi()` → `GET /api/dre/modelos` → `{ id, nome, padrao, ativo, descricao }[]`.
-- `criarModelo({ nome, descricao?, padrao, ativo })` → `POST /api/dre/modelos`.
-- `atualizarModelo(id, payload)` → `PATCH /api/dre/modelos/{id}`.
-- `criarLinha({ modelo_id, codigo_linha, descricao, tipo_linha, ordem, formula?, ativo })` → `POST /api/dre/linhas`.
-- `atualizarLinha(id, payload)` → `PATCH /api/dre/linhas/{id}`.
-- `desativarLinha(id)` → `DELETE /api/dre/linhas/{id}`.
-
-Tipos `MontadorModelo` e `MontadorLinha` definidos no mesmo arquivo (sem mexer em `dreConfigTypes.ts`).
-
-## 3) UI do Montador
-
-**Arquivo:** `src/pages/bi/contabilidade/DreMontadorPage.tsx`
-
-- Trocar `listarModelos` (Cloud) por `listarModelosFastApi`. Adaptar `Select` de modelo: rótulo `nome` + (se `padrao`) badge "padrão".
-- Botões ao lado do `Select` de modelo: **Novo modelo**, **Editar modelo** (abrem `ModeloFormDialog`).
-- Card "Linhas da DRE":
-  - Botão **Nova linha** no header → abre `LinhaFormDialog` (campos: `codigo_linha`, `descricao`, `tipo_linha` `CONTA|CALCULO|TOTAL`, `ordem`, `formula` (visível só p/ `CALCULO`/`TOTAL`), `ativo`).
-  - Por linha: botões **Editar** e **Excluir** (DELETE = desativar). Após salvar/excluir, recarregar linhas e DRE dinâmica.
-- Card "Contas disponíveis do ERP":
-  - Substituir os filtros de "vinculadas/limite" pela busca `q` (já existe `busca`, basta renomear o param da chamada).
-  - Renderizar badge `qtd_centros` (já existe, ajustar texto: `"{n} CC"`).
-  - Expansão: adicionar coluna `ds_centro_custos`; formato exibido `cd_centro_custos — ds_centro_custos — R$ valor_total`.
-  - Quando `centros_custo` vazio: manter "Sem centro de custo no período".
-- Vincular: continuar usando `vincularContasDinamica` (`/dre-dinamica/vincular-contas`). `linha_id` agora vem direto do objeto retornado por `listarLinhas` (FastAPI) — eliminar `resolverLinhaId` no fluxo principal (mantém fallback Cloud por segurança).
-
-## 4) Diálogos novos
-
-- `src/components/bi/contabilidade/ModeloFormDialog.tsx`
-- `src/components/bi/contabilidade/LinhaFormDialog.tsx`
-
-Componentes shadcn (`Dialog`, `Input`, `Select`, `Switch`, `Button`) chamando as funções de `dreMontadorModelosApi.ts`. Validação mínima: `nome` obrigatório no modelo; `codigo_linha`+`descricao`+`tipo_linha` obrigatórios na linha; `formula` obrigatória se `tipo_linha != CONTA`.
-
-## Fora do escopo
-
-- Demais telas que consomem modelos/linhas do Cloud (`DreConfiguracaoPage`, `DreConfiguravelPainelPage`) — não alterar.
-- Backend / migrations.
-- Estilos: usar tokens semânticos existentes; sem cores hardcoded.
+- Não tocar no Montador (já implementado).
+- Não alterar `dreConfiguravelApi.ts`, `dreConfigApi.ts`, nem rotas.
+- Sem mudanças no backend, migrations ou estilos globais.
 
 ## Arquivos
 
 | Tipo | Caminho |
 |---|---|
-| edit | `src/lib/bi/dreMontadorApi.ts` |
-| new  | `src/lib/bi/dreMontadorModelosApi.ts` |
-| edit | `src/pages/bi/contabilidade/DreMontadorPage.tsx` |
-| new  | `src/components/bi/contabilidade/ModeloFormDialog.tsx` |
-| new  | `src/components/bi/contabilidade/LinhaFormDialog.tsx` |
+| edit | `src/pages/bi/financeiro/DreConfiguravelPainelPage.tsx` |
+| edit | `src/components/bi/financeiro/DreDinamicaTable.tsx` |
