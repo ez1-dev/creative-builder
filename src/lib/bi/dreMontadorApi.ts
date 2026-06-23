@@ -4,14 +4,15 @@ import { supabase } from '@/integrations/supabase/client';
 export interface PlanoContaCentroCusto {
   cd_centro_custos: string;
   cd_centro_custos_3: string;
+  ds_centro_custos: string;
   qtd_lancamentos: number;
   valor_total: number;
   vl_realizado: number;
-  ds_centro_custos: string;
 }
 
 export interface PlanoContaErp {
   cd_mascara: string;
+  ds_mascara: string;
   cd_conta_contabil: string;
   ds_conta: string;
   nivel: number;
@@ -20,7 +21,7 @@ export interface PlanoContaErp {
   valor_total: number;
   vl_realizado?: number;
   realizado?: number;
-  qtd_centros?: number;
+  qtd_centros: number;
   ja_vinculada: boolean;
   linhas_vinculadas: string[];
 }
@@ -29,10 +30,9 @@ export interface PlanoContasParams {
   anomes_ini: string;
   anomes_fim: string;
   modelo_id?: string | null;
-  busca?: string;
-  somente_nao_vinculadas?: boolean;
-  somente_vinculadas?: boolean;
-  limite?: number;
+  empresa_id?: string;
+  somente_resultado?: boolean;
+  q?: string;
 }
 
 export interface VincularContasPayload {
@@ -42,8 +42,9 @@ export interface VincularContasPayload {
   operador: 'COMECA_COM' | 'IGUAL';
   sinal: 1 | -1;
   prioridade: number;
-  contas: { cd_mascara: string; cd_conta_contabil: string }[];
+  contas: { cd_mascara?: string; cd_conta_contabil?: string }[];
 }
+
 
 function authHeaders(): Record<string, string> {
   const token = api.getToken();
@@ -121,14 +122,13 @@ export async function fetchPlanoContasDinamica(p: PlanoContasParams): Promise<Pl
   const qs = new URLSearchParams({
     anomes_ini: p.anomes_ini,
     anomes_fim: p.anomes_fim,
+    empresa_id: p.empresa_id ?? '1',
+    somente_resultado: String(p.somente_resultado ?? true),
   });
   if (p.modelo_id) qs.set('modelo_id', p.modelo_id);
-  if (p.busca) qs.set('busca', p.busca);
-  if (p.somente_nao_vinculadas) qs.set('somente_nao_vinculadas', 'true');
-  if (p.somente_vinculadas) qs.set('somente_vinculadas', 'true');
-  if (p.limite) qs.set('limite', String(p.limite));
+  if (p.q) qs.set('q', p.q);
 
-  const url = `${getApiUrl()}/api/bi/contabilidade/dre-dinamica/plano-contas?${qs.toString()}`;
+  const url = `${getApiUrl()}/api/bi/contabilidade/plano-contas-disponivel?${qs.toString()}`;
   console.log('[MONTADOR DRE] plano-contas url:', url);
   const resp = await fetch(url, { headers: authHeaders() });
   if (!resp.ok) {
@@ -142,8 +142,6 @@ export async function fetchPlanoContasDinamica(p: PlanoContasParams): Promise<Pl
     const primeira = arr[0];
     console.log('[MONTADOR DRE] primeira conta bruta:', primeira);
     console.log('[MONTADOR DRE] Object.keys(primeiraConta):', Object.keys(primeira || {}));
-    console.log('[MONTADOR DRE] typeof primeiraConta.centros_custo:', typeof primeira?.centros_custo);
-    console.log('[MONTADOR DRE] primeiraConta.centros_custo (bruto):', primeira?.centros_custo);
   }
 
   const pickStr = (o: any, keys: string[]): string => {
@@ -159,24 +157,29 @@ export async function fetchPlanoContasDinamica(p: PlanoContasParams): Promise<Pl
     const cd_mascara: string = pickStr(r, ['cd_mascara', 'mascara']);
     const nivelFallback = cd_mascara ? cd_mascara.split('.').filter(Boolean).length : 0;
     const valorConta = toNumberBI(
-      r?.valor_total ?? r?.vl_realizado ?? r?.realizado ?? 0,
+      r?.vl_realizado ?? r?.valor_total ?? r?.realizado ?? 0,
     );
     const centros = normalizeCentrosCusto(r?.centros_custo);
+    const linhaVinc = pickStr(r, ['linha_vinculada', 'codigo_linha']);
     return {
       cd_mascara,
+      ds_mascara: pickStr(r, ['ds_mascara', 'descricao_mascara']),
       cd_conta_contabil: pickStr(r, ['cd_conta_contabil', 'cd_conta', 'conta']),
-      ds_conta: pickStr(r, ['ds_conta', 'descricao', 'nome_conta', 'nome', 'conta_descricao', 'ds_conta_contabil', 'ds_conta_descricao']),
+      ds_conta: pickStr(r, ['ds_conta', 'ds_mascara', 'descricao', 'nome_conta', 'nome']),
       nivel: pickNum(r, ['nivel']) || nivelFallback,
       centros_custo: centros,
-      qtd_centros: centros.length,
-      qtd_lancamentos: pickNum(r, ['qtd_lancamentos', 'qtde', 'qtd', 'quantidade', 'qtd_lanc']),
+      qtd_centros: pickNum(r, ['qtd_centros']) || centros.length,
+      qtd_lancamentos: pickNum(r, ['qtd_lancamentos', 'qtde', 'qtd', 'quantidade']),
       valor_total: valorConta,
       vl_realizado: valorConta,
       realizado: valorConta,
-      ja_vinculada: !!(r.ja_vinculada ?? r.vinculada),
-      linhas_vinculadas: Array.isArray(r.linhas_vinculadas) ? r.linhas_vinculadas : [],
+      ja_vinculada: !!(r.ja_usada ?? r.ja_vinculada ?? r.vinculada),
+      linhas_vinculadas: Array.isArray(r.linhas_vinculadas)
+        ? r.linhas_vinculadas
+        : (linhaVinc ? [linhaVinc] : []),
     };
   });
+
 
   if (mapped.length) {
     const qtdComValor = mapped.filter((c) => Math.abs(Number(c.valor_total || 0)) > 0).length;
