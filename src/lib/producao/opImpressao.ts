@@ -47,7 +47,7 @@ export interface OpOperacao {
   fornecedor?: string;
   servico?: string;
   descricao_servico?: string;
-  tmp_unit?: number | string;
+  tmp_unit?: float | string;
   tmp_total?: number | string;
   tmp_unit_min?: number;
   tmp_total_min?: number;
@@ -73,7 +73,7 @@ export interface OpDesenho {
   url_manifest_a4?: string;
   cache_key?: string;
   usar_paginas_a4_normalizadas?: boolean;
-  layout_impressao?: 'A4_RETRATO' | 'A4_RETRATO_NORMALIZADO' | string;
+  layout_impressao?: "A4_RETRATO" | "A4_RETRATO_NORMALIZADO" | string;
   rotacao_automatica?: boolean;
   largura?: number;
   altura?: number;
@@ -81,9 +81,6 @@ export interface OpDesenho {
   rotacao_recomendada?: number;
   rotacionar_para_retrato?: boolean;
 }
-
-
-
 
 export interface OpImpressao {
   cabecalho?: OpCabecalho;
@@ -95,7 +92,7 @@ export interface OpImpressao {
   layout_componentes?: {
     quebrar_componentes_em_pagina_separada?: boolean;
     limite_componentes_primeira_pagina?: number;
-    posicao_componentes_quando_quebrar?: 'APOS_OPERACOES' | 'ANTES_OPERACOES';
+    posicao_componentes_quando_quebrar?: "APOS_OPERACOES" | "ANTES_OPERACOES";
   };
   modo_impressao?: {
     imprimir_observacoes?: boolean;
@@ -114,11 +111,10 @@ export interface ImpressaoOpFiltros {
   rel_prd?: string;
   sit_orp?: string;
   cod_pro?: string;
-  listar_componentes?: 'S' | 'N' | '';
-  listar_desenho?: 'S' | 'N' | '';
+  listar_componentes?: "S" | "N" | "";
+  listar_desenho?: "S" | "N" | "";
   cod_etg?: string;
   cod_cre?: string;
-  incluir_desenhos?: 'S' | 'N' | '';
-  quebrar_por_operacao?: 'S' | 'N' | '';
+  incluir_desenhos?: "S" | "N" | "";
+  quebrar_por_operacao?: "S" | "N" | "";
 }
-
