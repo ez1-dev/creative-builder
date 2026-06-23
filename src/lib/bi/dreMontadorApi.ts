@@ -4,14 +4,15 @@ import { supabase } from '@/integrations/supabase/client';
 export interface PlanoContaCentroCusto {
   cd_centro_custos: string;
   cd_centro_custos_3: string;
+  ds_centro_custos: string;
   qtd_lancamentos: number;
   valor_total: number;
   vl_realizado: number;
-  ds_centro_custos: string;
 }
 
 export interface PlanoContaErp {
   cd_mascara: string;
+  ds_mascara: string;
   cd_conta_contabil: string;
   ds_conta: string;
   nivel: number;
@@ -20,7 +21,7 @@ export interface PlanoContaErp {
   valor_total: number;
   vl_realizado?: number;
   realizado?: number;
-  qtd_centros?: number;
+  qtd_centros: number;
   ja_vinculada: boolean;
   linhas_vinculadas: string[];
 }
@@ -29,10 +30,9 @@ export interface PlanoContasParams {
   anomes_ini: string;
   anomes_fim: string;
   modelo_id?: string | null;
-  busca?: string;
-  somente_nao_vinculadas?: boolean;
-  somente_vinculadas?: boolean;
-  limite?: number;
+  empresa_id?: string;
+  somente_resultado?: boolean;
+  q?: string;
 }
 
 export interface VincularContasPayload {
@@ -42,8 +42,9 @@ export interface VincularContasPayload {
   operador: 'COMECA_COM' | 'IGUAL';
   sinal: 1 | -1;
   prioridade: number;
-  contas: { cd_mascara: string; cd_conta_contabil: string }[];
+  contas: { cd_mascara?: string; cd_conta_contabil?: string }[];
 }
+
 
 function authHeaders(): Record<string, string> {
   const token = api.getToken();
