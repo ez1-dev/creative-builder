@@ -8,6 +8,8 @@ export interface PdfJobOpRef {
 
 export type PdfJobQualidade = "rapida" | "normal" | "alta";
 
+export type PdfJobModoPdfDesenho = "vetor" | "raster";
+
 /** Mapeamento canônico de qualidade → DPI usado para impressão A4. */
 export const QUALIDADE_DPI: Record<PdfJobQualidade, number> = {
   rapida: 120,
