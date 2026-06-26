@@ -1242,6 +1242,17 @@ export default function ImpressaoOrdemProducaoPage() {
                             ))}
                           </div>
                         )}
+                        {pdfJob.avisos && pdfJob.avisos.length > 0 && (
+                          <div
+                            className="flex items-start gap-1 text-[11px] text-amber-700 dark:text-amber-400"
+                            title={pdfJob.avisos.slice(0, 5).join("\n")}
+                          >
+                            <AlertTriangle className="mt-[1px] h-3 w-3 shrink-0" />
+                            <span>
+                              {pdfJob.avisos.length} aviso{pdfJob.avisos.length === 1 ? "" : "s"} de desenho
+                            </span>
+                          </div>
+                        )}
                         <span className="text-[10px] text-muted-foreground/80">
                           Os desenhos não são renderizados no navegador. O PDF é gerado no servidor.
                         </span>
