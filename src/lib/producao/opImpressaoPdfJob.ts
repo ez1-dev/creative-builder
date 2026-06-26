@@ -69,6 +69,21 @@ export interface PdfJobStatus {
   /** Segundos desde o início do job. */
   tempo_total?: number | null;
   modo_pdf_desenho?: PdfJobModoPdfDesenho | null;
+  /** Avisos não-fatais acumulados durante o job (ex.: pasta inacessível, desenho não encontrado). */
+  avisos?: string[] | null;
+  /** Resumo final de cobertura de desenhos. */
+  desenhos_resumo?: {
+    ops_total?: number | null;
+    ops_com_desenho?: number | null;
+    ops_sem_desenho?: number | null;
+    paginas_incluidas?: number | null;
+  } | null;
+  /** Estado da pasta de desenhos no servidor no momento da execução. */
+  pasta_desenhos?: {
+    configurada?: string | null;
+    existe?: boolean | null;
+    eh_diretorio?: boolean | null;
+  } | null;
 }
 
 const BASE = "/api/producao/ordem-producao/impressao/pdf-job";
