@@ -1303,6 +1303,63 @@ export default function ImpressaoOrdemProducaoPage() {
                   </div>
                 )}
 
+                {pdfJob.status === "CONCLUIDO" &&
+                  ((pdfJob.avisos && pdfJob.avisos.length > 0) ||
+                    (pdfJob.pastaDesenhos &&
+                      (pdfJob.pastaDesenhos.existe === false ||
+                        pdfJob.pastaDesenhos.eh_diretorio === false))) && (
+                    <div className="border-b p-3">
+                      <Alert className="border-amber-500/60 bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>PDF gerado com avisos</AlertTitle>
+                        <AlertDescription className="space-y-2">
+                          {pdfJob.pastaDesenhos &&
+                            (pdfJob.pastaDesenhos.existe === false ||
+                              pdfJob.pastaDesenhos.eh_diretorio === false) && (
+                              <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-500/40 bg-amber-100/60 px-2 py-1.5 dark:bg-amber-900/40">
+                                <span>
+                                  <strong>Pasta de desenhos inacessível</strong> no servidor:{" "}
+                                  <code className="text-xs">
+                                    {pdfJob.pastaDesenhos.configurada ?? "(não configurada)"}
+                                  </code>
+                                  . Verifique a variável <code>PASTA_DESENHOS_OP</code> no backend (ex.:{" "}
+                                  <code>/mnt/desenhos_op</code> se rodando em Linux/Docker).
+                                </span>
+                                <Button size="sm" variant="outline" onClick={rodarDiagnosticoDesenhos}>
+                                  Abrir diagnóstico
+                                </Button>
+                              </div>
+                            )}
+                          {pdfJob.desenhosResumo && (
+                            <div className="text-xs">
+                              {pdfJob.desenhosResumo.ops_com_desenho ?? 0} de{" "}
+                              {pdfJob.desenhosResumo.ops_total ?? 0} OPs com desenho
+                              {typeof pdfJob.desenhosResumo.paginas_incluidas === "number" && (
+                                <> • {pdfJob.desenhosResumo.paginas_incluidas} página(s) incluída(s)</>
+                              )}
+                              {typeof pdfJob.desenhosResumo.ops_sem_desenho === "number" &&
+                                pdfJob.desenhosResumo.ops_sem_desenho > 0 && (
+                                  <> • {pdfJob.desenhosResumo.ops_sem_desenho} sem desenho</>
+                                )}
+                            </div>
+                          )}
+                          {pdfJob.avisos && pdfJob.avisos.length > 0 && (
+                            <details className="rounded-md border border-amber-500/30 bg-amber-100/40 p-2 dark:bg-amber-900/30">
+                              <summary className="cursor-pointer text-xs font-semibold">
+                                {pdfJob.avisos.length} aviso(s) — ver detalhes
+                              </summary>
+                              <ul className="mt-2 max-h-40 list-disc space-y-0.5 overflow-auto pl-5 text-xs">
+                                {pdfJob.avisos.map((a, i) => (
+                                  <li key={i}>{a}</li>
+                                ))}
+                              </ul>
+                            </details>
+                          )}
+                        </AlertDescription>
+                      </Alert>
+                    </div>
+                  )}
+
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
