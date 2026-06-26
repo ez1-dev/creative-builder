@@ -69,7 +69,22 @@ Resposta:
     "LOCALIZANDO_DESENHOS": 0.8
   },
   "tempo_etapa_atual": 14.8,
-  "tempo_total": 20.1
+  "tempo_total": 20.1,
+  "avisos": [
+    "Pasta de desenhos inacessível: /mnt/desenhos_op",
+    "Nenhum desenho encontrado para o produto 12345 na pasta /mnt/desenhos_op"
+  ],
+  "desenhos_resumo": {
+    "ops_total": 244,
+    "ops_com_desenho": 198,
+    "ops_sem_desenho": 46,
+    "paginas_incluidas": 312
+  },
+  "pasta_desenhos": {
+    "configurada": "/mnt/desenhos_op",
+    "existe": true,
+    "eh_diretorio": true
+  }
 }
 ```
 
@@ -82,6 +97,43 @@ Resposta:
 - `tempos_por_etapa` (opcional): mapa `EtapaNome → segundos`, somente etapas **já concluídas**. O frontend exibe em linha compacta na ordem canônica.
 - `tempo_etapa_atual` (opcional): segundos decorridos na etapa em andamento. Exibido ao lado do label da etapa.
 - `tempo_total` (opcional): segundos desde o início do job. Exibido no canto direito do card de progresso.
+- `avisos` (opcional): array de strings com avisos **não-fatais** acumulados durante a execução. Ver seção dedicada abaixo.
+- `desenhos_resumo` (opcional): resumo de cobertura de desenhos no PDF final. Exibido no alerta amarelo ao concluir.
+- `pasta_desenhos` (opcional): snapshot do estado da pasta no momento da execução. Quando `existe=false` ou `eh_diretorio=false`, o frontend mostra alerta destacando o caminho configurado.
+
+## Avisos não-fatais (`avisos[]`)
+
+O job **não deve falhar silenciosamente** quando não conseguir incluir desenhos. Em vez disso, deve acumular mensagens em `avisos[]` e continuar gerando o PDF (sem os desenhos faltantes). Casos obrigatórios:
+
+1. **Pasta inacessível** — quando `PASTA_DESENHOS_OP` não existir ou não for diretório:
+   - Adicionar **uma vez por job** (não repetir por OP): `"Pasta de desenhos inacessível: <caminho_configurado>"`
+   - Preencher `pasta_desenhos = { configurada, existe: false, eh_diretorio: false }`.
+2. **Produto sem desenho** — pasta acessível, mas nenhum arquivo casa com o `cod_pro` da OP:
+   - Adicionar **uma vez por OP**: `"Nenhum desenho encontrado para o produto <cod_pro> na pasta <caminho_configurado>"`
+3. **Erro de render** — falha ao abrir/normalizar um desenho específico:
+   - Adicionar: `"Erro ao normalizar desenho <nome_arquivo>: <detalhe>"`
+
+Aplicar nas funções `localizar_desenhos_produto` e `_pdf_job_resolver_desenhos` — principalmente no fluxo `POST /pdf-job` (lote). O `status` final continua `CONCLUIDO` (só vira `ERRO` em falhas estruturais — DB, disco cheio, etc.).
+
+### Montagem do compartilhamento UNC em Linux/Docker
+
+O valor padrão histórico de `PASTA_DESENHOS_OP` é:
+
+```
+\\EZORTEA-SRVSENI\Senior\Sapiens\Pasta de Desenho\02-JPG_OP
+```
+
+Esse UNC só funciona no Windows. Quando o FastAPI roda em Linux/Docker, o compartilhamento precisa ser montado no host (ex.: `cifs`) e a env apontar para o mount:
+
+```bash
+# /etc/fstab (exemplo)
+//EZORTEA-SRVSENI/Senior/Sapiens/Pasta\040de\040Desenho/02-JPG_OP /mnt/desenhos_op cifs credentials=/etc/.smbcred,ro,uid=1000 0 0
+
+# .env do FastAPI
+PASTA_DESENHOS_OP=/mnt/desenhos_op
+```
+
+
 
 ### `GET /api/producao/ordem-producao/impressao/pdf-job/{job_id}/download`
 
