@@ -9,6 +9,9 @@ import {
   type PdfJobStatus,
 } from "@/lib/producao/opImpressaoPdfJob";
 
+type PdfJobDesenhosResumo = NonNullable<PdfJobStatus["desenhos_resumo"]>;
+type PdfJobPastaDesenhos = NonNullable<PdfJobStatus["pasta_desenhos"]>;
+
 export type PdfJobUiStatus = "IDLE" | "CRIANDO" | "PROCESSANDO" | "CONCLUIDO" | "ERRO";
 
 export interface UseImpressaoPdfJob {
