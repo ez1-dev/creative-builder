@@ -1633,6 +1633,19 @@ export default function ImpressaoOrdemProducaoPage() {
           )}
           {diagData && (
             <div className="space-y-2 text-sm">
+              {(diagData.pasta_existe === false || diagData.pasta_eh_diretorio === false) && (
+                <div className="rounded-md border border-destructive bg-destructive/10 p-3 text-xs text-destructive">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <div>
+                      <strong>Pasta de desenhos inacessível no servidor.</strong> Verifique a variável{" "}
+                      <code>PASTA_DESENHOS_OP</code> no backend. Se o FastAPI roda em Linux/Docker, o caminho UNC{" "}
+                      <code>\\EZORTEA-SRVSENI\Senior\Sapiens\Pasta de Desenho\02-JPG_OP</code> precisa ser montado
+                      (ex.: <code>/mnt/desenhos_op</code>) e a env atualizada para apontar para o mount.
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <span className="font-semibold">Pasta:</span>{" "}
@@ -1655,6 +1668,34 @@ export default function ImpressaoOrdemProducaoPage() {
                   {Array.isArray(diagData.desenhos_encontrados) ? diagData.desenhos_encontrados.length : 0}
                 </div>
               </div>
+              {Array.isArray(diagData.candidatos_testados) && diagData.candidatos_testados.length > 0 && (
+                <details className="rounded-md border bg-muted/30 p-2" open>
+                  <summary className="cursor-pointer text-xs font-semibold">
+                    Candidatos testados ({diagData.candidatos_testados.length})
+                  </summary>
+                  <ul className="mt-2 max-h-40 list-disc space-y-0.5 overflow-auto pl-5 text-[11px]">
+                    {diagData.candidatos_testados.map((c: any, i: number) => (
+                      <li key={i}>
+                        <code>{typeof c === "string" ? c : JSON.stringify(c)}</code>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+              {Array.isArray(diagData.amostra_arquivos_na_pasta) && diagData.amostra_arquivos_na_pasta.length > 0 && (
+                <details className="rounded-md border bg-muted/30 p-2">
+                  <summary className="cursor-pointer text-xs font-semibold">
+                    Amostra de arquivos na pasta ({diagData.amostra_arquivos_na_pasta.length})
+                  </summary>
+                  <ul className="mt-2 max-h-40 list-disc space-y-0.5 overflow-auto pl-5 text-[11px]">
+                    {diagData.amostra_arquivos_na_pasta.map((f: any, i: number) => (
+                      <li key={i}>
+                        <code>{String(f)}</code>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
               <details className="rounded-md border bg-muted/30 p-2">
                 <summary className="cursor-pointer text-xs font-semibold">JSON completo</summary>
                 <pre className="mt-2 max-h-80 overflow-auto text-[10px] leading-tight">
