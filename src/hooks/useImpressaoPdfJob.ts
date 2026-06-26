@@ -9,6 +9,9 @@ import {
   type PdfJobStatus,
 } from "@/lib/producao/opImpressaoPdfJob";
 
+type PdfJobDesenhosResumo = NonNullable<PdfJobStatus["desenhos_resumo"]>;
+type PdfJobPastaDesenhos = NonNullable<PdfJobStatus["pasta_desenhos"]>;
+
 export type PdfJobUiStatus = "IDLE" | "CRIANDO" | "PROCESSANDO" | "CONCLUIDO" | "ERRO";
 
 export interface UseImpressaoPdfJob {
@@ -27,6 +30,9 @@ export interface UseImpressaoPdfJob {
   temposPorEtapa: Record<string, number> | null;
   tempoEtapaAtual: number | null;
   tempoTotal: number | null;
+  avisos: string[] | null;
+  desenhosResumo: PdfJobDesenhosResumo | null;
+  pastaDesenhos: PdfJobPastaDesenhos | null;
   iniciar: (payload: PdfJobPayload) => Promise<void>;
   cancelar: () => void;
   isBusy: boolean;
@@ -163,6 +169,9 @@ export function useImpressaoPdfJob(): UseImpressaoPdfJob {
     temposPorEtapa: info?.tempos_por_etapa ?? null,
     tempoEtapaAtual: info?.tempo_etapa_atual ?? null,
     tempoTotal: info?.tempo_total ?? null,
+    avisos: info?.avisos ?? null,
+    desenhosResumo: info?.desenhos_resumo ?? null,
+    pastaDesenhos: info?.pasta_desenhos ?? null,
     iniciar,
     cancelar,
     isBusy: status === "CRIANDO" || status === "PROCESSANDO",
