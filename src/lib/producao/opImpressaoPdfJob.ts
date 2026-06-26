@@ -24,8 +24,12 @@ export interface PdfJobPayload {
   incluir_operacoes: boolean;
   /** "rapida" = 120 DPI | "normal" (default) = 150 DPI | "alta" = 200 DPI */
   qualidade_desenhos?: PdfJobQualidade;
+  /** Alias aceito para `qualidade_desenhos`. */
+  qualidade?: PdfJobQualidade;
   /** DPI explícito; quando enviado, prevalece sobre qualidade_desenhos no backend. */
   dpi?: number;
+  /** "vetor" (default) preserva PDFs técnicos como vetor; "raster" rasteriza via cache. */
+  modo_pdf_desenho?: PdfJobModoPdfDesenho;
 }
 
 export interface PdfJobCreateResponse {
