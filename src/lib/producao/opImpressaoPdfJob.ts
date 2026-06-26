@@ -68,6 +68,7 @@ export interface PdfJobStatus {
   tempo_etapa_atual?: number | null;
   /** Segundos desde o início do job. */
   tempo_total?: number | null;
+  modo_pdf_desenho?: PdfJobModoPdfDesenho | null;
 }
 
 const BASE = "/api/producao/ordem-producao/impressao/pdf-job";
