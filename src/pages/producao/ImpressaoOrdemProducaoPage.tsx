@@ -167,6 +167,7 @@ export default function ImpressaoOrdemProducaoPage() {
   const opcoes = useOpcoesImpressaoOp();
   const pdfJob = useImpressaoPdfJob();
   const [qualidadePdf, setQualidadePdf] = useState<"rapida" | "normal" | "alta">("normal");
+  const [modoPdfDesenho, setModoPdfDesenho] = useState<"vetor" | "raster">("vetor");
 
   // URLs dos desenhos da consulta atual (individual) — usadas para fetch autenticado
   // e exibição de status por desenho na tabela de preview.
