@@ -8,6 +8,8 @@ export interface PdfJobOpRef {
 
 export type PdfJobQualidade = "rapida" | "normal" | "alta";
 
+export type PdfJobModoPdfDesenho = "vetor" | "raster";
+
 /** Mapeamento canônico de qualidade → DPI usado para impressão A4. */
 export const QUALIDADE_DPI: Record<PdfJobQualidade, number> = {
   rapida: 120,
@@ -22,8 +24,12 @@ export interface PdfJobPayload {
   incluir_operacoes: boolean;
   /** "rapida" = 120 DPI | "normal" (default) = 150 DPI | "alta" = 200 DPI */
   qualidade_desenhos?: PdfJobQualidade;
+  /** Alias aceito para `qualidade_desenhos`. */
+  qualidade?: PdfJobQualidade;
   /** DPI explícito; quando enviado, prevalece sobre qualidade_desenhos no backend. */
   dpi?: number;
+  /** "vetor" (default) preserva PDFs técnicos como vetor; "raster" rasteriza via cache. */
+  modo_pdf_desenho?: PdfJobModoPdfDesenho;
 }
 
 export interface PdfJobCreateResponse {
@@ -62,16 +68,19 @@ export interface PdfJobStatus {
   tempo_etapa_atual?: number | null;
   /** Segundos desde o início do job. */
   tempo_total?: number | null;
+  modo_pdf_desenho?: PdfJobModoPdfDesenho | null;
 }
 
 const BASE = "/api/producao/ordem-producao/impressao/pdf-job";
 
 export function criarPdfJob(payload: PdfJobPayload): Promise<PdfJobCreateResponse> {
-  const qualidade = payload.qualidade_desenhos ?? "normal";
+  const qualidade = payload.qualidade_desenhos ?? payload.qualidade ?? "normal";
   const body: PdfJobPayload = {
     ...payload,
+    qualidade,
     qualidade_desenhos: qualidade,
     dpi: payload.dpi ?? QUALIDADE_DPI[qualidade],
+    modo_pdf_desenho: payload.modo_pdf_desenho ?? "vetor",
   };
   return api.post<PdfJobCreateResponse>(BASE, body as unknown as Record<string, any>);
 }

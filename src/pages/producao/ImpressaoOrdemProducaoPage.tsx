@@ -167,6 +167,7 @@ export default function ImpressaoOrdemProducaoPage() {
   const opcoes = useOpcoesImpressaoOp();
   const pdfJob = useImpressaoPdfJob();
   const [qualidadePdf, setQualidadePdf] = useState<"rapida" | "normal" | "alta">("normal");
+  const [modoPdfDesenho, setModoPdfDesenho] = useState<"vetor" | "raster">("vetor");
 
   // URLs dos desenhos da consulta atual (individual) — usadas para fetch autenticado
   // e exibição de status por desenho na tabela de preview.
@@ -836,6 +837,7 @@ export default function ImpressaoOrdemProducaoPage() {
       incluir_componentes: filtros.listar_componentes === "S",
       incluir_operacoes: true,
       qualidade_desenhos: qualidadePdf,
+      modo_pdf_desenho: modoPdfDesenho,
     });
   };
 
@@ -1156,20 +1158,36 @@ export default function ImpressaoOrdemProducaoPage() {
                     {pdfJob.status === "IDLE" || pdfJob.status === "ERRO" ? (
                       <>
                         <Select
+                          value={modoPdfDesenho}
+                          onValueChange={(v) => setModoPdfDesenho(v as "vetor" | "raster")}
+                          disabled={pdfJob.isBusy}
+                        >
+                          <SelectTrigger
+                            className="h-8 w-[260px] text-xs"
+                            title="Define como PDFs técnicos serão inseridos no PDF final."
+                          >
+                            <SelectValue placeholder="Modo dos PDFs" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="vetor">PDF vetorial — recomendado</SelectItem>
+                            <SelectItem value="raster">Imagem/cache — compatibilidade</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Select
                           value={qualidadePdf}
                           onValueChange={(v) => setQualidadePdf(v as "rapida" | "normal" | "alta")}
                           disabled={pdfJob.isBusy}
                         >
                           <SelectTrigger
                             className="h-8 w-[230px] text-xs"
-                            title="Qualidade dos desenhos no PDF. Menor DPI gera mais rápido e arquivo menor."
+                            title="DPI aplicado a imagens JPG/PNG e ao fallback raster. Não afeta PDFs vetoriais."
                           >
                             <SelectValue placeholder="Qualidade dos desenhos" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="rapida">Rápida (120 DPI)</SelectItem>
-                            <SelectItem value="normal">Normal (150 DPI) — recomendada</SelectItem>
-                            <SelectItem value="alta">Alta (200 DPI)</SelectItem>
+                            <SelectItem value="rapida">Imagens: rápida (120 DPI)</SelectItem>
+                            <SelectItem value="normal">Imagens: normal (150 DPI)</SelectItem>
+                            <SelectItem value="alta">Imagens: alta (200 DPI)</SelectItem>
                           </SelectContent>
                         </Select>
                         <Button
