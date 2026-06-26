@@ -74,11 +74,13 @@ export interface PdfJobStatus {
 const BASE = "/api/producao/ordem-producao/impressao/pdf-job";
 
 export function criarPdfJob(payload: PdfJobPayload): Promise<PdfJobCreateResponse> {
-  const qualidade = payload.qualidade_desenhos ?? "normal";
+  const qualidade = payload.qualidade_desenhos ?? payload.qualidade ?? "normal";
   const body: PdfJobPayload = {
     ...payload,
+    qualidade,
     qualidade_desenhos: qualidade,
     dpi: payload.dpi ?? QUALIDADE_DPI[qualidade],
+    modo_pdf_desenho: payload.modo_pdf_desenho ?? "vetor",
   };
   return api.post<PdfJobCreateResponse>(BASE, body as unknown as Record<string, any>);
 }
