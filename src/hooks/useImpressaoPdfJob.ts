@@ -30,6 +30,9 @@ export interface UseImpressaoPdfJob {
   temposPorEtapa: Record<string, number> | null;
   tempoEtapaAtual: number | null;
   tempoTotal: number | null;
+  avisos: string[] | null;
+  desenhosResumo: PdfJobDesenhosResumo | null;
+  pastaDesenhos: PdfJobPastaDesenhos | null;
   iniciar: (payload: PdfJobPayload) => Promise<void>;
   cancelar: () => void;
   isBusy: boolean;
