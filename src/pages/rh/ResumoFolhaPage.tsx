@@ -49,17 +49,14 @@ export default function ResumoFolhaPage() {
   };
 
   const query = useQuery({
-    queryKey: ["rh", "resumo-folha-dashboard", params],
-    queryFn: () => fetchResumoFolhaDashboard(params),
+    queryKey: ["rh", "resumo-folha-consolidado", params],
+    queryFn: () => fetchResumoFolhaConsolidado(params),
     enabled: !!params.anomes_ini && !!params.anomes_fim,
-    retry: (count, err: any) => {
-      if (err instanceof DashboardIndisponivelError) return false;
-      return count < 1;
-    },
+    retry: 1,
   });
 
   const { data, isLoading, isError, error } = query;
-  const indisponivel = error instanceof DashboardIndisponivelError;
+  const indisponivel = false;
 
   const kpis = data?.kpis;
   const filiaisData = data?.filiais ?? [];
@@ -68,8 +65,8 @@ export default function ResumoFolhaPage() {
   const tipos = data?.tipos_evento ?? [];
   const mensal = data?.mensal ?? [];
 
-  const filiaisOpts = useMemo(
-    () => Array.from(new Set(filiaisData.map((f) => f.filial).filter(Boolean))),
+  const filiaisOpts = useMemo<string[]>(
+    () => Array.from(new Set(filiaisData.map((f) => f.filial).filter(Boolean) as string[])),
     [filiaisData],
   );
 
