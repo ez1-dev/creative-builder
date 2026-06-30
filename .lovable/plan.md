@@ -1,73 +1,45 @@
 
-## Módulo RH
+# Melhorias no Módulo RH
 
-Criar módulo "RH" consumindo a API FastAPI já configurada (usa `api.get/post` de `src/lib/api.ts`, que já injeta Bearer Token e `ngrok-skip-browser-warning`). Nenhum acesso direto ao Senior; somente os endpoints `/api/rh/*`.
+O módulo RH já está implementado (menu, 5 telas, sync, formulários). Este plano corrige inconsistências com o spec e adiciona refinamentos.
 
-### 1. Navegação / Sidebar
-- `src/components/AppSidebar.tsx`: novo grupo colapsável **RH** (ícone `Users`) com sub-itens carregados estaticamente (espelhando `/api/rh/menu`):
-  - Resumo Folha → `/rh/resumo-folha`
-  - Quadro Colaboradores → `/rh/quadro-colaboradores`
-  - Contrato Experiência → `/rh/contrato-experiencia`
-  - Programação de Férias → `/rh/programacao-ferias`
-  - Formulários → `/rh/formularios`
-- Rotas registradas em `src/App.tsx` dentro do `AppLayout` protegido.
-- Permissões: incluir as 5 rotas no catálogo `src/lib/screenCatalog.ts` para aparecerem em Permissões por Tela.
+## 1. Resumo Folha — enviar filtros à API
+Hoje `ResumoFolhaPage` só envia `anomes_ini/fim`. Spec lista Filial e Matrícula como filtros.
+- Passar `filial` e `matricula` em `fetchResumoFolha` (quando preenchidos) e incluir no `queryKey`.
+- Corrigir KPI **Líquido**: hoje soma `liquido_calculado` linha-a-linha (eventos), o que multiplica o valor. Calcular como `proventos - descontos`.
 
-### 2. Camada de API — `src/lib/rh/api.ts`
-Funções tipadas que usam `api.get`/`api.post`:
-- `fetchMenuRh()` → `GET /api/rh/menu` (usado pela página índice `/rh` que valida o menu vindo do backend e renderiza cards; sidebar permanece estática).
-- `fetchResumoFolha({ anomes_ini, anomes_fim, filial?, matricula? })`
-- `fetchQuadroColaboradores({ filial?, situacao?, centro_custo?, cargo?, busca? })`
-- `fetchContratoExperiencia({ status?, filial?, colaborador? })`
-- `fetchProgramacaoFerias({ status?, filial?, centro_custo?, colaborador? })`
-- `fetchFormularios()` / `criarFormulario(payload)`
-- `sincronizarRh({ anomes_ini, anomes_fim, codemp = 1 })` → `POST /api/rh/sync` (query params)
+## 2. Filtros server-side nas demais telas
+`QuadroColaboradoresPage`, `ContratoExperienciaPage`, `ProgramacaoFeriasPage` enviam params vazios e filtram tudo no cliente.
+- Manter filtragem local (rápida), mas também propagar `filial`, `status`, `centro_custo`, `cargo`, `colaborador` ao endpoint quando definidos, incluindo no `queryKey` — assim grandes bases não estouram memória.
 
-Tipagens em `src/lib/rh/types.ts` cobrindo cada linha das tabelas listadas no pedido.
+## 3. SincronizarRhDialog — feedback em duas etapas
+Hoje só mostra toast no fim. Spec exige três mensagens.
+- Mostrar toast "Sincronizando RH..." ao iniciar (id persistente).
+- Substituir por "RH sincronizado com sucesso" no `onSuccess` ou "Falha na sincronização: <detalhe>" no `onError`, extraindo `error.response?.data?.detail` quando houver.
+- Após sucesso, além de `invalidateQueries(["rh"])`, manter dialog fechado.
 
-### 3. Telas (`src/pages/rh/`)
+## 4. Formulários — filtros + edição de status
+Spec: "Edição visual simples por status" e listagem com filtros.
+- Adicionar filtros (Tipo, Status, busca por matrícula/colaborador).
+- Badge de status colorido (ABERTO/EM_ANALISE/CONCLUIDO/CANCELADO).
+- Coluna "Ações" com `<Select>` inline para alterar status: chama `PATCH /api/rh/formularios/{id}` (novo método `atualizarStatusFormulario` em `lib/rh/api.ts`). Se backend não suportar PATCH, fallback para POST no mesmo recurso com `id`.
+- Toast de sucesso/erro e invalidate da query.
 
-Padrão comum: header com título, `Card` de filtros, grid de KPI cards (componente `KpiCard` reaproveitado de `@/components/bi`), `DataTable`/`Table` shadcn com paginação client-side, busca, ordenação básica e botão **Sincronizar RH** no header de todas as telas.
+## 5. Pequenos ajustes
+- `RhIndexPage`: mostrar contagem retornada pelo backend (se vier no menu) ou ignorar; remover ícone `FileCheck` não usado.
+- `SincronizarRhDialog`: validar que `fim >= ini` antes de submeter.
 
-**a) `RhIndexPage.tsx`** (`/rh`)
-Carrega `/api/rh/menu` e renderiza cards 01–99 navegando para cada rota. Fallback para itens estáticos se backend falhar.
+## Arquivos afetados
+- `src/lib/rh/api.ts` — novos params e `atualizarStatusFormulario`.
+- `src/components/rh/SincronizarRhDialog.tsx` — toasts em etapas + validação.
+- `src/components/rh/FormularioDialog.tsx` — sem mudança estrutural.
+- `src/pages/rh/ResumoFolhaPage.tsx` — filtros server-side + KPI líquido.
+- `src/pages/rh/QuadroColaboradoresPage.tsx`
+- `src/pages/rh/ContratoExperienciaPage.tsx`
+- `src/pages/rh/ProgramacaoFeriasPage.tsx`
+- `src/pages/rh/FormulariosPage.tsx` — filtros + edição de status.
 
-**b) `ResumoFolhaPage.tsx`** — filtros Ano/mês inicial e final (Input month → converte para `YYYYMM`), Filial (Select alimentado pelas opções distintas do retorno), Matrícula/Colaborador (Input). KPIs: Total proventos, Total descontos, Líquido, Qtd colaboradores (distinct matrícula), Qtd registros. Tabela com 14 colunas conforme spec. Valores em BRL via `formatCurrency`.
-
-**c) `QuadroColaboradoresPage.tsx`** — filtros Filial, Situação, Centro custo, Cargo, Nome/matrícula. KPIs: Total, Ativos, Demitidos, Afastados/Férias (contagem por situação). Tabela 14 colunas.
-
-**d) `ContratoExperienciaPage.tsx`** — filtros Status, Filial, Colaborador. KPIs: Total, Vencidos, ≤10 dias, ≤30 dias, No prazo. Tabela com badges coloridos para `status_contrato`:
-- VENCIDO → `bg-destructive text-destructive-foreground`
-- VENCE EM ATE 10 DIAS → laranja/vermelho (token `bg-orange-500`/destructive)
-- VENCE EM ATE 30 DIAS → amarelo
-- NO PRAZO → verde
-
-Cores via tokens semânticos do design system (extender `index.css` se necessário com variáveis `--status-vencido`, `--status-alerta`, `--status-aviso`, `--status-ok`).
-
-**e) `ProgramacaoFeriasPage.tsx`** — filtros Status, Filial, Centro custo, Colaborador. KPIs: Registros, Sem programação, Limite vencido, Limite ≤30 dias, Total dias saldo. Tabela 17 colunas com badges (LIMITE VENCIDO, LIMITE ATE 30 DIAS, SEM PROGRAMACAO, OK) usando os mesmos tokens.
-
-**f) `FormulariosPage.tsx`** — listagem em tabela (Tipo, Título, Matrícula, Colaborador, Status, criado em). Botão **Novo formulário** abre `FormularioDialog` (shadcn Dialog + react-hook-form + zod) com:
-- `cd_tp_formulario` Select: FERIAS, CONTRATO_EXPERIENCIA, ATESTADO, ALTERACAO_CADASTRAL, OUTROS
-- `ds_titulo` Input, `ds_descricao` Textarea
-- `cd_matricula` Input, `ds_colaborador` Input
-- `cd_status` Select (default ABERTO)
-
-POST envia exatamente o JSON especificado. Toast de sucesso + refetch.
-
-### 4. Sincronização
-Componente compartilhado `SincronizarRhDialog.tsx` (botão no header de todas as telas RH):
-- Inputs `month` para anomes inicial/final + `codemp` (default 1).
-- Chama `POST /api/rh/sync?anomes_ini=...&anomes_fim=...&codemp=...`.
-- Loading state, toast, e ao concluir invalida queries das telas RH (React Query `queryClient.invalidateQueries({ queryKey: ['rh'] })`).
-
-### 5. Padrões técnicos
-- React Query (`@tanstack/react-query`) para fetch/cache, queryKey `['rh', screen, filters]`.
-- Filtros locais reaproveitados quando a API não os aceita como query param (aplicar `useMemo` sobre o array).
-- Formatação: `formatCurrency`, `formatDate` de `src/lib/format.ts`.
-- Sem cores hardcoded; usar tokens. Badges via `cn` + variantes definidas.
-- Tabelas grandes: `max-h-[70vh] overflow-auto` com header sticky.
-
-### Fora de escopo
-- Edição/exclusão de formulários (só listagem + criação).
-- Endpoints novos no backend — apenas os 7 já fornecidos.
-- Persistência local de filtros entre sessões.
+## Fora de escopo
+- Não alterar autenticação (já usa Bearer via `api`).
+- Não criar tabelas no Cloud — tudo via FastAPI.
+- Não mexer em `AppSidebar` (rotas já registradas).
