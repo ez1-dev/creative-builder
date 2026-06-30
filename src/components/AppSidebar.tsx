@@ -85,7 +85,14 @@ const producaoSubItems = [
   { title: 'Carga — Dashboard BI', url: '/producao/carga/dashboard', icon: Activity },
   { title: 'Carga — Por Recurso', url: '/producao/carga/recursos', icon: Gauge },
   { title: 'Programação e Sequenciamento', url: '/producao/programacao', icon: CalendarClock },
+];
 
+const rhSubItems = [
+  { title: 'Resumo Folha', url: '/rh/resumo-folha', icon: Receipt },
+  { title: 'Quadro Colaboradores', url: '/rh/quadro-colaboradores', icon: Users },
+  { title: 'Contrato Experiência', url: '/rh/contrato-experiencia', icon: FileCheck },
+  { title: 'Programação de Férias', url: '/rh/programacao-ferias', icon: CalendarRange },
+  { title: 'Formulários', url: '/rh/formularios', icon: FileText },
 ];
 
 
@@ -136,6 +143,9 @@ export function AppSidebar() {
   const showBiGroup = visibleBi.length > 0;
   const visibleRegrasSenior = regrasSeniorSubItems.filter((m) => isVisible(m.url));
   const showRegrasSeniorGroup = visibleRegrasSenior.length > 0;
+  const visibleRh = rhSubItems.filter((m) => isVisible(m.url));
+  const showRhGroup = visibleRh.length > 0;
+  const isRhActive = location.pathname.startsWith('/rh');
   const showRelatoriosGroup = isAdmin;
 
   return (
@@ -254,6 +264,41 @@ export function AppSidebar() {
                 <SidebarGroupContent>
                   <SidebarMenu>
                     {visibleBi.map((item) => (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton asChild>
+                          <NavLink
+                            to={item.url}
+                            end
+                            className="hover:bg-sidebar-accent"
+                            activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                          >
+                            <item.icon className="mr-2 h-4 w-4" />
+                            {!collapsed && <span>{item.title}</span>}
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </Collapsible>
+          </SidebarGroup>
+        )}
+
+        {showRhGroup && (
+          <SidebarGroup>
+            <Collapsible defaultOpen={isRhActive}>
+              <CollapsibleTrigger className="flex w-full items-center justify-between px-2 py-1.5 text-xs font-medium text-sidebar-foreground/70 hover:text-sidebar-foreground">
+                <span className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  {!collapsed && 'RH'}
+                </span>
+                {!collapsed && <ChevronDown className="h-3 w-3 transition-transform duration-200 group-data-[state=open]:rotate-180" />}
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {visibleRh.map((item) => (
                       <SidebarMenuItem key={item.title}>
                         <SidebarMenuButton asChild>
                           <NavLink

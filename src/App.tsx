@@ -81,6 +81,12 @@ import SnapshotsPage from "@/pages/regras-senior/SnapshotsPage";
 import DesenvolvimentoRelatoriosPage from "@/pages/relatorios/DesenvolvimentoRelatoriosPage";
 import RelatoriosPublicadosPage from "@/pages/relatorios/RelatoriosPublicadosPage";
 import HistoricoExecucoesPage from "@/pages/relatorios/HistoricoExecucoesPage";
+import RhIndexPage from "@/pages/rh/RhIndexPage";
+import ResumoFolhaPage from "@/pages/rh/ResumoFolhaPage";
+import QuadroColaboradoresPage from "@/pages/rh/QuadroColaboradoresPage";
+import ContratoExperienciaPage from "@/pages/rh/ContratoExperienciaPage";
+import ProgramacaoFeriasPage from "@/pages/rh/ProgramacaoFeriasPage";
+import FormulariosPage from "@/pages/rh/FormulariosPage";
 import NotFound from "@/pages/NotFound";
 import { ProtectedRoute, PostLoginRedirect } from "@/components/ProtectedRoute";
 import { UserTrackingProvider } from "@/components/UserTrackingProvider";
@@ -190,6 +196,13 @@ const App = () => (
               <Route path="/relatorios/desenvolvimento" element={<ProtectedRoute path="/relatorios/desenvolvimento"><DesenvolvimentoRelatoriosPage /></ProtectedRoute>} />
               <Route path="/relatorios/publicados" element={<ProtectedRoute path="/relatorios/publicados"><RelatoriosPublicadosPage /></ProtectedRoute>} />
               <Route path="/relatorios/execucoes" element={<ProtectedRoute path="/relatorios/execucoes"><HistoricoExecucoesPage /></ProtectedRoute>} />
+              {/* RH */}
+              <Route path="/rh" element={<ProtectedRoute path="/rh"><RhIndexPage /></ProtectedRoute>} />
+              <Route path="/rh/resumo-folha" element={<ProtectedRoute path="/rh/resumo-folha"><ResumoFolhaPage /></ProtectedRoute>} />
+              <Route path="/rh/quadro-colaboradores" element={<ProtectedRoute path="/rh/quadro-colaboradores"><QuadroColaboradoresPage /></ProtectedRoute>} />
+              <Route path="/rh/contrato-experiencia" element={<ProtectedRoute path="/rh/contrato-experiencia"><ContratoExperienciaPage /></ProtectedRoute>} />
+              <Route path="/rh/programacao-ferias" element={<ProtectedRoute path="/rh/programacao-ferias"><ProgramacaoFeriasPage /></ProtectedRoute>} />
+              <Route path="/rh/formularios" element={<ProtectedRoute path="/rh/formularios"><FormulariosPage /></ProtectedRoute>} />
               {/* Redirect old route */}
               <Route path="/engenharia-producao" element={<Navigate to="/producao/engenharia" replace />} />
             </Route>
