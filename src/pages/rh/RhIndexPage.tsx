@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fetchMenuRh } from "@/lib/rh/api";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
-import { Users, FileText, Calendar, Briefcase, FileCheck, Wallet } from "lucide-react";
+import { Users, FileText, Calendar, Briefcase, Wallet, FileCheck } from "lucide-react";
 
 const FALLBACK = [
   { codigo: "01", titulo: "Resumo Folha", rota: "/rh/resumo-folha", icon: Wallet },
