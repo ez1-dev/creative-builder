@@ -192,6 +192,21 @@ export default function ResumoFolhaPage() {
         </CardContent>
       </Card>
 
+      {/* Diagnóstico: linhas chegaram mas valores zerados */}
+      {!isLoading && rows.length > 0 && kpis.provento === 0 && kpis.desconto === 0 && kpis.custoTotal === 0 && (
+        <div className="rounded-md border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
+          <div className="font-medium text-warning-foreground">
+            Foram recebidos {rows.length} registros, mas todos os valores estão zerados.
+          </div>
+          <div className="text-muted-foreground mt-1">
+            Abra o console do navegador e procure por <code>[RH ResumoFolha] amostra</code> para conferir os nomes dos campos numéricos retornados pelo backend.
+            Se houver alias não previsto, adicione-o em <code>src/lib/rh/api.ts → normalizeResumoFolhaItem</code>.
+          </div>
+        </div>
+      )}
+
+
+
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
         {/* Líquido — card duplo */}
