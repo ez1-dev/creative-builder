@@ -69,10 +69,10 @@ export default function QuadroColaboradoresPage() {
       </Card>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <KpiCard title="Total Colaboradores" value={kpis.total} format="integer" loading={isLoading} />
-        <KpiCard title="Ativos" value={kpis.ativos} format="integer" variant="success" loading={isLoading} />
-        <KpiCard title="Demitidos" value={kpis.demit} format="integer" variant="danger" loading={isLoading} />
-        <KpiCard title="Afastados / Férias" value={kpis.afast} format="integer" variant="warning" loading={isLoading} />
+        <KpiCard title="Total Colaboradores" value={kpis.total} format="number" loading={isLoading} />
+        <KpiCard title="Ativos" value={kpis.ativos} format="number" variant="success" loading={isLoading} />
+        <KpiCard title="Demitidos" value={kpis.demit} format="number" variant="danger" loading={isLoading} />
+        <KpiCard title="Afastados / Férias" value={kpis.afast} format="number" variant="warning" loading={isLoading} />
       </div>
 
       <Card>

@@ -91,11 +91,11 @@ export default function ProgramacaoFeriasPage() {
       </Card>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
-        <KpiCard title="Registros" value={kpis.total} format="integer" loading={isLoading} />
-        <KpiCard title="Sem Programação" value={kpis.sem} format="integer" variant="warning" loading={isLoading} />
-        <KpiCard title="Limite Vencido" value={kpis.venc} format="integer" variant="danger" loading={isLoading} />
-        <KpiCard title="Limite ≤ 30 dias" value={kpis.d30} format="integer" variant="warning" loading={isLoading} />
-        <KpiCard title="Total Dias Saldo" value={kpis.saldo} format="integer" loading={isLoading} />
+        <KpiCard title="Registros" value={kpis.total} format="number" loading={isLoading} />
+        <KpiCard title="Sem Programação" value={kpis.sem} format="number" variant="warning" loading={isLoading} />
+        <KpiCard title="Limite Vencido" value={kpis.venc} format="number" variant="danger" loading={isLoading} />
+        <KpiCard title="Limite ≤ 30 dias" value={kpis.d30} format="number" variant="warning" loading={isLoading} />
+        <KpiCard title="Total Dias Saldo" value={kpis.saldo} format="number" loading={isLoading} />
       </div>
 
       <Card>

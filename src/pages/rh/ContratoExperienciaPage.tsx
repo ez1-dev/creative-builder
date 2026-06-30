@@ -78,11 +78,11 @@ export default function ContratoExperienciaPage() {
       </Card>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
-        <KpiCard title="Total Contratos" value={kpis.total} format="integer" loading={isLoading} />
-        <KpiCard title="Vencidos" value={kpis.vencidos} format="integer" variant="danger" loading={isLoading} />
-        <KpiCard title="Vence ≤ 10 dias" value={kpis.d10} format="integer" variant="danger" loading={isLoading} />
-        <KpiCard title="Vence ≤ 30 dias" value={kpis.d30} format="integer" variant="warning" loading={isLoading} />
-        <KpiCard title="No Prazo" value={kpis.ok} format="integer" variant="success" loading={isLoading} />
+        <KpiCard title="Total Contratos" value={kpis.total} format="number" loading={isLoading} />
+        <KpiCard title="Vencidos" value={kpis.vencidos} format="number" variant="danger" loading={isLoading} />
+        <KpiCard title="Vence ≤ 10 dias" value={kpis.d10} format="number" variant="danger" loading={isLoading} />
+        <KpiCard title="Vence ≤ 30 dias" value={kpis.d30} format="number" variant="warning" loading={isLoading} />
+        <KpiCard title="No Prazo" value={kpis.ok} format="number" variant="success" loading={isLoading} />
       </div>
 
       <Card>

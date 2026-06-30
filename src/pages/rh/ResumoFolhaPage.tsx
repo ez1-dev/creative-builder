@@ -79,8 +79,8 @@ export default function ResumoFolhaPage() {
         <KpiCard title="Total Proventos" value={kpis.proventos} format="currency" variant="success" loading={isLoading} />
         <KpiCard title="Total Descontos" value={kpis.descontos} format="currency" variant="danger" loading={isLoading} />
         <KpiCard title="Líquido Calculado" value={kpis.liquido} format="currency" variant="info" loading={isLoading} />
-        <KpiCard title="Colaboradores" value={kpis.colabs} format="integer" loading={isLoading} />
-        <KpiCard title="Registros" value={kpis.qtd} format="integer" loading={isLoading} />
+        <KpiCard title="Colaboradores" value={kpis.colabs} format="number" loading={isLoading} />
+        <KpiCard title="Registros" value={kpis.qtd} format="number" loading={isLoading} />
       </div>
 
       <Card>
