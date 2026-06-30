@@ -169,7 +169,10 @@ export interface ResumoFolhaDashboard {
   filiais: ResumoFolhaFilialAgg[];
   tipos_evento: ResumoFolhaTipoEventoAgg[];
   mensal?: ResumoFolhaMensalAgg[];
+  /** Chaves de kpis que NÃO vieram no payload (uso interno da UI). */
+  _missing_kpis?: string[];
 }
+
 
 export interface NovoFormularioPayload {
   cd_tp_formulario: string;
