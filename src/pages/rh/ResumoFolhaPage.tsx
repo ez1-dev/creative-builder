@@ -24,7 +24,12 @@ export default function ResumoFolhaPage() {
   const [filial, setFilial] = useState<string>("__all__");
   const [busca, setBusca] = useState("");
 
-  const params = { anomes_ini: toAnomes(ini), anomes_fim: toAnomes(fim) };
+  const params = {
+    anomes_ini: toAnomes(ini),
+    anomes_fim: toAnomes(fim),
+    filial: filial !== "__all__" ? filial : undefined,
+    matricula: busca || undefined,
+  };
   const { data = [], isLoading } = useQuery({
     queryKey: ["rh", "resumo-folha", params],
     queryFn: () => fetchResumoFolha(params),
@@ -33,6 +38,7 @@ export default function ResumoFolhaPage() {
 
   const filiais = useMemo(() => Array.from(new Set(data.map((d) => d.filial).filter(Boolean))) as string[], [data]);
 
+  // Filtragem local adicional (caso backend ignore params)
   const rows = useMemo(() => {
     return data.filter((r) => {
       if (filial !== "__all__" && r.filial !== filial) return false;
@@ -49,7 +55,7 @@ export default function ResumoFolhaPage() {
   const kpis = useMemo(() => {
     const proventos = rows.reduce((a, r) => a + (Number(r.provento) || 0), 0);
     const descontos = rows.reduce((a, r) => a + (Number(r.desconto) || 0), 0);
-    const liquido = rows.reduce((a, r) => a + (Number(r.liquido_calculado) || 0), 0);
+    const liquido = proventos - descontos;
     const colabs = new Set(rows.map((r) => r.matricula).filter(Boolean)).size;
     return { proventos, descontos, liquido, colabs, qtd: rows.length };
   }, [rows]);
