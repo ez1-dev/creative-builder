@@ -151,6 +151,9 @@ export interface ResumoFolhaMensalAgg {
   competencia: string;
   custo_hora_extra?: number;
   custo_mensal?: number;
+  provento?: number;
+  desconto?: number;
+  total_liquido?: number;
 }
 
 export interface ResumoFolhaDashboard {
