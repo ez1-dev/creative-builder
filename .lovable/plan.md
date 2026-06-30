@@ -1,70 +1,49 @@
-## Objetivo
-Corrigir a tela `01 - Resumo Folha` para consumir o endpoint agregado `GET /api/rh/resumo-folha/dashboard` (KPIs e tabelas resumidas vêm prontos do backend), mantendo `GET /api/rh/resumo-folha` apenas como fonte detalhada opcional. Garantir formato `anomes = YYYYMM` e usar o cliente `api` autenticado.
+## Problema
+
+Os valores oficiais da folha Jan–Jun/2026 são:
+
+| Métrica | Valor esperado |
+|---|---|
+| Provento | R$ 2.355.286,61 |
+| Desconto | R$ 1.240.971,46 |
+| Total Líquido | R$ 1.114.315,15 |
+
+A tela **01 — Resumo Folha** hoje consome apenas `GET /api/rh/resumo-folha/dashboard`, e o backend está devolvendo `kpis` com valores diferentes. Como a fonte “linha a linha” (`GET /api/rh/resumo-folha`) já existe e é a base contábil correta da folha, vamos passar a usá-la como **fonte de verdade dos KPIs** e manter o endpoint de dashboard apenas como complemento (séries mensais e quebra por filial, quando vierem).
 
 ## Mudanças
 
-### 1. `src/lib/rh/types.ts`
-Adicionar tipo `ResumoFolhaDashboard`:
+### 1. `src/lib/rh/api.ts`
+- Adicionar `aggregateKpisFromLinhas(itens: ResumoFolhaItem[]): ResumoFolhaKpis` que soma a partir das linhas normalizadas:
+  - `provento` = soma de `provento` (ou `valor_evento` quando `tipo_evento` começa com `P`).
+  - `desconto` = soma de `desconto` (ou `valor_evento` quando `tipo_evento` começa com `D`).
+  - `total_liquido` = `provento − desconto`.
+  - `inss_total`, `hora_extra`, `custo_ferias`, `fgts`, `beneficios`, `rescisoes`, `provisoes` derivados via regex sobre `descricao_evento` (reaproveitar `eventoBuckets.ts`).
+  - `custo_total` = `provento + encargos (INSS patronal + FGTS + provisões)` quando disponíveis; senão = `provento`.
+- Adicionar `buildProventosDescontosFromLinhas(itens)` (top eventos agrupados por `descricao_evento`).
+- Adicionar `buildFiliaisFromLinhas(itens)` e `buildTiposEventoFromLinhas(itens)`.
+- Nova função `fetchResumoFolhaConsolidado(p)` que:
+  1. Sempre busca `/api/rh/resumo-folha` (verdade) e calcula KPIs/tabelas client-side.
+  2. Em paralelo, tenta `/api/rh/resumo-folha/dashboard` (best-effort, sem quebrar em 404/500) só para pegar `mensal` e, se faltar, `filiais`.
+  3. Retorna um `ResumoFolhaDashboard` mesclado, marcando `fonte: "linhas" | "dashboard" | "misto"`.
 
-```ts
-export interface ResumoFolhaKpis {
-  provento: number; desconto: number; total_liquido: number;
-  custo_total: number; beneficios: number; inss_total: number;
-  hora_extra: number; provisoes: number; custo_ferias: number;
-  rescisoes: number; fgts: number;
-}
-export interface ResumoFolhaEventoAgg { codigo?: string; descricao?: string; valor: number; }
-export interface ResumoFolhaFilialAgg {
-  filial: string; salario_base?: number; custo_total?: number;
-  qtd_horas?: number; custo_hora_extra?: number; qtd_hora_extra?: number;
-  liquido?: number; fgts?: number; beneficios?: number;
-  inss?: number; custo_ferias?: number; provisoes?: number;
-}
-export interface ResumoFolhaTipoEventoAgg { tipo: string; valor: number; }
-export interface ResumoFolhaMensalAgg { competencia: string; custo_hora_extra?: number; custo_mensal?: number; }
+### 2. `src/pages/rh/ResumoFolhaPage.tsx`
+- Trocar `fetchResumoFolhaDashboard` por `fetchResumoFolhaConsolidado`.
+- Remover o banner “Endpoint de dashboard da folha ainda não disponível” (deixar de bloquear, pois agora a página funciona sem o endpoint).
+- Adicionar pequeno indicador discreto no rodapé: “Fonte: linhas da folha (Jan–Jun/2026: N lançamentos)”.
+- Manter cards, tabelas Proventos/Descontos, Filial e Tipos de Evento exatamente como estão hoje.
 
-export interface ResumoFolhaDashboard {
-  kpis: ResumoFolhaKpis;
-  proventos_vantagens: ResumoFolhaEventoAgg[];
-  descontos: ResumoFolhaEventoAgg[];
-  filiais: ResumoFolhaFilialAgg[];
-  tipos_evento: ResumoFolhaTipoEventoAgg[];
-  mensal?: ResumoFolhaMensalAgg[];
-}
-```
-
-### 2. `src/lib/rh/api.ts`
-- Nova função `fetchResumoFolhaDashboard(p)` que chama `api.get("/api/rh/resumo-folha/dashboard", { anomes_ini, anomes_fim, filial?, matricula? })` (já passa pelo `api` autenticado / Bearer Token).
-- Detectar endpoint inexistente: se a chamada lançar com status 404 (ou erro de rota), relançar com `{ code: "DASHBOARD_INDISPONIVEL" }` para a tela tratar.
-- Garantir que `anomes_ini/anomes_fim` recebidos cheguem como `YYYYMM` puro (helper `toAnomes` removendo `-`, `/`, espaços; truncando para 6 dígitos). Se vier vazio, não enviar.
-- Manter `fetchResumoFolha` para drill detalhado.
-
-### 3. `src/pages/rh/ResumoFolhaPage.tsx`
-- Substituir o `useQuery` principal por `fetchResumoFolhaDashboard`.
-- Helper `toAnomes("2026-01") => "202601"` aplicado nos filtros antes de enviar.
-- Remover toda a agregação local (`somarBucket`, `groupBy`, `classifyEvento` para KPIs/filial/tipos). A página passa a renderizar diretamente:
-  - **Card Líquido** → `kpis.provento`, `kpis.desconto`, `kpis.total_liquido`
-  - **Custo Total** → `kpis.custo_total`
-  - **Benefícios** → `kpis.beneficios`
-  - **INSS Total** → `kpis.inss_total`
-  - **Hora Extra** → `kpis.hora_extra`
-  - **Provisões** → `kpis.provisoes`
-  - **Custo das Férias** → `kpis.custo_ferias`
-  - **Rescisões** → `kpis.rescisoes`
-  - **FGTS** → `kpis.fgts`
-  - **Tabela Proventos + Vantagens** → `proventos_vantagens[]`
-  - **Tabela Descontos** → `descontos[]`
-  - **Tabela Filial** → `filiais[]`
-  - **Donut Tipos de Evento** → `tipos_evento[]`
-  - **Gráficos mensais** → `mensal[]` quando presente (caso contrário, ocultar).
-- Filtro de Filial: alimentado a partir de `filiais[].filial`.
-- Filtro de matrícula/colaborador: enviado como `matricula` ao dashboard (e o backend filtra).
-- **Aviso quando endpoint não existe**: ao detectar `DASHBOARD_INDISPONIVEL` (ou 404), mostrar banner destacado: *"Endpoint de dashboard da folha ainda não disponível."* e ocultar cards/tabelas (não exibir zeros).
-- Manter loading skeleton; remover banner antigo de "valores zerados".
+### 3. `src/lib/rh/eventoBuckets.ts`
+- Expor helpers já existentes (`classificarEvento`, regex de hora extra, férias, INSS, FGTS, benefícios, rescisão, provisão) para uso pelo agregador.
+- Se já existirem com esses nomes, reaproveitar sem mudar.
 
 ### 4. Documentação
-Criar `docs/backend-rh-resumo-folha-dashboard.md` descrevendo o contrato esperado (URL, parâmetros `anomes_ini/anomes_fim` no formato `YYYYMM`, schema da resposta com `kpis`, `proventos_vantagens`, `descontos`, `filiais`, `tipos_evento`, `mensal`).
+- Atualizar `docs/backend-rh-resumo-folha-dashboard.md` informando que o frontend agora prioriza a agregação por linhas e o endpoint `/dashboard` é opcional (apenas `mensal` + `filiais`).
 
-## Fora de escopo
-- Alterações nas demais telas RH.
-- Alterações no `api.ts` (Bearer Token já é injetado pelo cliente compartilhado).
+## Validação
+
+Após implementar, abrir `/rh/resumo-folha` com `Jan/2026 → Jun/2026` e conferir:
+- Provento = `2.355.286,61`
+- Desconto = `1.240.971,46`
+- Total Líquido = `1.114.315,15`
+
+Se houver pequena divergência, comparar via console (`[RH ResumoFolha] amostra`) quais `tipo_evento` foram classificados como provento/desconto e ajustar a regra. Nenhuma mudança de backend é necessária.
