@@ -35,7 +35,12 @@ const EXACT: Record<string, ScreenInfo> = {
   '/bi/faturamento-validacao':  { codigo: 'BI_FAT_VAL',    nome: 'Validação BI Faturamento' },
   '/bi/comercial':              { codigo: 'BI_COMERCIAL',  nome: 'BI Comercial' },
   '/bi/faturamento/relatorio-executivo': { codigo: 'BI_FAT_REL_EXEC', nome: 'BI - Relatório Executivo de Faturamento' },
-
+  '/rh':                        { codigo: 'RH',            nome: 'RH' },
+  '/rh/resumo-folha':           { codigo: 'RH_RESUMO',     nome: 'RH — Resumo Folha' },
+  '/rh/quadro-colaboradores':   { codigo: 'RH_QUADRO',     nome: 'RH — Quadro de Colaboradores' },
+  '/rh/contrato-experiencia':   { codigo: 'RH_CONTRATO',   nome: 'RH — Contrato Experiência' },
+  '/rh/programacao-ferias':     { codigo: 'RH_FERIAS',     nome: 'RH — Programação de Férias' },
+  '/rh/formularios':            { codigo: 'RH_FORM',       nome: 'RH — Formulários' },
 
 };
 
