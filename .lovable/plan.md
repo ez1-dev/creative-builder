@@ -1,45 +1,93 @@
 
-# Melhorias no Módulo RH
+# Resumo Folha — Dashboard estilo painel anexado
 
-O módulo RH já está implementado (menu, 5 telas, sync, formulários). Este plano corrige inconsistências com o spec e adiciona refinamentos.
+Reestruturar `src/pages/rh/ResumoFolhaPage.tsx` para reproduzir o layout do print, mantendo o consumo único de `GET /api/rh/resumo-folha` (linhas por evento). Todas as agregações são calculadas no frontend a partir das linhas retornadas.
 
-## 1. Resumo Folha — enviar filtros à API
-Hoje `ResumoFolhaPage` só envia `anomes_ini/fim`. Spec lista Filial e Matrícula como filtros.
-- Passar `filial` e `matricula` em `fetchResumoFolha` (quando preenchidos) e incluir no `queryKey`.
-- Corrigir KPI **Líquido**: hoje soma `liquido_calculado` linha-a-linha (eventos), o que multiplica o valor. Calcular como `proventos - descontos`.
+## 1. KPIs do topo (3 linhas × cards)
 
-## 2. Filtros server-side nas demais telas
-`QuadroColaboradoresPage`, `ContratoExperienciaPage`, `ProgramacaoFeriasPage` enviam params vazios e filtram tudo no cliente.
-- Manter filtragem local (rápida), mas também propagar `filial`, `status`, `centro_custo`, `cargo`, `colaborador` ao endpoint quando definidos, incluindo no `queryKey` — assim grandes bases não estouram memória.
+Bloco "Líquido" (card duplo grande à esquerda):
+- Provento (Σ `provento`)
+- Desconto (Σ `desconto`)
+- Total Líquido (Provento − Desconto)
 
-## 3. SincronizarRhDialog — feedback em duas etapas
-Hoje só mostra toast no fim. Spec exige três mensagens.
-- Mostrar toast "Sincronizando RH..." ao iniciar (id persistente).
-- Substituir por "RH sincronizado com sucesso" no `onSuccess` ou "Falha na sincronização: <detalhe>" no `onError`, extraindo `error.response?.data?.detail` quando houver.
-- Após sucesso, além de `invalidateQueries(["rh"])`, manter dialog fechado.
+Cards à direita:
+- **Custo Total** (destaque vermelho) = Provento + encargos patronais (INSS patronal + FGTS + Provisões)
+- **Benefícios** = Σ eventos de benefício
+- **INSS Total** = Σ eventos INSS (empregado + patronal)
+- **Hora Extra** = Σ eventos de hora extra
+- **Provisões** = Σ eventos de provisão (férias + 13º + encargos)
+- **Custo das Férias** = Σ eventos de férias
+- **Rescisões** = Σ eventos de rescisão / aviso indenizado
+- **FGTS** = Σ eventos FGTS
 
-## 4. Formulários — filtros + edição de status
-Spec: "Edição visual simples por status" e listagem com filtros.
-- Adicionar filtros (Tipo, Status, busca por matrícula/colaborador).
-- Badge de status colorido (ABERTO/EM_ANALISE/CONCLUIDO/CANCELADO).
-- Coluna "Ações" com `<Select>` inline para alterar status: chama `PATCH /api/rh/formularios/{id}` (novo método `atualizarStatusFormulario` em `lib/rh/api.ts`). Se backend não suportar PATCH, fallback para POST no mesmo recurso com `id`.
-- Toast de sucesso/erro e invalidate da query.
+## 2. Classificação de eventos
 
-## 5. Pequenos ajustes
-- `RhIndexPage`: mostrar contagem retornada pelo backend (se vier no menu) ou ignorar; remover ícone `FileCheck` não usado.
-- `SincronizarRhDialog`: validar que `fim >= ini` antes de submeter.
+Como o endpoint retorna `evento`, `descricao_evento` e `tipo_evento`, criar `src/lib/rh/eventoBuckets.ts` com função `classifyEvento(row)` que devolve uma das categorias acima usando heurística por **prefixo do código** + **regex na descrição** (case-insensitive):
+- Hora extra → descrição contém "HORA EXTRA"/"H.EXTRA"
+- Férias → "FERIAS", "FÉRIAS", "1/3 FERIAS"
+- Rescisão → "AVISO", "RESCIS", "IND.TERM", "IND.TÉRM"
+- INSS → "INSS"
+- FGTS → "FGTS"
+- Benefícios → "VR", "VT", "VALE", "PLANO", "PLR", "AUX"
+- Provisões → "PROVIS"
 
-## Arquivos afetados
-- `src/lib/rh/api.ts` — novos params e `atualizarStatusFormulario`.
-- `src/components/rh/SincronizarRhDialog.tsx` — toasts em etapas + validação.
-- `src/components/rh/FormularioDialog.tsx` — sem mudança estrutural.
-- `src/pages/rh/ResumoFolhaPage.tsx` — filtros server-side + KPI líquido.
-- `src/pages/rh/QuadroColaboradoresPage.tsx`
-- `src/pages/rh/ContratoExperienciaPage.tsx`
-- `src/pages/rh/ProgramacaoFeriasPage.tsx`
-- `src/pages/rh/FormulariosPage.tsx` — filtros + edição de status.
+Mapas serão exportados (configuráveis) para fácil ajuste futuro. Cada linha pode contribuir para 1+ buckets (ex.: hora extra que também é provento conta em ambos).
+
+## 3. Gráficos
+
+Recharts BarChart simples:
+- **Custo Hora Extra** mensal — barras por competência (Σ valor de eventos de hora extra por `competencia`).
+- **Custo Mensal** mensal — barras por competência (Σ provento por mês).
+
+## 4. Tabelas centrais (Top eventos)
+
+Duas tabelas lado a lado, agrupando por `evento`+`descricao_evento`:
+- **Proventos + Vantagens**: linhas onde `provento > 0`, ordenadas desc, colunas `#`, `Evento`, `Proventos (R$)` + linha de total no rodapé.
+- **Descontos**: linhas onde `desconto > 0`, mesmas colunas, total no rodapé.
+
+Limite 50 linhas com scroll interno.
+
+## 5. Tabela por Filial
+
+Agrupar linhas por `filial`. Colunas:
+`Filial | Salário Base | Custo Total | Qtd. Horas | Custo Hora Extra | Qtd. Hora Extra | Líquido | FGTS | V.A. | INSS | Custo Férias | Provisões`
+
+- `Salário Base` = Σ proventos de horas normais (código 1 / descrição "HORAS NORMAIS").
+- `Qtd. Horas` / `Qtd. Hora Extra` = Σ `referencia` dos eventos correspondentes, formatadas como `HHHH:MM` (assumindo referência em horas decimais ou minutos — usar helper de formatação).
+- Demais colunas usam os buckets do passo 2 filtrados pela filial.
+
+## 6. Donut "Tipos de Evento"
+
+PieChart (donut) Recharts agrupando por `tipo_evento` (Σ `valor_evento`), com legenda lateral mostrando código, valor e percentual — espelhando o estilo "01: 1.264.922 - 32%" / "OUTROS: 2.199.080 - 55%". Agrupar tipos pequenos (<2%) em "OUTROS".
+
+## 7. Filtros (cabeçalho da página)
+
+Manter os existentes (ano/mês inicial, final, filial, busca), aplicados antes de qualquer agregação.
+
+## 8. Layout
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│ Líquido (duplo)  │ Custo Total │ Benefícios │ INSS │ Hora Extra │
+│                  │ Provisões   │ C. Férias  │ Res. │ FGTS       │
+├──────────────────┼─────────────────────────┬───────────────────┤
+│ Custo Hora Extra │ Proventos + Vantagens   │ Descontos         │
+│ Custo Mensal     │ (tabela top)            │ (tabela top)      │
+├──────────────────┴─────────────────────────┼───────────────────┤
+│ Filial (tabela larga)                       │ Tipos de Evento  │
+│                                             │ (donut)          │
+└─────────────────────────────────────────────┴───────────────────┘
+```
+
+Tudo com tokens semânticos do design system (`bg-primary`, `text-destructive`, etc.) — sem cores hardcoded. O destaque vermelho do "Custo Total" usa `border-destructive`/`text-destructive` em um `KpiCard variant="danger"`.
+
+## Arquivos
+
+- `src/pages/rh/ResumoFolhaPage.tsx` — reescrita completa.
+- `src/lib/rh/eventoBuckets.ts` — novo: classificação de eventos + helpers de agregação (`somarPor`, `agruparPor`, `formatarHoras`).
+- (Nenhuma mudança em `api.ts`/`types.ts` — dados já vêm de `fetchResumoFolha`.)
 
 ## Fora de escopo
-- Não alterar autenticação (já usa Bearer via `api`).
-- Não criar tabelas no Cloud — tudo via FastAPI.
-- Não mexer em `AppSidebar` (rotas já registradas).
+
+- Não criar novo endpoint backend. Se as heurísticas de classificação não baterem para algum cliente, ajustar `eventoBuckets.ts`.
+- Não recriar a interatividade nativa do print (radio buttons para filtrar por evento) — pode ser feita em incremento futuro.
