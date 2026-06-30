@@ -136,11 +136,17 @@ export interface ResumoFolhaFilialAgg {
   liquido?: number;
   fgts?: number;
   beneficios?: number;
+  va?: number;
   inss?: number;
   custo_ferias?: number;
+  prov_ferias?: number;
+  prov_13?: number;
+  proventos?: number;
+  descontos?: number;
   provisoes?: number;
   [k: string]: any;
 }
+
 
 export interface ResumoFolhaTipoEventoAgg {
   tipo: string;
@@ -163,7 +169,10 @@ export interface ResumoFolhaDashboard {
   filiais: ResumoFolhaFilialAgg[];
   tipos_evento: ResumoFolhaTipoEventoAgg[];
   mensal?: ResumoFolhaMensalAgg[];
+  /** Chaves de kpis que NÃO vieram no payload (uso interno da UI). */
+  _missing_kpis?: string[];
 }
+
 
 export interface NovoFormularioPayload {
   cd_tp_formulario: string;

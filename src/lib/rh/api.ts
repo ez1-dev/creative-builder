@@ -157,40 +157,84 @@ function normalizeEventos(arr: any): { codigo?: string; descricao?: string; valo
   }));
 }
 
+function numOrUndef(v: any): number | undefined {
+  if (v === undefined || v === null || v === "") return undefined;
+  return num(v);
+}
+
+function pickKey(obj: any, keys: string[]): { hit: boolean; value: any } {
+  if (!obj || typeof obj !== "object") return { hit: false, value: undefined };
+  for (const k of keys) {
+    if (k in obj) return { hit: true, value: obj[k] };
+  }
+  return { hit: false, value: undefined };
+}
+
 function normalizeFiliais(arr: any) {
   if (!Array.isArray(arr)) return [];
-  return arr.map((r) => ({
-    filial: pickStr(r, ["filial", "ds_filial", "nm_filial", "cd_filial"]) ?? "-",
-    salario_base: num(r.salario_base ?? r.salarioBase),
-    custo_total: num(r.custo_total ?? r.custoTotal),
-    qtd_horas: num(r.qtd_horas ?? r.qtdHoras),
-    custo_hora_extra: num(r.custo_hora_extra ?? r.custoHE ?? r.custo_he),
-    qtd_hora_extra: num(r.qtd_hora_extra ?? r.qtdHE ?? r.qtd_he),
-    liquido: num(r.liquido),
-    fgts: num(r.fgts),
-    beneficios: num(r.beneficios ?? r.benef ?? r.va),
-    inss: num(r.inss),
-    custo_ferias: num(r.custo_ferias ?? r.ferias),
-    provisoes: num(r.provisoes ?? r.provis),
-  }));
+  return arr.map((r) => {
+    const out: any = {
+      filial: pickStr(r, ["filial", "ds_filial", "nm_filial", "cd_filial"]) ?? "-",
+    };
+    const mapKeys: Record<string, string[]> = {
+      salario_base: ["salario_base", "salarioBase"],
+      custo_total: ["custo_total", "custoTotal"],
+      qtd_horas: ["qtd_horas", "qtdHoras"],
+      custo_hora_extra: ["custo_hora_extra", "custoHE", "custo_he"],
+      qtd_hora_extra: ["qtd_hora_extra", "qtdHE", "qtd_he"],
+      liquido: ["liquido"],
+      fgts: ["fgts"],
+      va: ["va", "beneficios", "benef"],
+      beneficios: ["beneficios", "va"],
+      inss: ["inss"],
+      custo_ferias: ["custo_ferias", "ferias"],
+      prov_ferias: ["prov_ferias", "provFerias"],
+      prov_13: ["prov_13", "prov13", "provisao_13"],
+      proventos: ["proventos"],
+      descontos: ["descontos"],
+      provisoes: ["provisoes", "provis"],
+    };
+    for (const [field, aliases] of Object.entries(mapKeys)) {
+      const { hit, value } = pickKey(r, aliases);
+      if (hit) out[field] = numOrUndef(value);
+    }
+    return out;
+  });
+}
+
+const KPI_ALIASES: Record<keyof ResumoFolhaKpis, string[]> = {
+  provento: ["provento"],
+  desconto: ["desconto"],
+  total_liquido: ["total_liquido", "liquido"],
+  custo_total: ["custo_total"],
+  beneficios: ["beneficios"],
+  inss_total: ["inss_total", "inss"],
+  hora_extra: ["hora_extra"],
+  provisoes: ["provisoes"],
+  custo_ferias: ["custo_ferias"],
+  rescisoes: ["rescisoes"],
+  fgts: ["fgts"],
+};
+
+function buildKpis(k: any): { kpis: ResumoFolhaKpis; missing: string[] } {
+  const kpis = { ...EMPTY_KPIS };
+  const missing: string[] = [];
+  for (const [field, aliases] of Object.entries(KPI_ALIASES) as [keyof ResumoFolhaKpis, string[]][]) {
+    const { hit, value } = pickKey(k ?? {}, aliases);
+    if (hit && value !== null && value !== "") {
+      (kpis as any)[field] = num(value);
+    } else {
+      missing.push(field);
+    }
+  }
+  return { kpis, missing };
 }
 
 function normalizeDashboard(raw: any): ResumoFolhaDashboard {
-  const k = raw?.kpis ?? {};
+  const { kpis, missing } = buildKpis(raw?.kpis);
   return {
-    kpis: {
-      provento: num(k.provento),
-      desconto: num(k.desconto),
-      total_liquido: num(k.total_liquido ?? k.liquido),
-      custo_total: num(k.custo_total),
-      beneficios: num(k.beneficios),
-      inss_total: num(k.inss_total ?? k.inss),
-      hora_extra: num(k.hora_extra),
-      provisoes: num(k.provisoes),
-      custo_ferias: num(k.custo_ferias),
-      rescisoes: num(k.rescisoes),
-      fgts: num(k.fgts),
-    },
+    kpis,
+    _missing_kpis: missing,
     proventos_vantagens: normalizeEventos(raw?.proventos_vantagens),
     descontos: normalizeEventos(raw?.descontos),
     filiais: normalizeFiliais(raw?.filiais),
@@ -216,20 +260,20 @@ function normalizeDashboard(raw: any): ResumoFolhaDashboard {
 export type ResumoFolhaModo = "acumulado" | "mensal";
 
 export async function fetchResumoFolhaDashboard(
-  p: ResumoFolhaParams,
-  modo: ResumoFolhaModo = "acumulado",
+  p: ResumoFolhaParams & { codemp?: number },
+  _modo?: ResumoFolhaModo,
 ): Promise<ResumoFolhaDashboard> {
   const params = cleanParams({
     anomes_ini: toAnomes(p.anomes_ini),
     anomes_fim: toAnomes(p.anomes_fim),
+    codemp: p.codemp ?? 1,
     filial: p.filial,
     matricula: p.matricula,
-    modo,
   });
   try {
     const resp = await api.get<any>("/api/rh/resumo-folha/dashboard", params);
     // eslint-disable-next-line no-console
-    console.log("[RH ResumoFolha] dashboard", { modo, kpis: resp?.kpis, mensal: resp?.mensal?.length });
+    console.log("[RH ResumoFolha] dashboard", { params, kpis: resp?.kpis, filiais: resp?.filiais?.length });
     return normalizeDashboard(resp ?? {});
   } catch (e: any) {
     const status = e?.statusCode ?? e?.status;
@@ -240,184 +284,11 @@ export async function fetchResumoFolhaDashboard(
   }
 }
 
+
 export { EMPTY_KPIS };
 
-// ============================================================
-// Agregação client-side a partir das linhas de /api/rh/resumo-folha
-// (fonte de verdade — bate com os totais oficiais da folha)
-// ============================================================
 
-import { classifyEvento } from "./eventoBuckets";
 
-export interface ConsolidadoOptions {
-  enriquecerComDashboard?: boolean;
-}
-
-export interface ResumoFolhaConsolidado extends ResumoFolhaDashboard {
-  fonte: "linhas" | "misto";
-  total_linhas: number;
-}
-
-function sumBy<T>(arr: T[], fn: (x: T) => number): number {
-  let s = 0;
-  for (const x of arr) s += fn(x) || 0;
-  return s;
-}
-
-export function aggregateKpisFromLinhas(itens: ResumoFolhaItem[]): ResumoFolhaKpis {
-  const provento = sumBy(itens, (r) => Number(r.provento ?? 0));
-  const desconto = sumBy(itens, (r) => Number(r.desconto ?? 0));
-  const total_liquido = provento - desconto;
-
-  const sumBucket = (bucket: string, side: "P" | "D" | "ANY" = "ANY") =>
-    sumBy(itens, (r) => {
-      if (!classifyEvento(r).includes(bucket as any)) return 0;
-      if (side === "P") return Number(r.provento ?? 0);
-      if (side === "D") return Number(r.desconto ?? 0);
-      return Number(r.provento ?? 0) + Number(r.desconto ?? 0);
-    });
-
-  const inss_total = sumBucket("INSS", "D");
-  const hora_extra = sumBucket("HORA_EXTRA", "P");
-  const custo_ferias = sumBucket("FERIAS", "P");
-  const fgts = sumBucket("FGTS");
-  const beneficios = sumBucket("BENEFICIOS");
-  const rescisoes = sumBucket("RESCISAO");
-  const provisoes = sumBucket("PROVISOES");
-  const custo_total = provento + fgts + provisoes;
-
-  return {
-    provento, desconto, total_liquido, custo_total,
-    beneficios, inss_total, hora_extra, provisoes,
-    custo_ferias, rescisoes, fgts,
-  };
-}
-
-function topEventos(
-  itens: ResumoFolhaItem[],
-  side: "P" | "D",
-  limit = 50,
-): { codigo?: string; descricao?: string; valor: number }[] {
-  const map = new Map<string, { codigo?: string; descricao?: string; valor: number }>();
-  for (const r of itens) {
-    const v = side === "P" ? Number(r.provento ?? 0) : Number(r.desconto ?? 0);
-    if (!v) continue;
-    const key = `${r.evento ?? ""}|${r.descricao_evento ?? "-"}`;
-    const ex = map.get(key);
-    if (ex) ex.valor += v;
-    else map.set(key, {
-      codigo: r.evento != null ? String(r.evento) : undefined,
-      descricao: r.descricao_evento ?? "-",
-      valor: v,
-    });
-  }
-  return [...map.values()].sort((a, b) => b.valor - a.valor).slice(0, limit);
-}
-
-export const buildProventosFromLinhas = (itens: ResumoFolhaItem[]) => topEventos(itens, "P");
-export const buildDescontosFromLinhas = (itens: ResumoFolhaItem[]) => topEventos(itens, "D");
-
-export function buildTiposEventoFromLinhas(itens: ResumoFolhaItem[]) {
-  const buckets: Record<string, number> = {};
-  for (const r of itens) {
-    const tags = classifyEvento(r);
-    const v = Number(r.provento ?? 0) + Number(r.desconto ?? 0);
-    if (!tags.length) { buckets["OUTROS"] = (buckets["OUTROS"] ?? 0) + v; continue; }
-    for (const t of tags) buckets[t] = (buckets[t] ?? 0) + v;
-  }
-  return Object.entries(buckets).map(([tipo, valor]) => ({ tipo, valor })).sort((a, b) => b.valor - a.valor);
-}
-
-export function buildFiliaisFromLinhas(itens: ResumoFolhaItem[]) {
-  const groups = new Map<string, ResumoFolhaItem[]>();
-  for (const r of itens) {
-    const k = r.filial ?? "-";
-    const arr = groups.get(k) ?? [];
-    arr.push(r);
-    groups.set(k, arr);
-  }
-  return [...groups.entries()].map(([filial, rows]) => {
-    const k = aggregateKpisFromLinhas(rows);
-    return {
-      filial,
-      salario_base: 0,
-      custo_total: k.custo_total,
-      qtd_horas: 0,
-      custo_hora_extra: k.hora_extra,
-      qtd_hora_extra: 0,
-      liquido: k.total_liquido,
-      fgts: k.fgts,
-      beneficios: k.beneficios,
-      inss: k.inss_total,
-      custo_ferias: k.custo_ferias,
-      provisoes: k.provisoes,
-    };
-  }).sort((a, b) => (b.custo_total ?? 0) - (a.custo_total ?? 0));
-}
-
-export function buildMensalFromLinhas(itens: ResumoFolhaItem[]) {
-  const map = new Map<string, { competencia: string; custo_hora_extra: number; custo_mensal: number }>();
-  for (const r of itens) {
-    const c = String(r.competencia ?? "").replace(/\D/g, "").slice(0, 6);
-    if (!c) continue;
-    const ex = map.get(c) ?? { competencia: c, custo_hora_extra: 0, custo_mensal: 0 };
-    const isHE = classifyEvento(r).includes("HORA_EXTRA");
-    const p = Number(r.provento ?? 0);
-    if (isHE) ex.custo_hora_extra += p;
-    ex.custo_mensal += p;
-    map.set(c, ex);
-  }
-  return [...map.values()].sort((a, b) => a.competencia.localeCompare(b.competencia));
-}
-
-/**
- * Fonte principal: /api/rh/resumo-folha (linhas) — bate com os totais oficiais.
- * Best-effort: enriquece com /dashboard (mensal/filiais oficiais) sem quebrar em falha.
- */
-export async function fetchResumoFolhaConsolidado(
-  p: ResumoFolhaParams,
-  opts: ConsolidadoOptions = {},
-): Promise<ResumoFolhaConsolidado> {
-  const enriquecer = opts.enriquecerComDashboard ?? true;
-
-  const linhasPromise = fetchResumoFolha({
-    anomes_ini: toAnomes(p.anomes_ini),
-    anomes_fim: toAnomes(p.anomes_fim),
-    filial: p.filial,
-    matricula: p.matricula,
-  });
-
-  const dashPromise: Promise<ResumoFolhaDashboard | null> = enriquecer
-    ? fetchResumoFolhaDashboard(p).catch(() => null)
-    : Promise.resolve(null);
-
-  const [itens, dash] = await Promise.all([linhasPromise, dashPromise]);
-
-  const kpis = aggregateKpisFromLinhas(itens);
-  const proventos_vantagens = buildProventosFromLinhas(itens);
-  const descontos = buildDescontosFromLinhas(itens);
-  const tipos_evento = buildTiposEventoFromLinhas(itens);
-  const filiais = (dash?.filiais && dash.filiais.length > 0) ? dash.filiais : buildFiliaisFromLinhas(itens);
-  const mensal = (dash?.mensal && dash.mensal.length > 0) ? dash.mensal : buildMensalFromLinhas(itens);
-
-  // eslint-disable-next-line no-console
-  console.log("[RH ResumoFolha] consolidado", {
-    fonte: dash ? "misto" : "linhas",
-    total_linhas: itens.length,
-    kpis,
-  });
-
-  return {
-    fonte: dash ? "misto" : "linhas",
-    total_linhas: itens.length,
-    kpis,
-    proventos_vantagens,
-    descontos,
-    filiais,
-    tipos_evento,
-    mensal,
-  };
-}
 
 
 

@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
+  PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,7 +17,7 @@ import {
   toAnomes,
 } from "@/lib/rh/api";
 import { formatCurrency, formatNumber } from "@/lib/format";
-import { formatHorasMin, formatCompetencia } from "@/lib/rh/eventoBuckets";
+import { formatHorasMin } from "@/lib/rh/eventoBuckets";
 
 function defaultMonth(offset = 0): string {
   const d = new Date();
@@ -36,6 +35,75 @@ const PIE_COLORS = [
   "hsl(var(--accent))",
 ];
 
+/** Renderiza valor numérico OU badge "Campo não retornado pela API: x" */
+function ValueOrMissing({
+  value,
+  missing,
+  field,
+  format = "currency",
+}: {
+  value: number | undefined;
+  missing: boolean;
+  field: string;
+  format?: "currency" | "number" | "horas";
+}) {
+  if (missing) {
+    return (
+      <span
+        className="text-[11px] text-warning font-medium"
+        title={`O backend não retornou ${field}`}
+      >
+        Campo não retornado pela API: {field}
+      </span>
+    );
+  }
+  const v = value ?? 0;
+  if (format === "horas") return <>{formatHorasMin(v)}</>;
+  if (format === "number") return <>{formatNumber(v)}</>;
+  return <>{formatCurrency(v)}</>;
+}
+
+/** KpiCard que mostra aviso técnico quando o campo está ausente */
+function KpiOrMissing({
+  title,
+  value,
+  missing,
+  field,
+  variant,
+  loading,
+}: {
+  title: string;
+  value: number | undefined;
+  missing: boolean;
+  field: string;
+  variant?: "danger" | "warning";
+  loading?: boolean;
+}) {
+  if (missing) {
+    return (
+      <Card className="border-warning/40">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm text-muted-foreground">{title}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-[11px] text-warning font-medium">
+            Campo não retornado pela API: {field}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+  return (
+    <KpiCard
+      title={title}
+      value={value ?? 0}
+      format="currency"
+      variant={variant}
+      loading={loading}
+    />
+  );
+}
+
 export default function ResumoFolhaPage() {
   const [ini, setIni] = useState(defaultMonth(-5));
   const [fim, setFim] = useState(defaultMonth(0));
@@ -45,48 +113,40 @@ export default function ResumoFolhaPage() {
   const params = {
     anomes_ini: toAnomes(ini),
     anomes_fim: toAnomes(fim),
+    codemp: 1,
     filial: filial !== "__all__" ? filial : undefined,
     matricula: busca || undefined,
   };
 
   const enabled = !!params.anomes_ini && !!params.anomes_fim;
-  const retryFn = (count: number, err: any) =>
-    err instanceof DashboardIndisponivelError ? false : count < 1;
 
-  const queryAcumulado = useQuery({
-    queryKey: ["rh", "resumo-folha-dashboard", "acumulado", params],
-    queryFn: () => fetchResumoFolhaDashboard(params, "acumulado"),
+  const query = useQuery({
+    queryKey: ["rh", "resumo-folha-dashboard", params],
+    queryFn: () => fetchResumoFolhaDashboard(params),
     enabled,
-    retry: retryFn,
+    retry: (count, err) =>
+      err instanceof DashboardIndisponivelError ? false : count < 1,
   });
 
-  const queryMensal = useQuery({
-    queryKey: ["rh", "resumo-folha-dashboard", "mensal", params],
-    queryFn: () => fetchResumoFolhaDashboard(params, "mensal"),
-    enabled,
-    retry: retryFn,
-  });
-
-  const data = queryAcumulado.data;
-  const isLoading = queryAcumulado.isLoading;
-  const isError = queryAcumulado.isError;
-  const error = queryAcumulado.error;
-  const indisponivel =
-    error instanceof DashboardIndisponivelError ||
-    queryMensal.error instanceof DashboardIndisponivelError;
+  const data = query.data;
+  const isLoading = query.isLoading;
+  const isError = query.isError;
+  const error = query.error;
+  const indisponivel = error instanceof DashboardIndisponivelError;
 
   const kpis = data?.kpis;
+  const missing = new Set(data?._missing_kpis ?? []);
+  const isMissing = (k: string) => missing.has(k);
+
   const filiaisData = data?.filiais ?? [];
   const proventos = data?.proventos_vantagens ?? [];
   const descontos = data?.descontos ?? [];
   const tipos = data?.tipos_evento ?? [];
-  const mensal = queryMensal.data?.mensal ?? [];
 
   const filiaisOpts = useMemo<string[]>(
     () => Array.from(new Set(filiaisData.map((f) => f.filial).filter(Boolean) as string[])),
     [filiaisData],
   );
-
 
   const totalProvento = useMemo(() => proventos.reduce((a, x) => a + (x.valor || 0), 0), [proventos]);
   const totalDesconto = useMemo(() => descontos.reduce((a, x) => a + (x.valor || 0), 0), [descontos]);
@@ -97,6 +157,23 @@ export default function ResumoFolhaPage() {
       .map((t) => ({ ...t, pct: (t.valor || 0) / total }))
       .sort((a, b) => b.valor - a.valor);
   }, [tipos]);
+
+  const FILIAL_COLS: { key: keyof typeof filiaisData[number]; label: string; format: "currency" | "number" | "horas" }[] = [
+    { key: "salario_base", label: "Salário Base", format: "currency" },
+    { key: "custo_total", label: "Custo Total", format: "currency" },
+    { key: "qtd_horas", label: "Qtd. Horas", format: "horas" },
+    { key: "custo_hora_extra", label: "Custo H. Extra", format: "currency" },
+    { key: "qtd_hora_extra", label: "Qtd. H. Extra", format: "horas" },
+    { key: "liquido", label: "Líquido", format: "currency" },
+    { key: "fgts", label: "FGTS", format: "currency" },
+    { key: "va", label: "V.A.", format: "currency" },
+    { key: "inss", label: "INSS", format: "currency" },
+    { key: "custo_ferias", label: "Custo Férias", format: "currency" },
+    { key: "prov_ferias", label: "Prov. Férias", format: "currency" },
+    { key: "prov_13", label: "Prov. 13º", format: "currency" },
+    { key: "proventos", label: "Proventos", format: "currency" },
+    { key: "descontos", label: "Descontos", format: "currency" },
+  ];
 
   return (
     <div className="container mx-auto py-6 space-y-4">
@@ -125,8 +202,7 @@ export default function ResumoFolhaPage() {
         <div className="rounded-md border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
           <div className="font-medium">Endpoint de dashboard da folha ainda não disponível.</div>
           <div className="text-muted-foreground mt-1">
-            O backend precisa expor <code>GET /api/rh/resumo-folha/dashboard?anomes_ini=YYYYMM&amp;anomes_fim=YYYYMM</code> retornando
-            <code> kpis</code>, <code>proventos_vantagens</code>, <code>descontos</code>, <code>filiais</code> e <code>tipos_evento</code>.
+            O backend precisa expor <code>GET /api/rh/resumo-folha/dashboard?anomes_ini=YYYYMM&amp;anomes_fim=YYYYMM&amp;codemp=1</code>.
           </div>
         </div>
       )}
@@ -146,111 +222,38 @@ export default function ResumoFolhaPage() {
               <CardContent className="space-y-3">
                 <div>
                   <div className="text-[11px] text-muted-foreground">Provento</div>
-                  <div className="text-xl font-bold tabular-nums">{formatCurrency(kpis?.provento ?? 0)}</div>
+                  <div className="text-xl font-bold tabular-nums">
+                    <ValueOrMissing value={kpis?.provento} missing={isMissing("provento")} field="provento" />
+                  </div>
                 </div>
                 <div>
                   <div className="text-[11px] text-muted-foreground">Desconto</div>
-                  <div className="text-xl font-bold tabular-nums text-destructive">{formatCurrency(kpis?.desconto ?? 0)}</div>
+                  <div className="text-xl font-bold tabular-nums text-destructive">
+                    <ValueOrMissing value={kpis?.desconto} missing={isMissing("desconto")} field="desconto" />
+                  </div>
                 </div>
                 <div className="pt-2 border-t">
                   <div className="text-[11px] text-muted-foreground">Total Líquido</div>
-                  <div className="text-2xl font-bold tabular-nums text-primary">{formatCurrency(kpis?.total_liquido ?? 0)}</div>
+                  <div className="text-2xl font-bold tabular-nums text-primary">
+                    <ValueOrMissing value={kpis?.total_liquido} missing={isMissing("total_liquido")} field="total_liquido" />
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            <KpiCard title="Custo Total" value={kpis?.custo_total ?? 0} format="currency" variant="danger" loading={isLoading} />
-            <KpiCard title="Benefícios" value={kpis?.beneficios ?? 0} format="currency" loading={isLoading} />
-            <KpiCard title="INSS Total" value={kpis?.inss_total ?? 0} format="currency" loading={isLoading} />
-            <KpiCard title="Hora Extra" value={kpis?.hora_extra ?? 0} format="currency" variant="warning" loading={isLoading} />
+            <KpiOrMissing title="Custo Total" value={kpis?.custo_total} missing={isMissing("custo_total")} field="custo_total" variant="danger" loading={isLoading} />
+            <KpiOrMissing title="Benefícios" value={kpis?.beneficios} missing={isMissing("beneficios")} field="beneficios" loading={isLoading} />
+            <KpiOrMissing title="INSS Total" value={kpis?.inss_total} missing={isMissing("inss_total")} field="inss_total" loading={isLoading} />
+            <KpiOrMissing title="Hora Extra" value={kpis?.hora_extra} missing={isMissing("hora_extra")} field="hora_extra" variant="warning" loading={isLoading} />
 
-            <KpiCard title="Provisões" value={kpis?.provisoes ?? 0} format="currency" loading={isLoading} />
-            <KpiCard title="Custo das Férias" value={kpis?.custo_ferias ?? 0} format="currency" loading={isLoading} />
-            <KpiCard title="Rescisões" value={kpis?.rescisoes ?? 0} format="currency" variant="warning" loading={isLoading} />
-            <KpiCard title="FGTS" value={kpis?.fgts ?? 0} format="currency" loading={isLoading} />
+            <KpiOrMissing title="Provisões" value={kpis?.provisoes} missing={isMissing("provisoes")} field="provisoes" loading={isLoading} />
+            <KpiOrMissing title="Custo das Férias" value={kpis?.custo_ferias} missing={isMissing("custo_ferias")} field="custo_ferias" loading={isLoading} />
+            <KpiOrMissing title="Rescisões" value={kpis?.rescisoes} missing={isMissing("rescisoes")} field="rescisoes" variant="warning" loading={isLoading} />
+            <KpiOrMissing title="FGTS" value={kpis?.fgts} missing={isMissing("fgts")} field="fgts" loading={isLoading} />
           </div>
 
-          {/* Evolução mensal (provento / desconto / líquido por competência) */}
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Evolução mensal</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div className="h-64">
-                {queryMensal.isLoading ? (
-                  <Skeleton className="h-full w-full" />
-                ) : mensal.length === 0 ? (
-                  <div className="h-full flex items-center justify-center text-xs text-muted-foreground">Sem série mensal</div>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={mensal.map((m) => ({ ...m, competencia: formatCompetencia(m.competencia) }))}>
-                      <XAxis dataKey="competencia" fontSize={11} />
-                      <YAxis hide />
-                      <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                      <Legend iconSize={10} />
-                      <Bar name="Provento" dataKey="provento" fill="hsl(var(--primary))" />
-                      <Bar name="Desconto" dataKey="desconto" fill="hsl(var(--destructive))" />
-                      <Bar name="Líquido" dataKey="total_liquido" fill="hsl(var(--success))" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-              <div className="max-h-80 overflow-auto">
-                <Table>
-                  <TableHeader className="sticky top-0 bg-background z-10">
-                    <TableRow>
-                      <TableHead>Competência</TableHead>
-                      <TableHead className="text-right">Provento</TableHead>
-                      <TableHead className="text-right">Desconto</TableHead>
-                      <TableHead className="text-right">Líquido</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {queryMensal.isLoading && <TableRow><TableCell colSpan={4}><Skeleton className="h-6" /></TableCell></TableRow>}
-                    {!queryMensal.isLoading && mensal.length === 0 && (
-                      <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-4">Sem dados</TableCell></TableRow>
-                    )}
-                    {mensal.map((m) => (
-                      <TableRow key={m.competencia}>
-                        <TableCell className="font-medium">{formatCompetencia(m.competencia)}</TableCell>
-                        <TableCell className="text-right tabular-nums">{formatCurrency(m.provento ?? 0)}</TableCell>
-                        <TableCell className="text-right tabular-nums text-destructive">{formatCurrency(m.desconto ?? 0)}</TableCell>
-                        <TableCell className="text-right tabular-nums font-medium">{formatCurrency(m.total_liquido ?? 0)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                  <TableFooter>
-                    <TableRow>
-                      <TableCell>Total</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatCurrency(mensal.reduce((a, m) => a + (m.provento ?? 0), 0))}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatCurrency(mensal.reduce((a, m) => a + (m.desconto ?? 0), 0))}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatCurrency(mensal.reduce((a, m) => a + (m.total_liquido ?? 0), 0))}</TableCell>
-                    </TableRow>
-                  </TableFooter>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Top eventos */}
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
-            <Card className="lg:col-span-1">
-              <CardHeader className="pb-2"><CardTitle className="text-sm">Custo Hora Extra</CardTitle></CardHeader>
-              <CardContent className="h-64">
-                {mensal.length === 0 ? (
-                  <div className="h-full flex items-center justify-center text-xs text-muted-foreground">Sem série mensal</div>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={mensal.map((m) => ({ ...m, competencia: formatCompetencia(m.competencia) }))}>
-                      <XAxis dataKey="competencia" fontSize={10} />
-                      <YAxis hide />
-                      <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                      <Bar dataKey="custo_hora_extra" fill="hsl(var(--warning))" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </CardContent>
-            </Card>
-
-
+          {/* Proventos / Descontos */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
             <Card className="lg:col-span-2">
               <CardHeader className="pb-2"><CardTitle className="text-sm text-center">Proventos + Vantagens</CardTitle></CardHeader>
               <CardContent>
@@ -278,7 +281,7 @@ export default function ResumoFolhaPage() {
               </CardContent>
             </Card>
 
-            <Card className="lg:col-span-1">
+            <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm text-center">Descontos</CardTitle></CardHeader>
               <CardContent>
                 <div className="max-h-[420px] overflow-auto">
@@ -316,38 +319,33 @@ export default function ResumoFolhaPage() {
                     <TableHeader className="sticky top-0 bg-background z-10">
                       <TableRow>
                         <TableHead>Filial</TableHead>
-                        <TableHead className="text-right">Salário Base</TableHead>
-                        <TableHead className="text-right">Custo Total</TableHead>
-                        <TableHead className="text-right">Qtd. Horas</TableHead>
-                        <TableHead className="text-right">Custo H. Extra</TableHead>
-                        <TableHead className="text-right">Qtd. H. Extra</TableHead>
-                        <TableHead className="text-right">Líquido</TableHead>
-                        <TableHead className="text-right">FGTS</TableHead>
-                        <TableHead className="text-right">V.A.</TableHead>
-                        <TableHead className="text-right">INSS</TableHead>
-                        <TableHead className="text-right">Custo Férias</TableHead>
-                        <TableHead className="text-right">Provisões</TableHead>
+                        {FILIAL_COLS.map((c) => (
+                          <TableHead key={c.key as string} className="text-right">{c.label}</TableHead>
+                        ))}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {isLoading && <TableRow><TableCell colSpan={12}><Skeleton className="h-6" /></TableCell></TableRow>}
+                      {isLoading && <TableRow><TableCell colSpan={FILIAL_COLS.length + 1}><Skeleton className="h-6" /></TableCell></TableRow>}
                       {!isLoading && filiaisData.length === 0 && (
-                        <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-4">Sem dados</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={FILIAL_COLS.length + 1} className="text-center text-muted-foreground py-4">Sem dados</TableCell></TableRow>
                       )}
                       {filiaisData.map((f, i) => (
                         <TableRow key={i}>
                           <TableCell className="font-medium">{f.filial}</TableCell>
-                          <TableCell className="text-right tabular-nums">{formatNumber(f.salario_base ?? 0)}</TableCell>
-                          <TableCell className="text-right tabular-nums">{formatNumber(f.custo_total ?? 0)}</TableCell>
-                          <TableCell className="text-right tabular-nums">{formatHorasMin(f.qtd_horas ?? 0)}</TableCell>
-                          <TableCell className="text-right tabular-nums">{formatNumber(f.custo_hora_extra ?? 0)}</TableCell>
-                          <TableCell className="text-right tabular-nums">{formatHorasMin(f.qtd_hora_extra ?? 0)}</TableCell>
-                          <TableCell className="text-right tabular-nums">{formatNumber(f.liquido ?? 0)}</TableCell>
-                          <TableCell className="text-right tabular-nums">{formatNumber(f.fgts ?? 0)}</TableCell>
-                          <TableCell className="text-right tabular-nums">{formatNumber(f.beneficios ?? 0)}</TableCell>
-                          <TableCell className="text-right tabular-nums">{formatNumber(f.inss ?? 0)}</TableCell>
-                          <TableCell className="text-right tabular-nums">{formatNumber(f.custo_ferias ?? 0)}</TableCell>
-                          <TableCell className="text-right tabular-nums">{formatNumber(f.provisoes ?? 0)}</TableCell>
+                          {FILIAL_COLS.map((c) => {
+                            const present = (c.key as string) in (f as any);
+                            const v = (f as any)[c.key] as number | undefined;
+                            return (
+                              <TableCell key={c.key as string} className="text-right tabular-nums">
+                                <ValueOrMissing
+                                  value={v}
+                                  missing={!present}
+                                  field={c.key as string}
+                                  format={c.format}
+                                />
+                              </TableCell>
+                            );
+                          })}
                         </TableRow>
                       ))}
                     </TableBody>
