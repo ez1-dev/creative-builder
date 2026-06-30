@@ -284,6 +284,41 @@ export interface PainelComprasDashboardResponse {
   drill: any[];
 }
 
+export interface BomItem {
+  nivel?: number;
+  codigo_modelo_pai?: string | null;
+  descricao_modelo_pai?: string | null;
+  codigo_componente?: string | null;
+  descricao_componente?: string | null;
+  derivacao_componente?: string | null;
+  unidade_medida?: string | null;
+  quantidade_utilizada?: number | null;
+  quantidade_acumulada?: number | null;
+  quantidade_acumulada_com_perda?: number | null;
+  perda_percentual?: number | null;
+  familia_componente?: string | null;
+  origem_componente?: string | null;
+  tipo_linha_estrutura?: string | null;
+  eh_materia_prima?: boolean | null;
+  preco_medio?: number | null;
+  preco_nf_ultima_compra?: number | null;
+  preco_ultima_entrada_cadastro?: number | null;
+  custo_calculado?: number | null;
+  custo_unitario_referencia?: number | null;
+  custo_total_referencia?: number | null;
+  criterio_custo_referencia?: string | null;
+  numero_nf_ultima_compra?: string | number | null;
+  serie_nf_ultima_compra?: string | null;
+  data_entrada_nf_ultima_compra?: string | null;
+  fornecedor_ultima_compra?: string | null;
+  caminho?: string | null;
+  possui_filhos?: boolean;
+  ciclo_detectado?: boolean;
+  tipo_produto?: string | null;
+  estagio?: string | null;
+  [key: string]: any;
+}
+
 export interface BomResponse {
   cabecalho: {
     codigo_modelo: string;
@@ -295,8 +330,9 @@ export interface BomResponse {
   total_itens: number;
   total_niveis: number;
   total_modelos_filhos: number;
-  dados: any[];
+  dados: BomItem[];
 }
+
 
 export interface NotasRecebimentoResponse extends PaginatedResponse<any> {
   resumo?: {
