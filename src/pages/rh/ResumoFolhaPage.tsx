@@ -13,7 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import {
-  fetchResumoFolhaConsolidado,
+  fetchResumoFolhaDashboard,
+  DashboardIndisponivelError,
   toAnomes,
 } from "@/lib/rh/api";
 import { formatCurrency, formatNumber } from "@/lib/format";
@@ -48,27 +49,44 @@ export default function ResumoFolhaPage() {
     matricula: busca || undefined,
   };
 
-  const query = useQuery({
-    queryKey: ["rh", "resumo-folha-consolidado", params],
-    queryFn: () => fetchResumoFolhaConsolidado(params),
-    enabled: !!params.anomes_ini && !!params.anomes_fim,
-    retry: 1,
+  const enabled = !!params.anomes_ini && !!params.anomes_fim;
+  const retryFn = (count: number, err: any) =>
+    err instanceof DashboardIndisponivelError ? false : count < 1;
+
+  const queryAcumulado = useQuery({
+    queryKey: ["rh", "resumo-folha-dashboard", "acumulado", params],
+    queryFn: () => fetchResumoFolhaDashboard(params, "acumulado"),
+    enabled,
+    retry: retryFn,
   });
 
-  const { data, isLoading, isError, error } = query;
-  const indisponivel = false;
+  const queryMensal = useQuery({
+    queryKey: ["rh", "resumo-folha-dashboard", "mensal", params],
+    queryFn: () => fetchResumoFolhaDashboard(params, "mensal"),
+    enabled,
+    retry: retryFn,
+  });
+
+  const data = queryAcumulado.data;
+  const isLoading = queryAcumulado.isLoading;
+  const isError = queryAcumulado.isError;
+  const error = queryAcumulado.error;
+  const indisponivel =
+    error instanceof DashboardIndisponivelError ||
+    queryMensal.error instanceof DashboardIndisponivelError;
 
   const kpis = data?.kpis;
   const filiaisData = data?.filiais ?? [];
   const proventos = data?.proventos_vantagens ?? [];
   const descontos = data?.descontos ?? [];
   const tipos = data?.tipos_evento ?? [];
-  const mensal = data?.mensal ?? [];
+  const mensal = queryMensal.data?.mensal ?? [];
 
   const filiaisOpts = useMemo<string[]>(
     () => Array.from(new Set(filiaisData.map((f) => f.filial).filter(Boolean) as string[])),
     [filiaisData],
   );
+
 
   const totalProvento = useMemo(() => proventos.reduce((a, x) => a + (x.valor || 0), 0), [proventos]);
   const totalDesconto = useMemo(() => descontos.reduce((a, x) => a + (x.valor || 0), 0), [descontos]);

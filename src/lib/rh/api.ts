@@ -210,17 +210,23 @@ function normalizeDashboard(raw: any): ResumoFolhaDashboard {
   };
 }
 
-export async function fetchResumoFolhaDashboard(p: ResumoFolhaParams): Promise<ResumoFolhaDashboard> {
+export type ResumoFolhaModo = "acumulado" | "mensal";
+
+export async function fetchResumoFolhaDashboard(
+  p: ResumoFolhaParams,
+  modo: ResumoFolhaModo = "acumulado",
+): Promise<ResumoFolhaDashboard> {
   const params = cleanParams({
     anomes_ini: toAnomes(p.anomes_ini),
     anomes_fim: toAnomes(p.anomes_fim),
     filial: p.filial,
     matricula: p.matricula,
+    modo,
   });
   try {
     const resp = await api.get<any>("/api/rh/resumo-folha/dashboard", params);
     // eslint-disable-next-line no-console
-    console.log("[RH ResumoFolha/dashboard] resposta", resp);
+    console.log("[RH ResumoFolha] dashboard", { modo, kpis: resp?.kpis, mensal: resp?.mensal?.length });
     return normalizeDashboard(resp ?? {});
   } catch (e: any) {
     const status = e?.statusCode ?? e?.status;
