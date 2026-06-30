@@ -1,38 +1,63 @@
-## Estado atual
-
-A tela já chama:
-- `/api/rh/resumo-folha/dashboard?modo=acumulado` para os cards (KPIs/tabelas).
-- `/api/rh/resumo-folha/dashboard?modo=mensal` para os gráficos.
-
-Mas o tipo `ResumoFolhaMensalAgg` só conhece `competencia`, `custo_hora_extra` e `custo_mensal` — não há suporte a `provento`, `desconto` e `liquido` por mês, então a série mensal não exibe os valores que o usuário listou (Jan–Jun/2026 por competência).
+## Objetivo
+Ajustar `src/pages/BomPage.tsx` (e tipos em `src/lib/api.ts`) para suportar o novo parâmetro `somente_materias_primas`, exibir todos os campos novos vindos da API e refletir custos das matérias-primas, sem nenhum cálculo no front.
 
 ## Mudanças
 
-### 1. `src/lib/rh/types.ts`
-Adicionar campos opcionais em `ResumoFolhaMensalAgg`:
-```
-provento?: number; desconto?: number; total_liquido?: number;
-```
+### 1. `src/lib/api.ts`
+- Estender o tipo `BomResponse` / item de `dados` com os campos novos: `codigo_modelo_pai`, `descricao_modelo_pai`, `quantidade_acumulada`, `quantidade_acumulada_com_perda`, `familia_componente`, `origem_componente`, `tipo_linha_estrutura`, `eh_materia_prima`, `preco_medio`, `preco_nf_ultima_compra`, `preco_ultima_entrada_cadastro`, `custo_calculado`, `custo_unitario_referencia`, `custo_total_referencia`, `criterio_custo_referencia`, `numero_nf_ultima_compra`, `serie_nf_ultima_compra`, `data_entrada_nf_ultima_compra`, `fornecedor_ultima_compra`, `caminho`.
+- Sem alterar autenticação nem o cliente `api`.
 
-### 2. `src/lib/rh/api.ts` — `normalizeDashboard`
-Ao mapear `mensal[]`, normalizar também `provento`, `desconto`, `total_liquido` (com aliases `liquido`).
+### 2. `src/pages/BomPage.tsx`
 
-### 3. `src/pages/rh/ResumoFolhaPage.tsx`
-Substituir os mini-gráficos atuais ("Custo Hora Extra" / "Custo Mensal") por uma seção **"Evolução mensal"** dedicada com:
+**Filtros**
+- Adicionar `somente_materias_primas: boolean` no `useState` de filtros (default `false`).
+- Renderizar um `<Checkbox>` "Somente matérias-primas" no `FilterPanel`.
+- Em `search()`, incluir `somente_materias_primas: filters.somente_materias_primas || undefined` na chamada `api.get('/api/bom', ...)`.
+- No `ExportButton`, repassar o mesmo parâmetro nos `params` de `/api/export/bom`.
 
-- Gráfico de barras agrupado por competência (`formatCompetencia`) com 3 séries: Provento (primary), Desconto (destructive), Líquido (success). Tooltip em BRL.
-- Logo abaixo, **tabela mensal** com colunas: Competência | Provento | Desconto | Líquido, footer somando as 3 colunas (que devem bater com os cards acumulados).
-- Manter mini-gráfico de Hora Extra como card auxiliar separado (continua usando `custo_hora_extra`).
+**Colunas da tabela** (substituir conjunto atual mantendo árvore colapsável existente):
+- Nível
+- Código modelo pai / Descrição modelo pai
+- Código componente / Descrição componente (mantém indent + chevron já existente)
+- Derivação, Unidade
+- Família, Origem
+- Tipo linha (badge; se `MATERIA_PRIMA` → badge `secondary` "Matéria-prima")
+- Matéria-prima? (Sim/Não a partir de `eh_materia_prima`)
+- Qtd. utilizada, Qtd. acumulada, Qtd. acum. c/ perda (4–6 casas via `formatNumber(v, 6)`)
+- Preço médio, Preço NF última compra, Preço última entrada, Custo calculado, Custo unit. ref., **Custo total ref.** (todos via `formatCurrency`)
+- Critério custo ref.
+- NF última compra (número/série), Data entrada NF, Fornecedor última compra
+- Caminho
 
-Os cards de KPI continuam lendo apenas `queryAcumulado.data.kpis` — nenhum valor mensal entra ali.
+Helper local `displayOrDash(v)` → `'-'` quando null/undefined/''; aplicar em todas as colunas.
 
-### 4. `docs/backend-rh-resumo-folha-dashboard.md`
-Atualizar contrato de `mensal[]` para incluir `provento`, `desconto`, `total_liquido` por item, com exemplo Jan–Jun/2026.
+**Destaque de linha matéria-prima**
+- Atualizar `getBomRowClassName` para, quando `row.tipo_linha_estrutura === 'MATERIA_PRIMA'` (ou `row.eh_materia_prima === true`), aplicar classe sutil (`bg-amber-50` ou similar do design system) sobrescrevendo a cor por nível.
+
+**Resumo acima da tabela**
+- Substituir/expandir os `KPICard`s atuais para mostrar:
+  - Código do conjunto (`data.cabecalho.codigo_modelo`)
+  - Total de linhas (`data.dados.length`)
+  - Total de matérias-primas (`data.dados.filter(d => d.eh_materia_prima).length`) — contagem simples no front, sem cálculo de custo
+  - Custo total referência → somatório direto de `custo_total_referencia` das linhas retornadas, formatado em BRL
+- Manter KPIs existentes (Modelo, Níveis, Modelos Filhos) reposicionados.
+
+**Contexto IA (`useAiPageContext`)**
+- Adicionar `somente_materias_primas` aos filters e o custo total ao bloco de kpis.
+
+### 3. Botão opcional "Exportar 3 códigos Jeferson"
+- Adicionar um botão extra no `PageHeader.actions` ao lado do `ExportButton`, que reaproveita a lógica autenticada de download do `ExportButton` chamando `/api/export/bom-lote` com `codmods=245000115,240000760,245000103&somente_materias_primas=true&max_nivel=15`, nome de arquivo `estrutura_multinivel_jeferson.xlsx`.
+- **Pré-condição:** verificar primeiro se `ExportButton` aceita endpoint/filename customizados; se sim, usar diretamente. Se não, replicar internamente o mesmo padrão de download autenticado já existente (sem criar nova camada de auth).
+- Se em runtime a API responder 404/405, manter o botão mas exibir toast de erro padrão (não há como detectar existência em build-time; o usuário pediu para não criar caso o endpoint não exista — interpretar como "criar agora, já que será disponibilizado").
+
+## Fora de escopo
+- Nenhum cálculo de custo, agregação de quantidades, ou regra de matéria-prima no front.
+- Sem mudanças em autenticação, no `api` client ou em `ExportButton` além do necessário para passar o novo parâmetro / endpoint.
+- Sem alterações de backend (apenas consumo dos novos campos).
 
 ## Validação
-
-Abrir `/rh/resumo-folha` com Jan/2026 → Jun/2026:
-
-- **Cards (acumulado):** Provento 15.009.216,13 · Desconto 7.777.378,54 · Líquido 7.231.837,59.
-- **Tabela mensal:** 6 linhas batendo exatamente com os valores informados (202601→202606); rodapé soma = cards.
-- **Gráfico mensal:** 6 trios de barras (Provento/Desconto/Líquido).
+- Consultar `codmod=245000115`, `max_nivel=15`, `situacao=TODOS`, `somente_materias_primas=true` e conferir:
+  - Tabela renderiza todos os campos novos com formatação BRL / 4-6 casas / `-` em vazios.
+  - Linhas `MATERIA_PRIMA` aparecem destacadas + badge.
+  - KPIs mostram código conjunto, total linhas, total MPs, custo total referência (soma simples do campo).
+  - Export Excel reflete o mesmo filtro.
