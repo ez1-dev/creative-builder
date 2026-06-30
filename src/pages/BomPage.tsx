@@ -246,7 +246,7 @@ export default function BomPage() {
                 somente_materias_primas: true,
                 max_nivel: 15,
               }}
-              label="Exportar 3 códigos Jeferson"
+              label="Exportar com preço"
               variant="secondary"
             />
           </div>
