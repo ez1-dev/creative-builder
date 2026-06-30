@@ -2,12 +2,44 @@ import { api } from "@/lib/api";
 import type {
   MenuItemRh,
   ResumoFolhaItem,
+  ResumoFolhaDashboard,
+  ResumoFolhaKpis,
   QuadroColaboradorItem,
   ContratoExperienciaItem,
   ProgramacaoFeriasItem,
   FormularioRh,
   NovoFormularioPayload,
 } from "./types";
+
+export function toAnomes(v: string | undefined | null): string {
+  if (!v) return "";
+  const digits = String(v).replace(/\D/g, "");
+  return digits.slice(0, 6);
+}
+
+const EMPTY_KPIS: ResumoFolhaKpis = {
+  provento: 0, desconto: 0, total_liquido: 0, custo_total: 0,
+  beneficios: 0, inss_total: 0, hora_extra: 0, provisoes: 0,
+  custo_ferias: 0, rescisoes: 0, fgts: 0,
+};
+
+function num(v: any): number {
+  if (v == null || v === "") return 0;
+  if (typeof v === "number") return isFinite(v) ? v : 0;
+  let s = String(v).trim();
+  if (/,\d{1,4}$/.test(s) && /\./.test(s)) s = s.replace(/\./g, "").replace(",", ".");
+  else if (/,\d{1,4}$/.test(s)) s = s.replace(",", ".");
+  const n = Number(s);
+  return isFinite(n) ? n : 0;
+}
+
+function pickStr(o: any, keys: string[]): string | undefined {
+  for (const k of keys) {
+    if (o?.[k] != null && o[k] !== "") return String(o[k]);
+  }
+  return undefined;
+}
+
 
 // Aceita lista direta ou objeto com "dados"/"items"/"data"
 function unwrap<T>(resp: any): T[] {
