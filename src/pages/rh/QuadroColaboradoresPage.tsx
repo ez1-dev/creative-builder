@@ -18,9 +18,16 @@ export default function QuadroColaboradoresPage() {
   const [cargo, setCargo] = useState("__all__");
   const [busca, setBusca] = useState("");
 
+  const serverParams = {
+    filial: filial !== "__all__" ? filial : undefined,
+    situacao: situacao !== "__all__" ? situacao : undefined,
+    centro_custo: cc !== "__all__" ? cc : undefined,
+    cargo: cargo !== "__all__" ? cargo : undefined,
+    colaborador: busca || undefined,
+  };
   const { data = [], isLoading } = useQuery({
-    queryKey: ["rh", "quadro"],
-    queryFn: () => fetchQuadroColaboradores(),
+    queryKey: ["rh", "quadro", serverParams],
+    queryFn: () => fetchQuadroColaboradores(serverParams),
   });
 
   const uniq = (k: keyof typeof data[number]) =>
