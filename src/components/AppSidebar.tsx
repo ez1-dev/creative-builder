@@ -143,6 +143,9 @@ export function AppSidebar() {
   const showBiGroup = visibleBi.length > 0;
   const visibleRegrasSenior = regrasSeniorSubItems.filter((m) => isVisible(m.url));
   const showRegrasSeniorGroup = visibleRegrasSenior.length > 0;
+  const visibleRh = rhSubItems.filter((m) => isVisible(m.url));
+  const showRhGroup = visibleRh.length > 0;
+  const isRhActive = location.pathname.startsWith('/rh');
   const showRelatoriosGroup = isAdmin;
 
   return (
