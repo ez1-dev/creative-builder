@@ -170,26 +170,71 @@ export default function ResumoFolhaPage() {
             <KpiCard title="FGTS" value={kpis?.fgts ?? 0} format="currency" loading={isLoading} />
           </div>
 
-          {/* Gráficos + Top eventos */}
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
-            <Card className="lg:col-span-1">
-              <CardHeader className="pb-2"><CardTitle className="text-sm">Custo Hora Extra</CardTitle></CardHeader>
-              <CardContent className="h-48">
-                {mensal.length === 0 ? (
+          {/* Evolução mensal (provento / desconto / líquido por competência) */}
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Evolução mensal</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="h-64">
+                {queryMensal.isLoading ? (
+                  <Skeleton className="h-full w-full" />
+                ) : mensal.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-xs text-muted-foreground">Sem série mensal</div>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={mensal.map((m) => ({ ...m, competencia: formatCompetencia(m.competencia) }))}>
-                      <XAxis dataKey="competencia" fontSize={10} />
+                      <XAxis dataKey="competencia" fontSize={11} />
                       <YAxis hide />
                       <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                      <Bar dataKey="custo_hora_extra" fill="hsl(var(--muted-foreground))" />
+                      <Legend iconSize={10} />
+                      <Bar name="Provento" dataKey="provento" fill="hsl(var(--primary))" />
+                      <Bar name="Desconto" dataKey="desconto" fill="hsl(var(--destructive))" />
+                      <Bar name="Líquido" dataKey="total_liquido" fill="hsl(var(--success))" />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
-              </CardContent>
-              <CardHeader className="pb-2 pt-0"><CardTitle className="text-sm">Custo Mensal</CardTitle></CardHeader>
-              <CardContent className="h-48">
+              </div>
+              <div className="max-h-80 overflow-auto">
+                <Table>
+                  <TableHeader className="sticky top-0 bg-background z-10">
+                    <TableRow>
+                      <TableHead>Competência</TableHead>
+                      <TableHead className="text-right">Provento</TableHead>
+                      <TableHead className="text-right">Desconto</TableHead>
+                      <TableHead className="text-right">Líquido</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {queryMensal.isLoading && <TableRow><TableCell colSpan={4}><Skeleton className="h-6" /></TableCell></TableRow>}
+                    {!queryMensal.isLoading && mensal.length === 0 && (
+                      <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-4">Sem dados</TableCell></TableRow>
+                    )}
+                    {mensal.map((m) => (
+                      <TableRow key={m.competencia}>
+                        <TableCell className="font-medium">{formatCompetencia(m.competencia)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{formatCurrency(m.provento ?? 0)}</TableCell>
+                        <TableCell className="text-right tabular-nums text-destructive">{formatCurrency(m.desconto ?? 0)}</TableCell>
+                        <TableCell className="text-right tabular-nums font-medium">{formatCurrency(m.total_liquido ?? 0)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                  <TableFooter>
+                    <TableRow>
+                      <TableCell>Total</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatCurrency(mensal.reduce((a, m) => a + (m.provento ?? 0), 0))}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatCurrency(mensal.reduce((a, m) => a + (m.desconto ?? 0), 0))}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatCurrency(mensal.reduce((a, m) => a + (m.total_liquido ?? 0), 0))}</TableCell>
+                    </TableRow>
+                  </TableFooter>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Top eventos */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+            <Card className="lg:col-span-1">
+              <CardHeader className="pb-2"><CardTitle className="text-sm">Custo Hora Extra</CardTitle></CardHeader>
+              <CardContent className="h-64">
                 {mensal.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-xs text-muted-foreground">Sem série mensal</div>
                 ) : (
@@ -198,12 +243,13 @@ export default function ResumoFolhaPage() {
                       <XAxis dataKey="competencia" fontSize={10} />
                       <YAxis hide />
                       <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                      <Bar dataKey="custo_mensal" fill="hsl(var(--primary))" />
+                      <Bar dataKey="custo_hora_extra" fill="hsl(var(--warning))" />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
               </CardContent>
             </Card>
+
 
             <Card className="lg:col-span-2">
               <CardHeader className="pb-2"><CardTitle className="text-sm text-center">Proventos + Vantagens</CardTitle></CardHeader>
