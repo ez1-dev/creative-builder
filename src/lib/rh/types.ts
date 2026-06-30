@@ -136,11 +136,17 @@ export interface ResumoFolhaFilialAgg {
   liquido?: number;
   fgts?: number;
   beneficios?: number;
+  va?: number;
   inss?: number;
   custo_ferias?: number;
+  prov_ferias?: number;
+  prov_13?: number;
+  proventos?: number;
+  descontos?: number;
   provisoes?: number;
   [k: string]: any;
 }
+
 
 export interface ResumoFolhaTipoEventoAgg {
   tipo: string;
