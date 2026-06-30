@@ -29,6 +29,19 @@ function cleanParams<T extends Record<string, any>>(p?: T): Record<string, any> 
   return Object.keys(out).length ? out : undefined;
 }
 
+export async function fetchMenuRh(): Promise<MenuItemRh[]> {
+  const resp = await api.get<any>("/api/rh/menu");
+  return unwrap<MenuItemRh>(resp);
+}
+
+export interface ResumoFolhaParams {
+  anomes_ini: string;
+  anomes_fim: string;
+  filial?: string;
+  matricula?: string;
+}
+
+
 // Converte string pt-BR ("1.234,56"), en-US ("1234.56") ou número para number.
 function toNum(v: any): number {
   if (v == null || v === "") return 0;
