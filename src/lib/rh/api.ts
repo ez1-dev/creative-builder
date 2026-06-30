@@ -205,6 +205,9 @@ function normalizeDashboard(raw: any): ResumoFolhaDashboard {
           competencia: String(m.competencia ?? m.ano_mes ?? m.anomes ?? ""),
           custo_hora_extra: num(m.custo_hora_extra ?? m.custoHE),
           custo_mensal: num(m.custo_mensal ?? m.custoMensal),
+          provento: num(m.provento ?? m.vl_provento),
+          desconto: num(m.desconto ?? m.vl_desconto),
+          total_liquido: num(m.total_liquido ?? m.liquido ?? m.vl_liquido),
         }))
       : [],
   };
