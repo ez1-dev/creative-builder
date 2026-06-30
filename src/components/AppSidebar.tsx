@@ -79,6 +79,14 @@ const producaoSubItems = [
   { title: 'Saldo em Pátio', url: '/producao/patio', icon: Warehouse },
   { title: 'Itens Não Carregados', url: '/producao/nao-carregados', icon: PackageX },
   { title: 'Lead Time Produção', url: '/producao/leadtime', icon: Clock },
+
+const rhSubItems = [
+  { title: 'Resumo Folha', url: '/rh/resumo-folha', icon: Receipt },
+  { title: 'Quadro Colaboradores', url: '/rh/quadro-colaboradores', icon: Users },
+  { title: 'Contrato Experiência', url: '/rh/contrato-experiencia', icon: FileCheck },
+  { title: 'Programação de Férias', url: '/rh/programacao-ferias', icon: CalendarRange },
+  { title: 'Formulários', url: '/rh/formularios', icon: FileText },
+];
   { title: 'Engenharia x Produção', url: '/producao/engenharia', icon: GitCompare },
   { title: 'Impressão de OP', url: '/producao/impressao-op', icon: Printer },
   { title: 'Carga de Produção', url: '/producao/carga', icon: Gauge },
