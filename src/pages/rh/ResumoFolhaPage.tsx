@@ -13,8 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import {
-  fetchResumoFolhaDashboard,
-  DashboardIndisponivelError,
+  fetchResumoFolhaConsolidado,
   toAnomes,
 } from "@/lib/rh/api";
 import { formatCurrency, formatNumber } from "@/lib/format";
