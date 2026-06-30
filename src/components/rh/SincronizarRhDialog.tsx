@@ -1,15 +1,14 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
 import { sincronizarRh } from "@/lib/rh/api";
 import { RefreshCw, Loader2 } from "lucide-react";
 
 function monthToAnomes(v: string) {
-  // "2026-01" → "202601"
   return v ? v.replace("-", "") : "";
 }
 function defaultMonth(offset = 0): string {
@@ -21,7 +20,6 @@ function defaultMonth(offset = 0): string {
 }
 
 export function SincronizarRhDialog({ variant = "outline" }: { variant?: "outline" | "default" | "secondary" }) {
-  const { toast } = useToast();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [ini, setIni] = useState(defaultMonth(-5));
@@ -33,17 +31,36 @@ export function SincronizarRhDialog({ variant = "outline" }: { variant?: "outlin
     const anomes_ini = monthToAnomes(ini);
     const anomes_fim = monthToAnomes(fim);
     if (!anomes_ini || !anomes_fim) {
-      toast({ title: "Informe o período", variant: "destructive" });
+      toast.error("Informe o período (ano/mês inicial e final).");
       return;
     }
+    if (anomes_fim < anomes_ini) {
+      toast.error("Ano/mês final deve ser maior ou igual ao inicial.");
+      return;
+    }
+
     setLoading(true);
+    const toastId = toast.loading("Sincronizando RH...", {
+      description: `${anomes_ini} → ${anomes_fim} (empresa ${codemp || 1})`,
+    });
     try {
       await sincronizarRh({ anomes_ini, anomes_fim, codemp: Number(codemp) || 1 });
-      toast({ title: "Sincronização RH concluída", description: `${anomes_ini} → ${anomes_fim}` });
+      toast.success("RH sincronizado com sucesso", {
+        id: toastId,
+        description: `${anomes_ini} → ${anomes_fim}`,
+      });
       qc.invalidateQueries({ queryKey: ["rh"] });
       setOpen(false);
     } catch (e: any) {
-      toast({ title: "Falha na sincronização", description: e?.message ?? "Erro desconhecido", variant: "destructive" });
+      const detalhe =
+        e?.response?.data?.detail ??
+        e?.data?.detail ??
+        e?.message ??
+        "Erro desconhecido";
+      toast.error("Falha na sincronização", {
+        id: toastId,
+        description: typeof detalhe === "string" ? detalhe : JSON.stringify(detalhe),
+      });
     } finally {
       setLoading(false);
     }

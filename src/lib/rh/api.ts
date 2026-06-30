@@ -19,6 +19,16 @@ function unwrap<T>(resp: any): T[] {
   return [];
 }
 
+function cleanParams<T extends Record<string, any>>(p?: T): Record<string, any> | undefined {
+  if (!p) return undefined;
+  const out: Record<string, any> = {};
+  for (const [k, v] of Object.entries(p)) {
+    if (v === undefined || v === null || v === "" || v === "__all__") continue;
+    out[k] = v;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 export async function fetchMenuRh(): Promise<MenuItemRh[]> {
   const resp = await api.get<any>("/api/rh/menu");
   return unwrap<MenuItemRh>(resp);
@@ -31,37 +41,40 @@ export interface ResumoFolhaParams {
   matricula?: string;
 }
 export async function fetchResumoFolha(p: ResumoFolhaParams): Promise<ResumoFolhaItem[]> {
-  const resp = await api.get<any>("/api/rh/resumo-folha", p);
+  const resp = await api.get<any>("/api/rh/resumo-folha", cleanParams(p));
   return unwrap<ResumoFolhaItem>(resp);
 }
 
-export async function fetchQuadroColaboradores(p?: {
+export interface QuadroColaboradoresParams {
   filial?: string;
   situacao?: string;
   centro_custo?: string;
   cargo?: string;
-  busca?: string;
-}): Promise<QuadroColaboradorItem[]> {
-  const resp = await api.get<any>("/api/rh/quadro-colaboradores", p);
+  colaborador?: string;
+}
+export async function fetchQuadroColaboradores(p?: QuadroColaboradoresParams): Promise<QuadroColaboradorItem[]> {
+  const resp = await api.get<any>("/api/rh/quadro-colaboradores", cleanParams(p));
   return unwrap<QuadroColaboradorItem>(resp);
 }
 
-export async function fetchContratoExperiencia(p?: {
+export interface ContratoExperienciaParams {
   status?: string;
   filial?: string;
   colaborador?: string;
-}): Promise<ContratoExperienciaItem[]> {
-  const resp = await api.get<any>("/api/rh/contrato-experiencia", p);
+}
+export async function fetchContratoExperiencia(p?: ContratoExperienciaParams): Promise<ContratoExperienciaItem[]> {
+  const resp = await api.get<any>("/api/rh/contrato-experiencia", cleanParams(p));
   return unwrap<ContratoExperienciaItem>(resp);
 }
 
-export async function fetchProgramacaoFerias(p?: {
+export interface ProgramacaoFeriasParams {
   status?: string;
   filial?: string;
   centro_custo?: string;
   colaborador?: string;
-}): Promise<ProgramacaoFeriasItem[]> {
-  const resp = await api.get<any>("/api/rh/programacao-ferias", p);
+}
+export async function fetchProgramacaoFerias(p?: ProgramacaoFeriasParams): Promise<ProgramacaoFeriasItem[]> {
+  const resp = await api.get<any>("/api/rh/programacao-ferias", cleanParams(p));
   return unwrap<ProgramacaoFeriasItem>(resp);
 }
 
@@ -72,6 +85,16 @@ export async function fetchFormularios(): Promise<FormularioRh[]> {
 
 export async function criarFormulario(payload: NovoFormularioPayload): Promise<FormularioRh> {
   return api.post<FormularioRh>("/api/rh/formularios", payload as any);
+}
+
+export async function atualizarStatusFormulario(id: number | string, cd_status: string): Promise<FormularioRh> {
+  // Tenta PUT primeiro (api.put existe); backend pode aceitar PATCH equivalente.
+  try {
+    return await api.put<FormularioRh>(`/api/rh/formularios/${id}`, { cd_status });
+  } catch (e) {
+    // Fallback: POST no mesmo recurso com id + status (idempotente)
+    return api.post<FormularioRh>(`/api/rh/formularios/${id}`, { cd_status });
+  }
 }
 
 export interface SincronizarRhParams {

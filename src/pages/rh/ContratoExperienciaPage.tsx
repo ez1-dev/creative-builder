@@ -17,9 +17,14 @@ export default function ContratoExperienciaPage() {
   const [filial, setFilial] = useState("__all__");
   const [busca, setBusca] = useState("");
 
+  const serverParams = {
+    status: status !== "__all__" ? status : undefined,
+    filial: filial !== "__all__" ? filial : undefined,
+    colaborador: busca || undefined,
+  };
   const { data = [], isLoading } = useQuery({
-    queryKey: ["rh", "contrato-experiencia"],
-    queryFn: () => fetchContratoExperiencia(),
+    queryKey: ["rh", "contrato-experiencia", serverParams],
+    queryFn: () => fetchContratoExperiencia(serverParams),
   });
 
   const statuses = useMemo(() => Array.from(new Set(data.map((d) => d.status_contrato).filter(Boolean))) as string[], [data]);

@@ -18,9 +18,15 @@ export default function ProgramacaoFeriasPage() {
   const [cc, setCc] = useState("__all__");
   const [busca, setBusca] = useState("");
 
+  const serverParams = {
+    status: status !== "__all__" ? status : undefined,
+    filial: filial !== "__all__" ? filial : undefined,
+    centro_custo: cc !== "__all__" ? cc : undefined,
+    colaborador: busca || undefined,
+  };
   const { data = [], isLoading } = useQuery({
-    queryKey: ["rh", "programacao-ferias"],
-    queryFn: () => fetchProgramacaoFerias(),
+    queryKey: ["rh", "programacao-ferias", serverParams],
+    queryFn: () => fetchProgramacaoFerias(serverParams),
   });
 
   const statuses = useMemo(() => Array.from(new Set(data.map((d) => d.status_ferias).filter(Boolean))) as string[], [data]);
