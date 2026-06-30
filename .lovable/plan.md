@@ -1,93 +1,36 @@
+## Problema
 
-# Resumo Folha — Dashboard estilo painel anexado
+A tela "01 — Resumo Folha" calcula tudo (KPIs, Top Eventos, Filial, Tipos) a partir de `r.provento`, `r.desconto`, `r.valor_evento`, `r.referencia`, `r.descricao_evento`, `r.competencia`, `r.filial`, `r.tipo_evento`. Se o FastAPI estiver devolvendo os campos com nomes do Senior (`vl_provento`, `vl_desconto`, `vl_evento`, `ds_evento`, `cd_evento`, `tp_evento`, `ano_mes`, `cd_filial`, etc.), todos os totais ficam em 0 mesmo com linhas chegando — que é o sintoma reportado.
 
-Reestruturar `src/pages/rh/ResumoFolhaPage.tsx` para reproduzir o layout do print, mantendo o consumo único de `GET /api/rh/resumo-folha` (linhas por evento). Todas as agregações são calculadas no frontend a partir das linhas retornadas.
+Hoje a tela não loga o payload, então o usuário não consegue confirmar o motivo.
 
-## 1. KPIs do topo (3 linhas × cards)
+## O que será feito (somente front)
 
-Bloco "Líquido" (card duplo grande à esquerda):
-- Provento (Σ `provento`)
-- Desconto (Σ `desconto`)
-- Total Líquido (Provento − Desconto)
+### 1. `src/lib/rh/api.ts` — normalização tolerante
+- Adicionar `normalizeResumoFolhaItem(raw)` que mapeia todos os aliases comuns para o shape `ResumoFolhaItem`:
+  - valores: `vl_provento|provento|valor_provento` → `provento`; `vl_desconto|desconto|valor_desconto` → `desconto`; `vl_evento|valor|valor_evento|vl_total` → `valor_evento`; `vl_referencia|qt_referencia|qtd_referencia|referencia` → `referencia`; `vl_liquido|liquido|liquido_calculado` → `liquido_calculado`.
+  - textos: `ds_evento|descricao|descricao_evento` → `descricao_evento`; `cd_evento|codigo_evento|evento` → `evento`; `tp_evento|tipo|tipo_evento` → `tipo_evento`.
+  - chaves: `ano_mes|anomes|competencia|periodo` → `competencia` (string `YYYYMM`); `cd_filial|filial|nm_filial|ds_filial` → `filial`; `cd_matricula|matricula|num_matricula` → `matricula`; `nm_colaborador|ds_colaborador|colaborador` → `colaborador`; `cd_centro_custo|centro_custo|ds_centro_custo` → `centro_custo`.
+- Usar helper numérico (reaproveitar `toNumberBI` se existir ou local) que aceita string pt-BR ("1.234,56") e en-US ("1234.56").
+- `fetchResumoFolha` chama `unwrap` e mapeia cada item por `normalizeResumoFolhaItem`. Mantém o objeto original spread em `...raw` para preservar campos extras.
+- Log diagnóstico (apenas 1x por chamada): `console.log("[RH ResumoFolha] amostra", { totalItens, primeiraChaveRaw: Object.keys(raw0), normalizado: itens[0] })`.
 
-Cards à direita:
-- **Custo Total** (destaque vermelho) = Provento + encargos patronais (INSS patronal + FGTS + Provisões)
-- **Benefícios** = Σ eventos de benefício
-- **INSS Total** = Σ eventos INSS (empregado + patronal)
-- **Hora Extra** = Σ eventos de hora extra
-- **Provisões** = Σ eventos de provisão (férias + 13º + encargos)
-- **Custo das Férias** = Σ eventos de férias
-- **Rescisões** = Σ eventos de rescisão / aviso indenizado
-- **FGTS** = Σ eventos FGTS
+### 2. `src/pages/rh/ResumoFolhaPage.tsx` — banner diagnóstico
+- Após `useQuery`, calcular `temLinhas = data.length > 0` e `somaZero = kpis.provento === 0 && kpis.desconto === 0 && kpis.custoTotal === 0`.
+- Quando `temLinhas && somaZero`, mostrar um `<Alert variant="warning">` acima dos KPIs com:
+  - "Foram recebidos N registros mas todos os valores estão zerados."
+  - "Verifique no console (`[RH ResumoFolha] amostra`) os nomes dos campos numéricos retornados pelo backend e ajuste o aliasing em `src/lib/rh/api.ts:normalizeResumoFolhaItem` se necessário."
+- Sem alterar layout/cores/cards existentes.
 
-## 2. Classificação de eventos
+### 3. `src/lib/rh/eventoBuckets.ts`
+- Sem mudanças: já lê `descricao_evento`, `evento`, `tipo_evento`, `valor_evento`, `provento`, `desconto`. Após a normalização passa a receber valores reais.
 
-Como o endpoint retorna `evento`, `descricao_evento` e `tipo_evento`, criar `src/lib/rh/eventoBuckets.ts` com função `classifyEvento(row)` que devolve uma das categorias acima usando heurística por **prefixo do código** + **regex na descrição** (case-insensitive):
-- Hora extra → descrição contém "HORA EXTRA"/"H.EXTRA"
-- Férias → "FERIAS", "FÉRIAS", "1/3 FERIAS"
-- Rescisão → "AVISO", "RESCIS", "IND.TERM", "IND.TÉRM"
-- INSS → "INSS"
-- FGTS → "FGTS"
-- Benefícios → "VR", "VT", "VALE", "PLANO", "PLR", "AUX"
-- Provisões → "PROVIS"
+## Verificação
 
-Mapas serão exportados (configuráveis) para fácil ajuste futuro. Cada linha pode contribuir para 1+ buckets (ex.: hora extra que também é provento conta em ambos).
-
-## 3. Gráficos
-
-Recharts BarChart simples:
-- **Custo Hora Extra** mensal — barras por competência (Σ valor de eventos de hora extra por `competencia`).
-- **Custo Mensal** mensal — barras por competência (Σ provento por mês).
-
-## 4. Tabelas centrais (Top eventos)
-
-Duas tabelas lado a lado, agrupando por `evento`+`descricao_evento`:
-- **Proventos + Vantagens**: linhas onde `provento > 0`, ordenadas desc, colunas `#`, `Evento`, `Proventos (R$)` + linha de total no rodapé.
-- **Descontos**: linhas onde `desconto > 0`, mesmas colunas, total no rodapé.
-
-Limite 50 linhas com scroll interno.
-
-## 5. Tabela por Filial
-
-Agrupar linhas por `filial`. Colunas:
-`Filial | Salário Base | Custo Total | Qtd. Horas | Custo Hora Extra | Qtd. Hora Extra | Líquido | FGTS | V.A. | INSS | Custo Férias | Provisões`
-
-- `Salário Base` = Σ proventos de horas normais (código 1 / descrição "HORAS NORMAIS").
-- `Qtd. Horas` / `Qtd. Hora Extra` = Σ `referencia` dos eventos correspondentes, formatadas como `HHHH:MM` (assumindo referência em horas decimais ou minutos — usar helper de formatação).
-- Demais colunas usam os buckets do passo 2 filtrados pela filial.
-
-## 6. Donut "Tipos de Evento"
-
-PieChart (donut) Recharts agrupando por `tipo_evento` (Σ `valor_evento`), com legenda lateral mostrando código, valor e percentual — espelhando o estilo "01: 1.264.922 - 32%" / "OUTROS: 2.199.080 - 55%". Agrupar tipos pequenos (<2%) em "OUTROS".
-
-## 7. Filtros (cabeçalho da página)
-
-Manter os existentes (ano/mês inicial, final, filial, busca), aplicados antes de qualquer agregação.
-
-## 8. Layout
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│ Líquido (duplo)  │ Custo Total │ Benefícios │ INSS │ Hora Extra │
-│                  │ Provisões   │ C. Férias  │ Res. │ FGTS       │
-├──────────────────┼─────────────────────────┬───────────────────┤
-│ Custo Hora Extra │ Proventos + Vantagens   │ Descontos         │
-│ Custo Mensal     │ (tabela top)            │ (tabela top)      │
-├──────────────────┴─────────────────────────┼───────────────────┤
-│ Filial (tabela larga)                       │ Tipos de Evento  │
-│                                             │ (donut)          │
-└─────────────────────────────────────────────┴───────────────────┘
-```
-
-Tudo com tokens semânticos do design system (`bg-primary`, `text-destructive`, etc.) — sem cores hardcoded. O destaque vermelho do "Custo Total" usa `border-destructive`/`text-destructive` em um `KpiCard variant="danger"`.
-
-## Arquivos
-
-- `src/pages/rh/ResumoFolhaPage.tsx` — reescrita completa.
-- `src/lib/rh/eventoBuckets.ts` — novo: classificação de eventos + helpers de agregação (`somarPor`, `agruparPor`, `formatarHoras`).
-- (Nenhuma mudança em `api.ts`/`types.ts` — dados já vêm de `fetchResumoFolha`.)
+- Build/typecheck automático.
+- Pedir ao usuário para abrir o console na tela; o log `[RH ResumoFolha] amostra` mostra as chaves cruas — se houver alias não previsto, basta acrescentá-lo na normalização.
 
 ## Fora de escopo
 
-- Não criar novo endpoint backend. Se as heurísticas de classificação não baterem para algum cliente, ajustar `eventoBuckets.ts`.
-- Não recriar a interatividade nativa do print (radio buttons para filtrar por evento) — pode ser feita em incremento futuro.
+- Mudanças no backend FastAPI ou no ETL.
+- Alterações de layout/cores/tabelas.

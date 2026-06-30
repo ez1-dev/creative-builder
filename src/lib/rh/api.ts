@@ -29,21 +29,71 @@ function cleanParams<T extends Record<string, any>>(p?: T): Record<string, any> 
   return Object.keys(out).length ? out : undefined;
 }
 
-export async function fetchMenuRh(): Promise<MenuItemRh[]> {
-  const resp = await api.get<any>("/api/rh/menu");
-  return unwrap<MenuItemRh>(resp);
+// Converte string pt-BR ("1.234,56"), en-US ("1234.56") ou número para number.
+function toNum(v: any): number {
+  if (v == null || v === "") return 0;
+  if (typeof v === "number") return isFinite(v) ? v : 0;
+  let s = String(v).trim();
+  if (!s) return 0;
+  // se tem vírgula como decimal pt-BR
+  if (/,\d{1,4}$/.test(s) && /\./.test(s)) {
+    s = s.replace(/\./g, "").replace(",", ".");
+  } else if (/,\d{1,4}$/.test(s)) {
+    s = s.replace(",", ".");
+  }
+  const n = Number(s);
+  return isFinite(n) ? n : 0;
 }
 
-export interface ResumoFolhaParams {
-  anomes_ini: string;
-  anomes_fim: string;
-  filial?: string;
-  matricula?: string;
+function pick<T = any>(raw: any, keys: string[]): T | undefined {
+  for (const k of keys) {
+    if (raw[k] !== undefined && raw[k] !== null && raw[k] !== "") return raw[k];
+  }
+  return undefined;
 }
+
+function normalizeCompetencia(v: any): string | undefined {
+  if (v == null || v === "") return undefined;
+  const s = String(v).replace(/[-/]/g, "");
+  return s || undefined;
+}
+
+export function normalizeResumoFolhaItem(raw: any): ResumoFolhaItem {
+  if (!raw || typeof raw !== "object") return raw;
+  return {
+    ...raw,
+    competencia: normalizeCompetencia(pick(raw, ["competencia", "ano_mes", "anomes", "periodo"])),
+    matricula: pick(raw, ["matricula", "cd_matricula", "num_matricula", "numcad"]),
+    colaborador: pick(raw, ["colaborador", "nm_colaborador", "ds_colaborador", "nomfun", "nome"]),
+    filial: pick(raw, ["filial", "ds_filial", "nm_filial", "cd_filial", "codfil"]),
+    centro_custo: pick(raw, ["centro_custo", "cd_centro_custo", "ds_centro_custo", "codccu"]),
+    evento: pick(raw, ["evento", "cd_evento", "codigo_evento", "codeve"]),
+    descricao_evento: pick(raw, ["descricao_evento", "ds_evento", "descricao", "titeve"]),
+    tipo_evento: pick(raw, ["tipo_evento", "tp_evento", "tipo", "tipeve"]),
+    referencia: toNum(pick(raw, ["referencia", "vl_referencia", "qt_referencia", "qtd_referencia", "refeve"])),
+    valor_evento: toNum(pick(raw, ["valor_evento", "vl_evento", "valor", "vl_total", "valeve"])),
+    provento: toNum(pick(raw, ["provento", "vl_provento", "valor_provento", "vlprov"])),
+    desconto: toNum(pick(raw, ["desconto", "vl_desconto", "valor_desconto", "vldesc"])),
+    liquido_calculado: toNum(pick(raw, ["liquido_calculado", "vl_liquido", "liquido"])),
+  };
+}
+
 export async function fetchResumoFolha(p: ResumoFolhaParams): Promise<ResumoFolhaItem[]> {
   const resp = await api.get<any>("/api/rh/resumo-folha", cleanParams(p));
-  return unwrap<ResumoFolhaItem>(resp);
+  const brutos = unwrap<any>(resp);
+  const itens = brutos.map(normalizeResumoFolhaItem);
+  if (brutos.length > 0) {
+    // eslint-disable-next-line no-console
+    console.log("[RH ResumoFolha] amostra", {
+      totalItens: brutos.length,
+      chavesRaw: Object.keys(brutos[0] ?? {}),
+      raw0: brutos[0],
+      normalizado0: itens[0],
+    });
+  }
+  return itens;
 }
+
 
 export interface QuadroColaboradoresParams {
   filial?: string;
