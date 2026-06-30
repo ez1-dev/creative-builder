@@ -106,6 +106,62 @@ export interface FormularioRh {
   [k: string]: any;
 }
 
+export interface ResumoFolhaKpis {
+  provento: number;
+  desconto: number;
+  total_liquido: number;
+  custo_total: number;
+  beneficios: number;
+  inss_total: number;
+  hora_extra: number;
+  provisoes: number;
+  custo_ferias: number;
+  rescisoes: number;
+  fgts: number;
+}
+
+export interface ResumoFolhaEventoAgg {
+  codigo?: string;
+  descricao?: string;
+  valor: number;
+}
+
+export interface ResumoFolhaFilialAgg {
+  filial: string;
+  salario_base?: number;
+  custo_total?: number;
+  qtd_horas?: number;
+  custo_hora_extra?: number;
+  qtd_hora_extra?: number;
+  liquido?: number;
+  fgts?: number;
+  beneficios?: number;
+  inss?: number;
+  custo_ferias?: number;
+  provisoes?: number;
+  [k: string]: any;
+}
+
+export interface ResumoFolhaTipoEventoAgg {
+  tipo: string;
+  valor: number;
+}
+
+export interface ResumoFolhaMensalAgg {
+  competencia: string;
+  custo_hora_extra?: number;
+  custo_mensal?: number;
+}
+
+export interface ResumoFolhaDashboard {
+  kpis: ResumoFolhaKpis;
+  proventos_vantagens: ResumoFolhaEventoAgg[];
+  descontos: ResumoFolhaEventoAgg[];
+  filiais: ResumoFolhaFilialAgg[];
+  tipos_evento: ResumoFolhaTipoEventoAgg[];
+  mensal?: ResumoFolhaMensalAgg[];
+}
+
 export interface NovoFormularioPayload {
   cd_tp_formulario: string;
   ds_titulo: string;

@@ -2,12 +2,44 @@ import { api } from "@/lib/api";
 import type {
   MenuItemRh,
   ResumoFolhaItem,
+  ResumoFolhaDashboard,
+  ResumoFolhaKpis,
   QuadroColaboradorItem,
   ContratoExperienciaItem,
   ProgramacaoFeriasItem,
   FormularioRh,
   NovoFormularioPayload,
 } from "./types";
+
+export function toAnomes(v: string | undefined | null): string {
+  if (!v) return "";
+  const digits = String(v).replace(/\D/g, "");
+  return digits.slice(0, 6);
+}
+
+const EMPTY_KPIS: ResumoFolhaKpis = {
+  provento: 0, desconto: 0, total_liquido: 0, custo_total: 0,
+  beneficios: 0, inss_total: 0, hora_extra: 0, provisoes: 0,
+  custo_ferias: 0, rescisoes: 0, fgts: 0,
+};
+
+function num(v: any): number {
+  if (v == null || v === "") return 0;
+  if (typeof v === "number") return isFinite(v) ? v : 0;
+  let s = String(v).trim();
+  if (/,\d{1,4}$/.test(s) && /\./.test(s)) s = s.replace(/\./g, "").replace(",", ".");
+  else if (/,\d{1,4}$/.test(s)) s = s.replace(",", ".");
+  const n = Number(s);
+  return isFinite(n) ? n : 0;
+}
+
+function pickStr(o: any, keys: string[]): string | undefined {
+  for (const k of keys) {
+    if (o?.[k] != null && o[k] !== "") return String(o[k]);
+  }
+  return undefined;
+}
+
 
 // Aceita lista direta ou objeto com "dados"/"items"/"data"
 function unwrap<T>(resp: any): T[] {
@@ -106,6 +138,102 @@ export async function fetchResumoFolha(p: ResumoFolhaParams): Promise<ResumoFolh
   }
   return itens;
 }
+
+export class DashboardIndisponivelError extends Error {
+  code = "DASHBOARD_INDISPONIVEL" as const;
+  statusCode?: number;
+  constructor(msg = "Endpoint de dashboard da folha ainda não disponível.", statusCode?: number) {
+    super(msg);
+    this.statusCode = statusCode;
+  }
+}
+
+function normalizeEventos(arr: any): { codigo?: string; descricao?: string; valor: number }[] {
+  if (!Array.isArray(arr)) return [];
+  return arr.map((r) => ({
+    codigo: pickStr(r, ["codigo", "cd_evento", "evento", "codeve"]),
+    descricao: pickStr(r, ["descricao", "ds_evento", "descricao_evento", "titeve"]) ?? "-",
+    valor: num(r.valor ?? r.vl_total ?? r.total ?? r.provento ?? r.desconto),
+  }));
+}
+
+function normalizeFiliais(arr: any) {
+  if (!Array.isArray(arr)) return [];
+  return arr.map((r) => ({
+    filial: pickStr(r, ["filial", "ds_filial", "nm_filial", "cd_filial"]) ?? "-",
+    salario_base: num(r.salario_base ?? r.salarioBase),
+    custo_total: num(r.custo_total ?? r.custoTotal),
+    qtd_horas: num(r.qtd_horas ?? r.qtdHoras),
+    custo_hora_extra: num(r.custo_hora_extra ?? r.custoHE ?? r.custo_he),
+    qtd_hora_extra: num(r.qtd_hora_extra ?? r.qtdHE ?? r.qtd_he),
+    liquido: num(r.liquido),
+    fgts: num(r.fgts),
+    beneficios: num(r.beneficios ?? r.benef ?? r.va),
+    inss: num(r.inss),
+    custo_ferias: num(r.custo_ferias ?? r.ferias),
+    provisoes: num(r.provisoes ?? r.provis),
+  }));
+}
+
+function normalizeDashboard(raw: any): ResumoFolhaDashboard {
+  const k = raw?.kpis ?? {};
+  return {
+    kpis: {
+      provento: num(k.provento),
+      desconto: num(k.desconto),
+      total_liquido: num(k.total_liquido ?? k.liquido),
+      custo_total: num(k.custo_total),
+      beneficios: num(k.beneficios),
+      inss_total: num(k.inss_total ?? k.inss),
+      hora_extra: num(k.hora_extra),
+      provisoes: num(k.provisoes),
+      custo_ferias: num(k.custo_ferias),
+      rescisoes: num(k.rescisoes),
+      fgts: num(k.fgts),
+    },
+    proventos_vantagens: normalizeEventos(raw?.proventos_vantagens),
+    descontos: normalizeEventos(raw?.descontos),
+    filiais: normalizeFiliais(raw?.filiais),
+    tipos_evento: Array.isArray(raw?.tipos_evento)
+      ? raw.tipos_evento.map((t: any) => ({
+          tipo: pickStr(t, ["tipo", "tp_evento", "tipo_evento"]) ?? "OUTROS",
+          valor: num(t.valor ?? t.vl_total ?? t.total),
+        }))
+      : [],
+    mensal: Array.isArray(raw?.mensal)
+      ? raw.mensal.map((m: any) => ({
+          competencia: String(m.competencia ?? m.ano_mes ?? m.anomes ?? ""),
+          custo_hora_extra: num(m.custo_hora_extra ?? m.custoHE),
+          custo_mensal: num(m.custo_mensal ?? m.custoMensal),
+        }))
+      : [],
+  };
+}
+
+export async function fetchResumoFolhaDashboard(p: ResumoFolhaParams): Promise<ResumoFolhaDashboard> {
+  const params = cleanParams({
+    anomes_ini: toAnomes(p.anomes_ini),
+    anomes_fim: toAnomes(p.anomes_fim),
+    filial: p.filial,
+    matricula: p.matricula,
+  });
+  try {
+    const resp = await api.get<any>("/api/rh/resumo-folha/dashboard", params);
+    // eslint-disable-next-line no-console
+    console.log("[RH ResumoFolha/dashboard] resposta", resp);
+    return normalizeDashboard(resp ?? {});
+  } catch (e: any) {
+    const status = e?.statusCode ?? e?.status;
+    if (status === 404 || status === 405 || status === 501) {
+      throw new DashboardIndisponivelError(undefined, status);
+    }
+    throw e;
+  }
+}
+
+export { EMPTY_KPIS };
+
+
 
 
 export interface QuadroColaboradoresParams {
