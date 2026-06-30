@@ -12,19 +12,19 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { Skeleton } from "@/components/ui/skeleton";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
-import { fetchResumoFolha } from "@/lib/rh/api";
-import type { ResumoFolhaItem } from "@/lib/rh/types";
-import { formatCurrency, formatNumber } from "@/lib/format";
 import {
-  classifyEvento, somarBucket, groupBy, formatHorasMin, formatCompetencia, valorLinha,
-} from "@/lib/rh/eventoBuckets";
+  fetchResumoFolhaDashboard,
+  DashboardIndisponivelError,
+  toAnomes,
+} from "@/lib/rh/api";
+import { formatCurrency, formatNumber } from "@/lib/format";
+import { formatHorasMin, formatCompetencia } from "@/lib/rh/eventoBuckets";
 
 function defaultMonth(offset = 0): string {
   const d = new Date();
   d.setMonth(d.getMonth() + offset);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
-const toAnomes = (v: string) => (v ? v.replace("-", "") : "");
 
 const PIE_COLORS = [
   "hsl(var(--primary))",
@@ -48,126 +48,41 @@ export default function ResumoFolhaPage() {
     filial: filial !== "__all__" ? filial : undefined,
     matricula: busca || undefined,
   };
-  const { data = [], isLoading } = useQuery({
-    queryKey: ["rh", "resumo-folha", params],
-    queryFn: () => fetchResumoFolha(params),
+
+  const query = useQuery({
+    queryKey: ["rh", "resumo-folha-dashboard", params],
+    queryFn: () => fetchResumoFolhaDashboard(params),
     enabled: !!params.anomes_ini && !!params.anomes_fim,
+    retry: (count, err: any) => {
+      if (err instanceof DashboardIndisponivelError) return false;
+      return count < 1;
+    },
   });
 
-  const filiais = useMemo(
-    () => Array.from(new Set(data.map((d) => d.filial).filter(Boolean))) as string[],
-    [data],
+  const { data, isLoading, isError, error } = query;
+  const indisponivel = error instanceof DashboardIndisponivelError;
+
+  const kpis = data?.kpis;
+  const filiaisData = data?.filiais ?? [];
+  const proventos = data?.proventos_vantagens ?? [];
+  const descontos = data?.descontos ?? [];
+  const tipos = data?.tipos_evento ?? [];
+  const mensal = data?.mensal ?? [];
+
+  const filiaisOpts = useMemo(
+    () => Array.from(new Set(filiaisData.map((f) => f.filial).filter(Boolean))),
+    [filiaisData],
   );
 
-  // Filtragem local extra
-  const rows = useMemo(() => data.filter((r) => {
-    if (filial !== "__all__" && r.filial !== filial) return false;
-    if (busca) {
-      const q = busca.toLowerCase();
-      if (!(r.matricula || "").toString().toLowerCase().includes(q) &&
-          !(r.colaborador || "").toLowerCase().includes(q)) return false;
-    }
-    return true;
-  }), [data, filial, busca]);
+  const totalProvento = useMemo(() => proventos.reduce((a, x) => a + (x.valor || 0), 0), [proventos]);
+  const totalDesconto = useMemo(() => descontos.reduce((a, x) => a + (x.valor || 0), 0), [descontos]);
 
-  // -------- KPIs ----------
-  const kpis = useMemo(() => {
-    const provento = rows.reduce((a, r) => a + (Number(r.provento) || 0), 0);
-    const desconto = rows.reduce((a, r) => a + (Number(r.desconto) || 0), 0);
-    const liquido = provento - desconto;
-    const horaExtra = somarBucket(rows, "HORA_EXTRA");
-    const ferias = somarBucket(rows, "FERIAS");
-    const rescisao = somarBucket(rows, "RESCISAO");
-    const inss = somarBucket(rows, "INSS");
-    const fgts = somarBucket(rows, "FGTS");
-    const benef = somarBucket(rows, "BENEFICIOS");
-    const provis = somarBucket(rows, "PROVISOES");
-    const custoTotal = provento + inss + fgts + provis;
-    return { provento, desconto, liquido, horaExtra, ferias, rescisao, inss, fgts, benef, provis, custoTotal };
-  }, [rows]);
-
-  // -------- Gráficos mensais ----------
-  const dadosMensais = useMemo(() => {
-    const porMes = groupBy(rows, (r) => r.competencia as string | undefined);
-    const labels = Object.keys(porMes).sort();
-    return labels.map((c) => ({
-      competencia: formatCompetencia(c),
-      custoHoraExtra: somarBucket(porMes[c], "HORA_EXTRA"),
-      custoMensal: porMes[c].reduce((a, r) => a + (Number(r.provento) || 0), 0),
-    }));
-  }, [rows]);
-
-  // -------- Top eventos ----------
-  const { topProventos, topDescontos, totalProvento, totalDesconto } = useMemo(() => {
-    type Agg = { codigo: string; descricao: string; provento: number; desconto: number };
-    const map = new Map<string, Agg>();
-    for (const r of rows) {
-      const key = `${r.evento ?? "-"}|${r.descricao_evento ?? "-"}`;
-      const cur = map.get(key) ?? {
-        codigo: String(r.evento ?? "-"),
-        descricao: r.descricao_evento ?? "-",
-        provento: 0,
-        desconto: 0,
-      };
-      cur.provento += Number(r.provento) || 0;
-      cur.desconto += Number(r.desconto) || 0;
-      map.set(key, cur);
-    }
-    const all = Array.from(map.values());
-    const topP = all.filter((x) => x.provento > 0).sort((a, b) => b.provento - a.provento).slice(0, 50);
-    const topD = all.filter((x) => x.desconto > 0).sort((a, b) => b.desconto - a.desconto).slice(0, 50);
-    return {
-      topProventos: topP,
-      topDescontos: topD,
-      totalProvento: topP.reduce((a, x) => a + x.provento, 0),
-      totalDesconto: topD.reduce((a, x) => a + x.desconto, 0),
-    };
-  }, [rows]);
-
-  // -------- Tabela por filial ----------
-  const linhasFilial = useMemo(() => {
-    const grupos = groupBy(rows, (r) => r.filial as string | undefined);
-    return Object.entries(grupos).map(([nome, rs]) => {
-      const isHN = (r: ResumoFolhaItem) => classifyEvento(r).includes("HORAS_NORMAIS");
-      const isHE = (r: ResumoFolhaItem) => classifyEvento(r).includes("HORA_EXTRA");
-      const provento = rs.reduce((a, r) => a + (Number(r.provento) || 0), 0);
-      const desconto = rs.reduce((a, r) => a + (Number(r.desconto) || 0), 0);
-      const salarioBase = rs.filter(isHN).reduce((a, r) => a + (Number(r.provento) || 0), 0);
-      const qtdHoras = rs.filter(isHN).reduce((a, r) => a + (Number(r.referencia) || 0), 0);
-      const qtdHE = rs.filter(isHE).reduce((a, r) => a + (Number(r.referencia) || 0), 0);
-      const inss = somarBucket(rs, "INSS");
-      const fgts = somarBucket(rs, "FGTS");
-      const ferias = somarBucket(rs, "FERIAS");
-      const provis = somarBucket(rs, "PROVISOES");
-      const benef = somarBucket(rs, "BENEFICIOS");
-      const custoHE = somarBucket(rs, "HORA_EXTRA");
-      const custoTotal = provento + inss + fgts + provis;
-      const liquido = provento - desconto;
-      return { nome, salarioBase, custoTotal, qtdHoras, custoHE, qtdHE, liquido, fgts, benef, inss, ferias, provis };
-    }).sort((a, b) => b.custoTotal - a.custoTotal);
-  }, [rows]);
-
-  // -------- Donut Tipos de Evento ----------
-  const tiposEvento = useMemo(() => {
-    const grupos = groupBy(rows, (r) => (r.tipo_evento || "OUTROS") as string);
-    let entries = Object.entries(grupos).map(([tipo, rs]) => ({
-      tipo,
-      valor: rs.reduce((a, r) => a + valorLinha(r), 0),
-    }));
-    const total = entries.reduce((a, e) => a + e.valor, 0) || 1;
-    // agrupa < 2% em OUTROS
-    const grandes: typeof entries = [];
-    let outros = 0;
-    for (const e of entries) {
-      if (e.valor / total < 0.02) outros += e.valor;
-      else grandes.push(e);
-    }
-    if (outros > 0) grandes.push({ tipo: "OUTROS", valor: outros });
-    return grandes.sort((a, b) => b.valor - a.valor).map((e) => ({
-      ...e,
-      pct: e.valor / total,
-    }));
-  }, [rows]);
+  const tiposPie = useMemo(() => {
+    const total = tipos.reduce((a, t) => a + (t.valor || 0), 0) || 1;
+    return tipos
+      .map((t) => ({ ...t, pct: (t.valor || 0) / total }))
+      .sort((a, b) => b.valor - a.valor);
+  }, [tipos]);
 
   return (
     <div className="container mx-auto py-6 space-y-4">
@@ -184,7 +99,7 @@ export default function ResumoFolhaPage() {
               <SelectTrigger><SelectValue placeholder="Todas" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">Todas</SelectItem>
-                {filiais.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                {filiaisOpts.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -192,220 +107,236 @@ export default function ResumoFolhaPage() {
         </CardContent>
       </Card>
 
-      {/* Diagnóstico: linhas chegaram mas valores zerados */}
-      {!isLoading && rows.length > 0 && kpis.provento === 0 && kpis.desconto === 0 && kpis.custoTotal === 0 && (
+      {indisponivel && (
         <div className="rounded-md border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
-          <div className="font-medium text-warning-foreground">
-            Foram recebidos {rows.length} registros, mas todos os valores estão zerados.
-          </div>
+          <div className="font-medium">Endpoint de dashboard da folha ainda não disponível.</div>
           <div className="text-muted-foreground mt-1">
-            Abra o console do navegador e procure por <code>[RH ResumoFolha] amostra</code> para conferir os nomes dos campos numéricos retornados pelo backend.
-            Se houver alias não previsto, adicione-o em <code>src/lib/rh/api.ts → normalizeResumoFolhaItem</code>.
+            O backend precisa expor <code>GET /api/rh/resumo-folha/dashboard?anomes_ini=YYYYMM&amp;anomes_fim=YYYYMM</code> retornando
+            <code> kpis</code>, <code>proventos_vantagens</code>, <code>descontos</code>, <code>filiais</code> e <code>tipos_evento</code>.
           </div>
         </div>
       )}
 
+      {isError && !indisponivel && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm">
+          Falha ao carregar dashboard da folha: {(error as any)?.message ?? "erro desconhecido"}
+        </div>
+      )}
 
+      {!indisponivel && (
+        <>
+          {/* KPIs */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+            <Card className="md:row-span-2 border-l-4 border-l-primary">
+              <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Líquido</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <div className="text-[11px] text-muted-foreground">Provento</div>
+                  <div className="text-xl font-bold tabular-nums">{formatCurrency(kpis?.provento ?? 0)}</div>
+                </div>
+                <div>
+                  <div className="text-[11px] text-muted-foreground">Desconto</div>
+                  <div className="text-xl font-bold tabular-nums text-destructive">{formatCurrency(kpis?.desconto ?? 0)}</div>
+                </div>
+                <div className="pt-2 border-t">
+                  <div className="text-[11px] text-muted-foreground">Total Líquido</div>
+                  <div className="text-2xl font-bold tabular-nums text-primary">{formatCurrency(kpis?.total_liquido ?? 0)}</div>
+                </div>
+              </CardContent>
+            </Card>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-        {/* Líquido — card duplo */}
-        <Card className="md:row-span-2 border-l-4 border-l-primary">
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Líquido</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            <div>
-              <div className="text-[11px] text-muted-foreground">Provento</div>
-              <div className="text-xl font-bold tabular-nums">{formatCurrency(kpis.provento)}</div>
-            </div>
-            <div>
-              <div className="text-[11px] text-muted-foreground">Desconto</div>
-              <div className="text-xl font-bold tabular-nums text-destructive">{formatCurrency(kpis.desconto)}</div>
-            </div>
-            <div className="pt-2 border-t">
-              <div className="text-[11px] text-muted-foreground">Total Líquido</div>
-              <div className="text-2xl font-bold tabular-nums text-primary">{formatCurrency(kpis.liquido)}</div>
-            </div>
-          </CardContent>
-        </Card>
+            <KpiCard title="Custo Total" value={kpis?.custo_total ?? 0} format="currency" variant="danger" loading={isLoading} />
+            <KpiCard title="Benefícios" value={kpis?.beneficios ?? 0} format="currency" loading={isLoading} />
+            <KpiCard title="INSS Total" value={kpis?.inss_total ?? 0} format="currency" loading={isLoading} />
+            <KpiCard title="Hora Extra" value={kpis?.hora_extra ?? 0} format="currency" variant="warning" loading={isLoading} />
 
-        <KpiCard title="Custo Total" value={kpis.custoTotal} format="currency" variant="danger" loading={isLoading} />
-        <KpiCard title="Benefícios" value={kpis.benef} format="currency" loading={isLoading} />
-        <KpiCard title="INSS Total" value={kpis.inss} format="currency" loading={isLoading} />
-        <KpiCard title="Hora Extra" value={kpis.horaExtra} format="currency" variant="warning" loading={isLoading} />
+            <KpiCard title="Provisões" value={kpis?.provisoes ?? 0} format="currency" loading={isLoading} />
+            <KpiCard title="Custo das Férias" value={kpis?.custo_ferias ?? 0} format="currency" loading={isLoading} />
+            <KpiCard title="Rescisões" value={kpis?.rescisoes ?? 0} format="currency" variant="warning" loading={isLoading} />
+            <KpiCard title="FGTS" value={kpis?.fgts ?? 0} format="currency" loading={isLoading} />
+          </div>
 
-        <KpiCard title="Provisões" value={kpis.provis} format="currency" loading={isLoading} />
-        <KpiCard title="Custo das Férias" value={kpis.ferias} format="currency" loading={isLoading} />
-        <KpiCard title="Rescisões" value={kpis.rescisao} format="currency" variant="warning" loading={isLoading} />
-        <KpiCard title="FGTS" value={kpis.fgts} format="currency" loading={isLoading} />
-      </div>
+          {/* Gráficos + Top eventos */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+            <Card className="lg:col-span-1">
+              <CardHeader className="pb-2"><CardTitle className="text-sm">Custo Hora Extra</CardTitle></CardHeader>
+              <CardContent className="h-48">
+                {mensal.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-xs text-muted-foreground">Sem série mensal</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={mensal.map((m) => ({ ...m, competencia: formatCompetencia(m.competencia) }))}>
+                      <XAxis dataKey="competencia" fontSize={10} />
+                      <YAxis hide />
+                      <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                      <Bar dataKey="custo_hora_extra" fill="hsl(var(--muted-foreground))" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+              <CardHeader className="pb-2 pt-0"><CardTitle className="text-sm">Custo Mensal</CardTitle></CardHeader>
+              <CardContent className="h-48">
+                {mensal.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-xs text-muted-foreground">Sem série mensal</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={mensal.map((m) => ({ ...m, competencia: formatCompetencia(m.competencia) }))}>
+                      <XAxis dataKey="competencia" fontSize={10} />
+                      <YAxis hide />
+                      <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                      <Bar dataKey="custo_mensal" fill="hsl(var(--primary))" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
 
-      {/* Gráficos + Top eventos */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
-        <Card className="lg:col-span-1">
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Custo Hora Extra</CardTitle></CardHeader>
-          <CardContent className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dadosMensais}>
-                <XAxis dataKey="competencia" fontSize={10} />
-                <YAxis hide />
-                <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                <Bar dataKey="custoHoraExtra" fill="hsl(var(--muted-foreground))" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-          <CardHeader className="pb-2 pt-0"><CardTitle className="text-sm">Custo Mensal</CardTitle></CardHeader>
-          <CardContent className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dadosMensais}>
-                <XAxis dataKey="competencia" fontSize={10} />
-                <YAxis hide />
-                <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                <Bar dataKey="custoMensal" fill="hsl(var(--primary))" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+            <Card className="lg:col-span-2">
+              <CardHeader className="pb-2"><CardTitle className="text-sm text-center">Proventos + Vantagens</CardTitle></CardHeader>
+              <CardContent>
+                <div className="max-h-[420px] overflow-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-background z-10">
+                      <TableRow><TableHead className="w-12">#</TableHead><TableHead>Evento</TableHead><TableHead className="text-right">Proventos (R$)</TableHead></TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {isLoading && <TableRow><TableCell colSpan={3}><Skeleton className="h-6" /></TableCell></TableRow>}
+                      {!isLoading && proventos.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-4">Sem dados</TableCell></TableRow>}
+                      {proventos.map((p, i) => (
+                        <TableRow key={i}>
+                          <TableCell className="text-muted-foreground">{p.codigo ?? "-"}</TableCell>
+                          <TableCell>{p.descricao}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatCurrency(p.valor)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                    <TableFooter>
+                      <TableRow><TableCell colSpan={2}>Total</TableCell><TableCell className="text-right tabular-nums">{formatCurrency(totalProvento)}</TableCell></TableRow>
+                    </TableFooter>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
 
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-center">Proventos + Vantagens</CardTitle></CardHeader>
-          <CardContent>
-            <div className="max-h-[420px] overflow-auto">
-              <Table>
-                <TableHeader className="sticky top-0 bg-background z-10">
-                  <TableRow><TableHead className="w-12">#</TableHead><TableHead>Evento</TableHead><TableHead className="text-right">Proventos (R$)</TableHead></TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading && <TableRow><TableCell colSpan={3}><Skeleton className="h-6" /></TableCell></TableRow>}
-                  {!isLoading && topProventos.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-4">Sem dados</TableCell></TableRow>}
-                  {topProventos.map((p, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="text-muted-foreground">{p.codigo}</TableCell>
-                      <TableCell>{p.descricao}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatCurrency(p.provento)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-                <TableFooter>
-                  <TableRow><TableCell colSpan={2}>Total</TableCell><TableCell className="text-right tabular-nums">{formatCurrency(totalProvento)}</TableCell></TableRow>
-                </TableFooter>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+            <Card className="lg:col-span-1">
+              <CardHeader className="pb-2"><CardTitle className="text-sm text-center">Descontos</CardTitle></CardHeader>
+              <CardContent>
+                <div className="max-h-[420px] overflow-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-background z-10">
+                      <TableRow><TableHead className="w-12">#</TableHead><TableHead>Evento</TableHead><TableHead className="text-right">Desc. (R$)</TableHead></TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {isLoading && <TableRow><TableCell colSpan={3}><Skeleton className="h-6" /></TableCell></TableRow>}
+                      {!isLoading && descontos.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-4">Sem dados</TableCell></TableRow>}
+                      {descontos.map((p, i) => (
+                        <TableRow key={i}>
+                          <TableCell className="text-muted-foreground">{p.codigo ?? "-"}</TableCell>
+                          <TableCell className="text-xs">{p.descricao}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatCurrency(p.valor)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                    <TableFooter>
+                      <TableRow><TableCell colSpan={2}>Total</TableCell><TableCell className="text-right tabular-nums">{formatCurrency(totalDesconto)}</TableCell></TableRow>
+                    </TableFooter>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-        <Card className="lg:col-span-1">
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-center">Descontos</CardTitle></CardHeader>
-          <CardContent>
-            <div className="max-h-[420px] overflow-auto">
-              <Table>
-                <TableHeader className="sticky top-0 bg-background z-10">
-                  <TableRow><TableHead className="w-12">#</TableHead><TableHead>Evento</TableHead><TableHead className="text-right">Desc. (R$)</TableHead></TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading && <TableRow><TableCell colSpan={3}><Skeleton className="h-6" /></TableCell></TableRow>}
-                  {!isLoading && topDescontos.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-4">Sem dados</TableCell></TableRow>}
-                  {topDescontos.map((p, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="text-muted-foreground">{p.codigo}</TableCell>
-                      <TableCell className="text-xs">{p.descricao}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatCurrency(p.desconto)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-                <TableFooter>
-                  <TableRow><TableCell colSpan={2}>Total</TableCell><TableCell className="text-right tabular-nums">{formatCurrency(totalDesconto)}</TableCell></TableRow>
-                </TableFooter>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          {/* Filial + Tipos de Evento */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+            <Card className="lg:col-span-3">
+              <CardHeader className="pb-2"><CardTitle className="text-sm text-center">Filial</CardTitle></CardHeader>
+              <CardContent>
+                <div className="max-h-[420px] overflow-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-background z-10">
+                      <TableRow>
+                        <TableHead>Filial</TableHead>
+                        <TableHead className="text-right">Salário Base</TableHead>
+                        <TableHead className="text-right">Custo Total</TableHead>
+                        <TableHead className="text-right">Qtd. Horas</TableHead>
+                        <TableHead className="text-right">Custo H. Extra</TableHead>
+                        <TableHead className="text-right">Qtd. H. Extra</TableHead>
+                        <TableHead className="text-right">Líquido</TableHead>
+                        <TableHead className="text-right">FGTS</TableHead>
+                        <TableHead className="text-right">V.A.</TableHead>
+                        <TableHead className="text-right">INSS</TableHead>
+                        <TableHead className="text-right">Custo Férias</TableHead>
+                        <TableHead className="text-right">Provisões</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {isLoading && <TableRow><TableCell colSpan={12}><Skeleton className="h-6" /></TableCell></TableRow>}
+                      {!isLoading && filiaisData.length === 0 && (
+                        <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-4">Sem dados</TableCell></TableRow>
+                      )}
+                      {filiaisData.map((f, i) => (
+                        <TableRow key={i}>
+                          <TableCell className="font-medium">{f.filial}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatNumber(f.salario_base ?? 0)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatNumber(f.custo_total ?? 0)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatHorasMin(f.qtd_horas ?? 0)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatNumber(f.custo_hora_extra ?? 0)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatHorasMin(f.qtd_hora_extra ?? 0)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatNumber(f.liquido ?? 0)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatNumber(f.fgts ?? 0)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatNumber(f.beneficios ?? 0)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatNumber(f.inss ?? 0)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatNumber(f.custo_ferias ?? 0)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatNumber(f.provisoes ?? 0)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
 
-      {/* Filial + Tipos de Evento */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
-        <Card className="lg:col-span-3">
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-center">Filial</CardTitle></CardHeader>
-          <CardContent>
-            <div className="max-h-[420px] overflow-auto">
-              <Table>
-                <TableHeader className="sticky top-0 bg-background z-10">
-                  <TableRow>
-                    <TableHead>Filial</TableHead>
-                    <TableHead className="text-right">Salário Base</TableHead>
-                    <TableHead className="text-right">Custo Total</TableHead>
-                    <TableHead className="text-right">Qtd. Horas</TableHead>
-                    <TableHead className="text-right">Custo H. Extra</TableHead>
-                    <TableHead className="text-right">Qtd. H. Extra</TableHead>
-                    <TableHead className="text-right">Líquido</TableHead>
-                    <TableHead className="text-right">FGTS</TableHead>
-                    <TableHead className="text-right">V.A.</TableHead>
-                    <TableHead className="text-right">INSS</TableHead>
-                    <TableHead className="text-right">Custo Férias</TableHead>
-                    <TableHead className="text-right">Provisões</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading && <TableRow><TableCell colSpan={12}><Skeleton className="h-6" /></TableCell></TableRow>}
-                  {!isLoading && linhasFilial.length === 0 && (
-                    <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-4">Sem dados</TableCell></TableRow>
-                  )}
-                  {linhasFilial.map((f, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="font-medium">{f.nome}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatNumber(f.salarioBase)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatNumber(f.custoTotal)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatHorasMin(f.qtdHoras)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatNumber(f.custoHE)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatHorasMin(f.qtdHE)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatNumber(f.liquido)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatNumber(f.fgts)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatNumber(f.benef)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatNumber(f.inss)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatNumber(f.ferias)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatNumber(f.provis)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-1">
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-center">Tipos de Evento</CardTitle></CardHeader>
-          <CardContent className="h-[420px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={tiposEvento}
-                  dataKey="valor"
-                  nameKey="tipo"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={90}
-                  paddingAngle={2}
-                >
-                  {tiposEvento.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                </Pie>
-                <Tooltip
-                  formatter={(v: number, _n: any, p: any) =>
-                    `${formatCurrency(v)} (${(p?.payload?.pct * 100).toFixed(1)}%)`
-                  }
-                />
-                <Legend
-                  verticalAlign="bottom"
-                  iconSize={8}
-                  formatter={(value, entry: any) => {
-                    const pct = (entry?.payload?.pct ?? 0) * 100;
-                    return `${value} — ${pct.toFixed(0)}%`;
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
+            <Card className="lg:col-span-1">
+              <CardHeader className="pb-2"><CardTitle className="text-sm text-center">Tipos de Evento</CardTitle></CardHeader>
+              <CardContent className="h-[420px]">
+                {tiposPie.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-xs text-muted-foreground">Sem dados</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={tiposPie}
+                        dataKey="valor"
+                        nameKey="tipo"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={90}
+                        paddingAngle={2}
+                      >
+                        {tiposPie.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                      </Pie>
+                      <Tooltip
+                        formatter={(v: number, _n: any, p: any) =>
+                          `${formatCurrency(v)} (${((p?.payload?.pct ?? 0) * 100).toFixed(1)}%)`
+                        }
+                      />
+                      <Legend
+                        verticalAlign="bottom"
+                        iconSize={8}
+                        formatter={(value, entry: any) => {
+                          const pct = (entry?.payload?.pct ?? 0) * 100;
+                          return `${value} — ${pct.toFixed(0)}%`;
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
     </div>
   );
 }
