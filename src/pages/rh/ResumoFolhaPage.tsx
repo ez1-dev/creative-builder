@@ -82,10 +82,10 @@ function ValueOrMissing({
 }
 
 function KpiOrMissing({
-  title, value, missing, field, variant, loading,
+  title, value, missing, field, variant, loading, footer,
 }: {
   title: string; value: number | undefined; missing: boolean; field: string;
-  variant?: "danger" | "warning"; loading?: boolean;
+  variant?: "danger" | "warning"; loading?: boolean; footer?: React.ReactNode;
 }) {
   if (missing) {
     return (
@@ -95,8 +95,19 @@ function KpiOrMissing({
       </Card>
     );
   }
+  if (footer) {
+    return (
+      <div className="relative">
+        <KpiCard title={title} value={value ?? 0} format="currency" variant={variant} loading={loading} />
+        <div className="absolute bottom-1.5 right-2 text-[10px] text-muted-foreground italic pointer-events-none">
+          {footer}
+        </div>
+      </div>
+    );
+  }
   return <KpiCard title={title} value={value ?? 0} format="currency" variant={variant} loading={loading} />;
 }
+
 
 
 export default function ResumoFolhaPage() {
@@ -454,7 +465,7 @@ export default function ResumoFolhaPage() {
             <KpiOrMissing title="Hora Extra" value={kpis?.hora_extra} missing={isMissing("hora_extra")} field="hora_extra" variant="warning" loading={isLoading} />
 
             <KpiOrMissing title="Provisões" value={kpis?.provisoes} missing={isMissing("provisoes")} field="provisoes" loading={isLoading} />
-            <KpiOrMissing title="Custo das Férias" value={kpis?.custo_ferias} missing={isMissing("custo_ferias")} field="custo_ferias" loading={isLoading} />
+            <KpiOrMissing title="Custo das Férias" value={kpis?.custo_ferias} missing={isMissing("custo_ferias")} field="custo_ferias" loading={isLoading} footer={isAdmin && data?.fonte === "public.rh_vm_folha" ? "Em validação técnica" : undefined} />
             <KpiOrMissing title="Rescisões" value={kpis?.rescisoes} missing={isMissing("rescisoes")} field="rescisoes" variant="warning" loading={isLoading} />
             <KpiOrMissing title="FGTS" value={kpis?.fgts} missing={isMissing("fgts")} field="fgts" loading={isLoading} />
           </div>
@@ -493,7 +504,9 @@ export default function ResumoFolhaPage() {
                       ].map(([key, label]) => {
                         const v =
                           key === "__fonte__"
-                            ? data?.fonte
+                            ? (data?.fonte === "public.rh_vm_folha"
+                                ? "API RH / cache técnico public.rh_vm_folha"
+                                : data?.fonte)
                             : (diagnostico as any)?.[key as string];
                         if (v == null) return null;
                         return (
@@ -503,6 +516,7 @@ export default function ResumoFolhaPage() {
                           </div>
                         );
                       })}
+
                     </div>
                     {(qtdLinhas === 0) && (
                       <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning font-medium">
