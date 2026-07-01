@@ -194,7 +194,17 @@ export default function ResumoFolhaPage() {
 
   return (
     <div className="container mx-auto py-6 space-y-4">
-      <RhPageHeader title="01 — Resumo Folha" subtitle="Painel consolidado da folha de pagamento" />
+      <RhPageHeader
+        title="01 — Resumo Folha"
+        subtitle="Painel consolidado da folha de pagamento"
+        hideSync
+        actions={
+          <Button size="sm" onClick={() => syncMut.mutate()} disabled={syncing || !enabled}>
+            {syncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+            Sincronizar RH
+          </Button>
+        }
+      />
 
       {/* Filtros */}
       <Card>
