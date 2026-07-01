@@ -10,8 +10,12 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Button } from "@/components/ui/button";
+import { ChevronDown, Info } from "lucide-react";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 import {
   fetchResumoFolhaDashboard,
   DashboardIndisponivelError,
@@ -19,6 +23,7 @@ import {
   type ResumoFolhaModo,
 } from "@/lib/rh/api";
 import { formatCurrency } from "@/lib/format";
+
 
 function defaultMonth(offset = 0): string {
   const d = new Date();
