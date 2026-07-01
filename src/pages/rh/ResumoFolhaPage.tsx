@@ -239,6 +239,24 @@ export default function ResumoFolhaPage() {
         </div>
       )}
 
+      {!indisponivel && !isError && semDados && (
+        <div className="rounded-md border border-warning/40 bg-warning/10 px-4 py-4 text-sm flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-warning mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <div className="font-medium">Base oficial VM_FOLHA ainda não sincronizada para o período selecionado.</div>
+            {qtdLinhas === 0 && (
+              <div className="text-xs text-muted-foreground mt-1">VM_FOLHA sem carga para o período selecionado.</div>
+            )}
+            <div className="mt-3">
+              <Button size="sm" onClick={() => syncMut.mutate()} disabled={syncing || !enabled}>
+                {syncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                Sincronizar agora
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {!indisponivel && modo === "mensal" && (
         <>
           <Card>
