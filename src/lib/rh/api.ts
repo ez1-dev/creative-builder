@@ -402,8 +402,11 @@ export async function sincronizarVmFolha(p: SincronizarRhParams): Promise<any> {
 
 /**
  * Sincroniza o Resumo Folha via API do ERP Senior/Vetorh.
- * Tenta o endpoint preferencial `/api/rh/resumo-folha/sincronizar` e,
- * em caso de 404/405, faz fallback para `/api/rh/vm-folha/sincronizar`.
+ * Endpoint preferencial: `/api/rh/vm-folha-compat/sincronizar` (único que existe hoje).
+ * Fallbacks: `/api/rh/resumo-folha/sincronizar` e `/api/rh/vm-folha/sincronizar`.
+ *
+ * A resposta pode conter `{ status: "OK" | "EM_PROCESSAMENTO", job_id?, diagnostico? }`.
+ * Retornamos o payload cru para o chamador decidir se precisa iniciar polling.
  */
 export async function sincronizarResumoFolha(p: SincronizarRhParams): Promise<any> {
   const qs = new URLSearchParams({
@@ -411,13 +414,52 @@ export async function sincronizarResumoFolha(p: SincronizarRhParams): Promise<an
     anomes_ini: toAnomes(p.anomes_ini),
     anomes_fim: toAnomes(p.anomes_fim),
   }).toString();
+  const endpoints = [
+    `/api/rh/vm-folha-compat/sincronizar?${qs}`,
+    `/api/rh/resumo-folha/sincronizar?${qs}`,
+    `/api/rh/vm-folha/sincronizar?${qs}`,
+  ];
+  let lastErr: any;
+  for (const url of endpoints) {
+    try {
+      return await api.post<any>(url);
+    } catch (e: any) {
+      const status = e?.statusCode ?? e?.status;
+      lastErr = e;
+      if (status === 404 || status === 405) continue;
+      throw e;
+    }
+  }
+  throw lastErr;
+}
+
+export interface StatusSincronizacaoRh {
+  status?: string;
+  job_id?: string;
+  progresso?: number;
+  mensagem?: string;
+  diagnostico?: any;
+  [k: string]: any;
+}
+
+/**
+ * Consulta o status atual de uma sincronização RH em andamento.
+ * Se o backend ainda não expuser o endpoint (404), devolve `null`
+ * para o chamador desligar o polling silenciosamente.
+ */
+export async function consultarStatusSincronizacaoRh(
+  p: { codemp?: number; job_id?: string } = {},
+): Promise<StatusSincronizacaoRh | null> {
+  const params: Record<string, string> = { codemp: String(p.codemp ?? 1) };
+  if (p.job_id) params.job_id = p.job_id;
+  const qs = new URLSearchParams(params).toString();
   try {
-    return await api.post<any>(`/api/rh/resumo-folha/sincronizar?${qs}`);
+    return await api.get<StatusSincronizacaoRh>(
+      `/api/rh/vm-folha-compat/sincronizar/status?${qs}`,
+    );
   } catch (e: any) {
     const status = e?.statusCode ?? e?.status;
-    if (status === 404 || status === 405) {
-      return api.post<any>(`/api/rh/vm-folha/sincronizar?${qs}`);
-    }
+    if (status === 404 || status === 405) return null;
     throw e;
   }
 }
