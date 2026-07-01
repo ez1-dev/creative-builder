@@ -23,8 +23,10 @@ import {
   sincronizarResumoFolha,
   consultarStatusSincronizacaoRh,
   DashboardIndisponivelError,
+  SincronizacaoCompatIndisponivelError,
   toAnomes,
 } from "@/lib/rh/api";
+
 
 import { formatCurrency } from "@/lib/format";
 
