@@ -285,7 +285,7 @@ export type ResumoFolhaModo = "acumulado" | "mensal";
 
 export async function fetchResumoFolhaDashboard(
   p: ResumoFolhaParams & { codemp?: number },
-  _modo?: ResumoFolhaModo,
+  modo?: ResumoFolhaModo,
 ): Promise<ResumoFolhaDashboard> {
   const params = cleanParams({
     anomes_ini: toAnomes(p.anomes_ini),
@@ -293,11 +293,13 @@ export async function fetchResumoFolhaDashboard(
     codemp: p.codemp ?? 1,
     filial: p.filial,
     matricula: p.matricula,
+    modo,
   });
   try {
     const resp = await api.get<any>("/api/rh/resumo-folha/dashboard", params);
     // eslint-disable-next-line no-console
-    console.log("[RH ResumoFolha] dashboard", { params, kpis: resp?.kpis, filiais: resp?.filiais?.length });
+    console.log("[RH ResumoFolha] dashboard", { params, kpis: resp?.kpis, filiais: resp?.filiais?.length, mensal: resp?.mensal?.length });
+
     return normalizeDashboard(resp ?? {});
   } catch (e: any) {
     const status = e?.statusCode ?? e?.status;
