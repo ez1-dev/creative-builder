@@ -167,6 +167,10 @@ export default function ResumoFolhaPage() {
     onError: (e: any, _vars, ctx) => {
       setSyncInFlight(false);
       setSyncJobId(null);
+      if (e instanceof SincronizacaoCompatIndisponivelError) {
+        toast.info("Sincronização compatível ainda não implementada na API.", { id: ctx?.id });
+        return;
+      }
       const tecnico =
         e?.response?.data?.diagnostico?.erro_tecnico ??
         e?.data?.diagnostico?.erro_tecnico;
@@ -179,6 +183,7 @@ export default function ResumoFolhaPage() {
         description,
       });
     },
+
   });
 
   // Polling de status enquanto EM_PROCESSAMENTO
