@@ -479,7 +479,7 @@ export default function ResumoFolhaPage() {
                     </div>
                     {(qtdLinhas === 0) && (
                       <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning font-medium">
-                        VM_FOLHA sem carga para o período selecionado.
+                        API retornou 0 linhas para o período selecionado.
                       </div>
                     )}
                     {(diagnostico as any)?.erro_tecnico && (
