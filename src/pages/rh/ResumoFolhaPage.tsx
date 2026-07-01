@@ -210,20 +210,12 @@ export default function ResumoFolhaPage() {
 
       {/* Filtros */}
       <Card>
-        <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+        <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
           <div><Label>Ano/mês inicial</Label><Input type="month" value={ini} onChange={(e) => setIni(e.target.value)} /></div>
           <div><Label>Ano/mês final</Label><Input type="month" value={fim} onChange={(e) => setFim(e.target.value)} /></div>
           <div><Label>Empresa (codemp)</Label><Input value={codemp} onChange={(e) => setCodemp(e.target.value)} placeholder="1" /></div>
-          <div>
-            <Label>Modo</Label>
-            <Tabs value={modo} onValueChange={(v) => setModo(v as ResumoFolhaModo)}>
-              <TabsList className="grid grid-cols-2 w-full">
-                <TabsTrigger value="acumulado">Acumulado</TabsTrigger>
-                <TabsTrigger value="mensal">Mensal</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
         </CardContent>
+
       </Card>
 
       {indisponivel && (
