@@ -209,9 +209,9 @@ function normalizeFiliais(arr: any) {
     for (const [field, aliases] of Object.entries(mapKeys)) {
       const { hit, value } = pickKey(r, aliases);
       if (!hit) continue;
-      // qtd_horas / qtd_hora_extra podem vir como string "H:MM" — preservar
-      if (HORAS_FIELDS.has(field) && typeof value === "string" && /[:hH]/.test(value)) {
-        out[field] = value;
+      // qtd_horas / qtd_hora_extra: preservar exatamente como veio da API (texto).
+      if (HORAS_FIELDS.has(field)) {
+        out[field] = value == null ? value : String(value);
       } else {
         out[field] = numOrUndef(value);
       }
@@ -219,6 +219,7 @@ function normalizeFiliais(arr: any) {
     return out;
   });
 }
+
 
 
 const KPI_ALIASES: Record<keyof ResumoFolhaKpis, string[]> = {
@@ -279,18 +280,17 @@ function normalizeDashboard(raw: any): ResumoFolhaDashboard {
           total_liquido: num(m.total_liquido ?? m.liquido ?? m.vl_liquido),
         }))
       : [],
+    fonte: raw?.fonte,
     debug: raw?.debug,
     diagnostico: raw?.diagnostico,
-
-
   };
 }
 
-export type ResumoFolhaModo = "acumulado" | "mensal";
+export type ResumoFolhaModo = "completo" | "acumulado" | "mensal";
 
 export async function fetchResumoFolhaDashboard(
   p: ResumoFolhaParams & { codemp?: number },
-  modo?: ResumoFolhaModo,
+  modo: ResumoFolhaModo = "completo",
 ): Promise<ResumoFolhaDashboard> {
   const params = cleanParams({
     anomes_ini: toAnomes(p.anomes_ini),
@@ -300,6 +300,7 @@ export async function fetchResumoFolhaDashboard(
     matricula: p.matricula,
     modo,
   });
+
   try {
     const resp = await api.get<any>("/api/rh/resumo-folha/dashboard", params);
     // eslint-disable-next-line no-console
@@ -398,3 +399,26 @@ export async function sincronizarVmFolha(p: SincronizarRhParams): Promise<any> {
   }).toString();
   return api.post<any>(`/api/rh/vm-folha/sincronizar?${qs}`);
 }
+
+/**
+ * Sincroniza o Resumo Folha via API do ERP Senior/Vetorh.
+ * Tenta o endpoint preferencial `/api/rh/resumo-folha/sincronizar` e,
+ * em caso de 404/405, faz fallback para `/api/rh/vm-folha/sincronizar`.
+ */
+export async function sincronizarResumoFolha(p: SincronizarRhParams): Promise<any> {
+  const qs = new URLSearchParams({
+    codemp: String(p.codemp ?? 1),
+    anomes_ini: toAnomes(p.anomes_ini),
+    anomes_fim: toAnomes(p.anomes_fim),
+  }).toString();
+  try {
+    return await api.post<any>(`/api/rh/resumo-folha/sincronizar?${qs}`);
+  } catch (e: any) {
+    const status = e?.statusCode ?? e?.status;
+    if (status === 404 || status === 405) {
+      return api.post<any>(`/api/rh/vm-folha/sincronizar?${qs}`);
+    }
+    throw e;
+  }
+}
+

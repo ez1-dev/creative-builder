@@ -13,13 +13,24 @@ Fonte oficial: **objeto `VM_FOLHA`** (mesma origem usada pelo painel UpQuery/BI 
 | `anomes_ini` | `YYYYMM` (ex.: `202601`) | sim |
 | `anomes_fim` | `YYYYMM` (ex.: `202605`) | sim |
 | `codemp`     | int (default `1`)         | não |
-| `modo`       | `acumulado` \| `mensal`   | não (default `acumulado`) |
+| `modo`       | `completo` \| `acumulado` \| `mensal` | não (o front chama sempre `completo`, que retorna KPIs + grid por filial + série mensal + drills em uma única resposta) |
 | `filial`     | string                    | não |
 | `matricula`  | string                    | não |
 
+
 Autenticação: Bearer Token (mesmo cliente das demais rotas `/api/*`).
 
-Antes de responder o dashboard, o backend deve garantir que `POST /api/rh/vm-folha/sincronizar?codemp=&anomes_ini=&anomes_fim=` já rodou para o período.
+Antes de responder o dashboard, o backend deve garantir que a sincronização com o ERP Senior/Vetorh já rodou para o período. O front dispara essa carga via `POST /api/rh/resumo-folha/sincronizar?codemp=&anomes_ini=&anomes_fim=` (endpoint preferencial). Se ainda não existir, o front cai automaticamente em `POST /api/rh/vm-folha/sincronizar?...` com os mesmos parâmetros. Após sucesso o toast é "Sincronização RH concluída."; falha exibe "Erro ao sincronizar dados do ERP Senior/Vetorh.".
+
+## Campos de diagnóstico opcionais
+
+Além dos campos já documentados, o front consome e mostra no bloco "Diagnóstico Técnico" (admin) quando presentes:
+
+- `response.fonte` — origem oficial dos números (ex.: `"ERP Senior / VM_FOLHA"`).
+- `response.diagnostico.fonte_cards` — origem específica dos KPIs.
+- `response.diagnostico.erro_tecnico` — mensagem/stack técnica quando a API atendeu com degradação.
+- `response.diagnostico.qtd_linhas`, `response.diagnostico.anomes_ini`, `response.diagnostico.anomes_fim` — recorte efetivamente processado.
+
 
 ## Mapeamento oficial — KPIs (`response.kpis`)
 

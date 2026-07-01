@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -20,11 +20,11 @@ import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import {
   fetchResumoFolhaDashboard,
-  sincronizarVmFolha,
+  sincronizarResumoFolha,
   DashboardIndisponivelError,
   toAnomes,
-  type ResumoFolhaModo,
 } from "@/lib/rh/api";
+
 import { formatCurrency } from "@/lib/format";
 
 
@@ -99,7 +99,6 @@ export default function ResumoFolhaPage() {
   const [ini, setIni] = useState(defaultMonth(-5));
   const [fim, setFim] = useState(defaultMonth(0));
   const [codemp, setCodemp] = useState("1");
-  const [modo, setModo] = useState<ResumoFolhaModo>("acumulado");
 
   const baseParams = {
     anomes_ini: toAnomes(ini),
@@ -110,11 +109,12 @@ export default function ResumoFolhaPage() {
 
   const qc = useQueryClient();
   const query = useQuery({
-    queryKey: ["rh", "resumo-folha-dashboard", baseParams, modo],
-    queryFn: () => fetchResumoFolhaDashboard(baseParams, modo),
+    queryKey: ["rh", "resumo-folha-dashboard", baseParams, "completo"],
+    queryFn: () => fetchResumoFolhaDashboard(baseParams, "completo"),
     enabled,
     retry: (count, err) => (err instanceof DashboardIndisponivelError ? false : count < 1),
   });
+
 
   const data = query.data;
   const isLoading = query.isLoading;
@@ -135,20 +135,20 @@ export default function ResumoFolhaPage() {
   const { isAdmin } = useUserPermissions();
 
   const syncMut = useMutation({
-    mutationFn: () => sincronizarVmFolha(baseParams),
+    mutationFn: () => sincronizarResumoFolha(baseParams),
     onMutate: () => {
-      const id = toast.loading("Sincronizando VM_FOLHA...", {
+      const id = toast.loading("Sincronizando RH...", {
         description: `${baseParams.anomes_ini} → ${baseParams.anomes_fim} (empresa ${baseParams.codemp})`,
       });
       return { id };
     },
     onSuccess: (_data, _vars, ctx) => {
-      toast.success("Sincronização da VM_FOLHA concluída.", { id: ctx?.id });
+      toast.success("Sincronização RH concluída.", { id: ctx?.id });
       qc.invalidateQueries({ queryKey: ["rh", "resumo-folha-dashboard"] });
     },
     onError: (e: any, _vars, ctx) => {
       const detalhe = e?.response?.data?.detail ?? e?.data?.detail ?? e?.message ?? "";
-      toast.error("Não foi possível sincronizar a VM_FOLHA. Verifique a API/ETL.", {
+      toast.error("Erro ao sincronizar dados do ERP Senior/Vetorh.", {
         id: ctx?.id,
         description: typeof detalhe === "string" ? detalhe : JSON.stringify(detalhe),
       });
@@ -158,12 +158,14 @@ export default function ResumoFolhaPage() {
 
   const kpisValues = kpis ? Object.values(kpis).map((v) => Number(v) || 0) : [];
   const totalKpis = kpisValues.reduce((a, b) => a + b, 0);
-  const qtdLinhas = (diagnostico as any)?.qtd_linhas_vm_folha;
+  const qtdLinhas =
+    (diagnostico as any)?.qtd_linhas ?? (diagnostico as any)?.qtd_linhas_vm_folha;
   const semDados =
     !!data &&
     !isLoading &&
     (qtdLinhas === 0 ||
       (totalKpis === 0 && filiaisData.length === 0 && mensal.length === 0));
+
 
   const tiposPie = useMemo(() => {
     const total = tipos.reduce((a, t) => a + (t.valor || 0), 0) || 1;
@@ -208,20 +210,12 @@ export default function ResumoFolhaPage() {
 
       {/* Filtros */}
       <Card>
-        <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+        <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
           <div><Label>Ano/mês inicial</Label><Input type="month" value={ini} onChange={(e) => setIni(e.target.value)} /></div>
           <div><Label>Ano/mês final</Label><Input type="month" value={fim} onChange={(e) => setFim(e.target.value)} /></div>
           <div><Label>Empresa (codemp)</Label><Input value={codemp} onChange={(e) => setCodemp(e.target.value)} placeholder="1" /></div>
-          <div>
-            <Label>Modo</Label>
-            <Tabs value={modo} onValueChange={(v) => setModo(v as ResumoFolhaModo)}>
-              <TabsList className="grid grid-cols-2 w-full">
-                <TabsTrigger value="acumulado">Acumulado</TabsTrigger>
-                <TabsTrigger value="mensal">Mensal</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
         </CardContent>
+
       </Card>
 
       {indisponivel && (
@@ -257,7 +251,7 @@ export default function ResumoFolhaPage() {
         </div>
       )}
 
-      {!indisponivel && !semDados && modo === "mensal" && (
+      {!indisponivel && !semDados && mensal.length > 0 && (
         <>
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm">Evolução mensal</CardTitle></CardHeader>
@@ -316,7 +310,7 @@ export default function ResumoFolhaPage() {
         </>
       )}
 
-      {!indisponivel && !semDados && modo === "acumulado" && (
+      {!indisponivel && !semDados && (
         <>
           {/* Componentes VM_FOLHA pendentes (visível a todos) */}
           {Array.isArray((diagnostico as any)?.componentes_pendentes) &&
@@ -377,11 +371,11 @@ export default function ResumoFolhaPage() {
           {/* Aviso técnico */}
           <div className="flex items-start gap-2 rounded-md border border-info/30 bg-info/5 px-3 py-2 text-xs text-muted-foreground">
             <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            <span>Indicadores oficiais calculados pela API com base na VM_FOLHA/RH.</span>
+            <span>Indicadores oficiais retornados pela API a partir do ERP Senior/Vetorh.</span>
           </div>
 
           {/* Diagnóstico Técnico (admin) */}
-          {isAdmin && diagnostico && (
+          {isAdmin && (diagnostico || data?.fonte) && (
             <Collapsible>
               <Card>
                 <CollapsibleTrigger asChild>
@@ -396,24 +390,42 @@ export default function ResumoFolhaPage() {
                   <CardContent className="space-y-3">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                       {[
+                        ["__fonte__", "Fonte"],
+                        ["fonte_cards", "Fonte cards"],
                         ["vm_folha_status", "Status VM_FOLHA"],
+                        ["qtd_linhas", "Qtd. linhas"],
                         ["qtd_linhas_vm_folha", "Qtd. linhas VM_FOLHA"],
+                        ["anomes_ini", "Anomes inicial"],
+                        ["anomes_fim", "Anomes final"],
                         ["menor_anomes_vm_folha", "Menor anomes"],
                         ["maior_anomes_vm_folha", "Maior anomes"],
                       ].map(([key, label]) => {
-                        const v = (diagnostico as any)?.[key];
+                        const v =
+                          key === "__fonte__"
+                            ? data?.fonte
+                            : (diagnostico as any)?.[key as string];
                         if (v == null) return null;
                         return (
                           <div key={key} className="rounded border bg-muted/40 p-2">
                             <div className="text-[10px] uppercase text-muted-foreground">{label}</div>
-                            <div className="font-mono">{String(v)}</div>
+                            <div className="font-mono break-all">{String(v)}</div>
                           </div>
                         );
                       })}
                     </div>
-                    {(diagnostico as any)?.qtd_linhas_vm_folha === 0 && (
+                    {(qtdLinhas === 0) && (
                       <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning font-medium">
                         VM_FOLHA sem carga para o período selecionado.
+                      </div>
+                    )}
+                    {(diagnostico as any)?.erro_tecnico && (
+                      <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs">
+                        <div className="font-semibold text-destructive mb-1">Erro técnico</div>
+                        <pre className="whitespace-pre-wrap text-[11px]">
+                          {typeof (diagnostico as any).erro_tecnico === "string"
+                            ? (diagnostico as any).erro_tecnico
+                            : JSON.stringify((diagnostico as any).erro_tecnico, null, 2)}
+                        </pre>
                       </div>
                     )}
 
@@ -442,6 +454,8 @@ export default function ResumoFolhaPage() {
               </Card>
             </Collapsible>
           )}
+
+
 
 
           {/* Proventos / Descontos */}
