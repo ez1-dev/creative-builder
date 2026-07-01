@@ -371,11 +371,11 @@ export default function ResumoFolhaPage() {
           {/* Aviso técnico */}
           <div className="flex items-start gap-2 rounded-md border border-info/30 bg-info/5 px-3 py-2 text-xs text-muted-foreground">
             <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            <span>Indicadores oficiais calculados pela API com base na VM_FOLHA/RH.</span>
+            <span>Indicadores oficiais retornados pela API a partir do ERP Senior/Vetorh.</span>
           </div>
 
           {/* Diagnóstico Técnico (admin) */}
-          {isAdmin && diagnostico && (
+          {isAdmin && (diagnostico || data?.fonte) && (
             <Collapsible>
               <Card>
                 <CollapsibleTrigger asChild>
@@ -390,24 +390,42 @@ export default function ResumoFolhaPage() {
                   <CardContent className="space-y-3">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                       {[
+                        ["__fonte__", "Fonte"],
+                        ["fonte_cards", "Fonte cards"],
                         ["vm_folha_status", "Status VM_FOLHA"],
+                        ["qtd_linhas", "Qtd. linhas"],
                         ["qtd_linhas_vm_folha", "Qtd. linhas VM_FOLHA"],
+                        ["anomes_ini", "Anomes inicial"],
+                        ["anomes_fim", "Anomes final"],
                         ["menor_anomes_vm_folha", "Menor anomes"],
                         ["maior_anomes_vm_folha", "Maior anomes"],
                       ].map(([key, label]) => {
-                        const v = (diagnostico as any)?.[key];
+                        const v =
+                          key === "__fonte__"
+                            ? data?.fonte
+                            : (diagnostico as any)?.[key as string];
                         if (v == null) return null;
                         return (
                           <div key={key} className="rounded border bg-muted/40 p-2">
                             <div className="text-[10px] uppercase text-muted-foreground">{label}</div>
-                            <div className="font-mono">{String(v)}</div>
+                            <div className="font-mono break-all">{String(v)}</div>
                           </div>
                         );
                       })}
                     </div>
-                    {(diagnostico as any)?.qtd_linhas_vm_folha === 0 && (
+                    {(qtdLinhas === 0) && (
                       <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning font-medium">
                         VM_FOLHA sem carga para o período selecionado.
+                      </div>
+                    )}
+                    {(diagnostico as any)?.erro_tecnico && (
+                      <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs">
+                        <div className="font-semibold text-destructive mb-1">Erro técnico</div>
+                        <pre className="whitespace-pre-wrap text-[11px]">
+                          {typeof (diagnostico as any).erro_tecnico === "string"
+                            ? (diagnostico as any).erro_tecnico
+                            : JSON.stringify((diagnostico as any).erro_tecnico, null, 2)}
+                        </pre>
                       </div>
                     )}
 
@@ -436,6 +454,8 @@ export default function ResumoFolhaPage() {
               </Card>
             </Collapsible>
           )}
+
+
 
 
           {/* Proventos / Descontos */}
