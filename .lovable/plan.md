@@ -1,21 +1,18 @@
-## Objetivo
-Ajustes visuais em `src/pages/rh/ResumoFolhaPage.tsx`. Sem mudanças em API, cálculos ou backend.
+## Situação atual
 
-## Mudanças
+Os três cards já estão mapeados 1:1 com a API, sem cálculo no front e sem converter `null` em `R$ 0,00`:
 
-1. **Badge "Em validação técnica" no card Custo das Férias**
-   - Condição: `isAdmin` **e** `dashboard.fonte === "public.rh_vm_folha"`.
-   - Renderizar legenda discreta abaixo do valor (`text-xs text-muted-foreground`), texto exato `Em validação técnica`.
-   - Não afeta o estado "Campo pendente na API" quando `custo_ferias` vier `null`.
+- `src/lib/rh/api.ts` — `KPI_ALIASES` lê `custo_total`, `beneficios`, `rescisoes` diretamente de `response.kpis.*` (sem somar componentes).
+- `src/pages/rh/ResumoFolhaPage.tsx` — `KpiOrMissing` renderiza o valor quando presente e "Campo pendente na API" quando `null/undefined`.
 
-2. **Rótulo da fonte técnica**
-   - Onde hoje aparece `Fonte: public.rh_vm_folha` (bloco Diagnóstico Técnico / rodapé), trocar por `Fonte: API RH / cache técnico public.rh_vm_folha` quando `dashboard.fonte === "public.rh_vm_folha"`.
-   - Outros valores de `fonte` mantêm `Fonte: {dashboard.fonte}`.
+Assim que a API entregar os números, os três cards saem automaticamente do estado pendente — não é necessária nenhuma alteração de código.
 
-## Fora de escopo
-- Mapeamento de KPIs (`provento`, `desconto`, `total_liquido`, `inss_total`, `hora_extra`, `provisoes`, `custo_ferias`, `fgts`, e os pendentes `custo_total`, `beneficios`, `rescisoes`) permanece inalterado.
-- Nenhuma alteração em `src/lib/rh/api.ts`, sync, polling, endpoints, Cloud ou docs.
+## Confirmação necessária
 
-## Verificação
-- Admin com `fonte = public.rh_vm_folha`: badge aparece só no card Custo das Férias; rodapé/diagnóstico mostra `Fonte: API RH / cache técnico public.rh_vm_folha`.
-- Não-admin: badge oculto; demais cards inalterados.
+Antes de abrir um plano de alteração, preciso confirmar o que você quer:
+
+1. **Nada a fazer** — só validar que o mapeamento está correto (é o caso atual).
+2. **Ajuste visual** — por exemplo, badge "Em validação técnica" no card Custo Total / Benefícios / Rescisões (como fizemos em Custo das Férias) enquanto a API estabiliza.
+3. **Outros aliases** — a API está retornando com um nome diferente (ex.: `custo_total_geral`, `beneficios_total`, `rescisao`) e os cards continuam pendentes mesmo com valor no payload.
+
+Se for a opção 3, me envie um trecho do JSON de `response.kpis` para eu adicionar o alias correto em `KPI_ALIASES`.
