@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { SincronizarRhDialog } from "./SincronizarRhDialog";
 
-export function RhPageHeader({ title, subtitle, actions }: { title: string; subtitle?: string; actions?: ReactNode }) {
+export function RhPageHeader({ title, subtitle, actions, hideSync }: { title: string; subtitle?: string; actions?: ReactNode; hideSync?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-4 mb-4">
       <div>
@@ -10,7 +10,7 @@ export function RhPageHeader({ title, subtitle, actions }: { title: string; subt
       </div>
       <div className="flex items-center gap-2">
         {actions}
-        <SincronizarRhDialog />
+        {!hideSync && <SincronizarRhDialog />}
       </div>
     </div>
   );
