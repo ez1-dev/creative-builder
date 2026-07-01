@@ -135,20 +135,20 @@ export default function ResumoFolhaPage() {
   const { isAdmin } = useUserPermissions();
 
   const syncMut = useMutation({
-    mutationFn: () => sincronizarVmFolha(baseParams),
+    mutationFn: () => sincronizarResumoFolha(baseParams),
     onMutate: () => {
-      const id = toast.loading("Sincronizando VM_FOLHA...", {
+      const id = toast.loading("Sincronizando RH...", {
         description: `${baseParams.anomes_ini} → ${baseParams.anomes_fim} (empresa ${baseParams.codemp})`,
       });
       return { id };
     },
     onSuccess: (_data, _vars, ctx) => {
-      toast.success("Sincronização da VM_FOLHA concluída.", { id: ctx?.id });
+      toast.success("Sincronização RH concluída.", { id: ctx?.id });
       qc.invalidateQueries({ queryKey: ["rh", "resumo-folha-dashboard"] });
     },
     onError: (e: any, _vars, ctx) => {
       const detalhe = e?.response?.data?.detail ?? e?.data?.detail ?? e?.message ?? "";
-      toast.error("Não foi possível sincronizar a VM_FOLHA. Verifique a API/ETL.", {
+      toast.error("Erro ao sincronizar dados do ERP Senior/Vetorh.", {
         id: ctx?.id,
         description: typeof detalhe === "string" ? detalhe : JSON.stringify(detalhe),
       });
@@ -158,12 +158,14 @@ export default function ResumoFolhaPage() {
 
   const kpisValues = kpis ? Object.values(kpis).map((v) => Number(v) || 0) : [];
   const totalKpis = kpisValues.reduce((a, b) => a + b, 0);
-  const qtdLinhas = (diagnostico as any)?.qtd_linhas_vm_folha;
+  const qtdLinhas =
+    (diagnostico as any)?.qtd_linhas ?? (diagnostico as any)?.qtd_linhas_vm_folha;
   const semDados =
     !!data &&
     !isLoading &&
     (qtdLinhas === 0 ||
       (totalKpis === 0 && filiaisData.length === 0 && mensal.length === 0));
+
 
   const tiposPie = useMemo(() => {
     const total = tipos.reduce((a, t) => a + (t.valor || 0), 0) || 1;
