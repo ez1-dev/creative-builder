@@ -311,6 +311,19 @@ export default function ResumoFolhaPage() {
         </div>
       )}
 
+      {vmFolhaPendente && (
+        <div className="rounded-md border border-warning/40 bg-warning/10 px-4 py-3 text-sm flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-warning mt-0.5 shrink-0" />
+          <div>
+            <div className="font-medium">Camada compatível VM_FOLHA pendente</div>
+            <div className="text-muted-foreground mt-1">
+              VM_FOLHA não existe fisicamente no Vetorh. A API precisa calcular a camada compatível a partir das tabelas reais do ERP Senior/Vetorh.
+            </div>
+          </div>
+        </div>
+      )}
+
+
       {!indisponivel && !isError && semDados && (
         <div className="rounded-md border border-warning/40 bg-warning/10 px-4 py-4 text-sm flex items-start gap-3">
           <AlertTriangle className="h-5 w-5 text-warning mt-0.5 shrink-0" />
