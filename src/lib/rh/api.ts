@@ -277,6 +277,9 @@ function normalizeDashboard(raw: any): ResumoFolhaDashboard {
           total_liquido: num(m.total_liquido ?? m.liquido ?? m.vl_liquido),
         }))
       : [],
+    debug: raw?.debug,
+    diagnostico: raw?.diagnostico,
+
 
   };
 }
