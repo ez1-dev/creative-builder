@@ -381,7 +381,7 @@ export default function ResumoFolhaPage() {
             (diagnostico as any).componentes_pendentes.length > 0 && (
               <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs">
                 <div className="font-semibold text-warning mb-1">
-                  Componentes VM_FOLHA não localizados:
+                  Componentes não localizados pela API:
                 </div>
                 <ul className="list-disc pl-5 space-y-0.5 text-muted-foreground">
                   {(diagnostico as any).componentes_pendentes.map((c: any, i: number) => (
