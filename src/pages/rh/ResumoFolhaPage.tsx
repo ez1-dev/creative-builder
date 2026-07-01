@@ -435,7 +435,7 @@ export default function ResumoFolhaPage() {
           {/* Aviso técnico */}
           <div className="flex items-start gap-2 rounded-md border border-info/30 bg-info/5 px-3 py-2 text-xs text-muted-foreground">
             <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            <span>Indicadores oficiais retornados pela API a partir do ERP Senior/Vetorh.</span>
+            <span>Indicadores retornados pela API a partir das tabelas oficiais do ERP Senior/Vetorh.</span>
           </div>
 
           {/* Diagnóstico Técnico (admin) */}
