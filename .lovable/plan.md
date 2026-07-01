@@ -1,32 +1,17 @@
-## Contexto
+## Diagnóstico
 
-O usuário afirma que o backend agora devolve valores preenchidos para `kpis.inss_total`, `kpis.provisoes` e `kpis.fgts` em `GET /api/rh/resumo-folha/dashboard?modo=completo`. Os logs atuais do preview ainda mostram esses três campos como `null`, mas o front deve estar pronto para exibir os valores assim que a API responder.
+O mapeamento em `src/lib/rh/api.ts` (`KPI_ALIASES` + `buildKpis`) já lê `response.kpis.inss_total`, `response.kpis.provisoes` e `response.kpis.fgts` diretamente, sem cálculo no front. A `ResumoFolhaPage.tsx` já renderiza esses três via `KpiOrMissing`, que só mostra "Campo pendente na API" quando o valor vem `null`/ausente e nunca converte `null` em `R$ 0,00`.
 
-Revisando `src/lib/rh/api.ts` (`buildKpis` + `KPI_ALIASES`) e `src/pages/rh/ResumoFolhaPage.tsx` (`KpiOrMissing`), a lógica atual já:
-- marca o campo como missing apenas quando o valor é `null`/`""`/`"campo_pendente"`;
-- exibe `KpiCard` com o valor numérico quando presente;
-- não faz cálculo no front nem consulta o Cloud.
+Ou seja, com o payload atual da API (`inss_total = 3.147.066,97`, `provisoes = 2.735.803,41`, `fgts = 840.274,75`) os três cards devem exibir os valores automaticamente, e `custo_total`, `beneficios` e `rescisoes` continuam mostrando "Campo pendente na API" enquanto retornarem `null`.
 
-Ou seja, quando a API passar a devolver `inss_total = 3168072.07`, `provisoes = 2876060.97` e `fgts = 844058.67`, os três cards já sairão do estado "Campo pendente na API" automaticamente. Custo Total, Benefícios e Rescisões continuarão como pendentes enquanto vierem `null`.
+## Ação proposta
 
-## Plano
+1. Abrir `/rh/resumo-folha` no preview com Jan–Mai/2026 (`anomes_ini=202601&anomes_fim=202605&codemp=1`) e conferir no console o log `[RH ResumoFolha] dashboard` — validar:
+   - `kpis_raw.inss_total / provisoes / fgts` chegam preenchidos.
+   - `kpis_normalizados` reflete os mesmos números.
+   - `_missing_kpis` contém apenas `custo_total`, `beneficios`, `rescisoes`.
+2. Se algum dos três aparecer como "Campo pendente na API" mesmo com o valor vindo no payload:
+   - Investigar se a resposta real usa outra chave (ex.: `inss`, `vl_inss`, `provisao_total`, `fgts_total`) e acrescentar o alias em `KPI_ALIASES` no `src/lib/rh/api.ts` — nada de cálculo local, apenas leitura direta.
+3. Se os três já renderizarem corretamente, nenhuma alteração de código é necessária; encerrar confirmando ao usuário.
 
-1. **Confirmar mapeamento 1:1 sem alias exótico** em `src/lib/rh/api.ts`:
-   - Garantir que `KPI_ALIASES.inss_total`, `provisoes` e `fgts` leiam exatamente as chaves `inss_total`, `provisoes`, `fgts` do payload (sem inventar aliases que possam mascarar `null`).
-   - Manter a regra atual: valor `null`/`""`/`"campo_pendente"` ⇒ entra em `_missing_kpis`; qualquer número (inclusive 0 explícito) ⇒ é exibido.
-
-2. **Log de verificação** em `fetchResumoFolhaDashboard`:
-   - Ampliar o `console.log` para imprimir também `_missing_kpis` após a normalização, facilitando validar no preview que `inss_total`/`provisoes`/`fgts` saíram da lista assim que a API entregar os valores.
-
-3. **Sem mudanças em `ResumoFolhaPage.tsx`** além de garantir que os três cards continuam usando `KpiOrMissing` com `missing={isMissing("inss_total"|"provisoes"|"fgts")}` — nenhuma soma, nenhum fallback para `0`, nenhum acesso a Supabase.
-
-4. **Validação** após o build:
-   - Atualizar o preview em `/rh/resumo-folha` com o intervalo `202602–202607`.
-   - Confirmar via console (`[RH ResumoFolha] dashboard`) que os três campos chegam preenchidos e que os cards renderizam o valor em BRL, enquanto `custo_total`, `beneficios` e `rescisoes` seguem com o badge "Campo pendente na API".
-
-## Não fazer
-
-- Não calcular INSS/Provisões/FGTS somando eventos no front.
-- Não consultar `public.rh_vm_folha` nem qualquer tabela do Cloud.
-- Não converter `null` em `R$ 0,00`.
-- Não mexer na sincronização (`vm-folha-compat`) nem nos demais KPIs.
+Nenhuma mudança em Supabase, nenhum cálculo no front, `null` continua exibindo "Campo pendente na API".
