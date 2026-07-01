@@ -156,8 +156,10 @@ export interface ResumoFolhaFilialAgg {
 
 export interface ResumoFolhaTipoEventoAgg {
   tipo: string;
+  cd_tp_evento?: string;
   valor: number;
 }
+
 
 export interface ResumoFolhaMensalAgg {
   competencia: string;
