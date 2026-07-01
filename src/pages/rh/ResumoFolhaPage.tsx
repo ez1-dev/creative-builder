@@ -310,7 +310,7 @@ export default function ResumoFolhaPage() {
         </>
       )}
 
-      {!indisponivel && !semDados && modo === "acumulado" && (
+      {!indisponivel && !semDados && (
         <>
           {/* Componentes VM_FOLHA pendentes (visível a todos) */}
           {Array.isArray((diagnostico as any)?.componentes_pendentes) &&
