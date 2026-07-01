@@ -280,18 +280,17 @@ function normalizeDashboard(raw: any): ResumoFolhaDashboard {
           total_liquido: num(m.total_liquido ?? m.liquido ?? m.vl_liquido),
         }))
       : [],
+    fonte: raw?.fonte,
     debug: raw?.debug,
     diagnostico: raw?.diagnostico,
-
-
   };
 }
 
-export type ResumoFolhaModo = "acumulado" | "mensal";
+export type ResumoFolhaModo = "completo" | "acumulado" | "mensal";
 
 export async function fetchResumoFolhaDashboard(
   p: ResumoFolhaParams & { codemp?: number },
-  modo?: ResumoFolhaModo,
+  modo: ResumoFolhaModo = "completo",
 ): Promise<ResumoFolhaDashboard> {
   const params = cleanParams({
     anomes_ini: toAnomes(p.anomes_ini),
@@ -301,6 +300,7 @@ export async function fetchResumoFolhaDashboard(
     matricula: p.matricula,
     modo,
   });
+
   try {
     const resp = await api.get<any>("/api/rh/resumo-folha/dashboard", params);
     // eslint-disable-next-line no-console
