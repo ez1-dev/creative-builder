@@ -2,7 +2,7 @@
 
 Endpoint agregado consumido pela tela `RH · 01 — Resumo Folha`.
 
-Fonte oficial: **objeto `VM_FOLHA`** (mesma origem usada pelo painel UpQuery/BI JET). O backend NÃO deve inventar KPIs a partir de eventos brutos — todos os cards e a grid por filial derivam das colunas `CALC_*` e `VL_*` da VM_FOLHA. O front nunca soma nada.
+Fonte oficial: **tabelas do ERP Senior/Vetorh** (R034FUN, R038HTR, R044RHR e correlatas). O objeto `VM_FOLHA` é uma **view lógica do UpQuery/BI JET** — não existe fisicamente no banco VETORH nem no banco PRINCIPAL. O backend deve montar os KPIs a partir das tabelas oficiais e devolver os campos abaixo já calculados. O front NÃO calcula nada, NÃO soma eventos, NÃO consulta Supabase e NÃO lê `public.rh_vm_folha`.
 
 ## Request
 
