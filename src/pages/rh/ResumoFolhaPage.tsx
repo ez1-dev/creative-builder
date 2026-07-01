@@ -504,7 +504,9 @@ export default function ResumoFolhaPage() {
                       ].map(([key, label]) => {
                         const v =
                           key === "__fonte__"
-                            ? data?.fonte
+                            ? (data?.fonte === "public.rh_vm_folha"
+                                ? "API RH / cache técnico public.rh_vm_folha"
+                                : data?.fonte)
                             : (diagnostico as any)?.[key as string];
                         if (v == null) return null;
                         return (
@@ -514,6 +516,7 @@ export default function ResumoFolhaPage() {
                           </div>
                         );
                       })}
+
                     </div>
                     {(qtdLinhas === 0) && (
                       <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning font-medium">
