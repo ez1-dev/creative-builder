@@ -26,6 +26,7 @@ import {
   SincronizacaoCompatIndisponivelError,
   toAnomes,
 } from "@/lib/rh/api";
+import { KpiOrMissing, ValueOrMissing } from "@/components/rh/KpiOrMissing";
 
 
 import { formatCurrency } from "@/lib/format";
