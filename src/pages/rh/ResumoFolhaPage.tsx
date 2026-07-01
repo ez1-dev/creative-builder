@@ -312,6 +312,7 @@ export default function ResumoFolhaPage() {
                 <CollapsibleContent>
                   <CardContent className="space-y-3">
                     {[
+                      ["vm_folha_componentes", "VM_FOLHA — componentes"],
                       ["custo_total_componentes", "Custo Total — componentes"],
                       ["inss_componentes", "INSS — componentes"],
                       ["hora_extra_componentes", "Hora Extra — componentes"],
