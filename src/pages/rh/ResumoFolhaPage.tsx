@@ -318,7 +318,26 @@ export default function ResumoFolhaPage() {
 
       {!indisponivel && !semDados && modo === "acumulado" && (
         <>
+          {/* Componentes VM_FOLHA pendentes (visível a todos) */}
+          {Array.isArray((diagnostico as any)?.componentes_pendentes) &&
+            (diagnostico as any).componentes_pendentes.length > 0 && (
+              <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs">
+                <div className="font-semibold text-warning mb-1">
+                  Componentes VM_FOLHA não localizados:
+                </div>
+                <ul className="list-disc pl-5 space-y-0.5 text-muted-foreground">
+                  {(diagnostico as any).componentes_pendentes.map((c: any, i: number) => (
+                    <li key={i}>
+                      <span className="font-mono">{c?.campo ?? String(c)}</span>
+                      {c?.motivo ? <> — {c.motivo}</> : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
           {/* KPIs */}
+
           <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
             <Card className="md:row-span-2 border-l-4 border-l-primary">
               <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Líquido</CardTitle></CardHeader>
