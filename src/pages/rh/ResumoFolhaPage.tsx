@@ -2,11 +2,12 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
@@ -15,9 +16,9 @@ import {
   fetchResumoFolhaDashboard,
   DashboardIndisponivelError,
   toAnomes,
+  type ResumoFolhaModo,
 } from "@/lib/rh/api";
-import { formatCurrency, formatNumber } from "@/lib/format";
-import { formatHorasMin } from "@/lib/rh/eventoBuckets";
+import { formatCurrency } from "@/lib/format";
 
 function defaultMonth(offset = 0): string {
   const d = new Date();
@@ -35,6 +36,17 @@ const PIE_COLORS = [
   "hsl(var(--accent))",
 ];
 
+function fmtHoras(v: string | number | undefined): string {
+  if (v == null || v === "") return "-";
+  return String(v);
+}
+
+function fmtCompetencia(v: string): string {
+  const s = String(v ?? "").replace(/\D/g, "");
+  if (s.length === 6) return `${s.slice(4, 6)}/${s.slice(0, 4)}`;
+  return v;
+}
+
 /** Renderiza valor numérico OU badge "Campo não retornado pela API: x" */
 function ValueOrMissing({
   value,
@@ -42,90 +54,57 @@ function ValueOrMissing({
   field,
   format = "currency",
 }: {
-  value: number | undefined;
+  value: number | string | undefined;
   missing: boolean;
   field: string;
-  format?: "currency" | "number" | "horas";
+  format?: "currency" | "horas";
 }) {
   if (missing) {
     return (
-      <span
-        className="text-[11px] text-warning font-medium"
-        title={`O backend não retornou ${field}`}
-      >
+      <span className="text-[11px] text-warning font-medium" title={`O backend não retornou ${field}`}>
         Campo não retornado pela API: {field}
       </span>
     );
   }
-  const v = value ?? 0;
-  if (format === "horas") return <>{formatHorasMin(v)}</>;
-  if (format === "number") return <>{formatNumber(v)}</>;
-  return <>{formatCurrency(v)}</>;
+  if (format === "horas") return <>{fmtHoras(value as any)}</>;
+  return <>{formatCurrency(Number(value ?? 0))}</>;
 }
 
-/** KpiCard que mostra aviso técnico quando o campo está ausente */
 function KpiOrMissing({
-  title,
-  value,
-  missing,
-  field,
-  variant,
-  loading,
+  title, value, missing, field, variant, loading,
 }: {
-  title: string;
-  value: number | undefined;
-  missing: boolean;
-  field: string;
-  variant?: "danger" | "warning";
-  loading?: boolean;
+  title: string; value: number | undefined; missing: boolean; field: string;
+  variant?: "danger" | "warning"; loading?: boolean;
 }) {
   if (missing) {
     return (
       <Card className="border-warning/40">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm text-muted-foreground">{title}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-[11px] text-warning font-medium">
-            Campo não retornado pela API: {field}
-          </div>
-        </CardContent>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">{title}</CardTitle></CardHeader>
+        <CardContent><div className="text-[11px] text-warning font-medium">Campo não retornado pela API: {field}</div></CardContent>
       </Card>
     );
   }
-  return (
-    <KpiCard
-      title={title}
-      value={value ?? 0}
-      format="currency"
-      variant={variant}
-      loading={loading}
-    />
-  );
+  return <KpiCard title={title} value={value ?? 0} format="currency" variant={variant} loading={loading} />;
 }
 
 export default function ResumoFolhaPage() {
   const [ini, setIni] = useState(defaultMonth(-5));
   const [fim, setFim] = useState(defaultMonth(0));
-  const [filial, setFilial] = useState<string>("__all__");
-  const [busca, setBusca] = useState("");
+  const [codemp, setCodemp] = useState("1");
+  const [modo, setModo] = useState<ResumoFolhaModo>("acumulado");
 
-  const params = {
+  const baseParams = {
     anomes_ini: toAnomes(ini),
     anomes_fim: toAnomes(fim),
-    codemp: 1,
-    filial: filial !== "__all__" ? filial : undefined,
-    matricula: busca || undefined,
+    codemp: Number(codemp) || 1,
   };
-
-  const enabled = !!params.anomes_ini && !!params.anomes_fim;
+  const enabled = !!baseParams.anomes_ini && !!baseParams.anomes_fim;
 
   const query = useQuery({
-    queryKey: ["rh", "resumo-folha-dashboard", params],
-    queryFn: () => fetchResumoFolhaDashboard(params),
+    queryKey: ["rh", "resumo-folha-dashboard", baseParams, modo],
+    queryFn: () => fetchResumoFolhaDashboard(baseParams, modo),
     enabled,
-    retry: (count, err) =>
-      err instanceof DashboardIndisponivelError ? false : count < 1,
+    retry: (count, err) => (err instanceof DashboardIndisponivelError ? false : count < 1),
   });
 
   const data = query.data;
@@ -142,11 +121,7 @@ export default function ResumoFolhaPage() {
   const proventos = data?.proventos_vantagens ?? [];
   const descontos = data?.descontos ?? [];
   const tipos = data?.tipos_evento ?? [];
-
-  const filiaisOpts = useMemo<string[]>(
-    () => Array.from(new Set(filiaisData.map((f) => f.filial).filter(Boolean) as string[])),
-    [filiaisData],
-  );
+  const mensal = data?.mensal ?? [];
 
   const totalProvento = useMemo(() => proventos.reduce((a, x) => a + (x.valor || 0), 0), [proventos]);
   const totalDesconto = useMemo(() => descontos.reduce((a, x) => a + (x.valor || 0), 0), [descontos]);
@@ -154,11 +129,17 @@ export default function ResumoFolhaPage() {
   const tiposPie = useMemo(() => {
     const total = tipos.reduce((a, t) => a + (t.valor || 0), 0) || 1;
     return tipos
-      .map((t) => ({ ...t, pct: (t.valor || 0) / total }))
+      .map((t) => ({ ...t, label: t.cd_tp_evento ?? t.tipo, pct: (t.valor || 0) / total }))
       .sort((a, b) => b.valor - a.valor);
   }, [tipos]);
 
-  const FILIAL_COLS: { key: keyof typeof filiaisData[number]; label: string; format: "currency" | "number" | "horas" }[] = [
+  const totMensal = useMemo(() => ({
+    provento: mensal.reduce((a, m) => a + (m.provento || 0), 0),
+    desconto: mensal.reduce((a, m) => a + (m.desconto || 0), 0),
+    liquido: mensal.reduce((a, m) => a + (m.total_liquido || 0), 0),
+  }), [mensal]);
+
+  const FILIAL_COLS: { key: string; label: string; format: "currency" | "horas" }[] = [
     { key: "salario_base", label: "Salário Base", format: "currency" },
     { key: "custo_total", label: "Custo Total", format: "currency" },
     { key: "qtd_horas", label: "Qtd. Horas", format: "horas" },
@@ -181,20 +162,19 @@ export default function ResumoFolhaPage() {
 
       {/* Filtros */}
       <Card>
-        <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-4 gap-3">
+        <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
           <div><Label>Ano/mês inicial</Label><Input type="month" value={ini} onChange={(e) => setIni(e.target.value)} /></div>
           <div><Label>Ano/mês final</Label><Input type="month" value={fim} onChange={(e) => setFim(e.target.value)} /></div>
+          <div><Label>Empresa (codemp)</Label><Input value={codemp} onChange={(e) => setCodemp(e.target.value)} placeholder="1" /></div>
           <div>
-            <Label>Filial</Label>
-            <Select value={filial} onValueChange={setFilial}>
-              <SelectTrigger><SelectValue placeholder="Todas" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">Todas</SelectItem>
-                {filiaisOpts.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <Label>Modo</Label>
+            <Tabs value={modo} onValueChange={(v) => setModo(v as ResumoFolhaModo)}>
+              <TabsList className="grid grid-cols-2 w-full">
+                <TabsTrigger value="acumulado">Acumulado</TabsTrigger>
+                <TabsTrigger value="mensal">Mensal</TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
-          <div><Label>Matrícula / Colaborador</Label><Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Busca..." /></div>
         </CardContent>
       </Card>
 
@@ -213,7 +193,75 @@ export default function ResumoFolhaPage() {
         </div>
       )}
 
-      {!indisponivel && (
+      {!indisponivel && modo === "mensal" && (
+        <>
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Evolução mensal</CardTitle></CardHeader>
+            <CardContent className="h-[360px]">
+              {mensal.length === 0 ? (
+                <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
+                  {isLoading ? "Carregando..." : "Sem dados no período"}
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={mensal.map((m) => ({ ...m, label: fmtCompetencia(m.competencia) }))}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                    <XAxis dataKey="label" fontSize={12} />
+                    <YAxis fontSize={11} tickFormatter={(v) => `R$ ${Math.round(v / 1000)}k`} />
+                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                    <Legend />
+                    <Bar dataKey="provento" name="Provento" fill="hsl(var(--primary))" />
+                    <Bar dataKey="desconto" name="Desconto" fill="hsl(var(--destructive))" />
+                    <Bar dataKey="total_liquido" name="Líquido" fill="hsl(var(--success))" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Detalhamento mensal</CardTitle></CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Competência</TableHead>
+                    <TableHead className="text-right">Provento</TableHead>
+                    <TableHead className="text-right">Desconto</TableHead>
+                    <TableHead className="text-right">Total Líquido</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoading && <TableRow><TableCell colSpan={4}><Skeleton className="h-6" /></TableCell></TableRow>}
+                  {!isLoading && mensal.length === 0 && (
+                    <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-4">Sem dados</TableCell></TableRow>
+                  )}
+                  {mensal.map((m, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="font-medium">{fmtCompetencia(m.competencia)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatCurrency(m.provento ?? 0)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-destructive">{formatCurrency(m.desconto ?? 0)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-primary font-semibold">{formatCurrency(m.total_liquido ?? 0)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+                {mensal.length > 0 && (
+                  <TableFooter>
+                    <TableRow>
+                      <TableCell>Total</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatCurrency(totMensal.provento)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatCurrency(totMensal.desconto)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatCurrency(totMensal.liquido)}</TableCell>
+                    </TableRow>
+                  </TableFooter>
+                )}
+              </Table>
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      {!indisponivel && modo === "acumulado" && (
         <>
           {/* KPIs */}
           <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
@@ -260,15 +308,15 @@ export default function ResumoFolhaPage() {
                 <div className="max-h-[420px] overflow-auto">
                   <Table>
                     <TableHeader className="sticky top-0 bg-background z-10">
-                      <TableRow><TableHead className="w-12">#</TableHead><TableHead>Evento</TableHead><TableHead className="text-right">Proventos (R$)</TableHead></TableRow>
+                      <TableRow><TableHead className="w-16">Cód.</TableHead><TableHead>Evento</TableHead><TableHead className="text-right">Proventos (R$)</TableHead></TableRow>
                     </TableHeader>
                     <TableBody>
                       {isLoading && <TableRow><TableCell colSpan={3}><Skeleton className="h-6" /></TableCell></TableRow>}
                       {!isLoading && proventos.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-4">Sem dados</TableCell></TableRow>}
                       {proventos.map((p, i) => (
                         <TableRow key={i}>
-                          <TableCell className="text-muted-foreground">{p.codigo ?? "-"}</TableCell>
-                          <TableCell>{p.descricao}</TableCell>
+                          <TableCell className="text-muted-foreground">{p.cd_evento ?? "-"}</TableCell>
+                          <TableCell>{p.ds_evento ?? "-"}</TableCell>
                           <TableCell className="text-right tabular-nums">{formatCurrency(p.valor)}</TableCell>
                         </TableRow>
                       ))}
@@ -287,15 +335,15 @@ export default function ResumoFolhaPage() {
                 <div className="max-h-[420px] overflow-auto">
                   <Table>
                     <TableHeader className="sticky top-0 bg-background z-10">
-                      <TableRow><TableHead className="w-12">#</TableHead><TableHead>Evento</TableHead><TableHead className="text-right">Desc. (R$)</TableHead></TableRow>
+                      <TableRow><TableHead className="w-16">Cód.</TableHead><TableHead>Evento</TableHead><TableHead className="text-right">Desc. (R$)</TableHead></TableRow>
                     </TableHeader>
                     <TableBody>
                       {isLoading && <TableRow><TableCell colSpan={3}><Skeleton className="h-6" /></TableCell></TableRow>}
                       {!isLoading && descontos.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-4">Sem dados</TableCell></TableRow>}
                       {descontos.map((p, i) => (
                         <TableRow key={i}>
-                          <TableCell className="text-muted-foreground">{p.codigo ?? "-"}</TableCell>
-                          <TableCell className="text-xs">{p.descricao}</TableCell>
+                          <TableCell className="text-muted-foreground">{p.cd_evento ?? "-"}</TableCell>
+                          <TableCell className="text-xs">{p.ds_evento ?? "-"}</TableCell>
                           <TableCell className="text-right tabular-nums">{formatCurrency(p.valor)}</TableCell>
                         </TableRow>
                       ))}
@@ -318,31 +366,28 @@ export default function ResumoFolhaPage() {
                   <Table>
                     <TableHeader className="sticky top-0 bg-background z-10">
                       <TableRow>
+                        <TableHead>Cód.</TableHead>
                         <TableHead>Filial</TableHead>
                         {FILIAL_COLS.map((c) => (
-                          <TableHead key={c.key as string} className="text-right">{c.label}</TableHead>
+                          <TableHead key={c.key} className="text-right">{c.label}</TableHead>
                         ))}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {isLoading && <TableRow><TableCell colSpan={FILIAL_COLS.length + 1}><Skeleton className="h-6" /></TableCell></TableRow>}
+                      {isLoading && <TableRow><TableCell colSpan={FILIAL_COLS.length + 2}><Skeleton className="h-6" /></TableCell></TableRow>}
                       {!isLoading && filiaisData.length === 0 && (
-                        <TableRow><TableCell colSpan={FILIAL_COLS.length + 1} className="text-center text-muted-foreground py-4">Sem dados</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={FILIAL_COLS.length + 2} className="text-center text-muted-foreground py-4">Sem dados</TableCell></TableRow>
                       )}
                       {filiaisData.map((f, i) => (
                         <TableRow key={i}>
+                          <TableCell className="text-muted-foreground">{f.cd_filial ?? "-"}</TableCell>
                           <TableCell className="font-medium">{f.filial}</TableCell>
                           {FILIAL_COLS.map((c) => {
-                            const present = (c.key as string) in (f as any);
-                            const v = (f as any)[c.key] as number | undefined;
+                            const present = c.key in (f as any);
+                            const v = (f as any)[c.key];
                             return (
-                              <TableCell key={c.key as string} className="text-right tabular-nums">
-                                <ValueOrMissing
-                                  value={v}
-                                  missing={!present}
-                                  field={c.key as string}
-                                  format={c.format}
-                                />
+                              <TableCell key={c.key} className="text-right tabular-nums">
+                                <ValueOrMissing value={v} missing={!present} field={c.key} format={c.format} />
                               </TableCell>
                             );
                           })}
@@ -362,31 +407,14 @@ export default function ResumoFolhaPage() {
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie
-                        data={tiposPie}
-                        dataKey="valor"
-                        nameKey="tipo"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={50}
-                        outerRadius={90}
-                        paddingAngle={2}
-                      >
+                      <Pie data={tiposPie} dataKey="valor" nameKey="label" cx="50%" cy="50%" innerRadius={50} outerRadius={90} paddingAngle={2}>
                         {tiposPie.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                       </Pie>
-                      <Tooltip
-                        formatter={(v: number, _n: any, p: any) =>
-                          `${formatCurrency(v)} (${((p?.payload?.pct ?? 0) * 100).toFixed(1)}%)`
-                        }
-                      />
-                      <Legend
-                        verticalAlign="bottom"
-                        iconSize={8}
-                        formatter={(value, entry: any) => {
-                          const pct = (entry?.payload?.pct ?? 0) * 100;
-                          return `${value} — ${pct.toFixed(0)}%`;
-                        }}
-                      />
+                      <Tooltip formatter={(v: number, _n: any, p: any) => `${formatCurrency(v)} (${((p?.payload?.pct ?? 0) * 100).toFixed(1)}%)`} />
+                      <Legend verticalAlign="bottom" iconSize={8} formatter={(value, entry: any) => {
+                        const pct = (entry?.payload?.pct ?? 0) * 100;
+                        return `${value} — ${pct.toFixed(0)}%`;
+                      }} />
                     </PieChart>
                   </ResponsiveContainer>
                 )}

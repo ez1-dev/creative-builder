@@ -148,14 +148,23 @@ export class DashboardIndisponivelError extends Error {
   }
 }
 
-function normalizeEventos(arr: any): { codigo?: string; descricao?: string; valor: number }[] {
+function normalizeEventos(arr: any): { codigo?: string; cd_evento?: string; descricao?: string; ds_evento?: string; valor: number }[] {
   if (!Array.isArray(arr)) return [];
-  return arr.map((r) => ({
-    codigo: pickStr(r, ["codigo", "cd_evento", "evento", "codeve"]),
-    descricao: pickStr(r, ["descricao", "ds_evento", "descricao_evento", "titeve"]) ?? "-",
-    valor: num(r.valor ?? r.vl_total ?? r.total ?? r.provento ?? r.desconto),
-  }));
+  const items = arr.map((r) => {
+    const cd = pickStr(r, ["cd_evento", "codigo", "evento", "codeve"]);
+    const ds = pickStr(r, ["ds_evento", "descricao", "descricao_evento", "titeve"]) ?? "-";
+    return {
+      cd_evento: cd,
+      codigo: cd,
+      ds_evento: ds,
+      descricao: ds,
+      valor: num(r.valor ?? r.vl_total ?? r.total ?? r.provento ?? r.desconto),
+    };
+  });
+  items.sort((a, b) => (b.valor || 0) - (a.valor || 0));
+  return items;
 }
+
 
 function numOrUndef(v: any): number | undefined {
   if (v === undefined || v === null || v === "") return undefined;
@@ -170,10 +179,13 @@ function pickKey(obj: any, keys: string[]): { hit: boolean; value: any } {
   return { hit: false, value: undefined };
 }
 
+const HORAS_FIELDS = new Set(["qtd_horas", "qtd_hora_extra"]);
+
 function normalizeFiliais(arr: any) {
   if (!Array.isArray(arr)) return [];
   return arr.map((r) => {
     const out: any = {
+      cd_filial: pickStr(r, ["cd_filial", "codfil"]),
       filial: pickStr(r, ["filial", "ds_filial", "nm_filial", "cd_filial"]) ?? "-",
     };
     const mapKeys: Record<string, string[]> = {
@@ -196,11 +208,18 @@ function normalizeFiliais(arr: any) {
     };
     for (const [field, aliases] of Object.entries(mapKeys)) {
       const { hit, value } = pickKey(r, aliases);
-      if (hit) out[field] = numOrUndef(value);
+      if (!hit) continue;
+      // qtd_horas / qtd_hora_extra podem vir como string "H:MM" — preservar
+      if (HORAS_FIELDS.has(field) && typeof value === "string" && /[:hH]/.test(value)) {
+        out[field] = value;
+      } else {
+        out[field] = numOrUndef(value);
+      }
     }
     return out;
   });
 }
+
 
 const KPI_ALIASES: Record<keyof ResumoFolhaKpis, string[]> = {
   provento: ["provento"],
@@ -239,14 +258,18 @@ function normalizeDashboard(raw: any): ResumoFolhaDashboard {
     descontos: normalizeEventos(raw?.descontos),
     filiais: normalizeFiliais(raw?.filiais),
     tipos_evento: Array.isArray(raw?.tipos_evento)
-      ? raw.tipos_evento.map((t: any) => ({
-          tipo: pickStr(t, ["tipo", "tp_evento", "tipo_evento"]) ?? "OUTROS",
-          valor: num(t.valor ?? t.vl_total ?? t.total),
-        }))
+      ? raw.tipos_evento.map((t: any) => {
+          const cd = pickStr(t, ["cd_tp_evento", "tp_evento", "tipo_evento", "tipo"]);
+          return {
+            cd_tp_evento: cd,
+            tipo: pickStr(t, ["tipo", "cd_tp_evento", "tp_evento", "tipo_evento"]) ?? cd ?? "OUTROS",
+            valor: num(t.valor ?? t.vl_total ?? t.total),
+          };
+        })
       : [],
     mensal: Array.isArray(raw?.mensal)
       ? raw.mensal.map((m: any) => ({
-          competencia: String(m.competencia ?? m.ano_mes ?? m.anomes ?? ""),
+          competencia: String(m.anomes_competencia ?? m.competencia ?? m.ano_mes ?? m.anomes ?? ""),
           custo_hora_extra: num(m.custo_hora_extra ?? m.custoHE),
           custo_mensal: num(m.custo_mensal ?? m.custoMensal),
           provento: num(m.provento ?? m.vl_provento),
@@ -254,6 +277,7 @@ function normalizeDashboard(raw: any): ResumoFolhaDashboard {
           total_liquido: num(m.total_liquido ?? m.liquido ?? m.vl_liquido),
         }))
       : [],
+
   };
 }
 
@@ -261,7 +285,7 @@ export type ResumoFolhaModo = "acumulado" | "mensal";
 
 export async function fetchResumoFolhaDashboard(
   p: ResumoFolhaParams & { codemp?: number },
-  _modo?: ResumoFolhaModo,
+  modo?: ResumoFolhaModo,
 ): Promise<ResumoFolhaDashboard> {
   const params = cleanParams({
     anomes_ini: toAnomes(p.anomes_ini),
@@ -269,11 +293,13 @@ export async function fetchResumoFolhaDashboard(
     codemp: p.codemp ?? 1,
     filial: p.filial,
     matricula: p.matricula,
+    modo,
   });
   try {
     const resp = await api.get<any>("/api/rh/resumo-folha/dashboard", params);
     // eslint-disable-next-line no-console
-    console.log("[RH ResumoFolha] dashboard", { params, kpis: resp?.kpis, filiais: resp?.filiais?.length });
+    console.log("[RH ResumoFolha] dashboard", { params, kpis: resp?.kpis, filiais: resp?.filiais?.length, mensal: resp?.mensal?.length });
+
     return normalizeDashboard(resp ?? {});
   } catch (e: any) {
     const status = e?.statusCode ?? e?.status;

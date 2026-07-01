@@ -122,17 +122,22 @@ export interface ResumoFolhaKpis {
 
 export interface ResumoFolhaEventoAgg {
   codigo?: string;
+  cd_evento?: string;
   descricao?: string;
+  ds_evento?: string;
   valor: number;
 }
 
 export interface ResumoFolhaFilialAgg {
+  cd_filial?: string;
   filial: string;
   salario_base?: number;
   custo_total?: number;
-  qtd_horas?: number;
+  /** Backend envia como "H:MM" (string) ou número. */
+  qtd_horas?: string | number;
   custo_hora_extra?: number;
-  qtd_hora_extra?: number;
+  /** Backend envia como "H:MM" (string) ou número. */
+  qtd_hora_extra?: string | number;
   liquido?: number;
   fgts?: number;
   beneficios?: number;
@@ -148,10 +153,13 @@ export interface ResumoFolhaFilialAgg {
 }
 
 
+
 export interface ResumoFolhaTipoEventoAgg {
   tipo: string;
+  cd_tp_evento?: string;
   valor: number;
 }
+
 
 export interface ResumoFolhaMensalAgg {
   competencia: string;
