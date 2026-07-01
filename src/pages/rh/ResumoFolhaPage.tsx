@@ -232,11 +232,17 @@ export default function ResumoFolhaPage() {
   const totalKpis = kpisValues.reduce((a, b) => a + b, 0);
   const qtdLinhas =
     (diagnostico as any)?.qtd_linhas ?? (diagnostico as any)?.qtd_linhas_vm_folha;
+  const vmFolhaStatus = String((diagnostico as any)?.vm_folha_status ?? "").toUpperCase();
+  const vmFolhaPendente =
+    vmFolhaStatus === "OBJETO_INEXISTENTE_NO_VETORH" ||
+    vmFolhaStatus === "VM_FOLHA_COMPAT_PENDENTE";
   const semDados =
     !!data &&
     !isLoading &&
+    !vmFolhaPendente &&
     (qtdLinhas === 0 ||
       (totalKpis === 0 && filiaisData.length === 0 && mensal.length === 0));
+
 
 
   const tiposPie = useMemo(() => {
