@@ -135,27 +135,91 @@ export default function ResumoFolhaPage() {
   const diagnostico = data?.diagnostico ?? data?.debug;
   const { isAdmin } = useUserPermissions();
 
+  const { isAdmin: isAdminForSync } = { isAdmin: false }; // placeholder; real value abaixo
+  const [syncJobId, setSyncJobId] = useState<string | null>(null);
+  const [syncInFlight, setSyncInFlight] = useState(false);
   const syncMut = useMutation({
     mutationFn: () => sincronizarResumoFolha(baseParams),
     onMutate: () => {
+      setSyncInFlight(true);
       const id = toast.loading("Sincronizando RH...", {
         description: `${baseParams.anomes_ini} → ${baseParams.anomes_fim} (empresa ${baseParams.codemp})`,
       });
       return { id };
     },
-    onSuccess: (_data, _vars, ctx) => {
+    onSuccess: (resp: any, _vars, ctx) => {
+      const status = String(resp?.status ?? "").toUpperCase();
+      if (status === "EM_PROCESSAMENTO" || status === "PROCESSING") {
+        setSyncJobId(resp?.job_id ?? "pending");
+        toast.loading("Sincronização em andamento...", {
+          id: ctx?.id,
+          description: resp?.mensagem ?? "Aguardando confirmação do backend.",
+        });
+        return;
+      }
+      setSyncInFlight(false);
+      setSyncJobId(null);
       toast.success("Sincronização RH concluída.", { id: ctx?.id });
       qc.invalidateQueries({ queryKey: ["rh", "resumo-folha-dashboard"] });
     },
     onError: (e: any, _vars, ctx) => {
+      setSyncInFlight(false);
+      setSyncJobId(null);
+      const tecnico =
+        e?.response?.data?.diagnostico?.erro_tecnico ??
+        e?.data?.diagnostico?.erro_tecnico;
       const detalhe = e?.response?.data?.detail ?? e?.data?.detail ?? e?.message ?? "";
+      const description = tecnico
+        ? typeof tecnico === "string" ? tecnico : JSON.stringify(tecnico)
+        : typeof detalhe === "string" ? detalhe : JSON.stringify(detalhe);
       toast.error("Erro ao sincronizar dados do ERP Senior/Vetorh.", {
         id: ctx?.id,
-        description: typeof detalhe === "string" ? detalhe : JSON.stringify(detalhe),
+        description,
       });
     },
   });
-  const syncing = syncMut.isPending;
+
+  // Polling de status enquanto EM_PROCESSAMENTO
+  const statusQuery = useQuery({
+    queryKey: ["rh", "resumo-folha-sync-status", baseParams.codemp, syncJobId],
+    queryFn: () =>
+      consultarStatusSincronizacaoRh({
+        codemp: baseParams.codemp,
+        job_id: syncJobId && syncJobId !== "pending" ? syncJobId : undefined,
+      }),
+    enabled: !!syncJobId,
+    refetchInterval: 5000,
+  });
+
+  useMemo(() => {
+    if (!syncJobId) return;
+    const s = statusQuery.data;
+    // Endpoint de status ausente (null) → considera concluído
+    if (s === null) {
+      setSyncInFlight(false);
+      setSyncJobId(null);
+      toast.success("Sincronização RH concluída.");
+      qc.invalidateQueries({ queryKey: ["rh", "resumo-folha-dashboard"] });
+      return;
+    }
+    if (!s) return;
+    const st = String(s.status ?? "").toUpperCase();
+    if (st === "OK" || st === "CONCLUIDO" || st === "SUCCESS") {
+      setSyncInFlight(false);
+      setSyncJobId(null);
+      toast.success("Sincronização RH concluída.");
+      qc.invalidateQueries({ queryKey: ["rh", "resumo-folha-dashboard"] });
+    } else if (st === "ERRO" || st === "FAILED" || st === "ERROR") {
+      setSyncInFlight(false);
+      setSyncJobId(null);
+      const tecnico = s?.diagnostico?.erro_tecnico ?? s?.mensagem;
+      toast.error("Erro ao sincronizar dados do ERP Senior/Vetorh.", {
+        description: typeof tecnico === "string" ? tecnico : JSON.stringify(tecnico ?? {}),
+      });
+    }
+  }, [statusQuery.data, syncJobId, qc]);
+
+  const syncing = syncMut.isPending || syncInFlight;
 
   const kpisValues = kpis ? Object.values(kpis).map((v) => Number(v) || 0) : [];
   const totalKpis = kpisValues.reduce((a, b) => a + b, 0);
