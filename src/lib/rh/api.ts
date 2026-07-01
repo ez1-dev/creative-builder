@@ -399,3 +399,26 @@ export async function sincronizarVmFolha(p: SincronizarRhParams): Promise<any> {
   }).toString();
   return api.post<any>(`/api/rh/vm-folha/sincronizar?${qs}`);
 }
+
+/**
+ * Sincroniza o Resumo Folha via API do ERP Senior/Vetorh.
+ * Tenta o endpoint preferencial `/api/rh/resumo-folha/sincronizar` e,
+ * em caso de 404/405, faz fallback para `/api/rh/vm-folha/sincronizar`.
+ */
+export async function sincronizarResumoFolha(p: SincronizarRhParams): Promise<any> {
+  const qs = new URLSearchParams({
+    codemp: String(p.codemp ?? 1),
+    anomes_ini: toAnomes(p.anomes_ini),
+    anomes_fim: toAnomes(p.anomes_fim),
+  }).toString();
+  try {
+    return await api.post<any>(`/api/rh/resumo-folha/sincronizar?${qs}`);
+  } catch (e: any) {
+    const status = e?.statusCode ?? e?.status;
+    if (status === 404 || status === 405) {
+      return api.post<any>(`/api/rh/vm-folha/sincronizar?${qs}`);
+    }
+    throw e;
+  }
+}
+
