@@ -316,7 +316,7 @@ export default function ResumoFolhaPage() {
         </>
       )}
 
-      {!indisponivel && modo === "acumulado" && (
+      {!indisponivel && !semDados && modo === "acumulado" && (
         <>
           {/* KPIs */}
           <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
