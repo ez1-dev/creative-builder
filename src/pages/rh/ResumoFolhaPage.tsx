@@ -135,7 +135,6 @@ export default function ResumoFolhaPage() {
   const diagnostico = data?.diagnostico ?? data?.debug;
   const { isAdmin } = useUserPermissions();
 
-  const { isAdmin: isAdminForSync } = { isAdmin: false }; // placeholder; real value abaixo
   const [syncJobId, setSyncJobId] = useState<string | null>(null);
   const [syncInFlight, setSyncInFlight] = useState(false);
   const syncMut = useMutation({
