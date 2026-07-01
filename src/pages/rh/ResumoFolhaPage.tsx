@@ -257,7 +257,7 @@ export default function ResumoFolhaPage() {
         </div>
       )}
 
-      {!indisponivel && modo === "mensal" && (
+      {!indisponivel && !semDados && modo === "mensal" && (
         <>
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm">Evolução mensal</CardTitle></CardHeader>
