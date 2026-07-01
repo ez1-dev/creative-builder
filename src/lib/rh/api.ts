@@ -240,7 +240,8 @@ function buildKpis(k: any): { kpis: ResumoFolhaKpis; missing: string[] } {
   const missing: string[] = [];
   for (const [field, aliases] of Object.entries(KPI_ALIASES) as [keyof ResumoFolhaKpis, string[]][]) {
     const { hit, value } = pickKey(k ?? {}, aliases);
-    if (hit && value !== null && value !== "") {
+    const pendente = typeof value === "string" && value.trim().toLowerCase() === "campo_pendente";
+    if (hit && value !== null && value !== "" && !pendente) {
       (kpis as any)[field] = num(value);
     } else {
       missing.push(field);
@@ -248,6 +249,7 @@ function buildKpis(k: any): { kpis: ResumoFolhaKpis; missing: string[] } {
   }
   return { kpis, missing };
 }
+
 
 function normalizeDashboard(raw: any): ResumoFolhaDashboard {
   const { kpis, missing } = buildKpis(raw?.kpis);
