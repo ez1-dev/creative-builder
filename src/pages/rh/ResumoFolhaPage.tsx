@@ -82,10 +82,10 @@ function ValueOrMissing({
 }
 
 function KpiOrMissing({
-  title, value, missing, field, variant, loading,
+  title, value, missing, field, variant, loading, footer,
 }: {
   title: string; value: number | undefined; missing: boolean; field: string;
-  variant?: "danger" | "warning"; loading?: boolean;
+  variant?: "danger" | "warning"; loading?: boolean; footer?: React.ReactNode;
 }) {
   if (missing) {
     return (
@@ -95,8 +95,19 @@ function KpiOrMissing({
       </Card>
     );
   }
+  if (footer) {
+    return (
+      <div className="relative">
+        <KpiCard title={title} value={value ?? 0} format="currency" variant={variant} loading={loading} />
+        <div className="absolute bottom-1.5 right-2 text-[10px] text-muted-foreground italic pointer-events-none">
+          {footer}
+        </div>
+      </div>
+    );
+  }
   return <KpiCard title={title} value={value ?? 0} format="currency" variant={variant} loading={loading} />;
 }
+
 
 
 export default function ResumoFolhaPage() {
