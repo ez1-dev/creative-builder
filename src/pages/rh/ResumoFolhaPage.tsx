@@ -190,7 +190,7 @@ export default function ResumoFolhaPage() {
     refetchInterval: 5000,
   });
 
-  useMemo(() => {
+  useEffect(() => {
     if (!syncJobId) return;
     const s = statusQuery.data;
     // Endpoint de status ausente (null) → considera concluído
