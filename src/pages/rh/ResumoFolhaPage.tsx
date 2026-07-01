@@ -301,9 +301,9 @@ export default function ResumoFolhaPage() {
         <div className="rounded-md border border-warning/40 bg-warning/10 px-4 py-4 text-sm flex items-start gap-3">
           <AlertTriangle className="h-5 w-5 text-warning mt-0.5 shrink-0" />
           <div className="flex-1">
-            <div className="font-medium">Base oficial VM_FOLHA ainda não sincronizada para o período selecionado.</div>
+            <div className="font-medium">Sem dados retornados pela API para o período selecionado.</div>
             {qtdLinhas === 0 && (
-              <div className="text-xs text-muted-foreground mt-1">VM_FOLHA sem carga para o período selecionado.</div>
+              <div className="text-xs text-muted-foreground mt-1">A API respondeu, mas nenhuma linha foi encontrada. Rode a sincronização para trazer os dados do ERP Senior/Vetorh.</div>
             )}
             <div className="mt-3">
               <Button size="sm" onClick={() => syncMut.mutate()} disabled={syncing || !enabled}>
