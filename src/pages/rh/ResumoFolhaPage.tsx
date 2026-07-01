@@ -375,6 +375,29 @@ export default function ResumoFolhaPage() {
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <CardContent className="space-y-3">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                      {[
+                        ["vm_folha_status", "Status VM_FOLHA"],
+                        ["qtd_linhas_vm_folha", "Qtd. linhas VM_FOLHA"],
+                        ["menor_anomes_vm_folha", "Menor anomes"],
+                        ["maior_anomes_vm_folha", "Maior anomes"],
+                      ].map(([key, label]) => {
+                        const v = (diagnostico as any)?.[key];
+                        if (v == null) return null;
+                        return (
+                          <div key={key} className="rounded border bg-muted/40 p-2">
+                            <div className="text-[10px] uppercase text-muted-foreground">{label}</div>
+                            <div className="font-mono">{String(v)}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {(diagnostico as any)?.qtd_linhas_vm_folha === 0 && (
+                      <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning font-medium">
+                        VM_FOLHA sem carga para o período selecionado.
+                      </div>
+                    )}
+
                     {[
                       ["vm_folha_componentes", "VM_FOLHA — componentes"],
                       ["custo_total_componentes", "Custo Total — componentes"],
