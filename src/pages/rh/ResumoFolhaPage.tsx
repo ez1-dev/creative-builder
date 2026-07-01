@@ -72,8 +72,8 @@ function ValueOrMissing({
 }) {
   if (missing) {
     return (
-      <span className="text-[11px] text-warning font-medium" title={`O backend não retornou ${field}`}>
-        Campo não retornado pela API: {field}
+      <span className="text-[11px] text-warning font-medium" title={`Campo pendente na API: ${field}`}>
+        Campo pendente na API
       </span>
     );
   }
@@ -91,12 +91,13 @@ function KpiOrMissing({
     return (
       <Card className="border-warning/40">
         <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">{title}</CardTitle></CardHeader>
-        <CardContent><div className="text-[11px] text-warning font-medium">Campo não retornado pela API: {field}</div></CardContent>
+        <CardContent><div className="text-[11px] text-warning font-medium" title={`Campo pendente na API: ${field}`}>Campo pendente na API</div></CardContent>
       </Card>
     );
   }
   return <KpiCard title={title} value={value ?? 0} format="currency" variant={variant} loading={loading} />;
 }
+
 
 export default function ResumoFolhaPage() {
   const [ini, setIni] = useState(defaultMonth(-5));
