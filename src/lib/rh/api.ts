@@ -209,9 +209,9 @@ function normalizeFiliais(arr: any) {
     for (const [field, aliases] of Object.entries(mapKeys)) {
       const { hit, value } = pickKey(r, aliases);
       if (!hit) continue;
-      // qtd_horas / qtd_hora_extra podem vir como string "H:MM" — preservar
-      if (HORAS_FIELDS.has(field) && typeof value === "string" && /[:hH]/.test(value)) {
-        out[field] = value;
+      // qtd_horas / qtd_hora_extra: preservar exatamente como veio da API (texto).
+      if (HORAS_FIELDS.has(field)) {
+        out[field] = value == null ? value : String(value);
       } else {
         out[field] = numOrUndef(value);
       }
@@ -219,6 +219,7 @@ function normalizeFiliais(arr: any) {
     return out;
   });
 }
+
 
 
 const KPI_ALIASES: Record<keyof ResumoFolhaKpis, string[]> = {
