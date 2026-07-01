@@ -13,9 +13,10 @@ Fonte oficial: **objeto `VM_FOLHA`** (mesma origem usada pelo painel UpQuery/BI 
 | `anomes_ini` | `YYYYMM` (ex.: `202601`) | sim |
 | `anomes_fim` | `YYYYMM` (ex.: `202605`) | sim |
 | `codemp`     | int (default `1`)         | não |
-| `modo`       | `acumulado` \| `mensal`   | não (default `acumulado`) |
+| `modo`       | `completo` \| `acumulado` \| `mensal` | não (o front chama sempre `completo`, que retorna KPIs + grid por filial + série mensal + drills em uma única resposta) |
 | `filial`     | string                    | não |
 | `matricula`  | string                    | não |
+
 
 Autenticação: Bearer Token (mesmo cliente das demais rotas `/api/*`).
 
