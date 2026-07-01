@@ -179,10 +179,13 @@ function pickKey(obj: any, keys: string[]): { hit: boolean; value: any } {
   return { hit: false, value: undefined };
 }
 
+const HORAS_FIELDS = new Set(["qtd_horas", "qtd_hora_extra"]);
+
 function normalizeFiliais(arr: any) {
   if (!Array.isArray(arr)) return [];
   return arr.map((r) => {
     const out: any = {
+      cd_filial: pickStr(r, ["cd_filial", "codfil"]),
       filial: pickStr(r, ["filial", "ds_filial", "nm_filial", "cd_filial"]) ?? "-",
     };
     const mapKeys: Record<string, string[]> = {
@@ -205,11 +208,18 @@ function normalizeFiliais(arr: any) {
     };
     for (const [field, aliases] of Object.entries(mapKeys)) {
       const { hit, value } = pickKey(r, aliases);
-      if (hit) out[field] = numOrUndef(value);
+      if (!hit) continue;
+      // qtd_horas / qtd_hora_extra podem vir como string "H:MM" — preservar
+      if (HORAS_FIELDS.has(field) && typeof value === "string" && /[:hH]/.test(value)) {
+        out[field] = value;
+      } else {
+        out[field] = numOrUndef(value);
+      }
     }
     return out;
   });
 }
+
 
 const KPI_ALIASES: Record<keyof ResumoFolhaKpis, string[]> = {
   provento: ["provento"],
