@@ -148,14 +148,23 @@ export class DashboardIndisponivelError extends Error {
   }
 }
 
-function normalizeEventos(arr: any): { codigo?: string; descricao?: string; valor: number }[] {
+function normalizeEventos(arr: any): { codigo?: string; cd_evento?: string; descricao?: string; ds_evento?: string; valor: number }[] {
   if (!Array.isArray(arr)) return [];
-  return arr.map((r) => ({
-    codigo: pickStr(r, ["codigo", "cd_evento", "evento", "codeve"]),
-    descricao: pickStr(r, ["descricao", "ds_evento", "descricao_evento", "titeve"]) ?? "-",
-    valor: num(r.valor ?? r.vl_total ?? r.total ?? r.provento ?? r.desconto),
-  }));
+  const items = arr.map((r) => {
+    const cd = pickStr(r, ["cd_evento", "codigo", "evento", "codeve"]);
+    const ds = pickStr(r, ["ds_evento", "descricao", "descricao_evento", "titeve"]) ?? "-";
+    return {
+      cd_evento: cd,
+      codigo: cd,
+      ds_evento: ds,
+      descricao: ds,
+      valor: num(r.valor ?? r.vl_total ?? r.total ?? r.provento ?? r.desconto),
+    };
+  });
+  items.sort((a, b) => (b.valor || 0) - (a.valor || 0));
+  return items;
 }
+
 
 function numOrUndef(v: any): number | undefined {
   if (v === undefined || v === null || v === "") return undefined;
