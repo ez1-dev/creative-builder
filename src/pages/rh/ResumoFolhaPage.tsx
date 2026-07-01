@@ -20,11 +20,11 @@ import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import {
   fetchResumoFolhaDashboard,
-  sincronizarVmFolha,
+  sincronizarResumoFolha,
   DashboardIndisponivelError,
   toAnomes,
-  type ResumoFolhaModo,
 } from "@/lib/rh/api";
+
 import { formatCurrency } from "@/lib/format";
 
 
