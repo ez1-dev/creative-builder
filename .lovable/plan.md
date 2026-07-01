@@ -1,33 +1,32 @@
-## Objetivo
+## Contexto
 
-Tratar a situação **VM_FOLHA_COMPAT_PENDENTE** na tela RH → 01 Resumo Folha, respeitando que `VETORH.dbo.VM_FOLHA` não existe fisicamente e que a camada compatível ainda está sendo construída pela API.
+O usuário afirma que o backend agora devolve valores preenchidos para `kpis.inss_total`, `kpis.provisoes` e `kpis.fgts` em `GET /api/rh/resumo-folha/dashboard?modo=completo`. Os logs atuais do preview ainda mostram esses três campos como `null`, mas o front deve estar pronto para exibir os valores assim que a API responder.
 
-## Alterações
+Revisando `src/lib/rh/api.ts` (`buildKpis` + `KPI_ALIASES`) e `src/pages/rh/ResumoFolhaPage.tsx` (`KpiOrMissing`), a lógica atual já:
+- marca o campo como missing apenas quando o valor é `null`/`""`/`"campo_pendente"`;
+- exibe `KpiCard` com o valor numérico quando presente;
+- não faz cálculo no front nem consulta o Cloud.
 
-### 1. `src/lib/rh/api.ts`
+Ou seja, quando a API passar a devolver `inss_total = 3168072.07`, `provisoes = 2876060.97` e `fgts = 844058.67`, os três cards já sairão do estado "Campo pendente na API" automaticamente. Custo Total, Benefícios e Rescisões continuarão como pendentes enquanto vierem `null`.
 
-- **`sincronizarResumoFolha`**: remover o fallback para `/api/rh/vm-folha/sincronizar` (não pode mais bater no endpoint que tenta ler VM_FOLHA física). Ordem final tentada:
-  1. `POST /api/rh/vm-folha-compat/sincronizar?...`
-  2. `POST /api/rh/resumo-folha/sincronizar?...` (fallback só se compat retornar 404/405)
-- Se ambos retornarem 404/405, lançar erro tipado `SincronizacaoCompatIndisponivelError` com mensagem `"Sincronização compatível ainda não implementada na API."`.
-- Exportar `sincronizarVmFolha` como **deprecated** (deixar comentário) mas não usar mais na página. Documentar que ela chama o endpoint legado que tenta VETORH.dbo.VM_FOLHA.
-- Em `buildKpis`: além de tratar `"campo_pendente"` como missing, tratar também `null`/`undefined` como missing (já feito), garantindo que `R$ 0,00` só apareça quando o valor for numérico 0 explícito. Sem cálculos.
+## Plano
 
-### 2. `src/pages/rh/ResumoFolhaPage.tsx`
+1. **Confirmar mapeamento 1:1 sem alias exótico** em `src/lib/rh/api.ts`:
+   - Garantir que `KPI_ALIASES.inss_total`, `provisoes` e `fgts` leiam exatamente as chaves `inss_total`, `provisoes`, `fgts` do payload (sem inventar aliases que possam mascarar `null`).
+   - Manter a regra atual: valor `null`/`""`/`"campo_pendente"` ⇒ entra em `_missing_kpis`; qualquer número (inclusive 0 explícito) ⇒ é exibido.
 
-- **Banner VM_FOLHA_COMPAT_PENDENTE** (novo, acima dos KPIs, visível a todos): quando `diagnostico.vm_folha_status === "OBJETO_INEXISTENTE_NO_VETORH"` **ou** `vm_folha_status === "VM_FOLHA_COMPAT_PENDENTE"`, renderizar aviso amarelo:
-  > "VM_FOLHA não existe fisicamente no Vetorh. A API precisa calcular a camada compatível a partir das tabelas reais do ERP Senior/Vetorh."
-- **Botão Sincronizar RH**: no `onError` da mutation, se o erro for `SincronizacaoCompatIndisponivelError`, exibir toast informativo (não destrutivo) com a mensagem: *"Sincronização compatível ainda não implementada na API."*
-- **KPIs**: nenhuma soma no front. `ValueOrMissing`/`KpiOrMissing` já cobrem o caso `missing`; ajustar o texto para **"Campo pendente na API"** (em vez de "Campo não retornado pela API: X") conforme a nova regra. Manter o `field` como `title` para debug.
-- **"Sem dados"**: quando `vm_folha_status` indicar compat pendente, não mostrar o card "Sem dados retornados pela API" (o banner já explica). Suprimir só nesse caso.
-- Manter o restante intacto (mensal, proventos/descontos, filiais, diagnóstico admin). Continuar consumindo apenas `/api/rh/resumo-folha/dashboard?...&modo=completo`.
+2. **Log de verificação** em `fetchResumoFolhaDashboard`:
+   - Ampliar o `console.log` para imprimir também `_missing_kpis` após a normalização, facilitando validar no preview que `inss_total`/`provisoes`/`fgts` saíram da lista assim que a API entregar os valores.
 
-### 3. Aviso técnico abaixo dos cards
+3. **Sem mudanças em `ResumoFolhaPage.tsx`** além de garantir que os três cards continuam usando `KpiOrMissing` com `missing={isMissing("inss_total"|"provisoes"|"fgts")}` — nenhuma soma, nenhum fallback para `0`, nenhum acesso a Supabase.
 
-Manter texto atual: *"Indicadores retornados pela API a partir das tabelas oficiais do ERP Senior/Vetorh."*
+4. **Validação** após o build:
+   - Atualizar o preview em `/rh/resumo-folha` com o intervalo `202602–202607`.
+   - Confirmar via console (`[RH ResumoFolha] dashboard`) que os três campos chegam preenchidos e que os cards renderizam o valor em BRL, enquanto `custo_total`, `beneficios` e `rescisoes` seguem com o badge "Campo pendente na API".
 
-## Fora de escopo
+## Não fazer
 
-- Sem mudança em backend/edge functions.
-- Sem alteração em outras telas RH.
-- Sem cálculos client-side; sem consulta ao Cloud (Supabase) direta.
+- Não calcular INSS/Provisões/FGTS somando eventos no front.
+- Não consultar `public.rh_vm_folha` nem qualquer tabela do Cloud.
+- Não converter `null` em `R$ 0,00`.
+- Não mexer na sincronização (`vm-folha-compat`) nem nos demais KPIs.

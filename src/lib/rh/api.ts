@@ -303,10 +303,18 @@ export async function fetchResumoFolhaDashboard(
 
   try {
     const resp = await api.get<any>("/api/rh/resumo-folha/dashboard", params);
+    const normalizado = normalizeDashboard(resp ?? {});
     // eslint-disable-next-line no-console
-    console.log("[RH ResumoFolha] dashboard", { params, kpis: resp?.kpis, filiais: resp?.filiais?.length, mensal: resp?.mensal?.length });
+    console.log("[RH ResumoFolha] dashboard", {
+      params,
+      kpis_raw: resp?.kpis,
+      kpis_normalizados: normalizado.kpis,
+      _missing_kpis: normalizado._missing_kpis,
+      filiais: resp?.filiais?.length,
+      mensal: resp?.mensal?.length,
+    });
+    return normalizado;
 
-    return normalizeDashboard(resp ?? {});
   } catch (e: any) {
     const status = e?.statusCode ?? e?.status;
     if (status === 404 || status === 405 || status === 501) {
