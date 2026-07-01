@@ -99,7 +99,6 @@ export default function ResumoFolhaPage() {
   const [ini, setIni] = useState(defaultMonth(-5));
   const [fim, setFim] = useState(defaultMonth(0));
   const [codemp, setCodemp] = useState("1");
-  const [modo, setModo] = useState<ResumoFolhaModo>("acumulado");
 
   const baseParams = {
     anomes_ini: toAnomes(ini),
@@ -110,11 +109,12 @@ export default function ResumoFolhaPage() {
 
   const qc = useQueryClient();
   const query = useQuery({
-    queryKey: ["rh", "resumo-folha-dashboard", baseParams, modo],
-    queryFn: () => fetchResumoFolhaDashboard(baseParams, modo),
+    queryKey: ["rh", "resumo-folha-dashboard", baseParams, "completo"],
+    queryFn: () => fetchResumoFolhaDashboard(baseParams, "completo"),
     enabled,
     retry: (count, err) => (err instanceof DashboardIndisponivelError ? false : count < 1),
   });
+
 
   const data = query.data;
   const isLoading = query.isLoading;
