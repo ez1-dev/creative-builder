@@ -127,9 +127,8 @@ export default function ResumoFolhaPage() {
   const descontos = data?.descontos ?? [];
   const tipos = data?.tipos_evento ?? [];
   const mensal = data?.mensal ?? [];
-
-  const totalProvento = useMemo(() => proventos.reduce((a, x) => a + (x.valor || 0), 0), [proventos]);
-  const totalDesconto = useMemo(() => descontos.reduce((a, x) => a + (x.valor || 0), 0), [descontos]);
+  const diagnostico = data?.diagnostico ?? data?.debug;
+  const { isAdmin } = useUserPermissions();
 
   const tiposPie = useMemo(() => {
     const total = tipos.reduce((a, t) => a + (t.valor || 0), 0) || 1;
@@ -138,11 +137,7 @@ export default function ResumoFolhaPage() {
       .sort((a, b) => b.valor - a.valor);
   }, [tipos]);
 
-  const totMensal = useMemo(() => ({
-    provento: mensal.reduce((a, m) => a + (m.provento || 0), 0),
-    desconto: mensal.reduce((a, m) => a + (m.desconto || 0), 0),
-    liquido: mensal.reduce((a, m) => a + (m.total_liquido || 0), 0),
-  }), [mensal]);
+
 
   const FILIAL_COLS: { key: string; label: string; format: "currency" | "horas" }[] = [
     { key: "salario_base", label: "Salário Base", format: "currency" },
