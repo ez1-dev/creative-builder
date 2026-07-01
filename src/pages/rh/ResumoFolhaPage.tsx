@@ -338,9 +338,8 @@ export default function ResumoFolhaPage() {
                         </TableRow>
                       ))}
                     </TableBody>
-                    <TableFooter>
-                      <TableRow><TableCell colSpan={2}>Total</TableCell><TableCell className="text-right tabular-nums">{formatCurrency(totalDesconto)}</TableCell></TableRow>
-                    </TableFooter>
+
+
                   </Table>
                 </div>
               </CardContent>
