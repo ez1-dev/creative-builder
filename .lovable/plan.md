@@ -1,34 +1,40 @@
-## Objetivo
+## Contexto
 
-Ajustar `src/pages/rh/ResumoFolhaPage.tsx` e `src/lib/rh/api.ts` para que a tela **RH · 01 — Resumo Folha** consuma exclusivamente `/api/rh/resumo-folha/dashboard` (ERP Senior/Vetorh), sem qualquer cálculo local nem acesso ao backend Lovable Cloud.
+A tela `/rh/resumo-folha` já consome `GET /api/rh/resumo-folha/dashboard?...&modo=completo` e não faz cálculos no front. Os ajustes pedidos são de fonte de sincronização, textos e polling.
 
 ## Mudanças
 
 ### 1. `src/lib/rh/api.ts`
-- `fetchResumoFolhaDashboard`: sempre enviar `modo=completo` (novo default), substituindo `acumulado`/`mensal`. Assinatura passa a aceitar `modo?: "completo" | "acumulado" | "mensal"` com default `"completo"`.
-- `normalizeDashboard`:
-  - Propagar `response.fonte` e o objeto `diagnostico` completo (incluindo `fonte_cards`, `vm_folha_status`, `vm_folha_componentes`, `erro_tecnico`, `qtd_linhas`, `anomes_ini`, `anomes_fim`).
-  - Preservar `qtd_horas` / `qtd_hora_extra` como string sempre (nunca converter para número, mesmo se vier numérico → manter como string tal como retornado).
-  - Não preencher KPI ausente com 0: manter mecanismo atual `_missing_kpis` (o front já mostra "Campo não retornado pela API").
-- `sincronizarResumoFolha` novo: tenta `POST /api/rh/resumo-folha/sincronizar?...`; em 404/405 faz fallback para `POST /api/rh/vm-folha/sincronizar?...`. Mesmos parâmetros (`codemp`, `anomes_ini`, `anomes_fim`).
-- Remover qualquer utilitário residual usado apenas para somar/agregar no front.
+- Trocar o endpoint preferencial de sync para `POST /api/rh/vm-folha-compat/sincronizar?codemp=&anomes_ini=&anomes_fim=` (o que existe hoje).
+- Manter fallback para `/api/rh/vm-folha/sincronizar` e `/api/rh/resumo-folha/sincronizar` (404/405) só como retaguarda.
+- A resposta pode vir com `{ status: "EM_PROCESSAMENTO", job_id?, ...}` ou `{ status: "OK" }`. Propagar esse objeto sem alteração.
+- Adicionar `consultarStatusSincronizacaoRh({ codemp, job_id? })` chamando `GET /api/rh/vm-folha-compat/sincronizar/status?...`; se retornar 404, o hook desliga o polling silenciosamente.
 
 ### 2. `src/pages/rh/ResumoFolhaPage.tsx`
-- Remover o toggle "Acumulado/Mensal" e a segunda query em `modo=mensal`. Passa a existir **uma única query** com `modo=completo`.
-- Cards: mapear 1:1 `response.kpis.*` conforme lista solicitada. Manter `ValueOrMissing` para exibir "Campo não retornado pela API" quando ausente/`null`/`"campo_pendente"`. `R$ 0,00` só quando o valor for numericamente `0`.
-- Grid por filial: renderizar exatamente as colunas listadas na ordem pedida, sem footer de somatório. `qtd_horas` e `qtd_hora_extra` exibidos como texto puro (sem `formatHoras`/parse).
-- Série mensal / gráfico: continuar consumindo `response.mensal` da mesma resposta (quando presente); nenhum outro fetch.
-- Drills (`proventos_vantagens`, `descontos`, `tipos_evento`): puramente analíticos, já não alimentam KPI.
-- Aviso abaixo dos cards: trocar texto atual por  
-  **"Indicadores oficiais retornados pela API a partir do ERP Senior/Vetorh."**
-- Botão **Sincronizar RH**: chamar novo `sincronizarResumoFolha` (com fallback). Sucesso → toast "Sincronização RH concluída." + invalidar/refetch da query do dashboard. Erro → toast "Erro ao sincronizar dados do ERP Senior/Vetorh."
-- Área **Diagnóstico Técnico** (somente admin, via `useUserPermissions`): exibir, quando presentes, `response.fonte`, `diagnostico.fonte_cards`, `vm_folha_status`, `vm_folha_componentes`, `erro_tecnico`, `qtd_linhas`, `anomes_ini`, `anomes_fim`. Manter CTA "Sincronizar agora" quando `qtd_linhas === 0` ou dashboard totalmente vazio.
-- Confirmar ausência total de imports de `@/integrations/supabase/client` e de qualquer soma local para os cards/grid.
+- Botão "Sincronizar RH":
+  - onClick chama `sincronizarResumoFolha` novo (vm-folha-compat).
+  - Se resposta `status === "EM_PROCESSAMENTO"` → manter `syncing=true`, iniciar `useQuery` de status a cada 5s (via `refetchInterval`). Botão fica desabilitado e mostra `Loader2` + "Sincronizando...".
+  - Ao chegar `status === "OK"` (ou 404 no status endpoint) → parar polling, `toast.success("Sincronização RH concluída.")`, `invalidateQueries(["rh","resumo-folha-dashboard"])`.
+  - Em erro → `toast.error("Erro ao sincronizar dados do ERP Senior/Vetorh.")`; para admin, mostrar `response.diagnostico.erro_tecnico` no toast description.
+- Aviso abaixo dos cards: trocar texto atual por exatamente `"Indicadores retornados pela API a partir das tabelas oficiais do ERP Senior/Vetorh."` (remover menção a "VM_FOLHA").
+- Estado "sem dados": remover o texto "Base oficial VM_FOLHA ainda não sincronizada" — trocar por `"Sem dados retornados pela API para o período selecionado."` e manter CTA "Sincronizar agora".
+- Bloco "Componentes VM_FOLHA não localizados" → renomear label para `"Componentes não localizados pela API:"` (mantém a lista de `diagnostico.componentes_pendentes`).
+- Diagnóstico Técnico (admin): manter como está; só adicionar linha `status_sincronizacao` quando o polling estiver ativo.
 
 ### 3. Documentação
-- `docs/backend-rh-resumo-folha-dashboard.md`: registrar `modo=completo` como o modo consumido pela tela, o endpoint preferencial `POST /api/rh/resumo-folha/sincronizar` (com fallback `vm-folha/sincronizar`), e os novos campos de diagnóstico (`fonte`, `diagnostico.fonte_cards`, `diagnostico.erro_tecnico`, `diagnostico.qtd_linhas`, `diagnostico.anomes_ini/fim`).
+- Atualizar `docs/backend-rh-resumo-folha-dashboard.md`:
+  - Registrar que a `VM_FOLHA` é um objeto lógico do UpQuery, não uma tabela física; o backend deve montar os KPIs a partir das tabelas oficiais do ERP Senior/Vetorh (R034FUN, R038HTR, R044RHR, etc.) na resposta do endpoint dashboard.
+  - Sync oficial: `POST /api/rh/vm-folha-compat/sincronizar` (com opcional `GET /api/rh/vm-folha-compat/sincronizar/status` para polling), com fallback documentado para `/vm-folha/sincronizar`.
+  - Frontend nunca consulta Supabase nem `public.rh_vm_folha`.
 
-## Fora do escopo
-- Backend/edge functions (nenhuma alteração).
-- Outras telas do módulo RH.
-- Alterações visuais fora do necessário para remover o toggle e ajustar textos/colunas.
+## Regras respeitadas
+
+- Nenhum cálculo no front (KPIs e grid renderizam somente `response.kpis` / `response.filiais`).
+- Campo ausente vira "Campo não retornado pela API: X" (já implementado via `ValueOrMissing` / `KpiOrMissing`).
+- `R$ 0,00` só aparece quando a API devolve `0` explicitamente.
+- Sem chamadas a Supabase ou `rh_vm_folha`.
+
+## Fora de escopo
+
+- Alterar o layout dos KPIs ou colunas do grid (já batem com o mapeamento pedido).
+- Refazer gráficos de evolução mensal (dependem de `response.mensal`, que continua opcional).

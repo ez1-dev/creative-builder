@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -21,6 +21,7 @@ import { useUserPermissions } from "@/hooks/useUserPermissions";
 import {
   fetchResumoFolhaDashboard,
   sincronizarResumoFolha,
+  consultarStatusSincronizacaoRh,
   DashboardIndisponivelError,
   toAnomes,
 } from "@/lib/rh/api";
@@ -134,27 +135,90 @@ export default function ResumoFolhaPage() {
   const diagnostico = data?.diagnostico ?? data?.debug;
   const { isAdmin } = useUserPermissions();
 
+  const [syncJobId, setSyncJobId] = useState<string | null>(null);
+  const [syncInFlight, setSyncInFlight] = useState(false);
   const syncMut = useMutation({
     mutationFn: () => sincronizarResumoFolha(baseParams),
     onMutate: () => {
+      setSyncInFlight(true);
       const id = toast.loading("Sincronizando RH...", {
         description: `${baseParams.anomes_ini} → ${baseParams.anomes_fim} (empresa ${baseParams.codemp})`,
       });
       return { id };
     },
-    onSuccess: (_data, _vars, ctx) => {
+    onSuccess: (resp: any, _vars, ctx) => {
+      const status = String(resp?.status ?? "").toUpperCase();
+      if (status === "EM_PROCESSAMENTO" || status === "PROCESSING") {
+        setSyncJobId(resp?.job_id ?? "pending");
+        toast.loading("Sincronização em andamento...", {
+          id: ctx?.id,
+          description: resp?.mensagem ?? "Aguardando confirmação do backend.",
+        });
+        return;
+      }
+      setSyncInFlight(false);
+      setSyncJobId(null);
       toast.success("Sincronização RH concluída.", { id: ctx?.id });
       qc.invalidateQueries({ queryKey: ["rh", "resumo-folha-dashboard"] });
     },
     onError: (e: any, _vars, ctx) => {
+      setSyncInFlight(false);
+      setSyncJobId(null);
+      const tecnico =
+        e?.response?.data?.diagnostico?.erro_tecnico ??
+        e?.data?.diagnostico?.erro_tecnico;
       const detalhe = e?.response?.data?.detail ?? e?.data?.detail ?? e?.message ?? "";
+      const description = tecnico
+        ? typeof tecnico === "string" ? tecnico : JSON.stringify(tecnico)
+        : typeof detalhe === "string" ? detalhe : JSON.stringify(detalhe);
       toast.error("Erro ao sincronizar dados do ERP Senior/Vetorh.", {
         id: ctx?.id,
-        description: typeof detalhe === "string" ? detalhe : JSON.stringify(detalhe),
+        description,
       });
     },
   });
-  const syncing = syncMut.isPending;
+
+  // Polling de status enquanto EM_PROCESSAMENTO
+  const statusQuery = useQuery({
+    queryKey: ["rh", "resumo-folha-sync-status", baseParams.codemp, syncJobId],
+    queryFn: () =>
+      consultarStatusSincronizacaoRh({
+        codemp: baseParams.codemp,
+        job_id: syncJobId && syncJobId !== "pending" ? syncJobId : undefined,
+      }),
+    enabled: !!syncJobId,
+    refetchInterval: 5000,
+  });
+
+  useEffect(() => {
+    if (!syncJobId) return;
+    const s = statusQuery.data;
+    // Endpoint de status ausente (null) → considera concluído
+    if (s === null) {
+      setSyncInFlight(false);
+      setSyncJobId(null);
+      toast.success("Sincronização RH concluída.");
+      qc.invalidateQueries({ queryKey: ["rh", "resumo-folha-dashboard"] });
+      return;
+    }
+    if (!s) return;
+    const st = String(s.status ?? "").toUpperCase();
+    if (st === "OK" || st === "CONCLUIDO" || st === "SUCCESS") {
+      setSyncInFlight(false);
+      setSyncJobId(null);
+      toast.success("Sincronização RH concluída.");
+      qc.invalidateQueries({ queryKey: ["rh", "resumo-folha-dashboard"] });
+    } else if (st === "ERRO" || st === "FAILED" || st === "ERROR") {
+      setSyncInFlight(false);
+      setSyncJobId(null);
+      const tecnico = s?.diagnostico?.erro_tecnico ?? s?.mensagem;
+      toast.error("Erro ao sincronizar dados do ERP Senior/Vetorh.", {
+        description: typeof tecnico === "string" ? tecnico : JSON.stringify(tecnico ?? {}),
+      });
+    }
+  }, [statusQuery.data, syncJobId, qc]);
+
+  const syncing = syncMut.isPending || syncInFlight;
 
   const kpisValues = kpis ? Object.values(kpis).map((v) => Number(v) || 0) : [];
   const totalKpis = kpisValues.reduce((a, b) => a + b, 0);
@@ -237,9 +301,9 @@ export default function ResumoFolhaPage() {
         <div className="rounded-md border border-warning/40 bg-warning/10 px-4 py-4 text-sm flex items-start gap-3">
           <AlertTriangle className="h-5 w-5 text-warning mt-0.5 shrink-0" />
           <div className="flex-1">
-            <div className="font-medium">Base oficial VM_FOLHA ainda não sincronizada para o período selecionado.</div>
+            <div className="font-medium">Sem dados retornados pela API para o período selecionado.</div>
             {qtdLinhas === 0 && (
-              <div className="text-xs text-muted-foreground mt-1">VM_FOLHA sem carga para o período selecionado.</div>
+              <div className="text-xs text-muted-foreground mt-1">A API respondeu, mas nenhuma linha foi encontrada. Rode a sincronização para trazer os dados do ERP Senior/Vetorh.</div>
             )}
             <div className="mt-3">
               <Button size="sm" onClick={() => syncMut.mutate()} disabled={syncing || !enabled}>
@@ -317,7 +381,7 @@ export default function ResumoFolhaPage() {
             (diagnostico as any).componentes_pendentes.length > 0 && (
               <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs">
                 <div className="font-semibold text-warning mb-1">
-                  Componentes VM_FOLHA não localizados:
+                  Componentes não localizados pela API:
                 </div>
                 <ul className="list-disc pl-5 space-y-0.5 text-muted-foreground">
                   {(diagnostico as any).componentes_pendentes.map((c: any, i: number) => (
@@ -371,7 +435,7 @@ export default function ResumoFolhaPage() {
           {/* Aviso técnico */}
           <div className="flex items-start gap-2 rounded-md border border-info/30 bg-info/5 px-3 py-2 text-xs text-muted-foreground">
             <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            <span>Indicadores oficiais retornados pela API a partir do ERP Senior/Vetorh.</span>
+            <span>Indicadores retornados pela API a partir das tabelas oficiais do ERP Senior/Vetorh.</span>
           </div>
 
           {/* Diagnóstico Técnico (admin) */}
@@ -415,7 +479,7 @@ export default function ResumoFolhaPage() {
                     </div>
                     {(qtdLinhas === 0) && (
                       <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning font-medium">
-                        VM_FOLHA sem carga para o período selecionado.
+                        API retornou 0 linhas para o período selecionado.
                       </div>
                     )}
                     {(diagnostico as any)?.erro_tecnico && (

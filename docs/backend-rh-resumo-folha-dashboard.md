@@ -2,7 +2,7 @@
 
 Endpoint agregado consumido pela tela `RH · 01 — Resumo Folha`.
 
-Fonte oficial: **objeto `VM_FOLHA`** (mesma origem usada pelo painel UpQuery/BI JET). O backend NÃO deve inventar KPIs a partir de eventos brutos — todos os cards e a grid por filial derivam das colunas `CALC_*` e `VL_*` da VM_FOLHA. O front nunca soma nada.
+Fonte oficial: **tabelas do ERP Senior/Vetorh** (R034FUN, R038HTR, R044RHR e correlatas). O objeto `VM_FOLHA` é uma **view lógica do UpQuery/BI JET** — não existe fisicamente no banco VETORH nem no banco PRINCIPAL. O backend deve montar os KPIs a partir das tabelas oficiais e devolver os campos abaixo já calculados. O front NÃO calcula nada, NÃO soma eventos, NÃO consulta Supabase e NÃO lê `public.rh_vm_folha`.
 
 ## Request
 
@@ -20,7 +20,7 @@ Fonte oficial: **objeto `VM_FOLHA`** (mesma origem usada pelo painel UpQuery/BI 
 
 Autenticação: Bearer Token (mesmo cliente das demais rotas `/api/*`).
 
-Antes de responder o dashboard, o backend deve garantir que a sincronização com o ERP Senior/Vetorh já rodou para o período. O front dispara essa carga via `POST /api/rh/resumo-folha/sincronizar?codemp=&anomes_ini=&anomes_fim=` (endpoint preferencial). Se ainda não existir, o front cai automaticamente em `POST /api/rh/vm-folha/sincronizar?...` com os mesmos parâmetros. Após sucesso o toast é "Sincronização RH concluída."; falha exibe "Erro ao sincronizar dados do ERP Senior/Vetorh.".
+Antes de responder o dashboard, o backend deve garantir que a sincronização com o ERP Senior/Vetorh já rodou para o período. O front dispara essa carga via `POST /api/rh/vm-folha-compat/sincronizar?codemp=&anomes_ini=&anomes_fim=` (endpoint preferencial e único garantido hoje). Como retaguarda ele tenta na ordem `POST /api/rh/resumo-folha/sincronizar` e `POST /api/rh/vm-folha/sincronizar` (mesmos parâmetros) se o preferencial responder 404/405. A resposta pode ser `{ status: "OK" }` (síncrono) ou `{ status: "EM_PROCESSAMENTO", job_id?, mensagem? }` — nesse caso o front faz polling em `GET /api/rh/vm-folha-compat/sincronizar/status?codemp=&job_id=` a cada 5s até receber `status: "OK"` (ou 404 no endpoint de status, tratado como conclusão). Toast de sucesso: "Sincronização RH concluída."; toast de erro: "Erro ao sincronizar dados do ERP Senior/Vetorh." — para admin, o front mostra `response.diagnostico.erro_tecnico` no `description` do toast.
 
 ## Campos de diagnóstico opcionais
 
