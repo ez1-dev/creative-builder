@@ -294,9 +294,7 @@ export default function ResumoFolhaPage() {
           {/* Aviso técnico */}
           <div className="flex items-start gap-2 rounded-md border border-info/30 bg-info/5 px-3 py-2 text-xs text-muted-foreground">
             <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            <span>
-              Indicadores de Custo Total, INSS, FGTS, Provisões, Hora Extra e Custo Férias são calculados pela API com base nas fontes oficiais do Vetorh.
-            </span>
+            <span>Indicadores oficiais calculados pela API com base na VM_FOLHA/RH.</span>
           </div>
 
           {/* Diagnóstico Técnico (admin) */}
@@ -314,6 +312,7 @@ export default function ResumoFolhaPage() {
                 <CollapsibleContent>
                   <CardContent className="space-y-3">
                     {[
+                      ["vm_folha_componentes", "VM_FOLHA — componentes"],
                       ["custo_total_componentes", "Custo Total — componentes"],
                       ["inss_componentes", "INSS — componentes"],
                       ["hora_extra_componentes", "Hora Extra — componentes"],
