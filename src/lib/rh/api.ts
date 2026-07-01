@@ -258,14 +258,18 @@ function normalizeDashboard(raw: any): ResumoFolhaDashboard {
     descontos: normalizeEventos(raw?.descontos),
     filiais: normalizeFiliais(raw?.filiais),
     tipos_evento: Array.isArray(raw?.tipos_evento)
-      ? raw.tipos_evento.map((t: any) => ({
-          tipo: pickStr(t, ["tipo", "tp_evento", "tipo_evento"]) ?? "OUTROS",
-          valor: num(t.valor ?? t.vl_total ?? t.total),
-        }))
+      ? raw.tipos_evento.map((t: any) => {
+          const cd = pickStr(t, ["cd_tp_evento", "tp_evento", "tipo_evento", "tipo"]);
+          return {
+            cd_tp_evento: cd,
+            tipo: pickStr(t, ["tipo", "cd_tp_evento", "tp_evento", "tipo_evento"]) ?? cd ?? "OUTROS",
+            valor: num(t.valor ?? t.vl_total ?? t.total),
+          };
+        })
       : [],
     mensal: Array.isArray(raw?.mensal)
       ? raw.mensal.map((m: any) => ({
-          competencia: String(m.competencia ?? m.ano_mes ?? m.anomes ?? ""),
+          competencia: String(m.anomes_competencia ?? m.competencia ?? m.ano_mes ?? m.anomes ?? ""),
           custo_hora_extra: num(m.custo_hora_extra ?? m.custoHE),
           custo_mensal: num(m.custo_mensal ?? m.custoMensal),
           provento: num(m.provento ?? m.vl_provento),
@@ -273,6 +277,7 @@ function normalizeDashboard(raw: any): ResumoFolhaDashboard {
           total_liquido: num(m.total_liquido ?? m.liquido ?? m.vl_liquido),
         }))
       : [],
+
   };
 }
 
