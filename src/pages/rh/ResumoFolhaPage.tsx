@@ -291,6 +291,54 @@ export default function ResumoFolhaPage() {
             <KpiOrMissing title="FGTS" value={kpis?.fgts} missing={isMissing("fgts")} field="fgts" loading={isLoading} />
           </div>
 
+          {/* Aviso técnico */}
+          <div className="flex items-start gap-2 rounded-md border border-info/30 bg-info/5 px-3 py-2 text-xs text-muted-foreground">
+            <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            <span>
+              Indicadores de Custo Total, INSS, FGTS, Provisões, Hora Extra e Custo Férias são calculados pela API com base nas fontes oficiais do Vetorh.
+            </span>
+          </div>
+
+          {/* Diagnóstico Técnico (admin) */}
+          {isAdmin && diagnostico && (
+            <Collapsible>
+              <Card>
+                <CollapsibleTrigger asChild>
+                  <button className="w-full text-left">
+                    <CardHeader className="py-3 flex flex-row items-center justify-between">
+                      <CardTitle className="text-sm">Diagnóstico Técnico</CardTitle>
+                      <ChevronDown className="h-4 w-4" />
+                    </CardHeader>
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent className="space-y-3">
+                    {[
+                      ["custo_total_componentes", "Custo Total — componentes"],
+                      ["inss_componentes", "INSS — componentes"],
+                      ["hora_extra_componentes", "Hora Extra — componentes"],
+                      ["ferias_componentes", "Férias — componentes"],
+                      ["fgts_componentes", "FGTS — componentes"],
+                      ["provisoes_componentes", "Provisões — componentes"],
+                    ].map(([key, label]) => {
+                      const v = (diagnostico as any)?.[key];
+                      if (v == null) return null;
+                      return (
+                        <div key={key}>
+                          <div className="text-xs font-semibold mb-1">{label}</div>
+                          <pre className="text-[11px] bg-muted p-2 rounded overflow-auto max-h-64">
+                            {typeof v === "string" ? v : JSON.stringify(v, null, 2)}
+                          </pre>
+                        </div>
+                      );
+                    })}
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+          )}
+
+
           {/* Proventos / Descontos */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
             <Card className="lg:col-span-2">
