@@ -245,17 +245,8 @@ export default function ResumoFolhaPage() {
                     </TableRow>
                   ))}
                 </TableBody>
-                {mensal.length > 0 && (
-                  <TableFooter>
-                    <TableRow>
-                      <TableCell>Total</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatCurrency(totMensal.provento)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatCurrency(totMensal.desconto)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatCurrency(totMensal.liquido)}</TableCell>
-                    </TableRow>
-                  </TableFooter>
-                )}
               </Table>
+
             </CardContent>
           </Card>
         </>
