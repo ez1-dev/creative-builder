@@ -391,6 +391,10 @@ export async function sincronizarRh(p: SincronizarRhParams): Promise<any> {
   return api.post<any>(`/api/rh/sync?${qs}`);
 }
 
+/**
+ * @deprecated Endpoint legado que ainda tenta ler `VETORH.dbo.VM_FOLHA` (objeto inexistente).
+ * Não usar mais na UI. Mantido apenas para referência histórica.
+ */
 export async function sincronizarVmFolha(p: SincronizarRhParams): Promise<any> {
   const qs = new URLSearchParams({
     codemp: String(p.codemp ?? 1),
@@ -400,13 +404,18 @@ export async function sincronizarVmFolha(p: SincronizarRhParams): Promise<any> {
   return api.post<any>(`/api/rh/vm-folha/sincronizar?${qs}`);
 }
 
+export class SincronizacaoCompatIndisponivelError extends Error {
+  code = "SINCRONIZACAO_COMPAT_INDISPONIVEL" as const;
+  constructor(msg = "Sincronização compatível ainda não implementada na API.") {
+    super(msg);
+  }
+}
+
 /**
- * Sincroniza o Resumo Folha via API do ERP Senior/Vetorh.
- * Endpoint preferencial: `/api/rh/vm-folha-compat/sincronizar` (único que existe hoje).
- * Fallbacks: `/api/rh/resumo-folha/sincronizar` e `/api/rh/vm-folha/sincronizar`.
- *
- * A resposta pode conter `{ status: "OK" | "EM_PROCESSAMENTO", job_id?, diagnostico? }`.
- * Retornamos o payload cru para o chamador decidir se precisa iniciar polling.
+ * Sincroniza o Resumo Folha via camada compatível da API.
+ * Ordem: `/api/rh/vm-folha-compat/sincronizar` → fallback `/api/rh/resumo-folha/sincronizar`.
+ * NÃO cai mais para `/api/rh/vm-folha/sincronizar` (endpoint legado que tenta VM_FOLHA física).
+ * Se ambos retornarem 404/405, lança `SincronizacaoCompatIndisponivelError`.
  */
 export async function sincronizarResumoFolha(p: SincronizarRhParams): Promise<any> {
   const qs = new URLSearchParams({
@@ -417,7 +426,6 @@ export async function sincronizarResumoFolha(p: SincronizarRhParams): Promise<an
   const endpoints = [
     `/api/rh/vm-folha-compat/sincronizar?${qs}`,
     `/api/rh/resumo-folha/sincronizar?${qs}`,
-    `/api/rh/vm-folha/sincronizar?${qs}`,
   ];
   let lastErr: any;
   for (const url of endpoints) {
@@ -430,8 +438,11 @@ export async function sincronizarResumoFolha(p: SincronizarRhParams): Promise<an
       throw e;
     }
   }
+  const st = lastErr?.statusCode ?? lastErr?.status;
+  if (st === 404 || st === 405) throw new SincronizacaoCompatIndisponivelError();
   throw lastErr;
 }
+
 
 export interface StatusSincronizacaoRh {
   status?: string;

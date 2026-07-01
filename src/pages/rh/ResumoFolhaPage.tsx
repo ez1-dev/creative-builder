@@ -23,8 +23,10 @@ import {
   sincronizarResumoFolha,
   consultarStatusSincronizacaoRh,
   DashboardIndisponivelError,
+  SincronizacaoCompatIndisponivelError,
   toAnomes,
 } from "@/lib/rh/api";
+
 
 import { formatCurrency } from "@/lib/format";
 
@@ -70,8 +72,8 @@ function ValueOrMissing({
 }) {
   if (missing) {
     return (
-      <span className="text-[11px] text-warning font-medium" title={`O backend não retornou ${field}`}>
-        Campo não retornado pela API: {field}
+      <span className="text-[11px] text-warning font-medium" title={`Campo pendente na API: ${field}`}>
+        Campo pendente na API
       </span>
     );
   }
@@ -89,12 +91,13 @@ function KpiOrMissing({
     return (
       <Card className="border-warning/40">
         <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">{title}</CardTitle></CardHeader>
-        <CardContent><div className="text-[11px] text-warning font-medium">Campo não retornado pela API: {field}</div></CardContent>
+        <CardContent><div className="text-[11px] text-warning font-medium" title={`Campo pendente na API: ${field}`}>Campo pendente na API</div></CardContent>
       </Card>
     );
   }
   return <KpiCard title={title} value={value ?? 0} format="currency" variant={variant} loading={loading} />;
 }
+
 
 export default function ResumoFolhaPage() {
   const [ini, setIni] = useState(defaultMonth(-5));
@@ -164,6 +167,10 @@ export default function ResumoFolhaPage() {
     onError: (e: any, _vars, ctx) => {
       setSyncInFlight(false);
       setSyncJobId(null);
+      if (e instanceof SincronizacaoCompatIndisponivelError) {
+        toast.info("Sincronização compatível ainda não implementada na API.", { id: ctx?.id });
+        return;
+      }
       const tecnico =
         e?.response?.data?.diagnostico?.erro_tecnico ??
         e?.data?.diagnostico?.erro_tecnico;
@@ -176,6 +183,7 @@ export default function ResumoFolhaPage() {
         description,
       });
     },
+
   });
 
   // Polling de status enquanto EM_PROCESSAMENTO
@@ -224,11 +232,17 @@ export default function ResumoFolhaPage() {
   const totalKpis = kpisValues.reduce((a, b) => a + b, 0);
   const qtdLinhas =
     (diagnostico as any)?.qtd_linhas ?? (diagnostico as any)?.qtd_linhas_vm_folha;
+  const vmFolhaStatus = String((diagnostico as any)?.vm_folha_status ?? "").toUpperCase();
+  const vmFolhaPendente =
+    vmFolhaStatus === "OBJETO_INEXISTENTE_NO_VETORH" ||
+    vmFolhaStatus === "VM_FOLHA_COMPAT_PENDENTE";
   const semDados =
     !!data &&
     !isLoading &&
+    !vmFolhaPendente &&
     (qtdLinhas === 0 ||
       (totalKpis === 0 && filiaisData.length === 0 && mensal.length === 0));
+
 
 
   const tiposPie = useMemo(() => {
@@ -296,6 +310,19 @@ export default function ResumoFolhaPage() {
           Falha ao carregar dashboard da folha: {(error as any)?.message ?? "erro desconhecido"}
         </div>
       )}
+
+      {vmFolhaPendente && (
+        <div className="rounded-md border border-warning/40 bg-warning/10 px-4 py-3 text-sm flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-warning mt-0.5 shrink-0" />
+          <div>
+            <div className="font-medium">Camada compatível VM_FOLHA pendente</div>
+            <div className="text-muted-foreground mt-1">
+              VM_FOLHA não existe fisicamente no Vetorh. A API precisa calcular a camada compatível a partir das tabelas reais do ERP Senior/Vetorh.
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {!indisponivel && !isError && semDados && (
         <div className="rounded-md border border-warning/40 bg-warning/10 px-4 py-4 text-sm flex items-start gap-3">

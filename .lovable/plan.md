@@ -1,40 +1,33 @@
-## Contexto
+## Objetivo
 
-A tela `/rh/resumo-folha` já consome `GET /api/rh/resumo-folha/dashboard?...&modo=completo` e não faz cálculos no front. Os ajustes pedidos são de fonte de sincronização, textos e polling.
+Tratar a situação **VM_FOLHA_COMPAT_PENDENTE** na tela RH → 01 Resumo Folha, respeitando que `VETORH.dbo.VM_FOLHA` não existe fisicamente e que a camada compatível ainda está sendo construída pela API.
 
-## Mudanças
+## Alterações
 
 ### 1. `src/lib/rh/api.ts`
-- Trocar o endpoint preferencial de sync para `POST /api/rh/vm-folha-compat/sincronizar?codemp=&anomes_ini=&anomes_fim=` (o que existe hoje).
-- Manter fallback para `/api/rh/vm-folha/sincronizar` e `/api/rh/resumo-folha/sincronizar` (404/405) só como retaguarda.
-- A resposta pode vir com `{ status: "EM_PROCESSAMENTO", job_id?, ...}` ou `{ status: "OK" }`. Propagar esse objeto sem alteração.
-- Adicionar `consultarStatusSincronizacaoRh({ codemp, job_id? })` chamando `GET /api/rh/vm-folha-compat/sincronizar/status?...`; se retornar 404, o hook desliga o polling silenciosamente.
+
+- **`sincronizarResumoFolha`**: remover o fallback para `/api/rh/vm-folha/sincronizar` (não pode mais bater no endpoint que tenta ler VM_FOLHA física). Ordem final tentada:
+  1. `POST /api/rh/vm-folha-compat/sincronizar?...`
+  2. `POST /api/rh/resumo-folha/sincronizar?...` (fallback só se compat retornar 404/405)
+- Se ambos retornarem 404/405, lançar erro tipado `SincronizacaoCompatIndisponivelError` com mensagem `"Sincronização compatível ainda não implementada na API."`.
+- Exportar `sincronizarVmFolha` como **deprecated** (deixar comentário) mas não usar mais na página. Documentar que ela chama o endpoint legado que tenta VETORH.dbo.VM_FOLHA.
+- Em `buildKpis`: além de tratar `"campo_pendente"` como missing, tratar também `null`/`undefined` como missing (já feito), garantindo que `R$ 0,00` só apareça quando o valor for numérico 0 explícito. Sem cálculos.
 
 ### 2. `src/pages/rh/ResumoFolhaPage.tsx`
-- Botão "Sincronizar RH":
-  - onClick chama `sincronizarResumoFolha` novo (vm-folha-compat).
-  - Se resposta `status === "EM_PROCESSAMENTO"` → manter `syncing=true`, iniciar `useQuery` de status a cada 5s (via `refetchInterval`). Botão fica desabilitado e mostra `Loader2` + "Sincronizando...".
-  - Ao chegar `status === "OK"` (ou 404 no status endpoint) → parar polling, `toast.success("Sincronização RH concluída.")`, `invalidateQueries(["rh","resumo-folha-dashboard"])`.
-  - Em erro → `toast.error("Erro ao sincronizar dados do ERP Senior/Vetorh.")`; para admin, mostrar `response.diagnostico.erro_tecnico` no toast description.
-- Aviso abaixo dos cards: trocar texto atual por exatamente `"Indicadores retornados pela API a partir das tabelas oficiais do ERP Senior/Vetorh."` (remover menção a "VM_FOLHA").
-- Estado "sem dados": remover o texto "Base oficial VM_FOLHA ainda não sincronizada" — trocar por `"Sem dados retornados pela API para o período selecionado."` e manter CTA "Sincronizar agora".
-- Bloco "Componentes VM_FOLHA não localizados" → renomear label para `"Componentes não localizados pela API:"` (mantém a lista de `diagnostico.componentes_pendentes`).
-- Diagnóstico Técnico (admin): manter como está; só adicionar linha `status_sincronizacao` quando o polling estiver ativo.
 
-### 3. Documentação
-- Atualizar `docs/backend-rh-resumo-folha-dashboard.md`:
-  - Registrar que a `VM_FOLHA` é um objeto lógico do UpQuery, não uma tabela física; o backend deve montar os KPIs a partir das tabelas oficiais do ERP Senior/Vetorh (R034FUN, R038HTR, R044RHR, etc.) na resposta do endpoint dashboard.
-  - Sync oficial: `POST /api/rh/vm-folha-compat/sincronizar` (com opcional `GET /api/rh/vm-folha-compat/sincronizar/status` para polling), com fallback documentado para `/vm-folha/sincronizar`.
-  - Frontend nunca consulta Supabase nem `public.rh_vm_folha`.
+- **Banner VM_FOLHA_COMPAT_PENDENTE** (novo, acima dos KPIs, visível a todos): quando `diagnostico.vm_folha_status === "OBJETO_INEXISTENTE_NO_VETORH"` **ou** `vm_folha_status === "VM_FOLHA_COMPAT_PENDENTE"`, renderizar aviso amarelo:
+  > "VM_FOLHA não existe fisicamente no Vetorh. A API precisa calcular a camada compatível a partir das tabelas reais do ERP Senior/Vetorh."
+- **Botão Sincronizar RH**: no `onError` da mutation, se o erro for `SincronizacaoCompatIndisponivelError`, exibir toast informativo (não destrutivo) com a mensagem: *"Sincronização compatível ainda não implementada na API."*
+- **KPIs**: nenhuma soma no front. `ValueOrMissing`/`KpiOrMissing` já cobrem o caso `missing`; ajustar o texto para **"Campo pendente na API"** (em vez de "Campo não retornado pela API: X") conforme a nova regra. Manter o `field` como `title` para debug.
+- **"Sem dados"**: quando `vm_folha_status` indicar compat pendente, não mostrar o card "Sem dados retornados pela API" (o banner já explica). Suprimir só nesse caso.
+- Manter o restante intacto (mensal, proventos/descontos, filiais, diagnóstico admin). Continuar consumindo apenas `/api/rh/resumo-folha/dashboard?...&modo=completo`.
 
-## Regras respeitadas
+### 3. Aviso técnico abaixo dos cards
 
-- Nenhum cálculo no front (KPIs e grid renderizam somente `response.kpis` / `response.filiais`).
-- Campo ausente vira "Campo não retornado pela API: X" (já implementado via `ValueOrMissing` / `KpiOrMissing`).
-- `R$ 0,00` só aparece quando a API devolve `0` explicitamente.
-- Sem chamadas a Supabase ou `rh_vm_folha`.
+Manter texto atual: *"Indicadores retornados pela API a partir das tabelas oficiais do ERP Senior/Vetorh."*
 
 ## Fora de escopo
 
-- Alterar o layout dos KPIs ou colunas do grid (já batem com o mapeamento pedido).
-- Refazer gráficos de evolução mensal (dependem de `response.mensal`, que continua opcional).
+- Sem mudança em backend/edge functions.
+- Sem alteração em outras telas RH.
+- Sem cálculos client-side; sem consulta ao Cloud (Supabase) direta.
