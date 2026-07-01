@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -7,17 +8,19 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
-import { ChevronDown, Info } from "lucide-react";
+import { ChevronDown, Info, RefreshCw, Loader2, AlertTriangle } from "lucide-react";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import {
   fetchResumoFolhaDashboard,
+  sincronizarVmFolha,
   DashboardIndisponivelError,
   toAnomes,
   type ResumoFolhaModo,
@@ -105,6 +108,7 @@ export default function ResumoFolhaPage() {
   };
   const enabled = !!baseParams.anomes_ini && !!baseParams.anomes_fim;
 
+  const qc = useQueryClient();
   const query = useQuery({
     queryKey: ["rh", "resumo-folha-dashboard", baseParams, modo],
     queryFn: () => fetchResumoFolhaDashboard(baseParams, modo),
@@ -130,12 +134,44 @@ export default function ResumoFolhaPage() {
   const diagnostico = data?.diagnostico ?? data?.debug;
   const { isAdmin } = useUserPermissions();
 
+  const syncMut = useMutation({
+    mutationFn: () => sincronizarVmFolha(baseParams),
+    onMutate: () => {
+      const id = toast.loading("Sincronizando VM_FOLHA...", {
+        description: `${baseParams.anomes_ini} → ${baseParams.anomes_fim} (empresa ${baseParams.codemp})`,
+      });
+      return { id };
+    },
+    onSuccess: (_data, _vars, ctx) => {
+      toast.success("Sincronização da VM_FOLHA concluída.", { id: ctx?.id });
+      qc.invalidateQueries({ queryKey: ["rh", "resumo-folha-dashboard"] });
+    },
+    onError: (e: any, _vars, ctx) => {
+      const detalhe = e?.response?.data?.detail ?? e?.data?.detail ?? e?.message ?? "";
+      toast.error("Não foi possível sincronizar a VM_FOLHA. Verifique a API/ETL.", {
+        id: ctx?.id,
+        description: typeof detalhe === "string" ? detalhe : JSON.stringify(detalhe),
+      });
+    },
+  });
+  const syncing = syncMut.isPending;
+
+  const kpisValues = kpis ? Object.values(kpis).map((v) => Number(v) || 0) : [];
+  const totalKpis = kpisValues.reduce((a, b) => a + b, 0);
+  const qtdLinhas = (diagnostico as any)?.qtd_linhas_vm_folha;
+  const semDados =
+    !!data &&
+    !isLoading &&
+    (qtdLinhas === 0 ||
+      (totalKpis === 0 && filiaisData.length === 0 && mensal.length === 0));
+
   const tiposPie = useMemo(() => {
     const total = tipos.reduce((a, t) => a + (t.valor || 0), 0) || 1;
     return tipos
       .map((t) => ({ ...t, label: t.cd_tp_evento ?? t.tipo, pct: (t.valor || 0) / total }))
       .sort((a, b) => b.valor - a.valor);
   }, [tipos]);
+
 
 
 
@@ -158,7 +194,17 @@ export default function ResumoFolhaPage() {
 
   return (
     <div className="container mx-auto py-6 space-y-4">
-      <RhPageHeader title="01 — Resumo Folha" subtitle="Painel consolidado da folha de pagamento" />
+      <RhPageHeader
+        title="01 — Resumo Folha"
+        subtitle="Painel consolidado da folha de pagamento"
+        hideSync
+        actions={
+          <Button size="sm" onClick={() => syncMut.mutate()} disabled={syncing || !enabled}>
+            {syncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+            Sincronizar RH
+          </Button>
+        }
+      />
 
       {/* Filtros */}
       <Card>
@@ -193,7 +239,25 @@ export default function ResumoFolhaPage() {
         </div>
       )}
 
-      {!indisponivel && modo === "mensal" && (
+      {!indisponivel && !isError && semDados && (
+        <div className="rounded-md border border-warning/40 bg-warning/10 px-4 py-4 text-sm flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-warning mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <div className="font-medium">Base oficial VM_FOLHA ainda não sincronizada para o período selecionado.</div>
+            {qtdLinhas === 0 && (
+              <div className="text-xs text-muted-foreground mt-1">VM_FOLHA sem carga para o período selecionado.</div>
+            )}
+            <div className="mt-3">
+              <Button size="sm" onClick={() => syncMut.mutate()} disabled={syncing || !enabled}>
+                {syncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                Sincronizar agora
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!indisponivel && !semDados && modo === "mensal" && (
         <>
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm">Evolução mensal</CardTitle></CardHeader>
@@ -252,7 +316,7 @@ export default function ResumoFolhaPage() {
         </>
       )}
 
-      {!indisponivel && modo === "acumulado" && (
+      {!indisponivel && !semDados && modo === "acumulado" && (
         <>
           {/* KPIs */}
           <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
@@ -311,6 +375,29 @@ export default function ResumoFolhaPage() {
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <CardContent className="space-y-3">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                      {[
+                        ["vm_folha_status", "Status VM_FOLHA"],
+                        ["qtd_linhas_vm_folha", "Qtd. linhas VM_FOLHA"],
+                        ["menor_anomes_vm_folha", "Menor anomes"],
+                        ["maior_anomes_vm_folha", "Maior anomes"],
+                      ].map(([key, label]) => {
+                        const v = (diagnostico as any)?.[key];
+                        if (v == null) return null;
+                        return (
+                          <div key={key} className="rounded border bg-muted/40 p-2">
+                            <div className="text-[10px] uppercase text-muted-foreground">{label}</div>
+                            <div className="font-mono">{String(v)}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {(diagnostico as any)?.qtd_linhas_vm_folha === 0 && (
+                      <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning font-medium">
+                        VM_FOLHA sem carga para o período selecionado.
+                      </div>
+                    )}
+
                     {[
                       ["vm_folha_componentes", "VM_FOLHA — componentes"],
                       ["custo_total_componentes", "Custo Total — componentes"],

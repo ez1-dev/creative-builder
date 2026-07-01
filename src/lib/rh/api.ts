@@ -387,3 +387,12 @@ export async function sincronizarRh(p: SincronizarRhParams): Promise<any> {
   }).toString();
   return api.post<any>(`/api/rh/sync?${qs}`);
 }
+
+export async function sincronizarVmFolha(p: SincronizarRhParams): Promise<any> {
+  const qs = new URLSearchParams({
+    codemp: String(p.codemp ?? 1),
+    anomes_ini: toAnomes(p.anomes_ini),
+    anomes_fim: toAnomes(p.anomes_fim),
+  }).toString();
+  return api.post<any>(`/api/rh/vm-folha/sincronizar?${qs}`);
+}
