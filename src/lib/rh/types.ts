@@ -179,7 +179,10 @@ export interface ResumoFolhaDashboard {
   mensal?: ResumoFolhaMensalAgg[];
   /** Chaves de kpis que NÃO vieram no payload (uso interno da UI). */
   _missing_kpis?: string[];
+  debug?: any;
+  diagnostico?: any;
 }
+
 
 
 export interface NovoFormularioPayload {

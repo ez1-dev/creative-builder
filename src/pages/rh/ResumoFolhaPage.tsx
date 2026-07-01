@@ -10,8 +10,12 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
+import { ChevronDown, Info } from "lucide-react";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 import {
   fetchResumoFolhaDashboard,
   DashboardIndisponivelError,
@@ -19,6 +23,7 @@ import {
   type ResumoFolhaModo,
 } from "@/lib/rh/api";
 import { formatCurrency } from "@/lib/format";
+
 
 function defaultMonth(offset = 0): string {
   const d = new Date();
@@ -122,9 +127,8 @@ export default function ResumoFolhaPage() {
   const descontos = data?.descontos ?? [];
   const tipos = data?.tipos_evento ?? [];
   const mensal = data?.mensal ?? [];
-
-  const totalProvento = useMemo(() => proventos.reduce((a, x) => a + (x.valor || 0), 0), [proventos]);
-  const totalDesconto = useMemo(() => descontos.reduce((a, x) => a + (x.valor || 0), 0), [descontos]);
+  const diagnostico = data?.diagnostico ?? data?.debug;
+  const { isAdmin } = useUserPermissions();
 
   const tiposPie = useMemo(() => {
     const total = tipos.reduce((a, t) => a + (t.valor || 0), 0) || 1;
@@ -133,11 +137,7 @@ export default function ResumoFolhaPage() {
       .sort((a, b) => b.valor - a.valor);
   }, [tipos]);
 
-  const totMensal = useMemo(() => ({
-    provento: mensal.reduce((a, m) => a + (m.provento || 0), 0),
-    desconto: mensal.reduce((a, m) => a + (m.desconto || 0), 0),
-    liquido: mensal.reduce((a, m) => a + (m.total_liquido || 0), 0),
-  }), [mensal]);
+
 
   const FILIAL_COLS: { key: string; label: string; format: "currency" | "horas" }[] = [
     { key: "salario_base", label: "Salário Base", format: "currency" },
@@ -245,17 +245,8 @@ export default function ResumoFolhaPage() {
                     </TableRow>
                   ))}
                 </TableBody>
-                {mensal.length > 0 && (
-                  <TableFooter>
-                    <TableRow>
-                      <TableCell>Total</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatCurrency(totMensal.provento)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatCurrency(totMensal.desconto)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatCurrency(totMensal.liquido)}</TableCell>
-                    </TableRow>
-                  </TableFooter>
-                )}
               </Table>
+
             </CardContent>
           </Card>
         </>
@@ -300,6 +291,54 @@ export default function ResumoFolhaPage() {
             <KpiOrMissing title="FGTS" value={kpis?.fgts} missing={isMissing("fgts")} field="fgts" loading={isLoading} />
           </div>
 
+          {/* Aviso técnico */}
+          <div className="flex items-start gap-2 rounded-md border border-info/30 bg-info/5 px-3 py-2 text-xs text-muted-foreground">
+            <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            <span>
+              Indicadores de Custo Total, INSS, FGTS, Provisões, Hora Extra e Custo Férias são calculados pela API com base nas fontes oficiais do Vetorh.
+            </span>
+          </div>
+
+          {/* Diagnóstico Técnico (admin) */}
+          {isAdmin && diagnostico && (
+            <Collapsible>
+              <Card>
+                <CollapsibleTrigger asChild>
+                  <button className="w-full text-left">
+                    <CardHeader className="py-3 flex flex-row items-center justify-between">
+                      <CardTitle className="text-sm">Diagnóstico Técnico</CardTitle>
+                      <ChevronDown className="h-4 w-4" />
+                    </CardHeader>
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent className="space-y-3">
+                    {[
+                      ["custo_total_componentes", "Custo Total — componentes"],
+                      ["inss_componentes", "INSS — componentes"],
+                      ["hora_extra_componentes", "Hora Extra — componentes"],
+                      ["ferias_componentes", "Férias — componentes"],
+                      ["fgts_componentes", "FGTS — componentes"],
+                      ["provisoes_componentes", "Provisões — componentes"],
+                    ].map(([key, label]) => {
+                      const v = (diagnostico as any)?.[key];
+                      if (v == null) return null;
+                      return (
+                        <div key={key}>
+                          <div className="text-xs font-semibold mb-1">{label}</div>
+                          <pre className="text-[11px] bg-muted p-2 rounded overflow-auto max-h-64">
+                            {typeof v === "string" ? v : JSON.stringify(v, null, 2)}
+                          </pre>
+                        </div>
+                      );
+                    })}
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+          )}
+
+
           {/* Proventos / Descontos */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
             <Card className="lg:col-span-2">
@@ -321,9 +360,8 @@ export default function ResumoFolhaPage() {
                         </TableRow>
                       ))}
                     </TableBody>
-                    <TableFooter>
-                      <TableRow><TableCell colSpan={2}>Total</TableCell><TableCell className="text-right tabular-nums">{formatCurrency(totalProvento)}</TableCell></TableRow>
-                    </TableFooter>
+
+
                   </Table>
                 </div>
               </CardContent>
@@ -348,9 +386,8 @@ export default function ResumoFolhaPage() {
                         </TableRow>
                       ))}
                     </TableBody>
-                    <TableFooter>
-                      <TableRow><TableCell colSpan={2}>Total</TableCell><TableCell className="text-right tabular-nums">{formatCurrency(totalDesconto)}</TableCell></TableRow>
-                    </TableFooter>
+
+
                   </Table>
                 </div>
               </CardContent>
