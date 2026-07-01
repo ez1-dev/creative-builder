@@ -21,6 +21,7 @@ import { useUserPermissions } from "@/hooks/useUserPermissions";
 import {
   fetchResumoFolhaDashboard,
   sincronizarResumoFolha,
+  consultarStatusSincronizacaoRh,
   DashboardIndisponivelError,
   toAnomes,
 } from "@/lib/rh/api";
