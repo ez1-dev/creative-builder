@@ -188,6 +188,31 @@ export default function ResumoFolhaPage() {
 
   const syncing = syncMut.isPending || syncInFlight;
 
+  const exportMut = useMutation({
+    mutationFn: () => exportarResumoFolhaExcel(baseParams),
+    onSuccess: ({ blob, filename }) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success("Excel exportado.");
+    },
+    onError: (e: any) => {
+      if (e instanceof ExportarResumoFolhaError) {
+        if (e.code === "SESSAO_EXPIRADA") toast.error("Sessão expirada. Faça login novamente.");
+        else if (e.code === "ENDPOINT_INDISPONIVEL") toast.info("Exportação ainda não disponível no backend.");
+        else if (e.code === "PERIODO_INVALIDO") toast.error("Período inválido para exportação.");
+        else toast.error(e.message || "Falha ao exportar Excel.");
+        return;
+      }
+      toast.error(e?.message || "Falha ao exportar Excel.");
+    },
+  });
+
   const kpisValues = kpis ? Object.values(kpis).map((v) => Number(v) || 0) : [];
   const totalKpis = kpisValues.reduce((a, b) => a + b, 0);
   const qtdLinhas =
