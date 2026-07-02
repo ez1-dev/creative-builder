@@ -239,10 +239,25 @@ export default function ResumoFolhaPage() {
         subtitle="Painel consolidado da folha de pagamento"
         hideSync
         actions={
-          <Button size="sm" onClick={() => syncMut.mutate()} disabled={syncing || !enabled}>
-            {syncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-            Sincronizar RH
-          </Button>
+          <>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => exportMut.mutate()}
+              disabled={exportMut.isPending || !enabled}
+            >
+              {exportMut.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+              )}
+              Exportar Excel
+            </Button>
+            <Button size="sm" onClick={() => syncMut.mutate()} disabled={syncing || !enabled}>
+              {syncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+              Sincronizar RH
+            </Button>
+          </>
         }
       />
 
