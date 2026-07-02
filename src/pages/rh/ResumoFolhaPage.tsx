@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { Skeleton } from "@/components/ui/skeleton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
-import { ChevronDown, Info, RefreshCw, Loader2, AlertTriangle } from "lucide-react";
+import { ChevronDown, Info, RefreshCw, Loader2, AlertTriangle, FileSpreadsheet } from "lucide-react";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
@@ -22,8 +22,10 @@ import {
   fetchResumoFolhaDashboard,
   sincronizarResumoFolha,
   consultarStatusSincronizacaoRh,
+  exportarResumoFolhaExcel,
   DashboardIndisponivelError,
   SincronizacaoCompatIndisponivelError,
+  ExportarResumoFolhaError,
   toAnomes,
 } from "@/lib/rh/api";
 import { KpiOrMissing, ValueOrMissing } from "@/components/rh/KpiOrMissing";
