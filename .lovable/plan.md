@@ -1,24 +1,24 @@
-## Objetivo
-Adicionar botão "Exportar Excel" na tela RH — 01 Resumo Folha (`ResumoFolhaPage.tsx`), que baixa o arquivo do novo endpoint `GET /api/rh/resumo-folha/exportar`, reaproveitando os filtros ativos da tela e o token de autenticação atual. Sem tocar em cards, KPIs ou lógica de dados.
+## Situação atual
 
-## Arquivos a alterar
+O botão **"Exportar Excel"** já foi implementado exatamente como esse prompt descreve, na rodada anterior. Verificação no código atual:
 
-1. **`src/lib/rh/api.ts`** — nova função `exportarResumoFolhaExcel(params)`:
-   - Monta querystring com `anomes_ini`/`anomes_fim` já passados por `toAnomes`, `codemp` (default 1) e `cd_filial` quando presente.
-   - Faz `fetch` para `${getApiUrl()}/api/rh/resumo-folha/exportar?...` com `Authorization: Bearer <token>` e `ngrok-skip-browser-warning: true` (mesmo padrão de `ExportButton.tsx` / `useAuthedBlobUrl.ts`).
-   - Trata 401 (sessão expirada), 404 (endpoint ainda não publicado no backend), 422 (período inválido), demais erros genéricos — lançando erros tipados para o caller exibir toast.
-   - Retorna `{ blob, filename }` extraindo `filename` do header `Content-Disposition` (regex igual à usada em `ExportButton.tsx`); fallback `resumo_folha_<codemp>_<ini>_<fim>.xlsx`.
+- `src/lib/rh/api.ts` já expõe `exportarResumoFolhaExcel(params)` que:
+  - normaliza `anomes_ini`/`anomes_fim` com `toAnomes`,
+  - envia `Authorization: Bearer <token>` via `fetch` (não expõe token na URL),
+  - trata **401 → SESSAO_EXPIRADA**, **404/405/501 → ENDPOINT_INDISPONIVEL**, **422 → PERIODO_INVALIDO**, demais → **ERRO_GENERICO**,
+  - devolve `{ blob, filename }` lendo `Content-Disposition` (fallback `resumo_folha_<codemp>_<ini>_<fim>.xlsx`).
+- `src/pages/rh/ResumoFolhaPage.tsx` já renderiza o botão ao lado do "Sincronizar RH" com ícone `FileSpreadsheet`, `useMutation` chamando `exportarResumoFolhaExcel(baseParams)` (mesmos filtros da tela, inclusive `cd_filial` quando presente), spinner enquanto gera, download via `URL.createObjectURL` + revogação, e toasts de sucesso/erro específicos por código.
 
-2. **`src/pages/rh/ResumoFolhaPage.tsx`** — botão "Exportar Excel":
-   - Colocar via prop `actions` do `RhPageHeader` (fica ao lado do `SincronizarRhDialog`, mantendo padrão visual).
-   - `variant="outline"`, ícone `FileSpreadsheet` (lucide) + spinner `Loader2` durante download; desabilitado enquanto `loading`.
-   - `onClick` usa `useMutation` (ou state local) chamando `exportarResumoFolhaExcel` com os mesmos filtros que já alimentam o dashboard (`anomesIni`, `anomesFim`, `codemp`, e `cd_filial` se houver filtro de filial ativo na tela).
-   - Ao resolver: `URL.createObjectURL(blob)` → `<a download={filename}>` → click → `revokeObjectURL`.
-   - Toasts (`sonner`): sucesso "Excel exportado", erros mapeados por código (401/404/422/genérico).
+## Plano
 
-## Fora de escopo
-- Nenhuma mudança em KPIs, grid de filiais, polling de sincronização ou mapeamento da API.
-- Nada de navegação direta pela URL com `access_token` — usar fetch autenticado + blob, para não vazar token no histórico.
+Nada a alterar no front. Ação necessária apenas do lado do backend / ambiente:
 
-## Notas
-- Endpoint só responderá após restart do backend; até lá o botão retornará 404 e o toast informará "Exportação ainda não disponível no backend".
+1. **Reiniciar o processo do FastAPI na porta 8070** para que o endpoint `GET /api/rh/resumo-folha/exportar` fique disponível — enquanto o processo antigo estiver rodando, o front continuará recebendo 404 e mostrando o toast *"Exportação ainda não disponível no backend."*.
+2. Após o restart, clicar **Exportar Excel** na tela `/rh/resumo-folha` com os filtros desejados (o botão está no canto superior direito, à esquerda do "Sincronizar RH").
+3. Se algo falhar após o restart (ex.: 500, arquivo vazio, aba faltando), me avise com o toast/mensagem exibido que eu ajusto — mas isso seria correção pontual, não reimplementação.
+
+## Detalhes técnicos (referência)
+
+- Arquivos envolvidos (já prontos): `src/lib/rh/api.ts` (`exportarResumoFolhaExcel`, `ExportarResumoFolhaError`), `src/pages/rh/ResumoFolhaPage.tsx` (botão + mutation + toasts).
+- Parâmetros enviados: `anomes_ini`, `anomes_fim`, `codemp`, e `cd_filial` quando o filtro de filial estiver aplicado.
+- Não há nenhuma mudança em cards, filtros, KPIs ou lógica de dados — o botão apenas reaproveita `baseParams` da tela.
