@@ -1,24 +1,26 @@
-## Situação atual
+## Diagnóstico
 
-O botão **"Exportar Excel"** já foi implementado exatamente como esse prompt descreve, na rodada anterior. Verificação no código atual:
+Este prompt repete a especificação do botão **"Exportar Excel"** que já foi implementada em turnos anteriores:
 
-- `src/lib/rh/api.ts` já expõe `exportarResumoFolhaExcel(params)` que:
-  - normaliza `anomes_ini`/`anomes_fim` com `toAnomes`,
-  - envia `Authorization: Bearer <token>` via `fetch` (não expõe token na URL),
-  - trata **401 → SESSAO_EXPIRADA**, **404/405/501 → ENDPOINT_INDISPONIVEL**, **422 → PERIODO_INVALIDO**, demais → **ERRO_GENERICO**,
-  - devolve `{ blob, filename }` lendo `Content-Disposition` (fallback `resumo_folha_<codemp>_<ini>_<fim>.xlsx`).
-- `src/pages/rh/ResumoFolhaPage.tsx` já renderiza o botão ao lado do "Sincronizar RH" com ícone `FileSpreadsheet`, `useMutation` chamando `exportarResumoFolhaExcel(baseParams)` (mesmos filtros da tela, inclusive `cd_filial` quando presente), spinner enquanto gera, download via `URL.createObjectURL` + revogação, e toasts de sucesso/erro específicos por código.
+- `src/lib/rh/api.ts` já expõe `exportarResumoFolhaExcel(...)` que:
+  - Monta `GET {API_BASE}/api/rh/resumo-folha/exportar?anomes_ini&anomes_fim&codemp[&cd_filial]`
+  - Envia `Authorization: Bearer <token>` (não usa access_token em query string).
+  - Baixa como `blob`, lê `Content-Disposition` para o filename, faz fallback para `resumo_folha_<codemp>_<ini>_<fim>.xlsx`, cria `URL.createObjectURL`, dispara o download e revoga a URL.
+  - Lança erros tipados para 401 / 404 / 422 / demais.
+- `src/pages/rh/ResumoFolhaPage.tsx` já tem o botão ao lado de "Sincronizar RH" com ícone `FileSpreadsheet`, spinner (`Loader2`) via `useMutation`, toasts de sucesso e mensagens específicas por status (401 "sessão expirada", 404 "endpoint indisponível", 422 "informe o período", genérica com detalhe).
+- Filtros reaproveitados via `toAnomes` + `codemp` + `cd_filial` do formulário atual.
+- Nenhum card, filtro ou lógica de dados foi tocado.
+
+O novo texto do prompt só descreve **conteúdo interno do .xlsx** (15 abas, comparativos, totais). Isso é responsabilidade do backend FastAPI — o front apenas baixa o arquivo entregue pela API. Nada muda no Lovable.
 
 ## Plano
 
-Nada a alterar no front. Ação necessária apenas do lado do backend / ambiente:
+Nenhuma alteração de código. Ações:
 
-1. **Reiniciar o processo do FastAPI na porta 8070** para que o endpoint `GET /api/rh/resumo-folha/exportar` fique disponível — enquanto o processo antigo estiver rodando, o front continuará recebendo 404 e mostrando o toast *"Exportação ainda não disponível no backend."*.
-2. Após o restart, clicar **Exportar Excel** na tela `/rh/resumo-folha` com os filtros desejados (o botão está no canto superior direito, à esquerda do "Sincronizar RH").
-3. Se algo falhar após o restart (ex.: 500, arquivo vazio, aba faltando), me avise com o toast/mensagem exibido que eu ajusto — mas isso seria correção pontual, não reimplementação.
+1. Confirmar ao usuário que o botão já está no ar exatamente como o prompt descreve (endpoint, headers, blob, filename via `Content-Disposition`, tratamento 401/404/422).
+2. Lembrar que o layout de 15 abas + linhas de totais depende do restart do FastAPI 8070 — enquanto a build antiga responde, o botão devolverá 404 e o toast "endpoint de exportação indisponível na API" será exibido, comportamento já previsto.
+3. Após o restart, se quiser, valido via Playwright autenticado clicando no botão e conferindo o `.xlsx` baixado (nome do arquivo + status HTTP) — sem abrir o conteúdo das abas, que é responsabilidade do backend.
 
-## Detalhes técnicos (referência)
-
-- Arquivos envolvidos (já prontos): `src/lib/rh/api.ts` (`exportarResumoFolhaExcel`, `ExportarResumoFolhaError`), `src/pages/rh/ResumoFolhaPage.tsx` (botão + mutation + toasts).
-- Parâmetros enviados: `anomes_ini`, `anomes_fim`, `codemp`, e `cd_filial` quando o filtro de filial estiver aplicado.
-- Não há nenhuma mudança em cards, filtros, KPIs ou lógica de dados — o botão apenas reaproveita `baseParams` da tela.
+## Fora de escopo
+- Alterar cards, filtros, grid, tipos ou qualquer lógica de dados.
+- Gerar/validar as 15 abas ou a linha de totais no frontend.
