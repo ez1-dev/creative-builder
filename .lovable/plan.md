@@ -1,36 +1,24 @@
 ## Objetivo
+Adicionar botão "Exportar Excel" na tela RH — 01 Resumo Folha (`ResumoFolhaPage.tsx`), que baixa o arquivo do novo endpoint `GET /api/rh/resumo-folha/exportar`, reaproveitando os filtros ativos da tela e o token de autenticação atual. Sem tocar em cards, KPIs ou lógica de dados.
 
-Adicionar um teste de UI garantindo que os cards **Custo Total**, **Benefícios** e **Rescisões** da tela `RH - 01 Resumo Folha`:
+## Arquivos a alterar
 
-1. Exibam **"Campo pendente na API"** quando `response.kpis.{custo_total|beneficios|rescisoes}` vier `null`.
-2. Exibam o **valor formatado em BRL** quando a API retornar número.
+1. **`src/lib/rh/api.ts`** — nova função `exportarResumoFolhaExcel(params)`:
+   - Monta querystring com `anomes_ini`/`anomes_fim` já passados por `toAnomes`, `codemp` (default 1) e `cd_filial` quando presente.
+   - Faz `fetch` para `${getApiUrl()}/api/rh/resumo-folha/exportar?...` com `Authorization: Bearer <token>` e `ngrok-skip-browser-warning: true` (mesmo padrão de `ExportButton.tsx` / `useAuthedBlobUrl.ts`).
+   - Trata 401 (sessão expirada), 404 (endpoint ainda não publicado no backend), 422 (período inválido), demais erros genéricos — lançando erros tipados para o caller exibir toast.
+   - Retorna `{ blob, filename }` extraindo `filename` do header `Content-Disposition` (regex igual à usada em `ExportButton.tsx`); fallback `resumo_folha_<codemp>_<ini>_<fim>.xlsx`.
 
-## Abordagem
+2. **`src/pages/rh/ResumoFolhaPage.tsx`** — botão "Exportar Excel":
+   - Colocar via prop `actions` do `RhPageHeader` (fica ao lado do `SincronizarRhDialog`, mantendo padrão visual).
+   - `variant="outline"`, ícone `FileSpreadsheet` (lucide) + spinner `Loader2` durante download; desabilitado enquanto `loading`.
+   - `onClick` usa `useMutation` (ou state local) chamando `exportarResumoFolhaExcel` com os mesmos filtros que já alimentam o dashboard (`anomesIni`, `anomesFim`, `codemp`, e `cd_filial` se houver filtro de filial ativo na tela).
+   - Ao resolver: `URL.createObjectURL(blob)` → `<a download={filename}>` → click → `revokeObjectURL`.
+   - Toasts (`sonner`): sucesso "Excel exportado", erros mapeados por código (401/404/422/genérico).
 
-Testar a camada de normalização + o componente `KpiOrMissing` isoladamente, sem depender de rede nem do `ResumoFolhaPage` inteiro (que exige QueryClient, Router, Auth, etc.). Isso mantém o teste rápido e focado exatamente na regra pedida.
+## Fora de escopo
+- Nenhuma mudança em KPIs, grid de filiais, polling de sincronização ou mapeamento da API.
+- Nada de navegação direta pela URL com `access_token` — usar fetch autenticado + blob, para não vazar token no histórico.
 
-### Passos
-
-1. **Extrair `KpiOrMissing`** de `src/pages/rh/ResumoFolhaPage.tsx` para um arquivo próprio `src/components/rh/KpiOrMissing.tsx` (mesma implementação, apenas movida) e reimportar na página. Sem mudança de comportamento.
-2. **Criar `src/lib/rh/__tests__/api.kpis.test.ts`** cobrindo `normalizeDashboard`/`buildKpis` (função interna — exportar via re-export mínimo ou testar indiretamente chamando `fetchResumoFolhaDashboard` com `api.get` mockado):
-   - `null` em `custo_total`/`beneficios`/`rescisoes` → aparecem em `_missing_kpis`.
-   - Números válidos → `kpis.custo_total`, `kpis.beneficios`, `kpis.rescisoes` iguais aos valores.
-   - String `"campo_pendente"` também vai para `_missing_kpis`.
-3. **Criar `src/components/rh/__tests__/KpiOrMissing.test.tsx`**:
-   - Render com `value={null}` e `missing={true}` → assert texto **"Campo pendente na API"**.
-   - Render com `value={12345.67}` e `missing={false}` → assert que o valor formatado (`R$ 12.345,67`) aparece e que o texto pendente **não** aparece.
-   - Repetir para os três títulos (Custo Total, Benefícios, Rescisões) via `it.each`.
-4. Rodar `bunx vitest run` para confirmar verde.
-
-## Detalhes técnicos
-
-- Infra Vitest + Testing Library + jsdom já configurada (`vitest.config.ts`, `src/test/setup.ts`).
-- Mock de `@/lib/api` via `vi.mock("@/lib/api", ...)` para o teste de `api.ts`.
-- Formatação BRL: usar o mesmo `Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" })` que o componente usa, para comparar via `toHaveTextContent` tolerante a NBSP.
-- Nenhuma alteração de lógica de negócio, nenhum recálculo no front, nenhuma chamada real a API.
-
-## Fora do escopo
-
-- Não altera mapeamento existente em `KPI_ALIASES`.
-- Não mexe em outros KPIs além dos três pedidos.
-- Não adiciona testes E2E/Playwright.
+## Notas
+- Endpoint só responderá após restart do backend; até lá o botão retornará 404 e o toast informará "Exportação ainda não disponível no backend".

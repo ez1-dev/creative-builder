@@ -1,4 +1,4 @@
-import { api } from "@/lib/api";
+import { api, getApiUrl } from "@/lib/api";
 import type {
   MenuItemRh,
   ResumoFolhaItem,
@@ -481,5 +481,86 @@ export async function consultarStatusSincronizacaoRh(
     if (status === 404 || status === 405) return null;
     throw e;
   }
+}
+
+export class ExportarResumoFolhaError extends Error {
+  code: "SESSAO_EXPIRADA" | "ENDPOINT_INDISPONIVEL" | "PERIODO_INVALIDO" | "ERRO_GENERICO";
+  statusCode?: number;
+  constructor(code: ExportarResumoFolhaError["code"], msg: string, statusCode?: number) {
+    super(msg);
+    this.code = code;
+    this.statusCode = statusCode;
+  }
+}
+
+export interface ExportarResumoFolhaParams {
+  anomes_ini: string;
+  anomes_fim: string;
+  codemp?: number;
+  cd_filial?: string;
+}
+
+/**
+ * Baixa o Excel de conferência da tela Resumo Folha.
+ * Reaproveita os mesmos filtros do dashboard. Autentica via header Bearer (sem
+ * expor token na URL/histórico do navegador).
+ */
+export async function exportarResumoFolhaExcel(
+  p: ExportarResumoFolhaParams,
+): Promise<{ blob: Blob; filename: string }> {
+  const anomes_ini = toAnomes(p.anomes_ini);
+  const anomes_fim = toAnomes(p.anomes_fim);
+  const codemp = String(p.codemp ?? 1);
+  const qs = new URLSearchParams({ anomes_ini, anomes_fim, codemp });
+  if (p.cd_filial) qs.set("cd_filial", p.cd_filial);
+
+  const url = `${getApiUrl()}/api/rh/resumo-folha/exportar?${qs.toString()}`;
+  const headers: Record<string, string> = { "ngrok-skip-browser-warning": "true" };
+  const token = api.getToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  let resp: Response;
+  try {
+    resp = await fetch(url, { headers });
+  } catch (e: any) {
+    throw new ExportarResumoFolhaError(
+      "ERRO_GENERICO",
+      e?.message || "Falha de rede ao exportar",
+    );
+  }
+
+  if (resp.status === 401) {
+    throw new ExportarResumoFolhaError("SESSAO_EXPIRADA", "Sessão expirada.", 401);
+  }
+  if (resp.status === 404 || resp.status === 405 || resp.status === 501) {
+    throw new ExportarResumoFolhaError(
+      "ENDPOINT_INDISPONIVEL",
+      "Exportação ainda não disponível no backend.",
+      resp.status,
+    );
+  }
+  if (resp.status === 422) {
+    throw new ExportarResumoFolhaError(
+      "PERIODO_INVALIDO",
+      "Período inválido para exportação.",
+      422,
+    );
+  }
+  if (!resp.ok) {
+    throw new ExportarResumoFolhaError(
+      "ERRO_GENERICO",
+      `Falha ao exportar (HTTP ${resp.status})`,
+      resp.status,
+    );
+  }
+
+  const blob = await resp.blob();
+  const disposition = resp.headers.get("Content-Disposition");
+  let filename = `resumo_folha_${codemp}_${anomes_ini}_${anomes_fim}.xlsx`;
+  if (disposition) {
+    const m = disposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)"?/i);
+    if (m?.[1]) filename = decodeURIComponent(m[1].replace(/"/g, ""));
+  }
+  return { blob, filename };
 }
 

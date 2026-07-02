@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { Skeleton } from "@/components/ui/skeleton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
-import { ChevronDown, Info, RefreshCw, Loader2, AlertTriangle } from "lucide-react";
+import { ChevronDown, Info, RefreshCw, Loader2, AlertTriangle, FileSpreadsheet } from "lucide-react";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
@@ -22,8 +22,10 @@ import {
   fetchResumoFolhaDashboard,
   sincronizarResumoFolha,
   consultarStatusSincronizacaoRh,
+  exportarResumoFolhaExcel,
   DashboardIndisponivelError,
   SincronizacaoCompatIndisponivelError,
+  ExportarResumoFolhaError,
   toAnomes,
 } from "@/lib/rh/api";
 import { KpiOrMissing, ValueOrMissing } from "@/components/rh/KpiOrMissing";
@@ -186,6 +188,31 @@ export default function ResumoFolhaPage() {
 
   const syncing = syncMut.isPending || syncInFlight;
 
+  const exportMut = useMutation({
+    mutationFn: () => exportarResumoFolhaExcel(baseParams),
+    onSuccess: ({ blob, filename }) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success("Excel exportado.");
+    },
+    onError: (e: any) => {
+      if (e instanceof ExportarResumoFolhaError) {
+        if (e.code === "SESSAO_EXPIRADA") toast.error("Sessão expirada. Faça login novamente.");
+        else if (e.code === "ENDPOINT_INDISPONIVEL") toast.info("Exportação ainda não disponível no backend.");
+        else if (e.code === "PERIODO_INVALIDO") toast.error("Período inválido para exportação.");
+        else toast.error(e.message || "Falha ao exportar Excel.");
+        return;
+      }
+      toast.error(e?.message || "Falha ao exportar Excel.");
+    },
+  });
+
   const kpisValues = kpis ? Object.values(kpis).map((v) => Number(v) || 0) : [];
   const totalKpis = kpisValues.reduce((a, b) => a + b, 0);
   const qtdLinhas =
@@ -237,10 +264,25 @@ export default function ResumoFolhaPage() {
         subtitle="Painel consolidado da folha de pagamento"
         hideSync
         actions={
-          <Button size="sm" onClick={() => syncMut.mutate()} disabled={syncing || !enabled}>
-            {syncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-            Sincronizar RH
-          </Button>
+          <>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => exportMut.mutate()}
+              disabled={exportMut.isPending || !enabled}
+            >
+              {exportMut.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+              )}
+              Exportar Excel
+            </Button>
+            <Button size="sm" onClick={() => syncMut.mutate()} disabled={syncing || !enabled}>
+              {syncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+              Sincronizar RH
+            </Button>
+          </>
         }
       />
 
