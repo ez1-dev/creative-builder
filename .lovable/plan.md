@@ -1,26 +1,44 @@
-## Diagnóstico
+# Padronizar números negativos nos KPIs do BI Comercial
 
-Este prompt repete a especificação do botão **"Exportar Excel"** que já foi implementada em turnos anteriores:
+Hoje os cards mostram valores negativos de forma inconsistente:
 
-- `src/lib/rh/api.ts` já expõe `exportarResumoFolhaExcel(...)` que:
-  - Monta `GET {API_BASE}/api/rh/resumo-folha/exportar?anomes_ini&anomes_fim&codemp[&cd_filial]`
-  - Envia `Authorization: Bearer <token>` (não usa access_token em query string).
-  - Baixa como `blob`, lê `Content-Disposition` para o filename, faz fallback para `resumo_folha_<codemp>_<ini>_<fim>.xlsx`, cria `URL.createObjectURL`, dispara o download e revoga a URL.
-  - Lança erros tipados para 401 / 404 / 422 / demais.
-- `src/pages/rh/ResumoFolhaPage.tsx` já tem o botão ao lado de "Sincronizar RH" com ícone `FileSpreadsheet`, spinner (`Loader2`) via `useMutation`, toasts de sucesso e mensagens específicas por status (401 "sessão expirada", 404 "endpoint indisponível", 422 "informe o período", genérica com detalhe).
-- Filtros reaproveitados via `toAnomes` + `codemp` + `cd_filial` do formulário atual.
-- Nenhum card, filtro ou lógica de dados foi tocado.
+- **Devolução** (R$ 13.003) → já em vermelho, sem sinal (backend devolve positivo)
+- **Impostos** (-R$ 282.481) → cinza, com sinal de menos
+- **Diferença** (-R$ 6.135.932) → vermelho, mas ainda com sinal
 
-O novo texto do prompt só descreve **conteúdo interno do .xlsx** (15 abas, comparativos, totais). Isso é responsabilidade do backend FastAPI — o front apenas baixa o arquivo entregue pela API. Nada muda no Lovable.
+O padrão desejado, aplicado em toda a tela BI Comercial, é: **valor negativo = vermelho + sem sinal** (o próprio vermelho comunica o sinal, como já acontece em "Devolução").
 
-## Plano
+## O que muda (apenas camada visual, sem tocar em dados)
 
-Nenhuma alteração de código. Ações:
+Alterar dois componentes da biblioteca BI, que são os cards usados no `ComercialPage`:
 
-1. Confirmar ao usuário que o botão já está no ar exatamente como o prompt descreve (endpoint, headers, blob, filename via `Content-Disposition`, tratamento 401/404/422).
-2. Lembrar que o layout de 15 abas + linhas de totais depende do restart do FastAPI 8070 — enquanto a build antiga responde, o botão devolverá 404 e o toast "endpoint de exportação indisponível na API" será exibido, comportamento já previsto.
-3. Após o restart, se quiser, valido via Playwright autenticado clicando no botão e conferindo o `.xlsx` baixado (nome do arquivo + status HTTP) — sem abrir o conteúdo das abas, que é responsabilidade do backend.
+1. **`src/components/bi/kpis/KpiCard.tsx`** — usado nos cards simples (Impostos, Devolução, Nº Estados, Ticket Médio, Nº Clientes, Nº Vendas, Faturamento Líquido do bloco direito, etc).
+2. **`src/components/bi/kpis/KpiTriStackCard.tsx`** — usado no bloco "Faturamento" (Realizado / Meta / Diferença) via `FaturamentoRealizadoMetaCard`.
 
-## Fora de escopo
-- Alterar cards, filtros, grid, tipos ou qualquer lógica de dados.
-- Gerar/validar as 15 abas ou a linha de totais no frontend.
+Regra em ambos, apenas para formatos numéricos (`currency`, `number`, `quantity`):
+
+- Se `value < 0`:
+  - Formata o **valor absoluto** (`Math.abs(value)`) via `formatByKind`, para nunca renderizar o "-".
+  - Aplica classe `text-[hsl(var(--destructive))]` no `<div data-widget-value>`.
+- Se `value >= 0`: comportamento atual, sem cor forçada.
+- Se `format` for `percent` ou `raw` (string): mantém como está — percentuais e textos não entram nessa regra.
+- No `KpiTriStackCard`, quando o item já tem `color` explícito (ex: `FaturamentoRealizadoMetaCard` colore Diferença), a cor explícita continua prevalecendo — mas o sinal ainda é removido.
+
+Efeitos visíveis na tela:
+
+| Card | Antes | Depois |
+|---|---|---|
+| Impostos | -R$ 282.481 (cinza) | R$ 282.481 (vermelho) |
+| Devolução | R$ 13.003 (vermelho) | R$ 13.003 (vermelho) — inalterado |
+| Diferença (Faturamento) | -R$ 6.135.932 (vermelho) | R$ 6.135.932 (vermelho) |
+
+## O que **não** muda
+
+- Nada nos filtros, dados, cálculos, backend ou fórmulas (`valor_liquido`, `margem_bruta`, etc).
+- Nenhuma alteração no `formatByKind` / `formatCurrency` global — outros módulos (Compras, RH, ETL, DRE) continuam com o comportamento atual (sinal de menos). O padrão é aplicado só nos dois cards da biblioteca BI, que hoje é o que a tela BI Comercial usa.
+- Tabelas (`SummaryTable`, `ComparisonTable`), gráficos e o gauge não entram neste ajuste — se depois você quiser estender o padrão para tabelas do BI Comercial, faço num passo seguinte.
+- Trends (setinhas ▲/▼ com variação %) mantêm sinal e cores atuais, pois já usam `Math.abs` + ícone direcional.
+
+## Verificação
+
+Após o build, revisar `/bi/comercial` no preview com o mesmo filtro do print (Impostos, Devolução, Diferença e demais cards) e confirmar que negativos aparecem em vermelho sem "-".

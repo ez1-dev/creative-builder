@@ -65,9 +65,23 @@ export function KpiCard({
       <CardContent className="space-y-1 3xl:space-y-2">
         {loading ? (
           <Skeleton className="h-7 3xl:h-10 w-24" />
-        ) : (
-          <div data-widget-value className="text-xl 3xl:text-3xl 4xl:text-4xl 5xl:text-5xl font-bold tabular-nums tracking-tight">{formatByKind(value as any, format)}</div>
-        )}
+        ) : (() => {
+          const isNumericFmt = format === 'currency' || format === 'number' || format === 'quantity';
+          const numeric = typeof value === 'number' ? value : null;
+          const negative = isNumericFmt && numeric !== null && numeric < 0;
+          const shownValue = negative ? Math.abs(numeric as number) : (value as any);
+          return (
+            <div
+              data-widget-value
+              className={cn(
+                'text-xl 3xl:text-3xl 4xl:text-4xl 5xl:text-5xl font-bold tabular-nums tracking-tight',
+                negative && 'text-[hsl(var(--destructive))]',
+              )}
+            >
+              {formatByKind(shownValue, format)}
+            </div>
+          );
+        })()}
         {(subtitle || trend || status) && (
           <div className="flex items-center justify-between gap-2">
             {subtitle && <span className="text-[11px] text-muted-foreground">{subtitle}</span>}
