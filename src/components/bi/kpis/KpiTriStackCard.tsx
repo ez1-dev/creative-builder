@@ -39,18 +39,26 @@ export function KpiTriStackCard({ title, items, className, headerAction }: KpiTr
         </CardHeader>
       )}
       <CardContent className="flex-1 flex flex-col justify-around items-center gap-2 py-3">
-        {items.map((it) => (
-          <div key={it.label} className="flex flex-col items-center leading-tight">
-            <span className="text-[11px] 3xl:text-xs text-muted-foreground">{it.label}</span>
-            <span
-              data-widget-value
-              className="text-xl 3xl:text-3xl 4xl:text-4xl font-bold tabular-nums tracking-tight"
-              style={it.color ? { color: it.color } : undefined}
-            >
-              {formatByKind(it.value ?? 0, it.format ?? 'currency')}
-            </span>
-          </div>
-        ))}
+        {items.map((it) => {
+          const fmt = it.format ?? 'currency';
+          const isNumericFmt = fmt === 'currency' || fmt === 'number' || fmt === 'quantity';
+          const raw = Number(it.value ?? 0);
+          const negative = isNumericFmt && Number.isFinite(raw) && raw < 0;
+          const shown = negative ? Math.abs(raw) : (it.value ?? 0);
+          const color = it.color ?? (negative ? 'hsl(var(--destructive))' : undefined);
+          return (
+            <div key={it.label} className="flex flex-col items-center leading-tight">
+              <span className="text-[11px] 3xl:text-xs text-muted-foreground">{it.label}</span>
+              <span
+                data-widget-value
+                className="text-xl 3xl:text-3xl 4xl:text-4xl font-bold tabular-nums tracking-tight"
+                style={color ? { color } : undefined}
+              >
+                {formatByKind(shown, fmt)}
+              </span>
+            </div>
+          );
+        })}
       </CardContent>
     </Card>
   );
