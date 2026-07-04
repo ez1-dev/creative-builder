@@ -426,12 +426,12 @@ export function AppSidebar() {
         {outrosFiltered.length > 0 && (
           <SidebarGroup>
             <Collapsible open={q.length > 0 || openGroup === 'outros'} onOpenChange={(v) => setGroupOpen('outros', v)}>
-              <CollapsibleTrigger className="flex w-full items-center justify-between px-2 py-1.5 text-xs font-medium text-sidebar-foreground/70 hover:text-sidebar-foreground">
+              <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2 text-[13px] font-semibold tracking-wide text-sidebar-foreground/80 hover:text-sidebar-foreground">
                 <span className="flex items-center gap-2">
-                  <Boxes className="h-4 w-4" />
+                  <Boxes className="h-[18px] w-[18px]" />
                   {!collapsed && 'Outros'}
                 </span>
-                {!collapsed && <ChevronDown className={cn('h-3 w-3 transition-transform', (q.length > 0 || openGroup === 'outros') && 'rotate-180')} />}
+                {!collapsed && <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', (q.length > 0 || openGroup === 'outros') && 'rotate-180')} />}
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <SidebarGroupContent>
