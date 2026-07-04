@@ -427,9 +427,9 @@ export function AppSidebar() {
       <SidebarGroup key={group.id}>
         <Collapsible open={isOpen} onOpenChange={(v) => setGroupOpen(group.id, v)}>
           <CollapsibleTrigger className="group flex w-full items-center justify-between px-3 py-2 text-[13px] font-semibold tracking-wide text-sidebar-foreground/80 hover:text-sidebar-foreground">
-            <span className="flex items-center gap-2">
-              <Icon className="h-[18px] w-[18px]" />
-              {!collapsed && group.label}
+            <span className="flex min-w-0 items-center gap-2">
+              <Icon className="h-[18px] w-[18px] shrink-0" />
+              {!collapsed && <span className="truncate whitespace-nowrap">{group.label}</span>}
             </span>
             {!collapsed && <ChevronDown className={cn('h-3.5 w-3.5 transition-transform duration-200', isOpen && 'rotate-180')} />}
           </CollapsibleTrigger>
