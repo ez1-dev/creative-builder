@@ -1,55 +1,39 @@
-# Reorganização do Menu Lateral
+## Objetivo
+Modernizar a tipografia do menu lateral, dando cara de ERP web atual (mais respiro, hierarquia clara, fontes um pouco maiores e mais legíveis) sem mexer em filtros, rotas, dados ou lógica.
 
-Reestruturar `src/components/AppSidebar.tsx` em 10 grupos de negócio com accordion controlado (apenas um aberto por vez), busca no topo e área de favoritos. Nenhuma rota nova é criada — apenas reorganização visual + dois recursos novos (busca, favoritos).
+## Mudanças (apenas visuais em `src/components/AppSidebar.tsx`)
 
-## Nova árvore do menu
+**Header do sidebar**
+- Ícone do logo: `h-5 w-5` → `h-6 w-6`
+- Título "ERP Sapiens": `text-sm font-bold` → `text-[15px] font-semibold tracking-tight`
+- Padding: `px-4 py-3` → `px-4 py-4`
+- Input de busca: altura `h-8` → `h-9`, fonte `text-xs` → `text-sm`, ícone `h-3.5` → `h-4`
 
-1. **Início** — Dashboard Geral (`/`), Relatório Executivo Faturamento (`/bi/faturamento/relatorio-executivo`), Favoritos (dinâmico)
-2. **Cadastros** — Produtos (`/cadastros/produtos`)
-3. **Produção** (com sub-accordions)
-   - Visão Geral: Dashboard, Produção no Período, Saldo em Pátio, Lead Time
-   - Planejamento: Carga de Produção, Sequenciamento, Dashboard de Carga, Carga por Recurso
-   - Obras e Expedição: Expedição para Obra, Semanal por Obra, Itens Não Carregados
-   - Engenharia / OP: Engenharia x Produção, Impressão de OP
-4. **Comercial / Faturamento** — BI Comercial, Metas de Faturamento, Validação Faturamento
-5. **Controladoria** (sub-accordion DRE)
-   - DRE: Contabilidade — DRE, DRE Configurável, DRE Dinâmica, Montador DRE, Exceções DRE, Aprovações DRE, Parametrização DRE, Configurações DRE, De/Para DRE
-6. **BI e Dados** — Biblioteca BI, Central ETL
-7. **RH** — Resumo Folha, Quadro Colaboradores, Contratos de Experiência, Férias, Formulários
-8. **Regras Senior** — Dashboard, Regras LSP, Identificadores, Auditoria, Snapshots
-9. **Relatórios** — Criador de Relatórios, Relatórios Publicados, Histórico
-10. **Administração** — Monitor Usuários Senior, Gestão SGU, Configurações
+**Cabeçalho de grupo (accordion principal)**
+- `text-xs font-medium` → `text-[13px] font-semibold tracking-wide`
+- Cor: `text-sidebar-foreground/70` → `text-sidebar-foreground/80`
+- Padding: `px-2 py-1.5` → `px-3 py-2`
+- Ícone do grupo: `h-4 w-4` → `h-[18px] w-[18px]`
+- Chevron: `h-3 w-3` → `h-3.5 w-3.5`
 
-Rótulos curtos serão usados para evitar reticências (ex.: "DRE Configurável", "Metas Faturamento", "Semanal Obra", "Não Carregados", "Contratos Exp.").
+**Sub-grupo (Visão Geral, Planejamento, etc.)**
+- `text-[11px]` → `text-[12px] font-medium uppercase tracking-wider`
+- Padding: `px-4 py-1` → `px-4 py-1.5`
 
-## Regras de UX
+**Item de menu (linhas clicáveis)**
+- Ícone: `h-4 w-4` → `h-[18px] w-[18px]`, margem `mr-2` → `mr-2.5`
+- Texto: aplicar `text-[13.5px]` no span do título (hoje herda tamanho default do botão que fica visualmente pequeno)
+- Altura mínima confortável: adicionar `min-h-[34px]` no `SidebarMenuButton` para dar respiro
+- Estado ativo mantém `bg-primary/15 text-primary font-medium`
 
-- **Accordion exclusivo**: estado controlado — abrir um grupo fecha os demais. Grupo ativo (que contém a rota atual) abre automaticamente na montagem.
-- **Sub-accordions** dentro de Produção e Controladoria seguem a mesma regra dentro do grupo pai.
-- **Item ativo**: fundo `bg-sidebar-accent` já existe; aumentar contraste usando token azul mais claro (`bg-primary/15 text-primary`) via `activeClassName`.
-- **Busca**: input no topo do `SidebarContent` filtra itens por título (case-insensitive). Quando há termo, todos os grupos com matches expandem e itens sem match ficam ocultos.
-- **Favoritos**: estrela ao lado de cada item; clique adiciona/remove. Persistido em `localStorage` (`sidebar:favorites`). Aparece como sub-lista dentro de "Início".
-- **Colapsado (icon mode)**: mantém apenas ícones de grupo (sem busca/favoritos), comportamento atual preservado.
+**Label "Favoritos"**
+- `text-[10px]` → `text-[11px] font-semibold`
 
-## Órfãos e itens legados
+**Grupo "Outros (legado)"**
+- Mesma escala do label de sub-grupo (`text-[12px] uppercase tracking-wider`)
 
-Itens hoje visíveis que **não aparecem na nova árvore** serão movidos para um grupo colapsado "**Outros (legado)**" no final da sidebar, para não perder acesso sem quebrar quem já usa:
-- Consulta de Estoques, Estoque Min/Max, Sugestão Min/Max, Onde Usa, Estrutura Multinível, Compras/Custos, Painel de Compras, Demonstrativo Compras/Receb., Auditoria Tributária, Auditoria Apont. Genius, Faturamento Genius, Conciliação EDocs, NF Receb., Reserva Nº Série, Contas a Pagar, Contas a Receber, Balanço, Passagens Aéreas, Manutenção de Frota, Manutenção de Máquinas.
-
-Se preferir esconder de vez, avise que removo o grupo "Outros" no build.
-
-## Detalhes técnicos
-
-- Arquivo único alterado: `src/components/AppSidebar.tsx`.
-- Substituir os múltiplos `<Collapsible defaultOpen>` independentes por um único estado `openGroup: string | null` gerenciado no componente. Cada `Collapsible` vira controlado (`open`/`onOpenChange`) — abrir um seta `openGroup` para seu id e fecha os demais.
-- Inicialização: derivar `openGroup` da rota atual (mesma lógica dos flags `isXxxActive` de hoje).
-- Sub-grupos de Produção/Controladoria: segundo estado `openSubGroup` escopado ao grupo pai.
-- Busca: `useState('')` + filtro aplicado sobre a árvore antes de render. Sem debounce (lista pequena).
-- Favoritos: hook `useFavorites()` novo em `src/hooks/useFavorites.ts` com `get/toggle/isFavorite` sobre `localStorage`. Estrela é `lucide-react` `Star` / `StarOff`.
-- Permissões: manter `isVisible(url)` do `useUserPermissions` em todos os itens (inclusive favoritos — favorito sem permissão não renderiza).
-- Sem mudanças em rotas (`src/App.tsx`), páginas, backend ou dados.
-
-## Fora de escopo
-
-- Não criar novas telas (Dashboard Geral usa a rota `/` atual; se quiser uma home dedicada, é outra tarefa).
-- Não mexer em `AppLayout`, header, permissões ou catálogo de telas.
+## Não muda
+- Estrutura do menu, ordem, ícones semânticos, permissões
+- Comportamento de accordion exclusivo, busca, favoritos
+- Modo colapsado (só ícones) continua igual
+- Nenhum outro componente/página é tocado

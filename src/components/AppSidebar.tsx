@@ -280,7 +280,7 @@ export function AppSidebar() {
     return (
       <SidebarMenuItem key={item.url}>
         <div className="group/item flex items-center">
-          <SidebarMenuButton asChild className="flex-1">
+          <SidebarMenuButton asChild className="flex-1 min-h-[34px]">
             <NavLink
               to={item.url}
               end
@@ -290,8 +290,8 @@ export function AppSidebar() {
               )}
               activeClassName="bg-primary/15 text-primary font-medium"
             >
-              <item.icon className="mr-2 h-4 w-4" />
-              {!collapsed && <span className="truncate">{item.title}</span>}
+              <item.icon className="mr-2.5 h-[18px] w-[18px]" />
+              {!collapsed && <span className="truncate text-[13.5px]">{item.title}</span>}
             </NavLink>
           </SidebarMenuButton>
           {!collapsed && canFavorite && (
@@ -344,19 +344,19 @@ export function AppSidebar() {
     return (
       <SidebarGroup key={group.id}>
         <Collapsible open={isOpen} onOpenChange={(v) => setGroupOpen(group.id, v)}>
-          <CollapsibleTrigger className="group flex w-full items-center justify-between px-2 py-1.5 text-xs font-medium text-sidebar-foreground/70 hover:text-sidebar-foreground">
+          <CollapsibleTrigger className="group flex w-full items-center justify-between px-3 py-2 text-[13px] font-semibold tracking-wide text-sidebar-foreground/80 hover:text-sidebar-foreground">
             <span className="flex items-center gap-2">
-              <Icon className="h-4 w-4" />
+              <Icon className="h-[18px] w-[18px]" />
               {!collapsed && group.label}
             </span>
-            {!collapsed && <ChevronDown className={cn('h-3 w-3 transition-transform duration-200', isOpen && 'rotate-180')} />}
+            {!collapsed && <ChevronDown className={cn('h-3.5 w-3.5 transition-transform duration-200', isOpen && 'rotate-180')} />}
           </CollapsibleTrigger>
           <CollapsibleContent>
             <SidebarGroupContent>
               {/* Favoritos aparecem no topo do grupo Início */}
               {group.id === 'inicio' && favoriteItems.length > 0 && !collapsed && (
                 <>
-                  <SidebarGroupLabel className="mt-1 flex items-center gap-1 text-[10px] uppercase">
+                  <SidebarGroupLabel className="mt-1 flex items-center gap-1 text-[11px] font-semibold uppercase">
                     <Star className="h-3 w-3" /> Favoritos
                   </SidebarGroupLabel>
                   <SidebarMenu>
@@ -380,7 +380,7 @@ export function AppSidebar() {
                     open={subOpen}
                     onOpenChange={(v) => setSubOpen(group.id, sg.id, v)}
                   >
-                    <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-1 text-[11px] font-medium text-sidebar-foreground/60 hover:text-sidebar-foreground">
+                    <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-1.5 text-[12px] font-medium uppercase tracking-wider text-sidebar-foreground/60 hover:text-sidebar-foreground">
                       <span>{!collapsed && sg.label}</span>
                       {!collapsed && <ChevronDown className={cn('h-3 w-3 transition-transform', subOpen && 'rotate-180')} />}
                     </CollapsibleTrigger>
@@ -403,19 +403,19 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
+      <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
         <div className="flex items-center gap-2">
-          <LayoutDashboard className="h-5 w-5 text-sidebar-primary" />
-          {!collapsed && <span className="font-bold text-sm text-sidebar-foreground">ERP Sapiens</span>}
+          <LayoutDashboard className="h-6 w-6 text-sidebar-primary" />
+          {!collapsed && <span className="text-[15px] font-semibold tracking-tight text-sidebar-foreground">ERP Sapiens</span>}
         </div>
         {!collapsed && (
           <div className="relative mt-3">
-            <SearchIcon className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-sidebar-foreground/50" />
+            <SearchIcon className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-sidebar-foreground/50" />
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Buscar menu…"
-              className="h-8 pl-7 text-xs bg-sidebar-accent/40 border-sidebar-border"
+              className="h-9 pl-8 text-sm bg-sidebar-accent/40 border-sidebar-border"
             />
           </div>
         )}
@@ -426,12 +426,12 @@ export function AppSidebar() {
         {outrosFiltered.length > 0 && (
           <SidebarGroup>
             <Collapsible open={q.length > 0 || openGroup === 'outros'} onOpenChange={(v) => setGroupOpen('outros', v)}>
-              <CollapsibleTrigger className="flex w-full items-center justify-between px-2 py-1.5 text-xs font-medium text-sidebar-foreground/70 hover:text-sidebar-foreground">
+              <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2 text-[13px] font-semibold tracking-wide text-sidebar-foreground/80 hover:text-sidebar-foreground">
                 <span className="flex items-center gap-2">
-                  <Boxes className="h-4 w-4" />
+                  <Boxes className="h-[18px] w-[18px]" />
                   {!collapsed && 'Outros'}
                 </span>
-                {!collapsed && <ChevronDown className={cn('h-3 w-3 transition-transform', (q.length > 0 || openGroup === 'outros') && 'rotate-180')} />}
+                {!collapsed && <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', (q.length > 0 || openGroup === 'outros') && 'rotate-180')} />}
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <SidebarGroupContent>
