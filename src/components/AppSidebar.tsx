@@ -129,7 +129,7 @@ const GROUPS: Group[] = [
   },
   {
     id: 'comercial',
-    label: 'Comercial / Faturamento',
+    label: 'Comercial',
     icon: BarChart3,
     items: [
       { title: 'BI Comercial', url: '/bi/comercial', icon: BarChart3 },
@@ -383,9 +383,9 @@ export function AppSidebar() {
       <SidebarGroup key="favoritos">
         <Collapsible open={isOpen} onOpenChange={(v) => setGroupOpen('favoritos', v)}>
           <CollapsibleTrigger className="group flex w-full items-center justify-between px-3 py-2 text-[13px] font-semibold tracking-wide text-sidebar-foreground/80 hover:text-sidebar-foreground">
-            <span className="flex items-center gap-2">
-              <Star className="h-[18px] w-[18px]" />
-              {!collapsed && 'Favoritos'}
+            <span className="flex min-w-0 items-center gap-2">
+              <Star className="h-[18px] w-[18px] shrink-0" />
+              {!collapsed && <span className="truncate whitespace-nowrap">Favoritos</span>}
             </span>
             {!collapsed && <ChevronDown className={cn('h-3.5 w-3.5 transition-transform duration-200', isOpen && 'rotate-180')} />}
           </CollapsibleTrigger>
@@ -427,9 +427,9 @@ export function AppSidebar() {
       <SidebarGroup key={group.id}>
         <Collapsible open={isOpen} onOpenChange={(v) => setGroupOpen(group.id, v)}>
           <CollapsibleTrigger className="group flex w-full items-center justify-between px-3 py-2 text-[13px] font-semibold tracking-wide text-sidebar-foreground/80 hover:text-sidebar-foreground">
-            <span className="flex items-center gap-2">
-              <Icon className="h-[18px] w-[18px]" />
-              {!collapsed && group.label}
+            <span className="flex min-w-0 items-center gap-2">
+              <Icon className="h-[18px] w-[18px] shrink-0" />
+              {!collapsed && <span className="truncate whitespace-nowrap">{group.label}</span>}
             </span>
             {!collapsed && <ChevronDown className={cn('h-3.5 w-3.5 transition-transform duration-200', isOpen && 'rotate-180')} />}
           </CollapsibleTrigger>
@@ -451,7 +451,7 @@ export function AppSidebar() {
                     onOpenChange={(v) => setSubOpen(group.id, sg.id, v)}
                   >
                     <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-1.5 text-[12px] font-medium uppercase tracking-wider text-sidebar-foreground/60 hover:text-sidebar-foreground">
-                      <span>{!collapsed && sg.label}</span>
+                      <span className="truncate whitespace-nowrap">{!collapsed && sg.label}</span>
                       {!collapsed && <ChevronDown className={cn('h-3 w-3 transition-transform', subOpen && 'rotate-180')} />}
                     </CollapsibleTrigger>
                     <CollapsibleContent>
