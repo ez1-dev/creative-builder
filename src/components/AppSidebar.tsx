@@ -43,8 +43,43 @@ const GROUPS: Group[] = [
     id: 'cadastros',
     label: 'Cadastros',
     icon: Boxes,
+    subGroups: [
+      {
+        id: 'cad-produtos',
+        label: 'Produtos',
+        items: [
+          { title: 'Produtos', url: '/cadastros/produtos', icon: PackageSearch },
+        ],
+      },
+      {
+        id: 'cad-engenharia',
+        label: 'Engenharia de Produto',
+        items: [
+          { title: 'Estrutura Multinível', url: '/bom', icon: GitBranch },
+          { title: 'Onde Usa', url: '/onde-usa', icon: SearchIcon },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'estoque',
+    label: 'Estoque',
+    icon: Warehouse,
     items: [
-      { title: 'Produtos', url: '/cadastros/produtos', icon: PackageSearch },
+      { title: 'Consulta de Estoques', url: '/estoque', icon: Package },
+      { title: 'Estoque Min/Max', url: '/estoque-min-max', icon: Gauge },
+      { title: 'Sugestão Min/Max', url: '/sugestao-min-max', icon: Sparkles },
+    ],
+  },
+  {
+    id: 'suprimentos',
+    label: 'Suprimentos',
+    icon: ShoppingCart,
+    items: [
+      { title: 'Painel de Compras', url: '/painel-compras', icon: BarChart3 },
+      { title: 'Compras / Custos', url: '/compras-produto', icon: ShoppingCart },
+      { title: 'Compras e Recebimentos', url: '/demonstrativo-compras-recebimentos', icon: GitCompare },
+      { title: 'NF Recebimento', url: '/notas-recebimento', icon: FileInput },
     ],
   },
   {
@@ -79,6 +114,7 @@ const GROUPS: Group[] = [
           { title: 'Expedição para Obra', url: '/producao/expedido', icon: Truck },
           { title: 'Semanal por Obra', url: '/producao/relatorio-semanal-obra', icon: CalendarRange },
           { title: 'Não Carregados', url: '/producao/nao-carregados', icon: PackageX },
+          { title: 'Reserva Nº Série', url: '/numero-serie', icon: Hash },
         ],
       },
       {
@@ -99,12 +135,35 @@ const GROUPS: Group[] = [
       { title: 'BI Comercial', url: '/bi/comercial', icon: BarChart3 },
       { title: 'Metas de Faturamento', url: '/bi/comercial/metas', icon: BarChart3 },
       { title: 'Validação Faturamento', url: '/bi/faturamento-validacao', icon: FileCheck },
+      { title: 'Faturamento Genius', url: '/faturamento-genius', icon: Receipt },
+      { title: 'Auditoria Apont. Genius', url: '/auditoria-apontamento-genius', icon: ClipboardCheck },
+    ],
+  },
+  {
+    id: 'fiscal',
+    label: 'Fiscal',
+    icon: FileCheck,
+    items: [
+      { title: 'Auditoria Tributária', url: '/auditoria-tributaria', icon: FileCheck },
+      { title: 'Conciliação EDocs', url: '/conciliacao-edocs', icon: FileSearch },
+    ],
+  },
+  {
+    id: 'financeiro',
+    label: 'Financeiro',
+    icon: HandCoins,
+    items: [
+      { title: 'Contas a Pagar', url: '/contas-pagar', icon: Landmark },
+      { title: 'Contas a Receber', url: '/contas-receber', icon: HandCoins },
     ],
   },
   {
     id: 'controladoria',
     label: 'Controladoria',
     icon: Landmark,
+    items: [
+      { title: 'Balanço', url: '/contabilidade/balanco', icon: Landmark },
+    ],
     subGroups: [
       {
         id: 'ctrl-dre',
@@ -121,6 +180,15 @@ const GROUPS: Group[] = [
           { title: 'De/Para DRE', url: '/bi/contabilidade/dre/sincronizacao-depara', icon: Database },
         ],
       },
+    ],
+  },
+  {
+    id: 'manutencao',
+    label: 'Manutenção',
+    icon: Cog,
+    items: [
+      { title: 'Manutenção de Frota', url: '/frota', icon: Truck },
+      { title: 'Manutenção de Máquinas', url: '/manutencao-maquinas', icon: Cog },
     ],
   },
   {
@@ -171,6 +239,7 @@ const GROUPS: Group[] = [
     label: 'Administração',
     icon: Settings,
     items: [
+      { title: 'Passagens Aéreas', url: '/passagens-aereas', icon: Plane },
       { title: 'Monitor Usuários Senior', url: '/monitor-usuarios-senior', icon: Users },
       { title: 'Gestão SGU', url: '/gestao-sgu-usuarios', icon: ShieldCheck },
       { title: 'Configurações', url: '/configuracoes', icon: Settings },
@@ -178,29 +247,8 @@ const GROUPS: Group[] = [
   },
 ];
 
-// Itens visíveis hoje que não entraram na nova árvore — grupo "Outros" para não perder acesso.
-const OUTROS: Item[] = [
-  { title: 'Consulta de Estoques', url: '/estoque', icon: Package },
-  { title: 'Estoque Min/Max', url: '/estoque-min-max', icon: Gauge },
-  { title: 'Sugestão Min/Max', url: '/sugestao-min-max', icon: Sparkles },
-  { title: 'Onde Usa', url: '/onde-usa', icon: SearchIcon },
-  { title: 'Estrutura Multinível', url: '/bom', icon: GitBranch },
-  { title: 'Compras/Custos', url: '/compras-produto', icon: ShoppingCart },
-  { title: 'Painel de Compras', url: '/painel-compras', icon: BarChart3 },
-  { title: 'Compras e Receb.', url: '/demonstrativo-compras-recebimentos', icon: GitCompare },
-  { title: 'Auditoria Tributária', url: '/auditoria-tributaria', icon: FileCheck },
-  { title: 'Auditoria Apont. Genius', url: '/auditoria-apontamento-genius', icon: ClipboardCheck },
-  { title: 'Faturamento Genius', url: '/faturamento-genius', icon: Receipt },
-  { title: 'Conciliação EDocs', url: '/conciliacao-edocs', icon: FileSearch },
-  { title: 'NF Recebimento', url: '/notas-recebimento', icon: FileInput },
-  { title: 'Reserva Nº Série', url: '/numero-serie', icon: Hash },
-  { title: 'Contas a Pagar', url: '/contas-pagar', icon: Landmark },
-  { title: 'Contas a Receber', url: '/contas-receber', icon: HandCoins },
-  { title: 'Balanço', url: '/contabilidade/balanco', icon: Landmark },
-  { title: 'Passagens Aéreas', url: '/passagens-aereas', icon: Plane },
-  { title: 'Manutenção de Frota', url: '/frota', icon: Truck },
-  { title: 'Manutenção de Máquinas', url: '/manutencao-maquinas', icon: Cog },
-];
+const OUTROS: Item[] = [];
+
 
 const ALWAYS_VISIBLE = new Set<string>(['/biblioteca-bi', '/']);
 
