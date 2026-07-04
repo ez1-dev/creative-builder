@@ -447,7 +447,7 @@ export function AppSidebar() {
     );
   };
 
-  const outrosFiltered = OUTROS.filter((it) => isVisible(it.url) && matchesQuery(it.title));
+  
 
   return (
     <Sidebar collapsible="icon">
