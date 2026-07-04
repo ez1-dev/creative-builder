@@ -383,9 +383,9 @@ export function AppSidebar() {
       <SidebarGroup key="favoritos">
         <Collapsible open={isOpen} onOpenChange={(v) => setGroupOpen('favoritos', v)}>
           <CollapsibleTrigger className="group flex w-full items-center justify-between px-3 py-2 text-[13px] font-semibold tracking-wide text-sidebar-foreground/80 hover:text-sidebar-foreground">
-            <span className="flex items-center gap-2">
-              <Star className="h-[18px] w-[18px]" />
-              {!collapsed && 'Favoritos'}
+            <span className="flex min-w-0 items-center gap-2">
+              <Star className="h-[18px] w-[18px] shrink-0" />
+              {!collapsed && <span className="truncate whitespace-nowrap">Favoritos</span>}
             </span>
             {!collapsed && <ChevronDown className={cn('h-3.5 w-3.5 transition-transform duration-200', isOpen && 'rotate-180')} />}
           </CollapsibleTrigger>
