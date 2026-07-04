@@ -344,19 +344,19 @@ export function AppSidebar() {
     return (
       <SidebarGroup key={group.id}>
         <Collapsible open={isOpen} onOpenChange={(v) => setGroupOpen(group.id, v)}>
-          <CollapsibleTrigger className="group flex w-full items-center justify-between px-2 py-1.5 text-xs font-medium text-sidebar-foreground/70 hover:text-sidebar-foreground">
+          <CollapsibleTrigger className="group flex w-full items-center justify-between px-3 py-2 text-[13px] font-semibold tracking-wide text-sidebar-foreground/80 hover:text-sidebar-foreground">
             <span className="flex items-center gap-2">
-              <Icon className="h-4 w-4" />
+              <Icon className="h-[18px] w-[18px]" />
               {!collapsed && group.label}
             </span>
-            {!collapsed && <ChevronDown className={cn('h-3 w-3 transition-transform duration-200', isOpen && 'rotate-180')} />}
+            {!collapsed && <ChevronDown className={cn('h-3.5 w-3.5 transition-transform duration-200', isOpen && 'rotate-180')} />}
           </CollapsibleTrigger>
           <CollapsibleContent>
             <SidebarGroupContent>
               {/* Favoritos aparecem no topo do grupo Início */}
               {group.id === 'inicio' && favoriteItems.length > 0 && !collapsed && (
                 <>
-                  <SidebarGroupLabel className="mt-1 flex items-center gap-1 text-[10px] uppercase">
+                  <SidebarGroupLabel className="mt-1 flex items-center gap-1 text-[11px] font-semibold uppercase">
                     <Star className="h-3 w-3" /> Favoritos
                   </SidebarGroupLabel>
                   <SidebarMenu>
@@ -380,7 +380,7 @@ export function AppSidebar() {
                     open={subOpen}
                     onOpenChange={(v) => setSubOpen(group.id, sg.id, v)}
                   >
-                    <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-1 text-[11px] font-medium text-sidebar-foreground/60 hover:text-sidebar-foreground">
+                    <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-1.5 text-[12px] font-medium uppercase tracking-wider text-sidebar-foreground/60 hover:text-sidebar-foreground">
                       <span>{!collapsed && sg.label}</span>
                       {!collapsed && <ChevronDown className={cn('h-3 w-3 transition-transform', subOpen && 'rotate-180')} />}
                     </CollapsibleTrigger>
