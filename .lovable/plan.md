@@ -1,70 +1,24 @@
-## Objetivo
-Eliminar o grupo "Outros (legado)" distribuindo todos os itens em grupos de negócio adequados. Criar novos grupos onde faz sentido. Apenas reorganização visual em `src/components/AppSidebar.tsx` — nenhuma rota, permissão ou lógica muda.
+## Menu de Favoritos dedicado
 
-## Novo mapeamento
+Hoje os favoritos aparecem como um sub-bloco dentro do grupo "Início". A proposta é promovê-los a um **grupo próprio**, sempre visível no topo da sidebar, com o mesmo comportamento accordion dos demais.
 
-**Cadastros** (existente) — adicionar sub-grupos:
-- *Produtos*: Produtos (já existe)
-- *Engenharia de Produto*: Estrutura Multinível (`/bom`), Onde Usa (`/onde-usa`)
+### Mudanças em `src/components/AppSidebar.tsx`
 
-**Estoque** (NOVO grupo, ícone `Warehouse`)
-- Consulta de Estoques (`/estoque`)
-- Estoque Min/Max (`/estoque-min-max`)
-- Sugestão Min/Max (`/sugestao-min-max`)
+1. **Novo grupo "Favoritos"** renderizado antes de todos os outros grupos:
+   - Ícone: `Star` (lucide).
+   - Label: "Favoritos".
+   - Conteúdo: lista dos itens favoritados (via `useFavorites`), resolvidos a partir da árvore `GROUPS` (título + ícone + url originais).
+   - Cada item mantém a estrela para desfavoritar (mesmo componente `renderItemRow`).
+   - Se não houver favoritos, mostra um placeholder discreto ("Nenhum favorito ainda. Clique na ★ ao lado de qualquer item para adicionar.") em vez de esconder o grupo — assim o usuário descobre a funcionalidade.
+   - Respeita o accordion exclusivo: abrir "Favoritos" fecha os outros; começa aberto quando há favoritos e a rota atual não pertence a outro grupo.
 
-**Suprimentos / Compras** (NOVO grupo, ícone `ShoppingCart`)
-- Painel de Compras (`/painel-compras`)
-- Compras/Custos (`/compras-produto`)
-- Compras e Recebimentos (`/demonstrativo-compras-recebimentos`)
-- NF Recebimento (`/notas-recebimento`)
+2. **Remoção do bloco de favoritos de dentro do grupo "Início"** (o `SidebarGroupLabel "Favoritos"` e o `SidebarMenu` de `favoriteItems` dentro de `renderGroup` quando `group.id === 'inicio'`).
 
-**Produção** (existente) — dentro de *Obras e Expedição* adicionar:
-- Reserva Nº Série (`/numero-serie`)
+3. **Modo colapsado (icon-only):** o grupo "Favoritos" mostra apenas o ícone `Star` no cabeçalho, igual aos outros grupos.
 
-**Comercial / Faturamento** (existente) — adicionar:
-- Faturamento Genius (`/faturamento-genius`)
-- Auditoria Apont. Genius (`/auditoria-apontamento-genius`)
+4. **Busca:** quando há query, o grupo Favoritos também é forçado aberto e filtrado por `matchesQuery`, consistente com o resto.
 
-**Fiscal** (NOVO grupo, ícone `FileCheck`)
-- Auditoria Tributária (`/auditoria-tributaria`)
-- Conciliação EDocs (`/conciliacao-edocs`)
+### Fora do escopo
 
-**Financeiro** (NOVO grupo, ícone `HandCoins`)
-- Contas a Pagar (`/contas-pagar`)
-- Contas a Receber (`/contas-receber`)
-
-**Controladoria** (existente) — adicionar fora do sub-grupo DRE, como item direto:
-- Balanço (`/contabilidade/balanco`)
-
-**Manutenção** (NOVO grupo, ícone `Cog`)
-- Manutenção de Frota (`/frota`)
-- Manutenção de Máquinas (`/manutencao-maquinas`)
-
-**Administração** (existente) — adicionar:
-- Passagens Aéreas (`/passagens-aereas`)
-
-## Ordem final dos grupos no menu
-
-1. Início
-2. Cadastros
-3. Estoque *(novo)*
-4. Suprimentos *(novo)*
-5. Produção
-6. Comercial / Faturamento
-7. Fiscal *(novo)*
-8. Financeiro *(novo)*
-9. Controladoria
-10. Manutenção *(novo)*
-11. BI e Dados
-12. RH
-13. Regras Senior
-14. Relatórios
-15. Administração
-
-## Remoção
-- Bloco `OUTROS` e o `SidebarGroup` "Outros" no rodapé são removidos por completo (todos os itens migraram).
-
-## Não muda
-- Rotas, permissões, favoritos, busca, accordion exclusivo, modo colapsado
-- Tipografia recém-ajustada
-- Nenhum outro arquivo é tocado
+- Sem mudanças em `useFavorites`, rotas, permissões, tipografia ou nos demais grupos.
+- Sem drag-and-drop para reordenar favoritos (pode ser evolução futura).
