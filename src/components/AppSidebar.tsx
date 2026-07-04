@@ -375,6 +375,40 @@ export function AppSidebar() {
     return favorites.map((u) => map.get(u)).filter(Boolean).filter((it) => isVisible(it!.url)) as Item[];
   }, [favorites, loading, hasPermissions]);
 
+  const renderFavoritesGroup = () => {
+    const forceOpen = q.length > 0;
+    const isOpen = forceOpen || openGroup === 'favoritos';
+    const visibleFavs = favoriteItems.filter((it) => matchesQuery(it.title));
+    return (
+      <SidebarGroup key="favoritos">
+        <Collapsible open={isOpen} onOpenChange={(v) => setGroupOpen('favoritos', v)}>
+          <CollapsibleTrigger className="group flex w-full items-center justify-between px-3 py-2 text-[13px] font-semibold tracking-wide text-sidebar-foreground/80 hover:text-sidebar-foreground">
+            <span className="flex items-center gap-2">
+              <Star className="h-[18px] w-[18px]" />
+              {!collapsed && 'Favoritos'}
+            </span>
+            {!collapsed && <ChevronDown className={cn('h-3.5 w-3.5 transition-transform duration-200', isOpen && 'rotate-180')} />}
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <SidebarGroupContent>
+              {visibleFavs.length > 0 ? (
+                <SidebarMenu>
+                  {visibleFavs.map((it) => renderItemRow(it))}
+                </SidebarMenu>
+              ) : (
+                !collapsed && (
+                  <p className="px-4 py-2 text-[12px] leading-snug text-sidebar-foreground/50">
+                    {q ? 'Nenhum favorito corresponde à busca.' : 'Nenhum favorito ainda. Clique na ★ ao lado de qualquer item para adicionar.'}
+                  </p>
+                )
+              )}
+            </SidebarGroupContent>
+          </CollapsibleContent>
+        </Collapsible>
+      </SidebarGroup>
+    );
+  };
+
   const renderGroup = (group: Group) => {
     // Determina se grupo tem conteúdo após filtros
     const items = group.items ? filterItems(group.items) : [];
