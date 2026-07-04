@@ -403,19 +403,19 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
+      <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
         <div className="flex items-center gap-2">
-          <LayoutDashboard className="h-5 w-5 text-sidebar-primary" />
-          {!collapsed && <span className="font-bold text-sm text-sidebar-foreground">ERP Sapiens</span>}
+          <LayoutDashboard className="h-6 w-6 text-sidebar-primary" />
+          {!collapsed && <span className="text-[15px] font-semibold tracking-tight text-sidebar-foreground">ERP Sapiens</span>}
         </div>
         {!collapsed && (
           <div className="relative mt-3">
-            <SearchIcon className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-sidebar-foreground/50" />
+            <SearchIcon className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-sidebar-foreground/50" />
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Buscar menu…"
-              className="h-8 pl-7 text-xs bg-sidebar-accent/40 border-sidebar-border"
+              className="h-9 pl-8 text-sm bg-sidebar-accent/40 border-sidebar-border"
             />
           </div>
         )}
