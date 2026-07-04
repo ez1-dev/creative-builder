@@ -129,7 +129,7 @@ const GROUPS: Group[] = [
   },
   {
     id: 'comercial',
-    label: 'Comercial / Faturamento',
+    label: 'Comercial',
     icon: BarChart3,
     items: [
       { title: 'BI Comercial', url: '/bi/comercial', icon: BarChart3 },
