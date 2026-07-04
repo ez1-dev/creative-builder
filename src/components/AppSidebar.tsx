@@ -457,6 +457,7 @@ export function AppSidebar() {
         )}
       </SidebarHeader>
       <SidebarContent>
+        {renderFavoritesGroup()}
         {GROUPS.map(renderGroup)}
       </SidebarContent>
 
