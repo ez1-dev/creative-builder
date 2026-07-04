@@ -401,18 +401,6 @@ export function AppSidebar() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <SidebarGroupContent>
-              {/* Favoritos aparecem no topo do grupo Início */}
-              {group.id === 'inicio' && favoriteItems.length > 0 && !collapsed && (
-                <>
-                  <SidebarGroupLabel className="mt-1 flex items-center gap-1 text-[11px] font-semibold uppercase">
-                    <Star className="h-3 w-3" /> Favoritos
-                  </SidebarGroupLabel>
-                  <SidebarMenu>
-                    {favoriteItems.filter((it) => matchesQuery(it.title)).map((it) => renderItemRow(it))}
-                  </SidebarMenu>
-                </>
-              )}
-
               {items.length > 0 && (
                 <SidebarMenu>
                   {items.map((it) => renderItemRow(it))}
