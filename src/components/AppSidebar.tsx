@@ -280,7 +280,7 @@ export function AppSidebar() {
     return (
       <SidebarMenuItem key={item.url}>
         <div className="group/item flex items-center">
-          <SidebarMenuButton asChild className="flex-1">
+          <SidebarMenuButton asChild className="flex-1 min-h-[34px]">
             <NavLink
               to={item.url}
               end
@@ -290,8 +290,8 @@ export function AppSidebar() {
               )}
               activeClassName="bg-primary/15 text-primary font-medium"
             >
-              <item.icon className="mr-2 h-4 w-4" />
-              {!collapsed && <span className="truncate">{item.title}</span>}
+              <item.icon className="mr-2.5 h-[18px] w-[18px]" />
+              {!collapsed && <span className="truncate text-[13.5px]">{item.title}</span>}
             </NavLink>
           </SidebarMenuButton>
           {!collapsed && canFavorite && (
