@@ -124,20 +124,40 @@ export default function ProgramacaoFeriasPage() {
     });
   };
 
+  const getAnoMesLimite = (x: ProgramacaoFeriasDetalheItem): { ano: string; mes: number } => {
+    let ano = x.ano_limite != null && x.ano_limite !== "" ? String(x.ano_limite) : "";
+    let mes = x.mes_limite != null && x.mes_limite !== ("" as any) ? Number(x.mes_limite) : NaN;
+    if (!ano || !isFinite(mes)) {
+      const s = x.dt_limite_saida ?? "";
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+      if (m) {
+        if (!ano) ano = m[1];
+        if (!isFinite(mes)) mes = Number(m[2]);
+      }
+    }
+    return { ano, mes };
+  };
+
   const openPivotCell = (ano: string, mesIdx: number) => {
     const mm = String(mesIdx).padStart(2, "0");
+    const alvoAno = String(ano);
+    const alvoMes = Number(mesIdx);
     setDrill({
       title: `Limite de Férias — ${mm}/${ano}`,
       mode: "periodo",
-      rows: detalhe.filter((x) => String(x.ano_limite) === String(ano) && Number(x.mes_limite) === mesIdx),
+      rows: detalhe.filter((x) => {
+        const { ano: a, mes: m } = getAnoMesLimite(x);
+        return a === alvoAno && m === alvoMes;
+      }),
     });
   };
 
   const openPivotTotal = (ano: string) => {
+    const alvoAno = String(ano);
     setDrill({
       title: `Limite de Férias — Ano ${ano}`,
       mode: "periodo",
-      rows: detalhe.filter((x) => String(x.ano_limite) === String(ano)),
+      rows: detalhe.filter((x) => getAnoMesLimite(x).ano === alvoAno),
     });
   };
 
