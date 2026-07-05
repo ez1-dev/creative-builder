@@ -335,13 +335,14 @@ export function AppSidebar() {
               className={cn(
                 'relative transition-colors hover:bg-transparent',
                 'before:absolute before:left-0 before:top-1/2 before:h-4 before:w-[2px] before:-translate-y-1/2 before:rounded-r before:bg-primary before:opacity-0 before:transition-opacity group-hover/item:before:opacity-60',
-                active && 'bg-primary/15 text-primary font-medium before:opacity-100',
+                active && 'bg-primary/15 text-primary before:opacity-100',
               )}
-              activeClassName="bg-primary/15 text-primary font-medium"
+              activeClassName="bg-primary/15 text-primary"
             >
-              <item.icon className="mr-2.5 h-[18px] w-[18px]" />
-              {!collapsed && <span className="truncate text-[13.5px]">{item.title}</span>}
+              {!collapsed && <span className="truncate text-[12.5px] font-normal">{item.title}</span>}
+              {collapsed && <item.icon className="h-[18px] w-[18px]" />}
             </NavLink>
+
           </SidebarMenuButton>
 
           {!collapsed && canFavorite && (
