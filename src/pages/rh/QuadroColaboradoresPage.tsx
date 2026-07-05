@@ -26,6 +26,7 @@ import {
   type QuadroBreakdown,
   type QuadroEmpresaLinha,
 } from "@/lib/rh/quadroDashboardApi";
+import { QuadroDrillCard } from "@/components/rh/QuadroDrillCard";
 
 function toIsoDate(d: Date): string {
   return format(d, "yyyy-MM-dd");
@@ -337,6 +338,14 @@ export default function QuadroColaboradoresPage() {
           fallback={dashQ.data?.empresa ?? undefined}
           loading={dashQ.isLoading}
           hasResponse={!!dashQ.data}
+        />
+      </div>
+
+      <div className="mb-4">
+        <QuadroDrillCard
+          dimensoes={dashQ.data?.dimensoes_drill ?? []}
+          detalhe={dashQ.data?.detalhe ?? []}
+          loading={dashQ.isLoading}
         />
       </div>
     </div>

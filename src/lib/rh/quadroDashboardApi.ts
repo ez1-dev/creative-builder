@@ -39,6 +39,30 @@ export interface QuadroEmpresaLinha {
   mulheres?: number | null;
 }
 
+export interface DrillDimension {
+  chave: string;
+  label: string;
+}
+
+export type ColaboradorDetalhe = {
+  colaborador?: string;
+  matricula?: string;
+  empresa?: string;
+  filial?: string;
+  cargo?: string;
+  centro_custo?: string;
+  escolaridade?: string;
+  faixa_etaria?: string;
+  tempo_casa?: string;
+  sexo?: string;
+  situacao?: string;
+  vinculo?: string;
+  pcd?: string;
+  idade?: number;
+  dt_admissao?: string;
+  [k: string]: any;
+};
+
 export interface QuadroDashboard {
   data_ref?: string;
   kpis: QuadroKpis;
@@ -51,6 +75,8 @@ export interface QuadroDashboard {
   vinculo?: QuadroBreakdown;
   empresa?: QuadroBreakdown | null;
   empresa_detalhado?: QuadroEmpresaLinha[] | null;
+  dimensoes_drill?: DrillDimension[];
+  detalhe?: ColaboradorDetalhe[];
   raw?: any;
 }
 
@@ -275,6 +301,8 @@ function normalizeDashboard(raw: any): QuadroDashboard {
     vinculo: pickBreakdown(raw, ["vinculo", "vinculos", "por_vinculo", "tipo_vinculo"]),
     empresa: empresaBreakdown ?? null,
     empresa_detalhado: empresaDetalhado ?? null,
+    dimensoes_drill: Array.isArray(raw?.dimensoes_drill) ? raw.dimensoes_drill : undefined,
+    detalhe: Array.isArray(raw?.detalhe) ? raw.detalhe : undefined,
     raw,
   };
 }
