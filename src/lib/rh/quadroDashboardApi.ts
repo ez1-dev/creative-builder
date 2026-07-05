@@ -292,6 +292,9 @@ const EMPRESA_KPI_ALIASES: Record<keyof Omit<QuadroEmpresaLinha, "empresa">, str
   auxilio_doenca: ["auxilio_doenca", "aux_doenca", "auxilio"],
   acidente_trabalho: ["acidente_trabalho", "acidente", "acidentes"],
   atestados: ["atestados", "atestado"],
+  licenca_maternidade: ["licenca_maternidade", "lic_maternidade", "maternidade"],
+  homens: ["homens", "masculino", "qtd_masculino"],
+  mulheres: ["mulheres", "feminino", "qtd_feminino"],
 };
 
 function pickEmpresaMatriz(raw: any): QuadroEmpresaLinha[] | undefined {
