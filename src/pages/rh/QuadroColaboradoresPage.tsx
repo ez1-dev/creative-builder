@@ -295,8 +295,15 @@ export default function QuadroColaboradoresPage() {
             title="Histórico Nº Colaboradores"
             data={historicoData}
             valueFormatter={(v) => new Intl.NumberFormat("pt-BR").format(v)}
+            tickFormatter={(v) => {
+              const abs = Math.abs(v);
+              if (abs >= 1_000_000) return `${(v / 1_000_000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mi`;
+              if (abs >= 1_000) return `${(v / 1_000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mil`;
+              return new Intl.NumberFormat("pt-BR").format(v);
+            }}
             height={280}
           />
+
         ) : (
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm">Histórico Nº Colaboradores</CardTitle></CardHeader>
