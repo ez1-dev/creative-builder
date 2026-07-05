@@ -327,14 +327,15 @@ export function AppSidebar() {
     const fav = isFavorite(item.url);
     return (
       <SidebarMenuItem key={item.url}>
-        <div className="group/item flex items-center">
+        <div className="group/item flex items-center rounded-md transition-colors hover:bg-sidebar-accent/70">
           <SidebarMenuButton asChild className="flex-1 min-h-[28px] py-1">
             <NavLink
               to={item.url}
               end
               className={cn(
-                'hover:bg-sidebar-accent',
-                active && 'bg-primary/15 text-primary font-medium',
+                'relative transition-colors hover:bg-transparent',
+                'before:absolute before:left-0 before:top-1/2 before:h-4 before:w-[2px] before:-translate-y-1/2 before:rounded-r before:bg-primary before:opacity-0 before:transition-opacity group-hover/item:before:opacity-60',
+                active && 'bg-primary/15 text-primary font-medium before:opacity-100',
               )}
               activeClassName="bg-primary/15 text-primary font-medium"
             >
@@ -342,6 +343,7 @@ export function AppSidebar() {
               {!collapsed && <span className="truncate text-[13.5px]">{item.title}</span>}
             </NavLink>
           </SidebarMenuButton>
+
           {!collapsed && canFavorite && (
             <button
               type="button"
