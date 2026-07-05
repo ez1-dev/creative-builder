@@ -24,7 +24,7 @@ export async function getRelatorio(id: string) {
   const [{ data: r, error: e1 }, { data: params, error: e2 }, { data: cols, error: e3 }, { data: layout, error: e4 }] =
     await Promise.all([
       supabase.from('relatorios').select('*').eq('id', id).maybeSingle(),
-      supabase.rpc('get_relatorio_parametros', { _relatorio_id: id } as any),
+      (supabase.rpc as any)('get_relatorio_parametros', { _relatorio_id: id }),
       supabase.from('relatorio_colunas').select('*').eq('relatorio_id', id).order('ordem'),
       supabase.from('relatorio_layout').select('*').eq('relatorio_id', id).maybeSingle(),
     ]);
