@@ -176,6 +176,9 @@ export default function QuadroColaboradoresPage() {
   const [anomesIni, setAnomesIni] = useState<string>(janOfYear(today));
   const [anomesFim, setAnomesFim] = useState<string>(toAnomes(today));
   const [exportando, setExportando] = useState(false);
+  const [drill, setDrill] = useState<{ open: boolean; label: string; valor: string; itens: ColaboradorDetalhe[] }>({
+    open: false, label: "", valor: "", itens: [],
+  });
   const qc = useQueryClient();
 
   const dataRefIso = toIsoDate(dataRef);
