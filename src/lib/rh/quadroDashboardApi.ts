@@ -264,23 +264,49 @@ export async function fetchQuadroHistorico(
     anomes_ini: anomesIni,
     anomes_fim: anomesFim,
   });
+  // eslint-disable-next-line no-console
+  console.log("[RH Quadro] historico", { anomesIni, anomesFim, raw: resp });
   const arr = Array.isArray(resp)
     ? resp
-    : (resp?.historico ?? resp?.dados ?? resp?.items ?? resp?.data ?? []);
-  const list: QuadroHistoricoItem[] = (Array.isArray(arr) ? arr : []).map((r: any) => ({
+    : (resp?.historico ?? resp?.dados ?? resp?.items ?? resp?.data ?? resp?.series ?? []);
+  const rows: { anomes: string; valor: number }[] = (Array.isArray(arr) ? arr : []).map((r: any) => ({
     anomes: String(
-      r.anomes ?? r.anomes_competencia ?? r.mes ?? r.competencia ?? r.ano_mes ?? "",
+      r.anomes ??
+        r.anomes_competencia ??
+        r.ano_mes_competencia ??
+        r.mes ??
+        r.competencia ??
+        r.ano_mes ??
+        r.periodo ??
+        r.dt_competencia ??
+        "",
     ).replace(/\D/g, ""),
-    total:
+    valor:
       Number(
         r.colaboradores ??
           r.total_colaboradores ??
           r.qtd_colaboradores ??
+          r.nr_colaboradores ??
+          r.ativos ??
+          r.qtd_ativos ??
+          r.headcount ??
           r.quantidade ??
+          r.qtd ??
+          r.qtde ??
           r.valor ??
           r.total ??
           0,
       ) || 0,
+  }));
+  // agrupar por competência (soma quando API devolve múltiplas linhas por anomes)
+  const map = new Map<string, number>();
+  for (const r of rows) {
+    if (!r.anomes) continue;
+    map.set(r.anomes, (map.get(r.anomes) ?? 0) + r.valor);
+  }
+  const list: QuadroHistoricoItem[] = Array.from(map.entries()).map(([anomes, total]) => ({
+    anomes,
+    total,
   }));
   list.sort((a, b) => a.anomes.localeCompare(b.anomes));
   return list;
