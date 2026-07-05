@@ -111,13 +111,14 @@ function KpiOrPending({
 }
 
 function BreakdownCard({
-  title, data, variant = "bar", sort = true, loading,
+  title, data, variant = "bar", sort = true, loading, onItemClick,
 }: {
   title: string;
   data?: QuadroBreakdown;
   variant?: "bar" | "donut";
   sort?: boolean;
   loading?: boolean;
+  onItemClick?: (label: string) => void;
 }) {
   const rows = useMemo(() => {
     if (!data) return [];
@@ -144,6 +145,8 @@ function BreakdownCard({
     return fmt(v);
   };
 
+  const handleClick = onItemClick ? (d: any) => onItemClick(String(d?.label ?? "")) : undefined;
+
   if (variant === "donut") {
     return (
       <DonutChartCard
@@ -151,6 +154,7 @@ function BreakdownCard({
         data={rows}
         valueFormatter={fmt}
         height={260}
+        onItemClick={handleClick}
       />
     );
   }
@@ -161,6 +165,7 @@ function BreakdownCard({
       valueFormatter={fmt}
       tickFormatter={tickFmt}
       height={260}
+      onItemClick={handleClick}
     />
   );
 }
