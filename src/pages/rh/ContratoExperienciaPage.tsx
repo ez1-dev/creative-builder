@@ -18,8 +18,17 @@ function formatDatePt(v?: string): string {
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
 }
 
+function normStatus(status?: string): string {
+  return (status || "").toUpperCase().trim();
+}
+
+function isUrgente(status?: string): boolean {
+  const s = normStatus(status);
+  return s === "VENCIDO" || s === "A VENCER 5 DIAS";
+}
+
 function statusBadgeCls(status?: string): string {
-  const s = (status || "").toUpperCase().trim();
+  const s = normStatus(status);
   if (s === "VENCIDO") return "bg-destructive/20 text-destructive";
   if (s === "A VENCER 5 DIAS") return "bg-destructive/10 text-destructive";
   if (s === "A VENCER 10 DIAS") return "bg-[hsl(var(--warning))]/15 text-[hsl(var(--warning))]";
@@ -120,26 +129,33 @@ export default function ContratoExperienciaPage() {
                     </TableCell>
                   </TableRow>
                 )}
-                {rows.map((r, i) => (
-                  <TableRow key={`${r.matricula}-${i}`}>
-                    <TableCell>{r.empresa}</TableCell>
-                    <TableCell>{r.filial}</TableCell>
-                    <TableCell>{r.cargo}</TableCell>
-                    <TableCell>{r.colaborador}</TableCell>
-                    <TableCell>{formatDatePt(r.dt_admissao)}</TableCell>
-                    <TableCell>{formatDatePt(r.dt_vencimento)}</TableCell>
-                    <TableCell>
-                      <span
-                        className={cn(
-                          "inline-flex items-center rounded px-2 py-0.5 text-xs font-medium",
-                          statusBadgeCls(r.status),
-                        )}
-                      >
-                        {r.status || "-"}
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {rows.map((r, i) => {
+                  const urgente = isUrgente(r.status);
+                  return (
+                    <TableRow
+                      key={`${r.matricula}-${i}`}
+                      className={cn(urgente && "bg-destructive/5 hover:bg-destructive/10")}
+                    >
+                      <TableCell>{r.empresa}</TableCell>
+                      <TableCell>{r.filial}</TableCell>
+                      <TableCell>{r.cargo}</TableCell>
+                      <TableCell>{r.colaborador}</TableCell>
+                      <TableCell>{formatDatePt(r.dt_admissao)}</TableCell>
+                      <TableCell>{formatDatePt(r.dt_vencimento)}</TableCell>
+                      <TableCell>
+                        <span
+                          className={cn(
+                            "inline-flex items-center rounded px-2 py-0.5 text-xs font-medium",
+                            statusBadgeCls(r.status),
+                            urgente && "font-semibold animate-status-blink",
+                          )}
+                        >
+                          {r.status || "-"}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
