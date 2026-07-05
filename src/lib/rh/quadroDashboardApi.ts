@@ -59,8 +59,8 @@ function pickFirst(src: any, keys: string[]): any {
   for (const k of keys) {
     if (k in src && src[k] !== undefined && src[k] !== null) return src[k];
   }
-  // buscar aninhado em distribuicoes/quebras/dados
-  for (const parent of ["distribuicoes", "quebras", "dados"]) {
+  // buscar aninhado em distribuicoes/quebras/dados/resumo
+  for (const parent of ["distribuicoes", "quebras", "dados", "resumo"]) {
     const p = (src as any)[parent];
     if (p && typeof p === "object") {
       for (const k of keys) {
