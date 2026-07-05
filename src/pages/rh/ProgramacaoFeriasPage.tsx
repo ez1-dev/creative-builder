@@ -48,6 +48,27 @@ export default function ProgramacaoFeriasPage() {
   });
 
   const [drill, setDrill] = useState<DrillState | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const { blob, filename } = await exportarProgramacaoFeriasExcel(codemp);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      if (e?.statusCode === 401) toast.error("Sessão expirada. Faça login novamente.");
+      else toast.error(e?.message || "Falha ao exportar Excel.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   useEffect(() => {
     if (!error) return;
