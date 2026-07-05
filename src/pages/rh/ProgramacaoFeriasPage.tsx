@@ -188,10 +188,10 @@ export default function ProgramacaoFeriasPage() {
                   {prox90.map((r, i) => (
                     <TableRow key={i}>
                       <TableCell>{r.colaborador}</TableCell>
-                      <TableCell>{formatDate(r.dt_inicio_periodo)}</TableCell>
-                      <TableCell>{formatDate(r.dt_fim_periodo)}</TableCell>
-                      <TableCell>{formatDate(r.dt_limite_saida)}</TableCell>
-                      <TableCell>{formatDate(r.dt_programacao)}</TableCell>
+                      <TableCell>{formatDateBR(r.dt_inicio_periodo)}</TableCell>
+                      <TableCell>{formatDateBR(r.dt_fim_periodo)}</TableCell>
+                      <TableCell>{formatDateBR(r.dt_limite_saida)}</TableCell>
+                      <TableCell>{formatDateBR(r.dt_programacao)}</TableCell>
                       <TableCell className="text-right tabular-nums">{fmtQtd(r.qtd_dias_direito)}</TableCell>
                       <TableCell className="text-right tabular-nums">{fmtQtd(r.qtd_dias_programado)}</TableCell>
                       <TableCell className="text-right tabular-nums">{fmtQtd(r.qtd_dias_abono)}</TableCell>
@@ -238,7 +238,7 @@ export default function ProgramacaoFeriasPage() {
                       <TableCell>{r.empresa}</TableCell>
                       <TableCell>{r.filial}</TableCell>
                       <TableCell>{r.colaborador}</TableCell>
-                      <TableCell>{formatDate(r.dt_limite_saida)}</TableCell>
+                      <TableCell>{formatDateBR(r.dt_limite_saida)}</TableCell>
                       <TableCell className="text-right tabular-nums">{fmtQtd(r.qtd_dias_direito)}</TableCell>
                       <TableCell className="text-right tabular-nums">{fmtQtd(r.qtd_dias_saldo)}</TableCell>
                       <TableCell className="text-right tabular-nums">{fmtQtd(r.qtd_dias_programado)}</TableCell>
