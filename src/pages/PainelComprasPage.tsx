@@ -592,36 +592,76 @@ export default function PainelComprasPage() {
   }, [dashboard, gerencialActive]);
 
   const gerencialCharts = useMemo(() => {
+    // Helpers tolerantes: aceitam múltiplos aliases de campo (o backend
+    // pode devolver 'valor', 'valor_liquido', 'valor_comprado', 'total', etc.)
+    const pickNumber = (r: any, keys: string[]): number => {
+      for (const k of keys) {
+        const v = r?.[k];
+        if (v !== undefined && v !== null && !Number.isNaN(Number(v))) return Number(v);
+      }
+      return 0;
+    };
+    const pickLabel = (r: any, keys: string[]): string => {
+      for (const k of keys) {
+        const v = r?.[k];
+        if (v !== undefined && v !== null && String(v).trim() !== '') return String(v);
+      }
+      return 'Sem informação';
+    };
+    const VALOR_KEYS = ['valor', 'valor_liquido', 'valor_liquido_total', 'valor_comprado', 'total'];
+
+    const aggFromDados = () => {
+      if (!dadosFiltrados.length) return null;
+      const agg = (key: string) => {
+        const m = new Map<string, number>();
+        dadosFiltrados.forEach((d: any) => {
+          const k = String(d[key] ?? 'Sem informação');
+          m.set(k, (m.get(k) || 0) + (d.valor_liquido || 0));
+        });
+        return [...m.entries()].map(([label, valor]) => ({ label, valor })).sort((a, b) => b.valor - a.valor);
+      };
+      return {
+        porMes: agg('mes_competencia_calc').sort((a, b) => a.label.localeCompare(b.label)),
+        porTipoDespesa: agg('tipo_despesa_calc'),
+        porCentroCusto: agg('centro_custo').slice(0, 10),
+        porProjeto: agg('numero_projeto').slice(0, 10),
+      };
+    };
+
     if (dashboard && !gerencialActive) {
-      const g = dashboard.graficos;
-      const map = (rows: any[] | undefined, labelKey: string) =>
-        (rows || []).map((r) => ({ label: String(r[labelKey] ?? '—'), valor: Number(r.valor || 0) }));
-      const porMes = map(g.por_mes, 'mes').sort((a, b) => a.label.localeCompare(b.label));
-      const porTipoDespesa = map(g.por_tipo_despesa, 'tipo').sort((a, b) => b.valor - a.valor);
-      const porCentroCusto = map(g.por_centro_custo, 'centro_custo').sort((a, b) => b.valor - a.valor).slice(0, 10);
-      const porProjeto = (g.por_projeto || [])
-        .map((r) => ({ label: String(r.projeto ?? r.numero_projeto ?? '—'), valor: Number(r.valor || 0) }))
-        .sort((a, b) => b.valor - a.valor)
+      const g: any = dashboard.graficos ?? {};
+      const porMes = (g.por_mes || [])
+        .map((r: any) => ({ label: pickLabel(r, ['mes', 'competencia', 'mes_competencia', 'label']), valor: pickNumber(r, VALOR_KEYS) }))
+        .sort((a: any, b: any) => a.label.localeCompare(b.label));
+      const porTipoDespesa = (g.por_tipo_despesa || [])
+        .map((r: any) => ({ label: pickLabel(r, ['tipo', 'tipo_despesa', 'label']), valor: pickNumber(r, VALOR_KEYS) }))
+        .sort((a: any, b: any) => b.valor - a.valor);
+      const porCentroCusto = (g.por_centro_custo || [])
+        .map((r: any) => ({ label: pickLabel(r, ['centro_custo', 'centro', 'nome_centro', 'label']), valor: pickNumber(r, VALOR_KEYS) }))
+        .sort((a: any, b: any) => b.valor - a.valor)
         .slice(0, 10);
+      const porProjeto = (g.por_projeto || [])
+        .map((r: any) => ({ label: pickLabel(r, ['projeto', 'nome_projeto', 'numero_projeto', 'label']), valor: pickNumber(r, VALOR_KEYS) }))
+        .sort((a: any, b: any) => b.valor - a.valor)
+        .slice(0, 10);
+
+      const sum = (arr: any[]) => arr.reduce((s, x) => s + (x.valor || 0), 0);
+      const total = sum(porMes) + sum(porTipoDespesa) + sum(porCentroCusto) + sum(porProjeto);
+
+      // Se o backend devolveu estrutura mas todos os valores estão zerados,
+      // recorre ao agrupamento client-side quando temos dados detalhados.
+      if (total === 0) {
+        const fallback = aggFromDados();
+        if (fallback) return fallback;
+      }
+
       if (!porMes.length && !porTipoDespesa.length && !porCentroCusto.length && !porProjeto.length) return null;
       return { porMes, porTipoDespesa, porCentroCusto, porProjeto };
     }
-    if (!dadosFiltrados.length) return null;
-    const agg = (key: string) => {
-      const m = new Map<string, number>();
-      dadosFiltrados.forEach((d: any) => {
-        const k = String(d[key] ?? '—');
-        m.set(k, (m.get(k) || 0) + (d.valor_liquido || 0));
-      });
-      return [...m.entries()].map(([label, valor]) => ({ label, valor })).sort((a, b) => b.valor - a.valor);
-    };
-    return {
-      porMes: agg('mes_competencia_calc').sort((a, b) => a.label.localeCompare(b.label)),
-      porTipoDespesa: agg('tipo_despesa_calc'),
-      porCentroCusto: agg('centro_custo').slice(0, 10),
-      porProjeto: agg('numero_projeto').slice(0, 10),
-    };
+    return aggFromDados();
   }, [dadosFiltrados, dashboard, gerencialActive]);
+
+
 
   const drillDetails = useMemo(() => {
     if (!data?.dados?.length) return {} as Record<string, { label: string; value: string }[] | undefined>;
