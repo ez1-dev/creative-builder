@@ -401,9 +401,18 @@ export default function QuadroColaboradoresPage() {
           loading={dashQ.isLoading}
         />
       </div>
+
+      <QuadroDrillModal
+        open={drill.open}
+        onOpenChange={(v) => setDrill((d) => ({ ...d, open: v }))}
+        label={drill.label}
+        valor={drill.valor}
+        itens={drill.itens}
+      />
     </div>
   );
 }
+
 
 const EMPRESA_COLS: { key: keyof QuadroEmpresaLinha; label: string }[] = [
   { key: "colaboradores", label: "Colaboradores" },
