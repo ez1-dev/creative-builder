@@ -566,7 +566,7 @@ export default function PainelComprasPage() {
     // KPIs vêm exclusivamente do agregado da API. Sem dashboard ou com filtro
     // gerencial client-side ativo (que o backend não conhece), retornamos null.
     if (!dashboard || gerencialActive) return null;
-    const k = dashboard.kpis;
+    const k = { ...(dashboard.kpis ?? {}), ...(dashboard.kpis_dashboard ?? {}) };
     const topBackend = k.maior_fornecedor
       ? { nome: k.maior_fornecedor.nome || k.maior_fornecedor.codigo || '—', valor: k.maior_fornecedor.valor || 0 }
       : null;
