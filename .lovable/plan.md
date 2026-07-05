@@ -1,90 +1,43 @@
-## Objetivo
-Adicionar um grid "Empresa" com uma linha por empresa e colunas por KPI (Colaboradores, Trabalhando, Admitidos, Demitidos, PCD, Estagiários, Jovem Aprendiz, Férias, Aposent. Invalidez, Auxílio Doença, Acidente Trabalho, Atestados) + linha de totais, consumindo o payload atual do `/api/rh/quadro-colaboradores/dashboard`.
+## Ajustes finos no mapeamento do grid Empresa
 
-## Escopo
+Depois do restart da 8070, o payload de `por_empresa` traz alguns nomes de campo que ainda não estão no alias do front. Sem esse ajuste as colunas continuarão "—" mesmo com dado chegando.
 
-- `src/lib/rh/quadroDashboardApi.ts`: extrair matriz por empresa do payload.
-- `src/pages/rh/QuadroColaboradoresPage.tsx`: novo grid substituindo/complementando o card `BarChartCard` "Empresa" atual.
+### Diferenças detectadas vs. `EMPRESA_KPI_ALIASES` atual
 
-Nada de backend, nada de cálculo de headcount no front.
+| Coluna do grid | API manda | Alias hoje cobre? |
+|---|---|---|
+| Aposent. Invalidez | `apos_invalidez` | Não (só `aposentadoria_invalidez`, `aposent_invalidez`, `aposentadoria`, `aposentados`, `invalidez`) |
+| Licença Maternidade (nova) | `licenca_maternidade` | Coluna não existe no grid |
+| Homens / Mulheres (novos) | `homens`, `mulheres` | Colunas não existem no grid |
 
-## Mudanças
+Demais campos (`colaboradores`, `trabalhando`, `admitidos`, `demitidos`, `pcd`, `estagiarios`, `jovem_aprendiz`, `ferias`, `aux_doenca`, `acidente_trabalho`, `atestados`) já batem com os aliases atuais e devem preencher sozinhos.
 
-### 1. Novo tipo e mapper em `quadroDashboardApi.ts`
+`pickEmpresaMatriz` já aceita `label` como nome da empresa, então `por_empresa[].label` → coluna "Empresa" continua ok.
 
-Tipos:
-```ts
-export interface QuadroEmpresaLinha {
-  empresa: string;
-  colaboradores?: number | null;
-  trabalhando?: number | null;
-  admitidos?: number | null;
-  demitidos?: number | null;
-  pcd?: number | null;
-  estagiarios?: number | null;
-  jovem_aprendiz?: number | null;
-  ferias?: number | null;
-  aposentadoria_invalidez?: number | null;
-  auxilio_doenca?: number | null;
-  acidente_trabalho?: number | null;
-  atestados?: number | null;
-}
-```
+### Alterações
 
-Adicionar `empresa_detalhado?: QuadroEmpresaLinha[]` ao `QuadroDashboard`.
+**`src/lib/rh/quadroDashboardApi.ts`**
+1. `EMPRESA_KPI_ALIASES.aposentadoria_invalidez`: adicionar `"apos_invalidez"` no início da lista de aliases (mantendo os demais para retrocompatibilidade).
+2. Adicionar três chaves opcionais em `QuadroEmpresaLinha`: `licenca_maternidade`, `homens`, `mulheres`.
+3. Adicionar aliases correspondentes em `EMPRESA_KPI_ALIASES`:
+   - `licenca_maternidade`: `["licenca_maternidade", "lic_maternidade", "maternidade"]`
+   - `homens`: `["homens", "masculino", "qtd_masculino"]`
+   - `mulheres`: `["mulheres", "feminino", "qtd_feminino"]`
 
-Novo mapper `pickEmpresaMatriz(raw)`:
-- Fontes procuradas: `empresa_detalhado`, `empresas_detalhado`, `por_empresa_detalhado`, `empresa_kpis`, `empresas`, `por_empresa` (quando itens forem objetos com múltiplos campos, não só `{empresa, quantidade}`), `distribuicoes.empresa_detalhado`, `distribuicoes.empresas`, `resumo.empresa`.
-- Aceita array `[{empresa, colaboradores, trabalhando, admitidos, demitidos, pcd, estagiarios, jovem_aprendiz, ferias, aposentadoria_invalidez, auxilio_doenca, acidente_trabalho, atestados}]`.
-- Também aceita aliases por campo (mapa `KPI_ALIASES`):
-  - colaboradores: `total`, `qtd`, `quantidade`, `headcount`, `qtd_colaboradores`.
-  - trabalhando: `ativos`, `qtd_trabalhando`, `em_trabalho`.
-  - admitidos: `admissoes`, `admitidos_mes`.
-  - demitidos: `demissoes`, `demitidos_mes`.
-  - pcd: `qtd_pcd`.
-  - estagiarios: `estagiario`, `qtd_estagiarios`.
-  - jovem_aprendiz: `aprendiz`, `jovens_aprendizes`.
-  - ferias: `em_ferias`.
-  - aposentadoria_invalidez: `aposentadoria`, `aposentados`, `invalidez`, `aposent_invalidez`.
-  - auxilio_doenca: `aux_doenca`, `auxilio`.
-  - acidente_trabalho: `acidente`, `acidentes`.
-  - atestados: `atestado`.
-- Se o campo não aparecer no objeto, deixa `undefined` (renderiza "—").
-- Se aparecer com `null`, mantém `null` (renderiza "—").
-- Sem soma/derivação no front.
+**`src/pages/rh/QuadroColaboradoresPage.tsx`**
+1. Grid Empresa: adicionar 3 novas colunas no header e no `<tbody>`/totais, nesta ordem no fim: `Licença Maternidade`, `Homens`, `Mulheres`.
+2. Manter a mesma regra de "—" para valores ausentes e a linha de totais somando apenas numéricos.
+3. Remover o aviso "Montagem Externa pendente de regra na API." se a linha vier no payload (comportamento já implementado — só confirmar).
 
-Manter `empresa` (breakdown simples) para retrocompatibilidade — deriva a partir de `empresa_detalhado` quando essa lista existir e o `empresa` simples não vier.
+### Fora de escopo
 
-### 2. `QuadroColaboradoresPage.tsx`
+- Backend / FastAPI (usuário já confirmou que restart resolve os zeros).
+- KPIs de topo, gráficos por_* e histórico (contrato bate com o que o front já lê).
+- Recalcular Trabalhando / gerar Excel de conferência (usuário perguntou como próximo passo separado — respondo depois de aplicar isto).
 
-Substituir o bloco atual do `BarChartCard` "Empresa" por um novo componente `EmpresaGrid` renderizando uma `<Table>`:
+### Validação
 
-- Header: Empresa | Colaboradores | Trabalhando | Admitidos | Demitidos | PCD | Estagiários | Jovem Aprendiz | Férias | Aposent. Invalidez | Auxílio Doença | Acidente Trabalho | Atestados.
-- Linhas: uma por empresa (`empresa_detalhado`), ordenadas por `colaboradores` desc.
-- Números formatados `pt-BR`, `tabular-nums`, valores nulos/undefined = `—`.
-- Linha de totais (sticky no bottom, `font-medium`) somando apenas colunas cujas células são numéricas — a soma é agregação visual da própria linha (não é regra de negócio).
-- Manter observação discreta abaixo do grid: "Montagem Externa pendente de regra na API." se nenhuma linha contiver `MONTAGEM EXTERNA` na label.
-- Fallback:
-  - Sem `empresa_detalhado` mas com `empresa` simples → renderizar grid só com coluna "Colaboradores".
-  - Sem nada → manter card atual "Classificação Empresa pendente de regra na API".
-
-Sem alterar demais KPIs, gráficos ou histórico.
-
-## Detalhes técnicos
-
-- Reaproveitar componentes `Table`, `TableHeader`, `TableRow`, `TableCell` já usados em `FilialTable`.
-- Container com `overflow-x-auto` para caber colunas em desktop.
-- Sem novas dependências.
-- Sem edição em `src/integrations/supabase/*`.
-
-## Fora de escopo
-
-- Backend / FastAPI / novos endpoints.
-- Recalcular headcount, admissões, demissões.
-- Alterar KPIs, gráficos, histórico ou layout de outras seções da página.
-
-## Validação (data_ref = 2026-04-30)
-
-- Linhas GENIUS, ESTRUTURAL e (quando API entregar) MONTAGEM EXTERNA, cada uma com as colunas preenchidas conforme payload.
-- Colunas ausentes na API aparecem como "—" na célula.
-- Linha de totais soma o que existe.
+Após o restart da 8070 + este ajuste, com `data_ref=hoje`:
+- Linhas ESTRUTURAL / GENIUS / MONTAGEM EXTERNA (se vier) preenchidas em todas as 14 colunas antigas + 3 novas.
+- Aposent. Invalidez deixa de ser "—" quando `apos_invalidez` chegar.
+- Totais somam corretamente as novas colunas.

@@ -34,6 +34,9 @@ export interface QuadroEmpresaLinha {
   auxilio_doenca?: number | null;
   acidente_trabalho?: number | null;
   atestados?: number | null;
+  licenca_maternidade?: number | null;
+  homens?: number | null;
+  mulheres?: number | null;
 }
 
 export interface QuadroDashboard {
@@ -285,10 +288,13 @@ const EMPRESA_KPI_ALIASES: Record<keyof Omit<QuadroEmpresaLinha, "empresa">, str
   estagiarios: ["estagiarios", "estagiario", "qtd_estagiarios"],
   jovem_aprendiz: ["jovem_aprendiz", "aprendiz", "jovens_aprendizes"],
   ferias: ["ferias", "em_ferias"],
-  aposentadoria_invalidez: ["aposentadoria_invalidez", "aposent_invalidez", "aposentadoria", "aposentados", "invalidez"],
+  aposentadoria_invalidez: ["apos_invalidez", "aposentadoria_invalidez", "aposent_invalidez", "aposentadoria", "aposentados", "invalidez"],
   auxilio_doenca: ["auxilio_doenca", "aux_doenca", "auxilio"],
   acidente_trabalho: ["acidente_trabalho", "acidente", "acidentes"],
   atestados: ["atestados", "atestado"],
+  licenca_maternidade: ["licenca_maternidade", "lic_maternidade", "maternidade"],
+  homens: ["homens", "masculino", "qtd_masculino"],
+  mulheres: ["mulheres", "feminino", "qtd_feminino"],
 };
 
 function pickEmpresaMatriz(raw: any): QuadroEmpresaLinha[] | undefined {
