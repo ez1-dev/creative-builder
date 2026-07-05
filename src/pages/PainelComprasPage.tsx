@@ -37,6 +37,9 @@ import { useSearchTracking } from '@/hooks/useSearchTracking';
 import { VisualGate } from '@/components/VisualGate';
 import { enrichRow } from '@/lib/comprasClassificacao';
 import { PainelDrillView } from '@/components/compras/PainelDrillView';
+import { ComprasAiChartGenerator } from '@/components/compras/ComprasAiChartGenerator';
+import { COMPRAS_WIDGETS, loadHiddenCharts, saveHiddenCharts } from '@/lib/bi/comprasWidgetCatalog';
+import { Pencil, EyeOff, Eye } from 'lucide-react';
 
 const COLORS = ['hsl(215,70%,45%)', 'hsl(142,70%,40%)', 'hsl(38,92%,50%)', 'hsl(0,72%,51%)', 'hsl(199,89%,48%)', 'hsl(280,60%,50%)', 'hsl(160,60%,40%)', 'hsl(30,80%,55%)'];
 
