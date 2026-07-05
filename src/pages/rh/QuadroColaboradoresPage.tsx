@@ -46,10 +46,11 @@ const KPIS_CONFIG: {
   title: string;
   variant?: "default" | "info" | "success" | "warning" | "danger";
   hideIfMissing?: boolean;
+  showPctOfTotal?: boolean;
 }[] = [
   { key: "total", title: "Total de colaboradores", variant: "info" },
-  { key: "masculino", title: "Masculino" },
-  { key: "feminino", title: "Feminino" },
+  { key: "masculino", title: "Masculino", showPctOfTotal: true },
+  { key: "feminino", title: "Feminino", showPctOfTotal: true },
   { key: "jovem_aprendiz", title: "Jovem Aprendiz" },
   { key: "estagiarios", title: "Estagiários" },
   { key: "pcd", title: "PCD" },
@@ -64,10 +65,11 @@ const KPIS_CONFIG: {
 ];
 
 function KpiOrPending({
-  title, value, variant, loading,
+  title, value, variant, loading, subtitle,
 }: {
   title: string; value: number | null | undefined;
   variant?: "default" | "info" | "success" | "warning" | "danger"; loading?: boolean;
+  subtitle?: string;
 }) {
   if (loading) {
     return <KpiCard title={title} value={0} format="number" loading variant={variant} />;
