@@ -204,6 +204,25 @@ export default function QuadroColaboradoresPage() {
     [histQ.data],
   );
 
+  const detalhe = dashQ.data?.detalhe ?? [];
+  const temDetalhe = detalhe.length > 0;
+
+  function openDrill(label: string, valor: string, itens: ColaboradorDetalhe[]) {
+    if (!itens || itens.length === 0) {
+      toast.info("Sem colaboradores para este recorte.");
+      return;
+    }
+    setDrill({ open: true, label, valor, itens });
+  }
+
+  function onKpiClick(kpiKey: string, title: string) {
+    if (!temDetalhe) return;
+    const itens = filterDetalheByKpi(detalhe, kpiKey);
+    if (!itens) return;
+    openDrill(title, title, itens);
+  }
+
+
   function atualizar() {
     qc.invalidateQueries({ queryKey: ["rh", "quadro-dashboard"] });
     qc.invalidateQueries({ queryKey: ["rh", "quadro-historico"] });
