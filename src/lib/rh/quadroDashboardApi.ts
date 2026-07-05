@@ -251,6 +251,15 @@ function normalizeDashboard(raw: any): QuadroDashboard {
   const apo = toNumOrNull(kpisSrc?.aposentadoria ?? kpisSrc?.aposentados);
   if (apo !== null) kpis.aposentadoria = apo;
 
+  const empresaDetalhado = pickEmpresaMatriz(raw);
+  const empresaBreakdown =
+    pickBreakdown(raw, ["empresa", "empresas", "por_empresa"]) ??
+    (empresaDetalhado
+      ? empresaDetalhado
+          .filter((e) => typeof e.colaboradores === "number")
+          .map((e) => ({ label: e.empresa, valor: e.colaboradores as number }))
+      : undefined);
+
   return {
     data_ref: raw?.data_ref,
     kpis,
@@ -261,10 +270,78 @@ function normalizeDashboard(raw: any): QuadroDashboard {
     filial: pickBreakdown(raw, ["filial", "filiais", "por_filial"]),
     situacao: sitBreakdownRaw,
     vinculo: pickBreakdown(raw, ["vinculo", "vinculos", "por_vinculo", "tipo_vinculo"]),
-    empresa: pickBreakdown(raw, ["empresa", "empresas", "por_empresa"]) ?? null,
+    empresa: empresaBreakdown ?? null,
+    empresa_detalhado: empresaDetalhado ?? null,
     raw,
   };
 }
+
+const EMPRESA_KPI_ALIASES: Record<keyof Omit<QuadroEmpresaLinha, "empresa">, string[]> = {
+  colaboradores: ["colaboradores", "total_colaboradores", "qtd_colaboradores", "total", "qtd", "quantidade", "headcount"],
+  trabalhando: ["trabalhando", "ativos", "qtd_trabalhando", "em_trabalho"],
+  admitidos: ["admitidos", "admissoes", "admitidos_mes", "qtd_admitidos"],
+  demitidos: ["demitidos", "demissoes", "demitidos_mes", "qtd_demitidos"],
+  pcd: ["pcd", "qtd_pcd"],
+  estagiarios: ["estagiarios", "estagiario", "qtd_estagiarios"],
+  jovem_aprendiz: ["jovem_aprendiz", "aprendiz", "jovens_aprendizes"],
+  ferias: ["ferias", "em_ferias"],
+  aposentadoria_invalidez: ["aposentadoria_invalidez", "aposent_invalidez", "aposentadoria", "aposentados", "invalidez"],
+  auxilio_doenca: ["auxilio_doenca", "aux_doenca", "auxilio"],
+  acidente_trabalho: ["acidente_trabalho", "acidente", "acidentes"],
+  atestados: ["atestados", "atestado"],
+};
+
+function pickEmpresaMatriz(raw: any): QuadroEmpresaLinha[] | undefined {
+  const src = pickFirst(raw, [
+    "empresa_detalhado",
+    "empresas_detalhado",
+    "por_empresa_detalhado",
+    "empresa_kpis",
+    "empresas",
+    "por_empresa",
+    "empresa",
+  ]);
+  if (!src) return undefined;
+  const arr = Array.isArray(src)
+    ? src
+    : typeof src === "object"
+      ? Object.entries(src).map(([k, v]) =>
+          typeof v === "object" && v !== null ? { empresa: k, ...(v as any) } : { empresa: k, colaboradores: Number(v) || 0 },
+        )
+      : [];
+  if (!arr.length) return undefined;
+
+  // se todos os itens só têm empresa+colaboradores, ainda vale montar a matriz (renderiza "—" nas demais)
+  const linhas: QuadroEmpresaLinha[] = arr.map((r: any) => {
+    const linha: QuadroEmpresaLinha = {
+      empresa: String(
+        r.empresa ?? r.label ?? r.nome ?? r.descricao ?? r.grupo ?? r.classificacao ?? "-",
+      ),
+    };
+    for (const [key, aliases] of Object.entries(EMPRESA_KPI_ALIASES) as [
+      keyof Omit<QuadroEmpresaLinha, "empresa">,
+      string[],
+    ][]) {
+      let v: any = undefined;
+      for (const a of aliases) {
+        if (r && typeof r === "object" && a in r) {
+          v = r[a];
+          break;
+        }
+      }
+      if (v === undefined) continue;
+      if (v === null) {
+        (linha as any)[key] = null;
+      } else {
+        const n = Number(v);
+        (linha as any)[key] = isFinite(n) ? n : null;
+      }
+    }
+    return linha;
+  });
+  return linhas;
+}
+
 
 export async function fetchQuadroDashboard(dataRef: string): Promise<QuadroDashboard> {
   const resp = await api.get<any>("/api/rh/quadro-colaboradores/dashboard", { data_ref: dataRef });
