@@ -677,7 +677,7 @@ export default function PainelComprasPage() {
       return [...map.entries()]
         .sort((a, b) => b[1] - a[1])
         .slice(0, top)
-        .map(([label, val]) => ({ label: label.substring(0, 30), value: formatCurrency(val) }));
+        .map(([label, val]) => ({ label: formatFornecedorLabel(label, 30), value: formatCurrency(val) }));
     };
 
     const topFornByCount = (filterFn: (d: any) => boolean, top = 10) => {
@@ -689,7 +689,7 @@ export default function PainelComprasPage() {
       return [...map.entries()]
         .sort((a, b) => b[1] - a[1])
         .slice(0, top)
-        .map(([label, val]) => ({ label: label.substring(0, 30), value: `${val} itens` }));
+        .map(([label, val]) => ({ label: formatFornecedorLabel(label, 30), value: `${val} itens` }));
     };
 
     const valorBruto = topFornByField('valor_bruto');
@@ -705,7 +705,7 @@ export default function PainelComprasPage() {
       return [...map.entries()]
         .sort((a, b) => b[1] - a[1])
         .slice(0, 10)
-        .map(([label, val]) => ({ label: label.substring(0, 30), value: formatCurrency(val) }));
+        .map(([label, val]) => ({ label: formatFornecedorLabel(label, 30), value: formatCurrency(val) }));
     })();
     const itensPendentes = topFornByCount((d: any) => (d.saldo_pendente || 0) > 0);
     const itensAtrasados = dados
