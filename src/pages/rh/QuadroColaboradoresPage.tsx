@@ -572,7 +572,11 @@ function FilialTable({ data, loading, onRowClick }: { data?: QuadroBreakdown; lo
             </TableHeader>
             <TableBody>
               {rows.map((r, i) => (
-                <TableRow key={i}>
+                <TableRow
+                  key={i}
+                  className={onRowClick ? "cursor-pointer hover:bg-muted/50" : undefined}
+                  onClick={onRowClick ? () => onRowClick(r.label) : undefined}
+                >
                   <TableCell>{r.label}</TableCell>
                   <TableCell className="text-right tabular-nums">{new Intl.NumberFormat("pt-BR").format(r.valor)}</TableCell>
                   <TableCell className="text-right tabular-nums">
