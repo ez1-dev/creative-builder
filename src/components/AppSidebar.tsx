@@ -380,9 +380,9 @@ export function AppSidebar() {
     const isOpen = forceOpen || openGroup === 'favoritos';
     const visibleFavs = favoriteItems.filter((it) => matchesQuery(it.title));
     return (
-      <SidebarGroup key="favoritos">
+      <SidebarGroup key="favoritos" className="py-0.5">
         <Collapsible open={isOpen} onOpenChange={(v) => setGroupOpen('favoritos', v)}>
-          <CollapsibleTrigger className="group flex w-full items-center justify-between px-3 py-2 text-[13px] font-semibold tracking-wide text-sidebar-foreground/80 hover:text-sidebar-foreground">
+          <CollapsibleTrigger className="group flex w-full items-center justify-between px-3 py-1.5 text-[13px] font-semibold tracking-wide text-sidebar-foreground/80 hover:text-sidebar-foreground">
             <span className="flex min-w-0 items-center gap-2">
               <Star className="h-[18px] w-[18px] shrink-0" />
               {!collapsed && <span className="truncate whitespace-nowrap">Favoritos</span>}
@@ -392,12 +392,12 @@ export function AppSidebar() {
           <CollapsibleContent>
             <SidebarGroupContent>
               {visibleFavs.length > 0 ? (
-                <SidebarMenu>
+                <SidebarMenu className={cn(!collapsed && 'ml-[18px] border-l border-sidebar-border/40 pl-1.5 gap-0')}>
                   {visibleFavs.map((it) => renderItemRow(it))}
                 </SidebarMenu>
               ) : (
                 !collapsed && (
-                  <p className="px-4 py-2 text-[12px] leading-snug text-sidebar-foreground/50">
+                  <p className="px-4 py-1 text-[12px] leading-snug text-sidebar-foreground/50">
                     {q ? 'Nenhum favorito corresponde à busca.' : 'Nenhum favorito ainda. Clique na ★ ao lado de qualquer item para adicionar.'}
                   </p>
                 )
@@ -406,6 +406,7 @@ export function AppSidebar() {
           </CollapsibleContent>
         </Collapsible>
       </SidebarGroup>
+
     );
   };
 
