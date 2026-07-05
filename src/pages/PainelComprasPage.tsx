@@ -1232,7 +1232,7 @@ export default function PainelComprasPage() {
               <div>
                 <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Análises Gráficas</h3>
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-                  {chartData.top_fornecedores?.length > 0 && (
+                  {chartData.top_fornecedores?.length > 0 && !hiddenCharts.top_fornecedores && (
                     <VisualGate visualKey="compras.top-fornecedores">
                     <div className="rounded-md border bg-card p-4">
                       <h3 className="mb-3 text-sm font-semibold">Top Fornecedores (Valor Líquido)</h3>
@@ -1248,7 +1248,7 @@ export default function PainelComprasPage() {
                     </VisualGate>
                   )}
 
-                  {chartData.situacoes?.length > 0 && (
+                  {chartData.situacoes?.length > 0 && !hiddenCharts.situacoes && (
                     <div className="rounded-md border bg-card p-4">
                       <h3 className="mb-1 text-sm font-semibold">Situação das OCs</h3>
                       <p className="mb-2 text-[11px] text-muted-foreground">Clique em uma fatia para filtrar a Lista Detalhada</p>
@@ -1274,7 +1274,7 @@ export default function PainelComprasPage() {
                     </div>
                   )}
 
-                  {chartData.tipos?.length > 0 && (
+                  {chartData.tipos?.length > 0 && !hiddenCharts.tipos_item && (
                     <div className="rounded-md border bg-card p-4">
                       <h3 className="mb-1 text-sm font-semibold">Produtos x Serviços</h3>
                       <p className="mb-2 text-[11px] text-muted-foreground">Clique em uma fatia para filtrar a Lista Detalhada</p>
@@ -1300,7 +1300,7 @@ export default function PainelComprasPage() {
                     </div>
                   )}
 
-                  {chartData.entregas_por_mes?.length > 0 && (
+                  {chartData.entregas_por_mes?.length > 0 && !hiddenCharts.entregas_por_mes && (
                     <div className="rounded-md border bg-card p-4">
                       <h3 className="mb-3 text-sm font-semibold">Entregas por Mês (Itens por mês de entrega)</h3>
                       <ResponsiveContainer width="100%" height={250}>
@@ -1314,7 +1314,7 @@ export default function PainelComprasPage() {
                     </div>
                   )}
 
-                  {chartData.familias?.length > 0 && (
+                  {chartData.familias?.length > 0 && !hiddenCharts.top_familias && (
                     <VisualGate visualKey="compras.top-familias">
                     <div className="rounded-md border bg-card p-4">
                       <h3 className="mb-3 text-sm font-semibold">Top Famílias por Valor Líquido</h3>
@@ -1330,7 +1330,7 @@ export default function PainelComprasPage() {
                     </VisualGate>
                   )}
 
-                  {chartData.origens?.length > 0 && (
+                  {chartData.origens?.length > 0 && !hiddenCharts.top_origens && (
                     <VisualGate visualKey="compras.top-origens">
                     <div className="rounded-md border bg-card p-4">
                       <h3 className="mb-3 text-sm font-semibold">Top Origens por Valor Líquido</h3>
@@ -1353,7 +1353,7 @@ export default function PainelComprasPage() {
               <div>
                 <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Análise Gerencial</h3>
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-                  {gerencialCharts.porMes.length > 0 && (
+                  {gerencialCharts.porMes.length > 0 && !hiddenCharts.compras_por_mes && (
                     <div className="rounded-md border bg-card p-4">
                       <h3 className="mb-3 text-sm font-semibold">Compras por Mês</h3>
                       <ResponsiveContainer width="100%" height={250}>
@@ -1366,7 +1366,7 @@ export default function PainelComprasPage() {
                       </ResponsiveContainer>
                     </div>
                   )}
-                  {gerencialCharts.porTipoDespesa.length > 0 && (
+                  {gerencialCharts.porTipoDespesa.length > 0 && !hiddenCharts.por_tipo_despesa && (
                     <div className="rounded-md border bg-card p-4">
                       <h3 className="mb-3 text-sm font-semibold">Compras por Tipo de Despesa</h3>
                       <ResponsiveContainer width="100%" height={250}>
@@ -1380,7 +1380,7 @@ export default function PainelComprasPage() {
                       </ResponsiveContainer>
                     </div>
                   )}
-                  {gerencialCharts.porCentroCusto.length > 0 && (
+                  {gerencialCharts.porCentroCusto.length > 0 && !hiddenCharts.por_centro_custo && (
                     <div className="rounded-md border bg-card p-4">
                       <h3 className="mb-3 text-sm font-semibold">Top 10 Centros de Custo</h3>
                       <ResponsiveContainer width="100%" height={250}>
@@ -1393,7 +1393,7 @@ export default function PainelComprasPage() {
                       </ResponsiveContainer>
                     </div>
                   )}
-                  {gerencialCharts.porProjeto.length > 0 && (
+                  {gerencialCharts.porProjeto.length > 0 && !hiddenCharts.por_projeto && (
                     <div className="rounded-md border bg-card p-4">
                       <h3 className="mb-3 text-sm font-semibold">Top 10 Projetos</h3>
                       <ResponsiveContainer width="100%" height={250}>
