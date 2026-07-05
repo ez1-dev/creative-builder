@@ -1,4 +1,4 @@
-import { api } from "@/lib/api";
+import { api, getApiUrl } from "@/lib/api";
 
 export type QuadroBreakdown = { label: string; valor: number }[];
 
@@ -142,15 +142,15 @@ export class ExportQuadroIndisponivelError extends Error {
 }
 
 export async function exportQuadroDashboard(dataRef: string): Promise<Blob> {
-  try {
-    return await api.get<Blob>(
-      "/api/rh/quadro-colaboradores/export",
-      { data_ref: dataRef },
-      { responseType: "blob" } as any,
-    );
-  } catch (e: any) {
-    const st = e?.statusCode ?? e?.status;
-    if (st === 404 || st === 405 || st === 501) throw new ExportQuadroIndisponivelError();
-    throw e;
+  const qs = new URLSearchParams({ data_ref: dataRef }).toString();
+  const url = `${getApiUrl()}/api/rh/quadro-colaboradores/export?${qs}`;
+  const headers: Record<string, string> = { "ngrok-skip-browser-warning": "true" };
+  const token = api.getToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const res = await fetch(url, { headers });
+  if (res.status === 404 || res.status === 405 || res.status === 501) {
+    throw new ExportQuadroIndisponivelError();
   }
+  if (!res.ok) throw new Error(`Erro ${res.status}`);
+  return await res.blob();
 }
