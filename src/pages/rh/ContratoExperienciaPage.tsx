@@ -29,8 +29,8 @@ function isUrgente(status?: string): boolean {
 
 function statusBadgeCls(status?: string): string {
   const s = normStatus(status);
-  if (s === "VENCIDO") return "bg-destructive/20 text-destructive";
-  if (s === "A VENCER 5 DIAS") return "bg-destructive/10 text-destructive";
+  if (s === "VENCIDO") return "bg-destructive text-destructive-foreground";
+  if (s === "A VENCER 5 DIAS") return "bg-destructive text-destructive-foreground";
   if (s === "A VENCER 10 DIAS") return "bg-[hsl(var(--warning))]/15 text-[hsl(var(--warning))]";
   if (s === "A VENCER") return "bg-[hsl(var(--success))]/15 text-[hsl(var(--success))]";
   return "bg-muted text-muted-foreground";
@@ -134,7 +134,7 @@ export default function ContratoExperienciaPage() {
                   return (
                     <TableRow
                       key={`${r.matricula}-${i}`}
-                      className={cn(urgente && "bg-destructive/5 hover:bg-destructive/10")}
+                      className={cn(urgente && "animate-row-urgent")}
                     >
                       <TableCell>{r.empresa}</TableCell>
                       <TableCell>{r.filial}</TableCell>
@@ -147,7 +147,7 @@ export default function ContratoExperienciaPage() {
                           className={cn(
                             "inline-flex items-center rounded px-2 py-0.5 text-xs font-medium",
                             statusBadgeCls(r.status),
-                            urgente && "font-semibold animate-status-blink",
+                            urgente && "font-bold animate-status-blink",
                           )}
                         >
                           {r.status || "-"}

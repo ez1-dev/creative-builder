@@ -234,10 +234,27 @@ html[data-tv="1"] :focus-visible {
 }
 
 
+
 @keyframes status-blink {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.55; }
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 hsl(var(--destructive) / 0.6);
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.75;
+    box-shadow: 0 0 0 6px hsl(var(--destructive) / 0);
+    transform: scale(1.05);
+  }
 }
 .animate-status-blink {
-  animation: status-blink 1s ease-in-out infinite;
+  animation: status-blink 0.9s ease-in-out infinite;
+}
+
+@keyframes row-urgent-blink {
+  0%, 100% { background-color: hsl(var(--destructive) / 0.18); }
+  50%      { background-color: hsl(var(--destructive) / 0.32); }
+}
+.animate-row-urgent > td {
+  animation: row-urgent-blink 1.2s ease-in-out infinite;
 }
