@@ -511,7 +511,11 @@ function EmpresaGrid({
             </TableHeader>
             <TableBody>
               {rows.map((r, i) => (
-                <TableRow key={i}>
+                <TableRow
+                  key={i}
+                  className={onRowClick ? "cursor-pointer hover:bg-muted/50" : undefined}
+                  onClick={onRowClick ? () => onRowClick(String(r.empresa ?? "")) : undefined}
+                >
                   <TableCell className="font-medium whitespace-nowrap">{r.empresa}</TableCell>
                   {EMPRESA_COLS.map((c) => (
                     <TableCell key={c.key as string} className="text-right tabular-nums">
