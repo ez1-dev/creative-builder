@@ -328,7 +328,7 @@ export function AppSidebar() {
     return (
       <SidebarMenuItem key={item.url}>
         <div className="group/item flex items-center">
-          <SidebarMenuButton asChild className="flex-1 min-h-[34px]">
+          <SidebarMenuButton asChild className="flex-1 min-h-[28px] py-1">
             <NavLink
               to={item.url}
               end
