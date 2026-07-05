@@ -158,11 +158,62 @@ export interface PrimeiroVencimentoSemProgramacaoItem {
   qtd_dias_programado?: number;
 }
 
+export type StatusPeriodoFerias =
+  | "VENCIDA"
+  | "A VENCER 30 DIAS"
+  | "A VENCER 60 DIAS"
+  | "A VENCER 90 DIAS"
+  | "A VENCER"
+  | string;
+
+export interface ProgramacaoFeriasDetalheItem {
+  empresa?: string;
+  filial?: string;
+  colaborador?: string;
+  matricula?: string;
+  cargo?: string;
+  dt_inicio_periodo?: string;
+  dt_fim_periodo?: string;
+  dt_limite_saida?: string;
+  dt_programacao?: string | null;
+  qtd_dias_direito?: number;
+  qtd_dias_programado?: number;
+  qtd_dias_abono?: number;
+  qtd_dias_saldo?: number;
+  dias_ate_limite?: number;
+  ano_limite?: string;
+  mes_limite?: number;
+  status?: StatusPeriodoFerias;
+  [k: string]: any;
+}
+
+export interface DeFeriasDetalheItem {
+  empresa?: string;
+  filial?: string;
+  colaborador?: string;
+  matricula?: string;
+  cargo?: string;
+  dt_inicio_ferias?: string;
+  [k: string]: any;
+}
+
+export interface FeriasVencidasDiagnostico {
+  vencidas_estritas?: number;
+  ate_60_dias?: number;
+  ate_2_meses?: number;
+  ate_fim_2_meses?: number;
+  alvo_upquery?: number;
+}
+
 export interface ProgramacaoFeriasDashboard {
   kpis: ProgramacaoFeriasKpis;
+  ativos_total?: number;
+  ferias_vencidas_diagnostico?: FeriasVencidasDiagnostico;
   limite_ferias_pivot: LimiteFeriasPivotRow[];
   programacao_proximos_90_dias: ProgramacaoProximos90Item[];
   primeiro_vencimento_sem_programacao: PrimeiroVencimentoSemProgramacaoItem[];
+  detalhe?: ProgramacaoFeriasDetalheItem[];
+  de_ferias_detalhe?: DeFeriasDetalheItem[];
 }
 
 export interface FormularioRh {

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AlertOctagon, AlarmClock, Clock, CalendarClock, Users, Palmtree, RefreshCw } from "lucide-react";
@@ -8,14 +8,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
+import { ProgramacaoFeriasDrillModal, DrillMode } from "@/components/rh/ProgramacaoFeriasDrillModal";
 import { fetchProgramacaoFeriasDashboard } from "@/lib/rh/api";
+import type { ProgramacaoFeriasDetalheItem, DeFeriasDetalheItem } from "@/lib/rh/types";
 
 const formatDateBR = (s?: string | null) => {
   if (!s) return "-";
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
   return m ? `${m[3]}/${m[2]}/${m[1]}` : s;
 };
-
 
 const MESES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 const M_KEYS = ["m1","m2","m3","m4","m5","m6","m7","m8","m9","m10","m11","m12"] as const;
@@ -32,12 +33,21 @@ function fmtPivot(v: number): string {
   return v.toLocaleString("pt-BR");
 }
 
+interface DrillState {
+  title: string;
+  mode: DrillMode;
+  rows: ProgramacaoFeriasDetalheItem[] | DeFeriasDetalheItem[];
+  headerNote?: string;
+}
+
 export default function ProgramacaoFeriasPage() {
   const codemp = 1;
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ["rh", "programacao-ferias", "dashboard", codemp],
     queryFn: () => fetchProgramacaoFeriasDashboard(codemp),
   });
+
+  const [drill, setDrill] = useState<DrillState | null>(null);
 
   useEffect(() => {
     if (!error) return;
@@ -48,9 +58,88 @@ export default function ProgramacaoFeriasPage() {
   }, [error]);
 
   const kpis = data?.kpis;
-  const pivot = data?.limite_ferias_pivot ?? [];
+  const ativosTotal = data?.ativos_total ?? 0;
+  const detalhe = useMemo(() => data?.detalhe ?? [], [data?.detalhe]);
+  const deFeriasDetalhe = useMemo(() => data?.de_ferias_detalhe ?? [], [data?.de_ferias_detalhe]);
+  const pivot = useMemo(() => {
+    const arr = [...(data?.limite_ferias_pivot ?? [])];
+    arr.sort((a, b) => String(a.ano).localeCompare(String(b.ano)));
+    return arr;
+  }, [data?.limite_ferias_pivot]);
   const prox90 = data?.programacao_proximos_90_dias ?? [];
-  const sem = data?.primeiro_vencimento_sem_programacao ?? [];
+  const sem = useMemo(() => {
+    const arr = [...(data?.primeiro_vencimento_sem_programacao ?? [])];
+    arr.sort((a, b) => String(a.dt_limite_saida ?? "").localeCompare(String(b.dt_limite_saida ?? "")));
+    return arr;
+  }, [data?.primeiro_vencimento_sem_programacao]);
+
+  const vencidas = useMemo(
+    () => detalhe.filter((x) => x.status === "VENCIDA"),
+    [detalhe],
+  );
+
+  const openByStatus = (status: string, title: string) => {
+    setDrill({
+      title,
+      mode: "periodo",
+      rows: detalhe.filter((x) => x.status === status),
+    });
+  };
+
+  const openFeriasTotal = () => {
+    setDrill({
+      title: "Férias Total",
+      mode: "periodo",
+      rows: vencidas,
+      headerNote: `Férias Total = ${ativosTotal} colaboradores ativos + ${kpis?.ferias_vencidas ?? 0} períodos vencidos.`,
+    });
+  };
+
+  const openDeFerias = () => {
+    setDrill({
+      title: "De Férias",
+      mode: "de_ferias",
+      rows: deFeriasDetalhe,
+    });
+  };
+
+  const openPivotCell = (ano: string, mesIdx: number) => {
+    const mm = String(mesIdx).padStart(2, "0");
+    setDrill({
+      title: `Limite de Férias — ${mm}/${ano}`,
+      mode: "periodo",
+      rows: detalhe.filter((x) => String(x.ano_limite) === String(ano) && Number(x.mes_limite) === mesIdx),
+    });
+  };
+
+  const openPivotTotal = (ano: string) => {
+    setDrill({
+      title: `Limite de Férias — Ano ${ano}`,
+      mode: "periodo",
+      rows: detalhe.filter((x) => String(x.ano_limite) === String(ano)),
+    });
+  };
+
+  const openSemProgLinha = (r: any) => {
+    const found = detalhe.find(
+      (d) => d.matricula === r.matricula && d.dt_limite_saida === r.dt_limite_saida,
+    );
+    const row: ProgramacaoFeriasDetalheItem = found ?? {
+      empresa: r.empresa,
+      filial: r.filial,
+      colaborador: r.colaborador,
+      matricula: r.matricula,
+      dt_limite_saida: r.dt_limite_saida,
+      qtd_dias_direito: r.qtd_dias_direito,
+      qtd_dias_saldo: r.qtd_dias_saldo,
+      qtd_dias_programado: r.qtd_dias_programado,
+    };
+    setDrill({
+      title: `Detalhes — ${r.colaborador ?? ""}`,
+      mode: "periodo",
+      rows: [row],
+    });
+  };
 
   return (
     <div className="container mx-auto py-6 space-y-4">
@@ -64,56 +153,67 @@ export default function ProgramacaoFeriasPage() {
         }
       />
 
-
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-        <KpiCard
-          title="Férias Vencidas"
-          value={kpis?.ferias_vencidas ?? 0}
-          format="number"
-          variant="danger"
-          icon={<AlertOctagon className="h-4 w-4" />}
-          loading={isLoading}
-        />
-        <KpiCard
-          title="A Vencer 30 Dias"
-          value={kpis?.a_vencer_30 ?? 0}
-          format="number"
-          variant="warning"
-          icon={<AlarmClock className="h-4 w-4" />}
-          loading={isLoading}
-        />
-        <KpiCard
-          title="A Vencer 60 Dias"
-          value={kpis?.a_vencer_60 ?? 0}
-          format="number"
-          icon={<Clock className="h-4 w-4" />}
-          loading={isLoading}
-          className="border-l-4 border-l-lime-500"
-        />
-        <KpiCard
-          title="A Vencer 90 Dias"
-          value={kpis?.a_vencer_90 ?? 0}
-          format="number"
-          icon={<CalendarClock className="h-4 w-4" />}
-          loading={isLoading}
-          className="border-l-4 border-l-green-700"
-        />
-        <KpiCard
-          title="Férias Total"
-          value={kpis?.ferias_total ?? 0}
-          format="number"
-          variant="info"
-          icon={<Users className="h-4 w-4" />}
-          loading={isLoading}
-        />
-        <KpiCard
-          title="De Férias"
-          value={kpis?.de_ferias ?? 0}
-          format="number"
-          icon={<Palmtree className="h-4 w-4" />}
-          loading={isLoading}
-          className="border-l-4 border-l-blue-900"
-        />
+        <div className="cursor-pointer" onClick={() => openByStatus("VENCIDA", "Férias Vencidas")}>
+          <KpiCard
+            title="Férias Vencidas"
+            value={kpis?.ferias_vencidas ?? 0}
+            format="number"
+            variant="danger"
+            icon={<AlertOctagon className="h-4 w-4" />}
+            loading={isLoading}
+          />
+        </div>
+        <div className="cursor-pointer" onClick={() => openByStatus("A VENCER 30 DIAS", "A Vencer 30 Dias")}>
+          <KpiCard
+            title="A Vencer 30 Dias"
+            value={kpis?.a_vencer_30 ?? 0}
+            format="number"
+            variant="warning"
+            icon={<AlarmClock className="h-4 w-4" />}
+            loading={isLoading}
+          />
+        </div>
+        <div className="cursor-pointer" onClick={() => openByStatus("A VENCER 60 DIAS", "A Vencer 60 Dias")}>
+          <KpiCard
+            title="A Vencer 60 Dias"
+            value={kpis?.a_vencer_60 ?? 0}
+            format="number"
+            icon={<Clock className="h-4 w-4" />}
+            loading={isLoading}
+            className="border-l-4 border-l-lime-500"
+          />
+        </div>
+        <div className="cursor-pointer" onClick={() => openByStatus("A VENCER 90 DIAS", "A Vencer 90 Dias")}>
+          <KpiCard
+            title="A Vencer 90 Dias"
+            value={kpis?.a_vencer_90 ?? 0}
+            format="number"
+            icon={<CalendarClock className="h-4 w-4" />}
+            loading={isLoading}
+            className="border-l-4 border-l-green-700"
+          />
+        </div>
+        <div className="cursor-pointer" onClick={openFeriasTotal}>
+          <KpiCard
+            title="Férias Total"
+            value={kpis?.ferias_total ?? 0}
+            format="number"
+            variant="info"
+            icon={<Users className="h-4 w-4" />}
+            loading={isLoading}
+          />
+        </div>
+        <div className="cursor-pointer" onClick={openDeFerias}>
+          <KpiCard
+            title="De Férias"
+            value={kpis?.de_ferias ?? 0}
+            format="number"
+            icon={<Palmtree className="h-4 w-4" />}
+            loading={isLoading}
+            className="border-l-4 border-l-blue-900"
+          />
+        </div>
       </div>
 
       <Card>
@@ -146,12 +246,23 @@ export default function ProgramacaoFeriasPage() {
                 {pivot.map((r) => (
                   <TableRow key={r.ano}>
                     <TableCell className="font-medium">{r.ano}</TableCell>
-                    {M_KEYS.map((k) => (
-                      <TableCell key={k} className="text-right tabular-nums">
-                        {fmtPivot((r as any)[k])}
-                      </TableCell>
-                    ))}
-                    <TableCell className="text-right tabular-nums font-semibold">
+                    {M_KEYS.map((k, idx) => {
+                      const v = (r as any)[k] as number;
+                      const clickable = Number(v) > 0;
+                      return (
+                        <TableCell
+                          key={k}
+                          className={`text-right tabular-nums ${clickable ? "cursor-pointer hover:underline text-primary" : ""}`}
+                          onClick={clickable ? () => openPivotCell(r.ano, idx + 1) : undefined}
+                        >
+                          {fmtPivot(v)}
+                        </TableCell>
+                      );
+                    })}
+                    <TableCell
+                      className={`text-right tabular-nums font-semibold ${Number(r.total) > 0 ? "cursor-pointer hover:underline text-primary" : ""}`}
+                      onClick={Number(r.total) > 0 ? () => openPivotTotal(r.ano) : undefined}
+                    >
                       {fmtPivot(r.total)}
                     </TableCell>
                   </TableRow>
@@ -243,7 +354,11 @@ export default function ProgramacaoFeriasPage() {
                     </TableRow>
                   )}
                   {sem.map((r, i) => (
-                    <TableRow key={i}>
+                    <TableRow
+                      key={i}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => openSemProgLinha(r)}
+                    >
                       <TableCell>{r.empresa}</TableCell>
                       <TableCell>{r.filial}</TableCell>
                       <TableCell>{r.colaborador}</TableCell>
@@ -259,6 +374,15 @@ export default function ProgramacaoFeriasPage() {
           </CardContent>
         </Card>
       </div>
+
+      <ProgramacaoFeriasDrillModal
+        open={!!drill}
+        onOpenChange={(o) => { if (!o) setDrill(null); }}
+        title={drill?.title ?? ""}
+        mode={drill?.mode ?? "periodo"}
+        rows={drill?.rows ?? []}
+        headerNote={drill?.headerNote}
+      />
     </div>
   );
 }
