@@ -58,12 +58,13 @@ const truncateLabel = (s: string, max = 22) => {
 };
 
 /** Tooltip customizado com moeda BR e categoria em destaque. */
-const ChartMoneyTooltip = ({ active, payload, label }: any) => {
+const ChartMoneyTooltip = ({ active, payload, label, upper }: any) => {
   if (!active || !payload || !payload.length) return null;
+  const displayLabel = label == null ? '' : (upper ? String(label).toLocaleUpperCase('pt-BR') : String(label));
   return (
     <div className="rounded-md border border-border bg-popover px-3 py-2 text-xs shadow-md">
-      {label !== undefined && label !== null && (
-        <div className="mb-1 font-semibold text-foreground">{String(label)}</div>
+      {displayLabel && (
+        <div className="mb-1 font-semibold text-foreground">{displayLabel}</div>
       )}
       {payload.map((p: any, i: number) => (
         <div key={i} className="flex items-center gap-2 text-muted-foreground">
