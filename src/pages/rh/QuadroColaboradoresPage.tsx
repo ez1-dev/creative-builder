@@ -26,6 +26,7 @@ import {
   type QuadroBreakdown,
   type QuadroEmpresaLinha,
 } from "@/lib/rh/quadroDashboardApi";
+import { QuadroDrillCard } from "@/components/rh/QuadroDrillCard";
 
 function toIsoDate(d: Date): string {
   return format(d, "yyyy-MM-dd");
