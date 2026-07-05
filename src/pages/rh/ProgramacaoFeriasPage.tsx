@@ -1,14 +1,21 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AlertOctagon, AlarmClock, Clock, CalendarClock, Users, Palmtree } from "lucide-react";
+import { AlertOctagon, AlarmClock, Clock, CalendarClock, Users, Palmtree, RefreshCw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { fetchProgramacaoFeriasDashboard } from "@/lib/rh/api";
-import { formatDate } from "@/lib/format";
+
+const formatDateBR = (s?: string | null) => {
+  if (!s) return "-";
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : s;
+};
+
 
 const MESES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 const M_KEYS = ["m1","m2","m3","m4","m5","m6","m7","m8","m9","m10","m11","m12"] as const;
@@ -27,7 +34,7 @@ function fmtPivot(v: number): string {
 
 export default function ProgramacaoFeriasPage() {
   const codemp = 1;
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ["rh", "programacao-ferias", "dashboard", codemp],
     queryFn: () => fetchProgramacaoFeriasDashboard(codemp),
   });
@@ -47,7 +54,16 @@ export default function ProgramacaoFeriasPage() {
 
   return (
     <div className="container mx-auto py-6 space-y-4">
-      <RhPageHeader title="RH - 04 - Programação de Férias" />
+      <RhPageHeader
+        title="RH - 04 - Programação de Férias"
+        actions={
+          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
+            Atualizar
+          </Button>
+        }
+      />
+
 
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         <KpiCard
@@ -181,10 +197,10 @@ export default function ProgramacaoFeriasPage() {
                   {prox90.map((r, i) => (
                     <TableRow key={i}>
                       <TableCell>{r.colaborador}</TableCell>
-                      <TableCell>{formatDate(r.dt_inicio_periodo)}</TableCell>
-                      <TableCell>{formatDate(r.dt_fim_periodo)}</TableCell>
-                      <TableCell>{formatDate(r.dt_limite_saida)}</TableCell>
-                      <TableCell>{formatDate(r.dt_programacao)}</TableCell>
+                      <TableCell>{formatDateBR(r.dt_inicio_periodo)}</TableCell>
+                      <TableCell>{formatDateBR(r.dt_fim_periodo)}</TableCell>
+                      <TableCell>{formatDateBR(r.dt_limite_saida)}</TableCell>
+                      <TableCell>{formatDateBR(r.dt_programacao)}</TableCell>
                       <TableCell className="text-right tabular-nums">{fmtQtd(r.qtd_dias_direito)}</TableCell>
                       <TableCell className="text-right tabular-nums">{fmtQtd(r.qtd_dias_programado)}</TableCell>
                       <TableCell className="text-right tabular-nums">{fmtQtd(r.qtd_dias_abono)}</TableCell>
@@ -231,7 +247,7 @@ export default function ProgramacaoFeriasPage() {
                       <TableCell>{r.empresa}</TableCell>
                       <TableCell>{r.filial}</TableCell>
                       <TableCell>{r.colaborador}</TableCell>
-                      <TableCell>{formatDate(r.dt_limite_saida)}</TableCell>
+                      <TableCell>{formatDateBR(r.dt_limite_saida)}</TableCell>
                       <TableCell className="text-right tabular-nums">{fmtQtd(r.qtd_dias_direito)}</TableCell>
                       <TableCell className="text-right tabular-nums">{fmtQtd(r.qtd_dias_saldo)}</TableCell>
                       <TableCell className="text-right tabular-nums">{fmtQtd(r.qtd_dias_programado)}</TableCell>
