@@ -34,7 +34,7 @@ function fmtPivot(v: number): string {
 
 export default function ProgramacaoFeriasPage() {
   const codemp = 1;
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ["rh", "programacao-ferias", "dashboard", codemp],
     queryFn: () => fetchProgramacaoFeriasDashboard(codemp),
   });
@@ -54,7 +54,16 @@ export default function ProgramacaoFeriasPage() {
 
   return (
     <div className="container mx-auto py-6 space-y-4">
-      <RhPageHeader title="RH - 04 - Programação de Férias" />
+      <RhPageHeader
+        title="RH - 04 - Programação de Férias"
+        actions={
+          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
+            Atualizar
+          </Button>
+        }
+      />
+
 
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         <KpiCard
