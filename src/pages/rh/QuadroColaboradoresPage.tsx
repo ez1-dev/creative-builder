@@ -437,11 +437,13 @@ function EmpresaGrid({
   fallback,
   loading,
   hasResponse,
+  onRowClick,
 }: {
   data?: QuadroEmpresaLinha[];
   fallback?: QuadroBreakdown;
   loading?: boolean;
   hasResponse?: boolean;
+  onRowClick?: (empresa: string) => void;
 }) {
   const rows = useMemo<QuadroEmpresaLinha[]>(() => {
     if (data && data.length > 0) {
