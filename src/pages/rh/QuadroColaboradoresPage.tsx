@@ -318,31 +318,136 @@ export default function QuadroColaboradoresPage() {
       </div>
 
       <div className="mb-4">
-        {dashQ.data?.empresa && dashQ.data.empresa.length > 0 ? (
-          <>
-            <BreakdownCard title="Empresa" data={dashQ.data.empresa} loading={dashQ.isLoading} />
-            {!dashQ.data.empresa.some((e) =>
-              String(e.label ?? "")
-                .normalize("NFD")
-                .replace(/[\u0300-\u036f]/g, "")
-                .toUpperCase()
-                .includes("MONTAGEM EXTERNA"),
-            ) && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Montagem Externa pendente de regra na API.
-              </p>
-            )}
-          </>
-        ) : dashQ.data ? (
-          <Card className="border-warning/40">
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Empresa</CardTitle></CardHeader>
-            <CardContent>
-              <p className="text-sm text-warning">Classificação Empresa pendente de regra na API</p>
-            </CardContent>
-          </Card>
-        ) : null}
+        <EmpresaGrid
+          data={dashQ.data?.empresa_detalhado ?? undefined}
+          fallback={dashQ.data?.empresa ?? undefined}
+          loading={dashQ.isLoading}
+          hasResponse={!!dashQ.data}
+        />
       </div>
     </div>
+  );
+}
+
+const EMPRESA_COLS: { key: keyof QuadroEmpresaLinha; label: string }[] = [
+  { key: "colaboradores", label: "Colaboradores" },
+  { key: "trabalhando", label: "Trabalhando" },
+  { key: "admitidos", label: "Admitidos" },
+  { key: "demitidos", label: "Demitidos" },
+  { key: "pcd", label: "PCD" },
+  { key: "estagiarios", label: "Estagiários" },
+  { key: "jovem_aprendiz", label: "Jovem Aprendiz" },
+  { key: "ferias", label: "Férias" },
+  { key: "aposentadoria_invalidez", label: "Aposent. Invalidez" },
+  { key: "auxilio_doenca", label: "Auxílio Doença" },
+  { key: "acidente_trabalho", label: "Acidente Trabalho" },
+  { key: "atestados", label: "Atestados" },
+];
+
+function EmpresaGrid({
+  data,
+  fallback,
+  loading,
+  hasResponse,
+}: {
+  data?: QuadroEmpresaLinha[];
+  fallback?: QuadroBreakdown;
+  loading?: boolean;
+  hasResponse?: boolean;
+}) {
+  const rows = useMemo<QuadroEmpresaLinha[]>(() => {
+    if (data && data.length > 0) {
+      return [...data].sort((a, b) => (b.colaboradores ?? 0) - (a.colaboradores ?? 0));
+    }
+    if (fallback && fallback.length > 0) {
+      return [...fallback]
+        .sort((a, b) => b.valor - a.valor)
+        .map((f) => ({ empresa: f.label, colaboradores: f.valor }));
+    }
+    return [];
+  }, [data, fallback]);
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">Empresa</CardTitle></CardHeader>
+        <CardContent><Skeleton className="h-56 w-full" /></CardContent>
+      </Card>
+    );
+  }
+
+  if (rows.length === 0) {
+    if (!hasResponse) return null;
+    return (
+      <Card className="border-warning/40">
+        <CardHeader className="pb-2"><CardTitle className="text-sm">Empresa</CardTitle></CardHeader>
+        <CardContent>
+          <p className="text-sm text-warning">Classificação Empresa pendente de regra na API</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const fmt = (v: number | null | undefined) =>
+    typeof v === "number" ? new Intl.NumberFormat("pt-BR").format(v) : "—";
+
+  const totals = EMPRESA_COLS.reduce<Record<string, number | null>>((acc, c) => {
+    const nums = rows.map((r) => r[c.key]).filter((v): v is number => typeof v === "number");
+    acc[c.key as string] = nums.length > 0 ? nums.reduce((s, n) => s + n, 0) : null;
+    return acc;
+  }, {});
+
+  const temMontagemExterna = rows.some((r) =>
+    String(r.empresa ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase()
+      .includes("MONTAGEM EXTERNA"),
+  );
+
+  return (
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-sm">Empresa</CardTitle></CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Empresa</TableHead>
+                {EMPRESA_COLS.map((c) => (
+                  <TableHead key={c.key as string} className="text-right whitespace-nowrap">{c.label}</TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((r, i) => (
+                <TableRow key={i}>
+                  <TableCell className="font-medium whitespace-nowrap">{r.empresa}</TableCell>
+                  {EMPRESA_COLS.map((c) => (
+                    <TableCell key={c.key as string} className="text-right tabular-nums">
+                      {fmt(r[c.key] as number | null | undefined)}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+              <TableRow className="bg-muted/40 font-semibold">
+                <TableCell>Total</TableCell>
+                {EMPRESA_COLS.map((c) => (
+                  <TableCell key={c.key as string} className="text-right tabular-nums">
+                    {fmt(totals[c.key as string])}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
+        {!temMontagemExterna && (
+          <p className="text-xs text-muted-foreground mt-2">
+            Montagem Externa pendente de regra na API.
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
