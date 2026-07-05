@@ -1,154 +1,357 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
+import { CalendarIcon, RefreshCw, Loader2, FileSpreadsheet } from "lucide-react";
+import { toast } from "sonner";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
-import { fetchQuadroColaboradores } from "@/lib/rh/api";
-import { formatDate } from "@/lib/format";
+import { AreaChartCard } from "@/components/bi/charts/AreaChartCard";
+import { BarChartCard } from "@/components/bi/charts/BarChartCard";
+import { DonutChartCard } from "@/components/bi/charts/DonutChartCard";
+import { cn } from "@/lib/utils";
+import {
+  fetchQuadroDashboard,
+  fetchQuadroHistorico,
+  exportQuadroDashboard,
+  ExportQuadroIndisponivelError,
+  type QuadroBreakdown,
+} from "@/lib/rh/quadroDashboardApi";
+
+function toIsoDate(d: Date): string {
+  return format(d, "yyyy-MM-dd");
+}
+function toAnomes(d: Date): string {
+  return format(d, "yyyyMM");
+}
+function janOfYear(d: Date): string {
+  return `${d.getFullYear()}01`;
+}
+function fmtAnomes(v: string): string {
+  const s = String(v ?? "").replace(/\D/g, "");
+  if (s.length === 6) return `${s.slice(4, 6)}/${s.slice(0, 4)}`;
+  return v;
+}
+
+const KPIS_CONFIG: {
+  key: string;
+  title: string;
+  variant?: "default" | "info" | "success" | "warning" | "danger";
+  hideIfMissing?: boolean;
+}[] = [
+  { key: "total", title: "Total de colaboradores", variant: "info" },
+  { key: "masculino", title: "Masculino" },
+  { key: "feminino", title: "Feminino" },
+  { key: "jovem_aprendiz", title: "Jovem Aprendiz" },
+  { key: "estagiarios", title: "Estagiários" },
+  { key: "pcd", title: "PCD" },
+  { key: "admitidos_mes", title: "Admitidos no mês", variant: "success" },
+  { key: "demitidos_mes", title: "Demitidos no mês", variant: "danger" },
+  { key: "trabalhando", title: "Trabalhando", variant: "success" },
+  { key: "ferias", title: "Férias", variant: "warning" },
+  { key: "auxilio_doenca", title: "Auxílio doença", variant: "warning" },
+  { key: "acidente", title: "Acidente", variant: "danger" },
+  { key: "licenca_maternidade", title: "Licença maternidade", variant: "warning" },
+  { key: "aposentadoria", title: "Aposentadoria", hideIfMissing: true },
+];
+
+function KpiOrPending({
+  title, value, variant, loading,
+}: {
+  title: string; value: number | null | undefined;
+  variant?: "default" | "info" | "success" | "warning" | "danger"; loading?: boolean;
+}) {
+  if (loading) {
+    return <KpiCard title={title} value={0} format="number" loading variant={variant} />;
+  }
+  if (value === null || value === undefined) {
+    return (
+      <Card className="border-warning/40">
+        <CardHeader className="pb-1.5">
+          <CardTitle className="text-xs font-medium text-muted-foreground">{title}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-[11px] font-medium text-warning" title="Campo pendente na API">
+            Campo pendente na API
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+  return <KpiCard title={title} value={value} format="number" variant={variant} />;
+}
+
+function BreakdownCard({
+  title, data, variant = "bar", sort = true, loading,
+}: {
+  title: string;
+  data?: QuadroBreakdown;
+  variant?: "bar" | "donut";
+  sort?: boolean;
+  loading?: boolean;
+}) {
+  const rows = useMemo(() => {
+    if (!data) return [];
+    const arr = [...data];
+    if (sort) arr.sort((a, b) => b.valor - a.valor);
+    return arr;
+  }, [data, sort]);
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">{title}</CardTitle></CardHeader>
+        <CardContent><Skeleton className="h-56 w-full" /></CardContent>
+      </Card>
+    );
+  }
+  if (!data || rows.length === 0) return null;
+
+  const fmt = (v: number) => new Intl.NumberFormat("pt-BR").format(v);
+
+  if (variant === "donut") {
+    return (
+      <DonutChartCard
+        title={title}
+        data={rows}
+        valueFormatter={fmt}
+        height={260}
+      />
+    );
+  }
+  return (
+    <BarChartCard
+      title={title}
+      data={rows}
+      valueFormatter={fmt}
+      height={260}
+    />
+  );
+}
 
 export default function QuadroColaboradoresPage() {
-  const [filial, setFilial] = useState("__all__");
-  const [situacao, setSituacao] = useState("__all__");
-  const [cc, setCc] = useState("__all__");
-  const [cargo, setCargo] = useState("__all__");
-  const [busca, setBusca] = useState("");
+  const today = new Date();
+  const [dataRef, setDataRef] = useState<Date>(today);
+  const [anomesIni, setAnomesIni] = useState<string>(janOfYear(today));
+  const [anomesFim, setAnomesFim] = useState<string>(toAnomes(today));
+  const [exportando, setExportando] = useState(false);
+  const qc = useQueryClient();
 
-  const serverParams = {
-    filial: filial !== "__all__" ? filial : undefined,
-    situacao: situacao !== "__all__" ? situacao : undefined,
-    centro_custo: cc !== "__all__" ? cc : undefined,
-    cargo: cargo !== "__all__" ? cargo : undefined,
-    colaborador: busca || undefined,
-  };
-  const { data = [], isLoading } = useQuery({
-    queryKey: ["rh", "quadro", serverParams],
-    queryFn: () => fetchQuadroColaboradores(serverParams),
+  const dataRefIso = toIsoDate(dataRef);
+
+  const dashQ = useQuery({
+    queryKey: ["rh", "quadro-dashboard", dataRefIso],
+    queryFn: () => fetchQuadroDashboard(dataRefIso),
+  });
+  const histQ = useQuery({
+    queryKey: ["rh", "quadro-historico", anomesIni, anomesFim],
+    queryFn: () => fetchQuadroHistorico(anomesIni, anomesFim),
+    enabled: /^\d{6}$/.test(anomesIni) && /^\d{6}$/.test(anomesFim),
   });
 
-  const uniq = (k: keyof typeof data[number]) =>
-    Array.from(new Set(data.map((d) => d[k]).filter(Boolean))) as string[];
-  const filiais = useMemo(() => uniq("filial" as any), [data]);
-  const situacoes = useMemo(() => uniq("situacao" as any), [data]);
-  const ccs = useMemo(() => uniq("centro_custo" as any), [data]);
-  const cargos = useMemo(() => uniq("cargo" as any), [data]);
+  const kpis = dashQ.data?.kpis ?? {};
+  const kpisVisiveis = KPIS_CONFIG.filter((c) => {
+    if (!c.hideIfMissing) return true;
+    return kpis[c.key] !== undefined && kpis[c.key] !== null;
+  });
 
-  const rows = useMemo(() => {
-    return data.filter((r) => {
-      if (filial !== "__all__" && r.filial !== filial) return false;
-      if (situacao !== "__all__" && r.situacao !== situacao) return false;
-      if (cc !== "__all__" && r.centro_custo !== cc) return false;
-      if (cargo !== "__all__" && r.cargo !== cargo) return false;
-      if (busca) {
-        const q = busca.toLowerCase();
-        if (!(r.matricula || "").toString().toLowerCase().includes(q) &&
-            !(r.colaborador || "").toLowerCase().includes(q)) return false;
+  const historicoData = useMemo(
+    () => (histQ.data ?? []).map((h) => ({ label: fmtAnomes(h.anomes), valor: h.total })),
+    [histQ.data],
+  );
+
+  function atualizar() {
+    qc.invalidateQueries({ queryKey: ["rh", "quadro-dashboard"] });
+    qc.invalidateQueries({ queryKey: ["rh", "quadro-historico"] });
+  }
+
+  async function exportar() {
+    setExportando(true);
+    try {
+      const blob = await exportQuadroDashboard(dataRefIso);
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `quadro-colaboradores-${dataRefIso}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+    } catch (e) {
+      if (e instanceof ExportQuadroIndisponivelError) {
+        toast.warning("Exportação pendente na API");
+      } else {
+        toast.error("Falha ao exportar");
       }
-      return true;
-    });
-  }, [data, filial, situacao, cc, cargo, busca]);
+    } finally {
+      setExportando(false);
+    }
+  }
 
-  const kpis = useMemo(() => {
-    const norm = (s?: string) => (s || "").toUpperCase();
-    const total = rows.length;
-    const ativos = rows.filter((r) => norm(r.situacao).includes("ATIVO")).length;
-    const demit = rows.filter((r) => norm(r.situacao).includes("DEMI")).length;
-    const afast = rows.filter((r) => norm(r.situacao).includes("AFAST") || norm(r.situacao).includes("FERIAS") || norm(r.situacao).includes("FÉRIAS")).length;
-    return { total, ativos, demit, afast };
-  }, [rows]);
+  const anomesToInputMonth = (v: string) =>
+    /^\d{6}$/.test(v) ? `${v.slice(0, 4)}-${v.slice(4, 6)}` : "";
+  const inputMonthToAnomes = (v: string) => (v ? v.replace("-", "") : "");
 
   return (
     <div className="container mx-auto py-6">
       <RhPageHeader title="02 — Quadro de Colaboradores" />
 
       <Card className="mb-4">
-        <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-5 gap-3">
-          <SelectFilter label="Filial" value={filial} onChange={setFilial} options={filiais} />
-          <SelectFilter label="Situação" value={situacao} onChange={setSituacao} options={situacoes} />
-          <SelectFilter label="C. Custo" value={cc} onChange={setCc} options={ccs} />
-          <SelectFilter label="Cargo" value={cargo} onChange={setCargo} options={cargos} />
-          <div><Label>Nome / Matrícula</Label><Input value={busca} onChange={(e) => setBusca(e.target.value)} /></div>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <KpiCard title="Total Colaboradores" value={kpis.total} format="number" loading={isLoading} />
-        <KpiCard title="Ativos" value={kpis.ativos} format="number" variant="success" loading={isLoading} />
-        <KpiCard title="Demitidos" value={kpis.demit} format="number" variant="danger" loading={isLoading} />
-        <KpiCard title="Afastados / Férias" value={kpis.afast} format="number" variant="warning" loading={isLoading} />
-      </div>
-
-      <Card>
-        <CardContent className="pt-6">
-          <div className="max-h-[70vh] overflow-auto">
-            <Table>
-              <TableHeader className="sticky top-0 bg-background z-10">
-                <TableRow>
-                  <TableHead>Matrícula</TableHead>
-                  <TableHead>Colaborador</TableHead>
-                  <TableHead>Filial</TableHead>
-                  <TableHead>C. Custo</TableHead>
-                  <TableHead>Cargo</TableHead>
-                  <TableHead>Local</TableHead>
-                  <TableHead>Vínculo</TableHead>
-                  <TableHead>Sexo</TableHead>
-                  <TableHead>Nascimento</TableHead>
-                  <TableHead>Admissão</TableHead>
-                  <TableHead>Situação</TableHead>
-                  <TableHead>Demissão</TableHead>
-                  <TableHead>CPF</TableHead>
-                  <TableHead>Cat. eSocial</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading && Array.from({ length: 6 }).map((_, i) => (
-                  <TableRow key={i}><TableCell colSpan={14}><Skeleton className="h-6" /></TableCell></TableRow>
-                ))}
-                {!isLoading && rows.length === 0 && (
-                  <TableRow><TableCell colSpan={14} className="text-center text-muted-foreground py-6">Nenhum colaborador</TableCell></TableRow>
-                )}
-                {rows.map((r, i) => (
-                  <TableRow key={i}>
-                    <TableCell>{r.matricula}</TableCell>
-                    <TableCell>{r.colaborador}</TableCell>
-                    <TableCell>{r.filial}</TableCell>
-                    <TableCell>{r.centro_custo}</TableCell>
-                    <TableCell>{r.cargo}</TableCell>
-                    <TableCell>{r.local}</TableCell>
-                    <TableCell>{r.vinculo}</TableCell>
-                    <TableCell>{r.sexo}</TableCell>
-                    <TableCell>{formatDate(r.data_nascimento)}</TableCell>
-                    <TableCell>{formatDate(r.data_admissao)}</TableCell>
-                    <TableCell>{r.situacao}</TableCell>
-                    <TableCell>{formatDate(r.data_demissao)}</TableCell>
-                    <TableCell>{r.cpf}</TableCell>
-                    <TableCell>{r.categoria_esocial}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+        <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
+          <div className="md:col-span-2">
+            <Label>Data de referência</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !dataRef && "text-muted-foreground")}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dataRef ? format(dataRef, "dd/MM/yyyy") : "Selecionar"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={dataRef}
+                  onSelect={(d) => d && setDataRef(d)}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div>
+            <Label>Histórico início</Label>
+            <Input
+              type="month"
+              value={anomesToInputMonth(anomesIni)}
+              onChange={(e) => setAnomesIni(inputMonthToAnomes(e.target.value))}
+            />
+          </div>
+          <div>
+            <Label>Histórico fim</Label>
+            <Input
+              type="month"
+              value={anomesToInputMonth(anomesFim)}
+              onChange={(e) => setAnomesFim(inputMonthToAnomes(e.target.value))}
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={atualizar} variant="default" disabled={dashQ.isFetching}>
+              {dashQ.isFetching ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-1 h-4 w-4" />}
+              Atualizar
+            </Button>
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={exportar} variant="outline" disabled={exportando}>
+              {exportando ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-1 h-4 w-4" />}
+              Exportar Excel
+            </Button>
           </div>
         </CardContent>
       </Card>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3 mb-4">
+        {kpisVisiveis.map((c) => (
+          <KpiOrPending
+            key={c.key}
+            title={c.title}
+            value={kpis[c.key]}
+            variant={c.variant}
+            loading={dashQ.isLoading}
+          />
+        ))}
+      </div>
+
+      <div className="mb-4">
+        {histQ.isLoading ? (
+          <Card><CardContent className="pt-6"><Skeleton className="h-64 w-full" /></CardContent></Card>
+        ) : historicoData.length > 0 ? (
+          <AreaChartCard
+            title="Histórico de colaboradores"
+            data={historicoData}
+            valueFormatter={(v) => new Intl.NumberFormat("pt-BR").format(v)}
+            height={280}
+          />
+        ) : null}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
+        <BreakdownCard title="Sexo" data={dashQ.data?.sexo} variant="donut" loading={dashQ.isLoading} />
+        <BreakdownCard title="Situação / Afastamento" data={dashQ.data?.situacao} loading={dashQ.isLoading} />
+        <BreakdownCard title="Vínculo" data={dashQ.data?.vinculo} loading={dashQ.isLoading} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">
+        <BreakdownCard title="Escolaridade" data={dashQ.data?.escolaridade} loading={dashQ.isLoading} />
+        <BreakdownCard title="Faixa etária" data={dashQ.data?.faixa_etaria} sort={false} loading={dashQ.isLoading} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">
+        <BreakdownCard title="Tempo de casa" data={dashQ.data?.tempo_casa} sort={false} loading={dashQ.isLoading} />
+        <FilialTable data={dashQ.data?.filial} loading={dashQ.isLoading} />
+      </div>
+
+      <div className="mb-4">
+        {dashQ.data && (!dashQ.data.empresa || dashQ.data.empresa.length === 0) ? (
+          <Card className="border-warning/40">
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Empresa</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-sm text-warning">Classificação Empresa pendente de regra na API</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <BreakdownCard title="Empresa" data={dashQ.data?.empresa ?? undefined} loading={dashQ.isLoading} />
+        )}
+      </div>
     </div>
   );
 }
 
-function SelectFilter({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) {
+function FilialTable({ data, loading }: { data?: QuadroBreakdown; loading?: boolean }) {
+  const rows = useMemo(() => (data ? [...data].sort((a, b) => b.valor - a.valor) : []), [data]);
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">Filial</CardTitle></CardHeader>
+        <CardContent><Skeleton className="h-56 w-full" /></CardContent>
+      </Card>
+    );
+  }
+  if (!data || rows.length === 0) return null;
+  const total = rows.reduce((s, r) => s + r.valor, 0);
   return (
-    <div>
-      <Label>{label}</Label>
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="__all__">Todos</SelectItem>
-          {options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-        </SelectContent>
-      </Select>
-    </div>
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-sm">Filial</CardTitle></CardHeader>
+      <CardContent>
+        <div className="max-h-72 overflow-auto">
+          <Table>
+            <TableHeader className="sticky top-0 bg-background">
+              <TableRow>
+                <TableHead>Filial</TableHead>
+                <TableHead className="text-right">Colaboradores</TableHead>
+                <TableHead className="text-right">%</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((r, i) => (
+                <TableRow key={i}>
+                  <TableCell>{r.label}</TableCell>
+                  <TableCell className="text-right tabular-nums">{new Intl.NumberFormat("pt-BR").format(r.valor)}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {total > 0 ? ((r.valor / total) * 100).toFixed(1) : "0.0"}%
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
