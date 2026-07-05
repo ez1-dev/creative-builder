@@ -77,11 +77,11 @@ function toBreakdown(raw: any): QuadroBreakdown | undefined {
     return raw.map((r: any) => {
       if (r && typeof r === "object") {
         const label = String(
-          r.label ?? r.descricao ?? r.nome ?? r.categoria ?? r.chave ?? r.key ?? r.tipo ?? r.sexo ?? r.situacao ?? r.afastamento ?? r.empresa ?? "-",
+          r.label ?? r.descricao ?? r.nome ?? r.categoria ?? r.chave ?? r.key ?? r.tipo ?? r.sexo ?? r.situacao ?? r.afastamento ?? r.empresa ?? r.grupo ?? r.classificacao ?? "-",
         );
         const valor =
           Number(
-            r.valor ?? r.total ?? r.quantidade ?? r.qtd ?? r.colaboradores ?? r.total_colaboradores ?? 0,
+            r.valor ?? r.total ?? r.quantidade ?? r.qtd ?? r.colaboradores ?? r.total_colaboradores ?? r.qtd_colaboradores ?? 0,
           ) || 0;
         return { label, valor };
       }
