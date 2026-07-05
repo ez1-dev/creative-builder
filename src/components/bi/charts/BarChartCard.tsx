@@ -10,13 +10,14 @@ export interface BarChartDatum { label: string; valor: number; [k: string]: any 
 export interface BarChartCardProps extends Omit<ChartCardShellProps, 'children' | 'isEmpty'> {
   data: BarChartDatum[];
   valueFormatter?: (v: number) => string;
+  tickFormatter?: (v: number) => string;
   color?: string;
   showAverage?: boolean;
   onItemClick?: (d: BarChartDatum) => void;
 }
 
 export function BarChartCard({
-  data, valueFormatter = formatCurrency, color = 'hsl(var(--primary))', showAverage, onItemClick, height = 280, visualConfig, ...shell
+  data, valueFormatter = formatCurrency, tickFormatter = tickCurrencyAbbrev, color = 'hsl(var(--primary))', showAverage, onItemClick, height = 280, visualConfig, ...shell
 }: BarChartCardProps) {
   const vc = mergeVisualConfig(visualConfig);
   const isEmpty = !data?.length;
@@ -57,7 +58,7 @@ export function BarChartCard({
               label={vc.axis.xLabel ? { value: vc.axis.xLabel, position: 'insideBottom', offset: -4, fontSize: vc.axis.fontSize, fontFamily: fontFamilyCss(vc.axis.fontFamily) } : undefined} />
           )}
           {vc.axis.yVisible && (
-            <YAxis tickFormatter={tickCurrencyAbbrev} tick={{ fontSize: vc.axis.fontSize, fontFamily: fontFamilyCss(vc.axis.fontFamily) }}
+            <YAxis tickFormatter={tickFormatter} tick={{ fontSize: vc.axis.fontSize, fontFamily: fontFamilyCss(vc.axis.fontFamily) }}
               label={vc.axis.yLabel ? { value: vc.axis.yLabel, angle: -90, position: 'insideLeft', fontSize: vc.axis.fontSize, fontFamily: fontFamilyCss(vc.axis.fontFamily) } : undefined} />
           )}
           {vc.tooltip.visible && (
