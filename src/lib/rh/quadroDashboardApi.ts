@@ -34,6 +34,9 @@ export interface QuadroEmpresaLinha {
   auxilio_doenca?: number | null;
   acidente_trabalho?: number | null;
   atestados?: number | null;
+  licenca_maternidade?: number | null;
+  homens?: number | null;
+  mulheres?: number | null;
 }
 
 export interface QuadroDashboard {
