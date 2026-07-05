@@ -340,6 +340,14 @@ export default function QuadroColaboradoresPage() {
           hasResponse={!!dashQ.data}
         />
       </div>
+
+      <div className="mb-4">
+        <QuadroDrillCard
+          dimensoes={dashQ.data?.dimensoes_drill ?? []}
+          detalhe={dashQ.data?.detalhe ?? []}
+          loading={dashQ.isLoading}
+        />
+      </div>
     </div>
   );
 }
