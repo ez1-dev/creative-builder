@@ -259,15 +259,24 @@ export default function QuadroColaboradoresPage() {
       </Card>
 
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3 mb-4">
-        {kpisVisiveis.map((c) => (
-          <KpiOrPending
-            key={c.key}
-            title={c.title}
-            value={kpis[c.key]}
-            variant={c.variant}
-            loading={dashQ.isLoading}
-          />
-        ))}
+        {kpisVisiveis.map((c) => {
+          const v = kpis[c.key];
+          const total = kpis.total;
+          const subtitle =
+            c.showPctOfTotal && typeof v === "number" && typeof total === "number" && total > 0
+              ? `${((v / total) * 100).toFixed(1)}% do total`
+              : undefined;
+          return (
+            <KpiOrPending
+              key={c.key}
+              title={c.title}
+              value={v}
+              variant={c.variant}
+              loading={dashQ.isLoading}
+              subtitle={subtitle}
+            />
+          );
+        })}
       </div>
 
       <div className="mb-4">
@@ -275,13 +284,21 @@ export default function QuadroColaboradoresPage() {
           <Card><CardContent className="pt-6"><Skeleton className="h-64 w-full" /></CardContent></Card>
         ) : historicoData.length > 0 ? (
           <AreaChartCard
-            title="Histórico de colaboradores"
+            title="Histórico Nº Colaboradores"
             data={historicoData}
             valueFormatter={(v) => new Intl.NumberFormat("pt-BR").format(v)}
             height={280}
           />
-        ) : null}
+        ) : (
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Histórico Nº Colaboradores</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">Sem dados no período selecionado.</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
+
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
         <BreakdownCard title="Sexo" data={dashQ.data?.sexo} variant="donut" loading={dashQ.isLoading} />
