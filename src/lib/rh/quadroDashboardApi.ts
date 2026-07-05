@@ -288,7 +288,7 @@ const EMPRESA_KPI_ALIASES: Record<keyof Omit<QuadroEmpresaLinha, "empresa">, str
   estagiarios: ["estagiarios", "estagiario", "qtd_estagiarios"],
   jovem_aprendiz: ["jovem_aprendiz", "aprendiz", "jovens_aprendizes"],
   ferias: ["ferias", "em_ferias"],
-  aposentadoria_invalidez: ["aposentadoria_invalidez", "aposent_invalidez", "aposentadoria", "aposentados", "invalidez"],
+  aposentadoria_invalidez: ["apos_invalidez", "aposentadoria_invalidez", "aposent_invalidez", "aposentadoria", "aposentados", "invalidez"],
   auxilio_doenca: ["auxilio_doenca", "aux_doenca", "auxilio"],
   acidente_trabalho: ["acidente_trabalho", "acidente", "acidentes"],
   atestados: ["atestados", "atestado"],
