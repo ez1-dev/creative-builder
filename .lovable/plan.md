@@ -1,69 +1,57 @@
-## Objetivo
+# Melhorias nos gráficos do Painel de Compras
 
-Duas entregas no Painel de Compras (aba **Dashboard**), consumindo o backend novo (`POST /api/compras/ia-grafico`) e a Biblioteca BI já plugada via `PageDataProvider pageKey="painel-compras"`.
+Duas frentes independentes na mesma tela (`src/pages/PainelComprasPage.tsx`), sem mexer em lógica de filtros, KPIs ou drill.
 
----
+## 1) Refino visual (todas as seções "Análises Gráficas" e "Análise Gerencial")
 
-## Entrega 1 — Análise Gerencial com IA
+Padronizar a aparência com tokens do design system e componentes da Biblioteca BI (`@/components/bi`), que já cuidam de responsividade, cores e formatação.
 
-Adicionar bloco colapsável **"Gerar gráfico com IA"** no topo da aba Dashboard, reaproveitando o padrão do BI Comercial.
+**Aplicações:**
 
-**Novos arquivos**
-- `src/lib/bi/comprasIaChartApi.ts` — client de `POST /api/compras/ia-grafico`. Mesmo contrato de resposta do BI Comercial (`titulo, subtitulo, tipo_grafico, dimensao, metrica, total, series[{label, valor, filtros_drill}]`). Dimensões: `fornecedor | projeto | centro_custo | mes | oc | item | familia | origem`. Métricas: `comprado | pendente | recebido | qtd_ocs | qtd_itens`.
-- `src/components/compras/ComprasAiChartGenerator.tsx` — variante do `AiChartGenerator`:
-  - chama `api.post('/api/compras/ia-grafico', { prompt, filtros })` passando os filtros ativos do painel (`fornecedor, numero_projeto, centro_custo, transacao, tipo_item, tipo_despesa, data_emissao_ini/fim, data_entrega_ini/fim, mes_competencia, somente_pendentes`);
-  - render bar/line/pie/donut a partir de `series`;
-  - formatação: `formatCurrency` para métricas monetárias, `formatNumber` para `qtd_ocs`/`qtd_itens`;
-  - **click** em fatia/barra: usa `filtros_drill` da série — pega a primeira chave e chama `openDrill(chave, valor, label)` (a chave já vem no formato do painel: `fantasia_fornecedor`, `numero_projeto`, `centro_custo`, `mes_competencia_calc`, etc.);
-  - chips de exemplo: "top 10 fornecedores por valor comprado", "evolução mensal das compras", "valor pendente por projeto", "compras por centro de custo".
+- **Wrapper único**: cada gráfico passa a usar `ChartCardShell` (padroniza título, subtítulo, borda, padding, empty/loading states) em vez do `<div className="rounded-md border bg-card p-4">` solto.
+- **Cores**: trocar `hsl(215,70%,45%)`, `hsl(142,70%,40%)`, `hsl(280,60%,50%)`, `fill="hsl(280,60%,50%)"` etc. por tokens semânticos (`hsl(var(--primary))`, `hsl(var(--chart-1..5))`). Zero cor hardcoded.
+- **Rótulos de valor**: mostrar valor em cima/lado das barras usando `<LabelList>` com formatação abreviada (`R$ 1,2M` / `R$ 250k` via helper `formatCompactCurrency`).
+- **Eixos**: fonte legível (`text-xs text-muted-foreground`), tick lines discretos, gridlines só no eixo de valor com `strokeDasharray="3 3"` e cor `hsl(var(--border))`.
+- **Nomes longos** (Top Fornecedores, Famílias, Origens): truncar com "…" no eixo e mostrar nome completo no tooltip; aumentar `width` do YAxis para caber os principais, com scroll interno quando > 10 itens.
+- **Tooltip**: usar `ChartTooltipContent` da BI (cursor de fundo `hsl(var(--muted))`, valores formatados em moeda BR, categoria em negrito).
+- **Legenda**: reposicionar para o topo direito com bullets pequenos; esconder quando só há uma série.
+- **Ordenação/limite**: Top-N=10 explícito nos rankings, resto agrupado em "Outros" nos donuts quando > 6 fatias.
+- **Grid do dashboard**: ajustar de `lg:grid-cols-2 xl:grid-cols-3` para uma organização mais respirada; gráficos de ranking horizontais ganham `col-span-2` em telas grandes.
+- **Trocas de tipo pontuais** (mantendo os dados):
+  - Top Fornecedores → `HorizontalBarChartCard` (barra horizontal já é o formato natural).
+  - Situação das OCs e Produtos × Serviços → `DonutChartCard` com total no centro.
+  - Entregas por Mês → `AreaChartCard` (tendência) em vez de barras esparsas.
+  - Top Famílias / Top Origens → `RankingChartCard` (barras + posição + participação %).
+  - Compras por Mês → `LineChartCard` com marcadores.
+  - Top 10 Centros / Top 10 Projetos → `HorizontalBarChartCard` com `LabelList`.
 
-**Integração em `PainelComprasPage.tsx`**
-- Dentro de `<TabsContent value="dashboard">`, no topo, renderizar `<ComprasAiChartGenerator filtrosAtivos={filtros} onDrill={openDrill} />` colapsável (Card com header `Sparkles` + botão chevron, colapsado por padrão).
-- Nenhum gráfico/KPI existente é alterado.
+## 2) Corrigir "Análise Gerencial" zerada (Compras por Mês / Centros de Custo / Projetos)
 
----
+Sintoma: rótulos aparecem como "———" e todas as barras marcam `R$ 0k`. As séries são construídas em `gerencialCharts` (linhas 562–592) a partir de `dashboard.graficos.por_mes | por_centro_custo | por_projeto`.
 
-## Entrega 2 — Gráficos do Dashboard substituíveis pela Biblioteca BI
+**Diagnóstico a executar (sem mudar backend):**
 
-Registrar os gráficos fixos como widgets da biblioteca e permitir esconder/substituir cada um.
+1. Logar no console a resposta crua do endpoint agregado (`dashboard.graficos.por_mes[0]`, `por_centro_custo[0]`, `por_projeto[0]`) para confirmar quais chaves o backend está devolvendo.
+2. Comparar com o esperado em `docs/backend-painel-compras-dashboard.md` (`mes`, `centro_custo`, `numero_projeto`+`projeto`, todos com `valor`).
 
-**Novo arquivo**
-- `src/lib/bi/comprasWidgetCatalog.ts` — catálogo (padrão `comercialWidgetCatalog.ts`) com widgets:
-  - `compras.top_fornecedores` (bar, dim=fornecedor, série `top_fornecedores`)
-  - `compras.por_mes` (line, série `compras_por_mes`)
-  - `compras.por_centro_custo` (bar, série `por_centro_custo`)
-  - `compras.por_projeto` (bar, série `por_projeto`)
-  - `compras.por_tipo_despesa` (donut, série `tipos_despesa`)
-  - `compras.situacoes` (donut, série `situacoes`)
-  - `compras.tipos_item` (donut, série `tipos_item`) — Produtos × Serviços
-  - `compras.entregas_por_mes` (bar, série `entregas_por_mes`)
-- Registrar no `componentRegistry` existente (mesmo mecanismo do BI Comercial).
+**Correções previstas no frontend (mesmo se o backend mudar depois):**
 
-**Expor mais séries no `PageDataProvider`** (linhas ~789-800 de `PainelComprasPage.tsx`)
-- Adicionar: `por_centro_custo`, `por_projeto`, `situacoes`, `tipos_item`, `entregas_por_mes` — todos derivados de `dashboard.graficos.*` já disponíveis (com fallback para `chartData` local quando o endpoint agregado não retornou).
+- Aceitar aliases comuns de campo de valor: `valor` **ou** `valor_liquido` **ou** `valor_comprado` **ou** `total`.
+- Aceitar aliases de label: `mes|competencia|mes_competencia`, `centro_custo|centro|nome_centro`, `projeto|nome_projeto|numero_projeto`.
+- Se após o parsing tudo ainda vier 0, cair no fallback client-side já existente (`agg()` sobre `dadosFiltrados`) — hoje esse fallback só roda quando `gerencialActive` é true; passar a rodar também quando o backend devolveu a estrutura mas com valores todos zerados.
+- Ordenar `porMes` cronologicamente aceitando `YYYY-MM` ou `MM/YYYY`.
+- Formatar labels vazias/`null` como "Sem informação" em vez de "———".
 
-**Toggle "Biblioteca BI"** (padrão da ComercialPage)
-- Estado local `modoEdicao` + botão no header da aba Dashboard.
-- Chave `hiddenCharts: Record<string, boolean>` persistida em `localStorage('painel-compras.hiddenCharts')`; cada gráfico fixo (top_fornecedores, situacoes, tipos_item, entregas_por_mes, por_mes, por_centro_custo, por_projeto, por_tipo_despesa) recebe um botão "Esconder" (visível só em modo edição) que seta a flag; escondidos não renderizam.
-- `UserWidgetsSlot section="charts"` continua exibindo widgets da biblioteca aplicados pelo usuário — quando o fixo está escondido, o widget correspondente da biblioteca toma o lugar naturalmente.
+Se após o diagnóstico ficar claro que o backend não está agregando esses três buckets (bug servidor), gero um `docs/backend-painel-compras-dashboard-fix.md` curto descrevendo o que precisa ser retornado — sem editar o FastAPI daqui.
 
-**Fora de escopo**
-- Endpoints, cálculos de KPI, drill navigation, filtros, sidebar/menu.
+## Fora de escopo
 
----
+- Endpoints, cálculos de KPI, filtros globais, drill navigation.
+- "Biblioteca BI" / widgets do usuário / toggle "Editar dashboard" (já implementados numa entrega anterior).
+- Aba Drill e aba Lista Detalhada.
 
-## Detalhes técnicos
+## Arquivos
 
-- `filtros_drill` do backend pode vir como `{fantasia_fornecedor: "ACME"}` etc. Handler:
-  ```ts
-  const [k, v] = Object.entries(serie.filtros_drill ?? {})[0] ?? [];
-  if (k && v != null) openDrill(k, v, serie.label);
-  ```
-- Backend usa Gemini opcional; frontend não precisa saber — só faz POST.
-- Reusar `DonutChartCard/BarChartCard/LineChartCard/PieChartCard` de `@/components/bi`.
-- Diagnóstico de "0 séries" reaproveitado do `AiChartGenerator` (mostra filtros aplicados).
-
-## Arquivos tocados
-
-- **Criar**: `src/lib/bi/comprasIaChartApi.ts`, `src/components/compras/ComprasAiChartGenerator.tsx`, `src/lib/bi/comprasWidgetCatalog.ts`
-- **Editar**: `src/pages/PainelComprasPage.tsx` (import + slot IA na aba Dashboard, séries extras no PageDataProvider, toggle edição + botões esconder), registrar catálogo (import no bootstrap onde `comercialWidgetCatalog` é registrado).
+- `src/pages/PainelComprasPage.tsx` — refactor visual das seções de gráficos + parsing tolerante das séries gerenciais.
+- (possível) `src/lib/format.ts` — adicionar `formatCompactCurrency` se ainda não existir.
+- (condicional) `docs/backend-painel-compras-dashboard-fix.md` — só se o diagnóstico apontar bug de servidor.

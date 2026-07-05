@@ -21,9 +21,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ChevronsUpDown } from 'lucide-react';
-import { formatNumber, formatCurrency, formatDate } from '@/lib/format';
+import { formatNumber, formatCurrency, formatCompactCurrency, formatDate } from '@/lib/format';
 import { toast } from 'sonner';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, CartesianGrid, LineChart, Line, AreaChart, Area, LabelList } from 'recharts';
 import { ShoppingCart, AlertTriangle, TrendingUp, Package, DollarSign, Clock, Percent, FileText, Layers, Receipt, RefreshCw, Filter as FilterIcon, Eraser, Link2, Unlink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -41,7 +41,39 @@ import { ComprasAiChartGenerator } from '@/components/compras/ComprasAiChartGene
 import { COMPRAS_WIDGETS, loadHiddenCharts, saveHiddenCharts } from '@/lib/bi/comprasWidgetCatalog';
 import { Pencil, EyeOff, Eye } from 'lucide-react';
 
-const COLORS = ['hsl(215,70%,45%)', 'hsl(142,70%,40%)', 'hsl(38,92%,50%)', 'hsl(0,72%,51%)', 'hsl(199,89%,48%)', 'hsl(280,60%,50%)', 'hsl(160,60%,40%)', 'hsl(30,80%,55%)'];
+const COLORS = [
+  'hsl(var(--chart-1))',
+  'hsl(var(--chart-2))',
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))',
+  'hsl(var(--chart-5))',
+  'hsl(var(--chart-6))',
+  'hsl(var(--chart-7))',
+  'hsl(var(--chart-8))',
+];
+
+const truncateLabel = (s: string, max = 22) => {
+  if (!s) return '';
+  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
+};
+
+/** Tooltip customizado com moeda BR e categoria em destaque. */
+const ChartMoneyTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload || !payload.length) return null;
+  return (
+    <div className="rounded-md border border-border bg-popover px-3 py-2 text-xs shadow-md">
+      {label !== undefined && label !== null && (
+        <div className="mb-1 font-semibold text-foreground">{String(label)}</div>
+      )}
+      {payload.map((p: any, i: number) => (
+        <div key={i} className="flex items-center gap-2 text-muted-foreground">
+          <span className="inline-block h-2 w-2 rounded-sm" style={{ background: p.color || p.fill }} />
+          <span className="text-foreground">{formatCurrency(p.value)}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 const SITUACOES_OPCOES: { value: string; label: string }[] = [
   { value: '1', label: 'Aberto Total' },
@@ -560,36 +592,76 @@ export default function PainelComprasPage() {
   }, [dashboard, gerencialActive]);
 
   const gerencialCharts = useMemo(() => {
+    // Helpers tolerantes: aceitam múltiplos aliases de campo (o backend
+    // pode devolver 'valor', 'valor_liquido', 'valor_comprado', 'total', etc.)
+    const pickNumber = (r: any, keys: string[]): number => {
+      for (const k of keys) {
+        const v = r?.[k];
+        if (v !== undefined && v !== null && !Number.isNaN(Number(v))) return Number(v);
+      }
+      return 0;
+    };
+    const pickLabel = (r: any, keys: string[]): string => {
+      for (const k of keys) {
+        const v = r?.[k];
+        if (v !== undefined && v !== null && String(v).trim() !== '') return String(v);
+      }
+      return 'Sem informação';
+    };
+    const VALOR_KEYS = ['valor', 'valor_liquido', 'valor_liquido_total', 'valor_comprado', 'total'];
+
+    const aggFromDados = () => {
+      if (!dadosFiltrados.length) return null;
+      const agg = (key: string) => {
+        const m = new Map<string, number>();
+        dadosFiltrados.forEach((d: any) => {
+          const k = String(d[key] ?? 'Sem informação');
+          m.set(k, (m.get(k) || 0) + (d.valor_liquido || 0));
+        });
+        return [...m.entries()].map(([label, valor]) => ({ label, valor })).sort((a, b) => b.valor - a.valor);
+      };
+      return {
+        porMes: agg('mes_competencia_calc').sort((a, b) => a.label.localeCompare(b.label)),
+        porTipoDespesa: agg('tipo_despesa_calc'),
+        porCentroCusto: agg('centro_custo').slice(0, 10),
+        porProjeto: agg('numero_projeto').slice(0, 10),
+      };
+    };
+
     if (dashboard && !gerencialActive) {
-      const g = dashboard.graficos;
-      const map = (rows: any[] | undefined, labelKey: string) =>
-        (rows || []).map((r) => ({ label: String(r[labelKey] ?? '—'), valor: Number(r.valor || 0) }));
-      const porMes = map(g.por_mes, 'mes').sort((a, b) => a.label.localeCompare(b.label));
-      const porTipoDespesa = map(g.por_tipo_despesa, 'tipo').sort((a, b) => b.valor - a.valor);
-      const porCentroCusto = map(g.por_centro_custo, 'centro_custo').sort((a, b) => b.valor - a.valor).slice(0, 10);
-      const porProjeto = (g.por_projeto || [])
-        .map((r) => ({ label: String(r.projeto ?? r.numero_projeto ?? '—'), valor: Number(r.valor || 0) }))
-        .sort((a, b) => b.valor - a.valor)
+      const g: any = dashboard.graficos ?? {};
+      const porMes = (g.por_mes || [])
+        .map((r: any) => ({ label: pickLabel(r, ['mes', 'competencia', 'mes_competencia', 'label']), valor: pickNumber(r, VALOR_KEYS) }))
+        .sort((a: any, b: any) => a.label.localeCompare(b.label));
+      const porTipoDespesa = (g.por_tipo_despesa || [])
+        .map((r: any) => ({ label: pickLabel(r, ['tipo', 'tipo_despesa', 'label']), valor: pickNumber(r, VALOR_KEYS) }))
+        .sort((a: any, b: any) => b.valor - a.valor);
+      const porCentroCusto = (g.por_centro_custo || [])
+        .map((r: any) => ({ label: pickLabel(r, ['centro_custo', 'centro', 'nome_centro', 'label']), valor: pickNumber(r, VALOR_KEYS) }))
+        .sort((a: any, b: any) => b.valor - a.valor)
         .slice(0, 10);
+      const porProjeto = (g.por_projeto || [])
+        .map((r: any) => ({ label: pickLabel(r, ['projeto', 'nome_projeto', 'numero_projeto', 'label']), valor: pickNumber(r, VALOR_KEYS) }))
+        .sort((a: any, b: any) => b.valor - a.valor)
+        .slice(0, 10);
+
+      const sum = (arr: any[]) => arr.reduce((s, x) => s + (x.valor || 0), 0);
+      const total = sum(porMes) + sum(porTipoDespesa) + sum(porCentroCusto) + sum(porProjeto);
+
+      // Se o backend devolveu estrutura mas todos os valores estão zerados,
+      // recorre ao agrupamento client-side quando temos dados detalhados.
+      if (total === 0) {
+        const fallback = aggFromDados();
+        if (fallback) return fallback;
+      }
+
       if (!porMes.length && !porTipoDespesa.length && !porCentroCusto.length && !porProjeto.length) return null;
       return { porMes, porTipoDespesa, porCentroCusto, porProjeto };
     }
-    if (!dadosFiltrados.length) return null;
-    const agg = (key: string) => {
-      const m = new Map<string, number>();
-      dadosFiltrados.forEach((d: any) => {
-        const k = String(d[key] ?? '—');
-        m.set(k, (m.get(k) || 0) + (d.valor_liquido || 0));
-      });
-      return [...m.entries()].map(([label, valor]) => ({ label, valor })).sort((a, b) => b.valor - a.valor);
-    };
-    return {
-      porMes: agg('mes_competencia_calc').sort((a, b) => a.label.localeCompare(b.label)),
-      porTipoDespesa: agg('tipo_despesa_calc'),
-      porCentroCusto: agg('centro_custo').slice(0, 10),
-      porProjeto: agg('numero_projeto').slice(0, 10),
-    };
+    return aggFromDados();
   }, [dadosFiltrados, dashboard, gerencialActive]);
+
+
 
   const drillDetails = useMemo(() => {
     if (!data?.dados?.length) return {} as Record<string, { label: string; value: string }[] | undefined>;
@@ -1261,17 +1333,20 @@ export default function PainelComprasPage() {
             {chartData && (
               <div>
                 <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Análises Gráficas</h3>
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                   {chartData.top_fornecedores?.length > 0 && !hiddenCharts.top_fornecedores && (
                     <VisualGate visualKey="compras.top-fornecedores">
-                    <div className="rounded-md border bg-card p-4">
-                      <h3 className="mb-3 text-sm font-semibold">Top Fornecedores (Valor Líquido)</h3>
-                      <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={chartData.top_fornecedores} layout="vertical">
-                          <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
-                          <YAxis type="category" dataKey="fantasia_fornecedor" width={120} className="text-xs" tick={{ fontSize: 10 }} />
-                          <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                          <Bar dataKey="valor_liquido_total" fill="hsl(215,70%,45%)" radius={[0, 4, 4, 0]} cursor="pointer" onClick={(d: any) => openDrill('fantasia_fornecedor', d?.fantasia_fornecedor, d?.fantasia_fornecedor)} />
+                    <div className="rounded-lg border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md lg:col-span-2">
+                      <h3 className="mb-3 text-sm font-semibold text-foreground">Top Fornecedores (Valor Líquido)</h3>
+                      <ResponsiveContainer width="100%" height={Math.max(260, chartData.top_fornecedores.length * 28)}>
+                        <BarChart data={chartData.top_fornecedores} layout="vertical" margin={{ top: 4, right: 56, bottom: 4, left: 8 }}>
+                          <CartesianGrid horizontal={false} stroke="hsl(var(--chart-grid))" strokeDasharray="3 3" />
+                          <XAxis type="number" tickFormatter={(v) => formatCompactCurrency(v)} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                          <YAxis type="category" dataKey="fantasia_fornecedor" width={190} tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} tickFormatter={(v) => truncateLabel(String(v), 28)} axisLine={false} tickLine={false} />
+                          <Tooltip cursor={{ fill: 'hsl(var(--muted) / 0.4)' }} content={<ChartMoneyTooltip />} />
+                          <Bar dataKey="valor_liquido_total" fill="hsl(var(--chart-1))" radius={[0, 6, 6, 0]} cursor="pointer" onClick={(d: any) => openDrill('fantasia_fornecedor', d?.fantasia_fornecedor, d?.fantasia_fornecedor)}>
+                            <LabelList dataKey="valor_liquido_total" position="right" formatter={(v: number) => formatCompactCurrency(v)} style={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                          </Bar>
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -1279,10 +1354,10 @@ export default function PainelComprasPage() {
                   )}
 
                   {chartData.situacoes?.length > 0 && !hiddenCharts.situacoes && (
-                    <div className="rounded-md border bg-card p-4">
-                      <h3 className="mb-1 text-sm font-semibold">Situação das OCs</h3>
+                    <div className="rounded-lg border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
+                      <h3 className="mb-1 text-sm font-semibold text-foreground">Situação das OCs</h3>
                       <p className="mb-2 text-[11px] text-muted-foreground">Clique em uma fatia para filtrar a Lista Detalhada</p>
-                      <ResponsiveContainer width="100%" height={250}>
+                      <ResponsiveContainer width="100%" height={260}>
                         <PieChart>
                           <Pie
                             data={chartData.situacoes.map((s: any) => ({ ...s, name: situacaoLabel(s.situacao_oc) }))}
@@ -1290,25 +1365,28 @@ export default function PainelComprasPage() {
                             nameKey="name"
                             cx="50%"
                             cy="50%"
-                            outerRadius={80}
-                            label
+                            innerRadius={55}
+                            outerRadius={90}
+                            paddingAngle={2}
+                            stroke="hsl(var(--card))"
+                            strokeWidth={2}
                             cursor="pointer"
                             onClick={(slice: any) => handleDrillSituacao(slice?.payload ?? slice)}
                           >
                             {chartData.situacoes.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                           </Pie>
                           <Tooltip content={<PieRichTooltip totals={situacoesTotals} />} />
-                          <Legend />
+                          <Legend verticalAlign="bottom" iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
                   )}
 
                   {chartData.tipos?.length > 0 && !hiddenCharts.tipos_item && (
-                    <div className="rounded-md border bg-card p-4">
-                      <h3 className="mb-1 text-sm font-semibold">Produtos x Serviços</h3>
+                    <div className="rounded-lg border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
+                      <h3 className="mb-1 text-sm font-semibold text-foreground">Produtos × Serviços</h3>
                       <p className="mb-2 text-[11px] text-muted-foreground">Clique em uma fatia para filtrar a Lista Detalhada</p>
-                      <ResponsiveContainer width="100%" height={250}>
+                      <ResponsiveContainer width="100%" height={260}>
                         <PieChart>
                           <Pie
                             data={chartData.tipos}
@@ -1316,44 +1394,57 @@ export default function PainelComprasPage() {
                             nameKey="tipo_item"
                             cx="50%"
                             cy="50%"
-                            outerRadius={80}
-                            label
+                            innerRadius={55}
+                            outerRadius={90}
+                            paddingAngle={2}
+                            stroke="hsl(var(--card))"
+                            strokeWidth={2}
                             cursor="pointer"
                             onClick={(slice: any) => handleDrillTipo(slice?.payload ?? slice)}
                           >
                             {chartData.tipos.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                           </Pie>
                           <Tooltip content={<PieRichTooltip totals={tiposTotals} />} />
-                          <Legend />
+                          <Legend verticalAlign="bottom" iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
                   )}
 
                   {chartData.entregas_por_mes?.length > 0 && !hiddenCharts.entregas_por_mes && (
-                    <div className="rounded-md border bg-card p-4">
-                      <h3 className="mb-3 text-sm font-semibold">Entregas por Mês (Itens por mês de entrega)</h3>
-                      <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={chartData.entregas_por_mes}>
-                          <XAxis dataKey="periodo_entrega" className="text-xs" tick={{ fontSize: 10 }} />
-                          <YAxis tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
-                          <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                          <Bar dataKey="valor_pendente_total" fill="hsl(38,92%,50%)" radius={[4, 4, 0, 0]} cursor="pointer" onClick={(d: any) => openDrill('mes_competencia_calc', d?.periodo_entrega, d?.periodo_entrega)} />
-                        </BarChart>
+                    <div className="rounded-lg border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md lg:col-span-2">
+                      <h3 className="mb-3 text-sm font-semibold text-foreground">Entregas por Mês <span className="font-normal text-muted-foreground">(valor pendente)</span></h3>
+                      <ResponsiveContainer width="100%" height={260}>
+                        <AreaChart data={chartData.entregas_por_mes} margin={{ top: 8, right: 16, bottom: 4, left: 8 }}>
+                          <defs>
+                            <linearGradient id="grad-entregas" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="hsl(var(--chart-3))" stopOpacity={0.4} />
+                              <stop offset="95%" stopColor="hsl(var(--chart-3))" stopOpacity={0.02} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid stroke="hsl(var(--chart-grid))" strokeDasharray="3 3" vertical={false} />
+                          <XAxis dataKey="periodo_entrega" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                          <YAxis tickFormatter={(v) => formatCompactCurrency(v)} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                          <Tooltip cursor={{ stroke: 'hsl(var(--chart-3))', strokeWidth: 1, strokeDasharray: '3 3' }} content={<ChartMoneyTooltip />} />
+                          <Area type="monotone" dataKey="valor_pendente_total" stroke="hsl(var(--chart-3))" strokeWidth={2} fill="url(#grad-entregas)" dot={{ r: 3, fill: 'hsl(var(--chart-3))', stroke: 'hsl(var(--card))', strokeWidth: 2 }} activeDot={{ r: 5 }} />
+                        </AreaChart>
                       </ResponsiveContainer>
                     </div>
                   )}
 
                   {chartData.familias?.length > 0 && !hiddenCharts.top_familias && (
                     <VisualGate visualKey="compras.top-familias">
-                    <div className="rounded-md border bg-card p-4">
-                      <h3 className="mb-3 text-sm font-semibold">Top Famílias por Valor Líquido</h3>
-                      <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={chartData.familias} layout="vertical">
-                          <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
-                          <YAxis type="category" dataKey="codigo_familia" width={100} className="text-xs" tick={{ fontSize: 10 }} />
-                          <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                          <Bar dataKey="valor_liquido_total" fill="hsl(142,70%,40%)" radius={[0, 4, 4, 0]} />
+                    <div className="rounded-lg border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
+                      <h3 className="mb-3 text-sm font-semibold text-foreground">Top Famílias por Valor Líquido</h3>
+                      <ResponsiveContainer width="100%" height={280}>
+                        <BarChart data={chartData.familias} layout="vertical" margin={{ top: 4, right: 56, bottom: 4, left: 8 }}>
+                          <CartesianGrid horizontal={false} stroke="hsl(var(--chart-grid))" strokeDasharray="3 3" />
+                          <XAxis type="number" tickFormatter={(v) => formatCompactCurrency(v)} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                          <YAxis type="category" dataKey="codigo_familia" width={110} tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} tickFormatter={(v) => truncateLabel(String(v), 16)} axisLine={false} tickLine={false} />
+                          <Tooltip cursor={{ fill: 'hsl(var(--muted) / 0.4)' }} content={<ChartMoneyTooltip />} />
+                          <Bar dataKey="valor_liquido_total" fill="hsl(var(--chart-2))" radius={[0, 6, 6, 0]}>
+                            <LabelList dataKey="valor_liquido_total" position="right" formatter={(v: number) => formatCompactCurrency(v)} style={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                          </Bar>
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -1362,14 +1453,17 @@ export default function PainelComprasPage() {
 
                   {chartData.origens?.length > 0 && !hiddenCharts.top_origens && (
                     <VisualGate visualKey="compras.top-origens">
-                    <div className="rounded-md border bg-card p-4">
-                      <h3 className="mb-3 text-sm font-semibold">Top Origens por Valor Líquido</h3>
-                      <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={chartData.origens} layout="vertical">
-                          <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
-                          <YAxis type="category" dataKey="origem" width={100} className="text-xs" tick={{ fontSize: 10 }} />
-                          <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                          <Bar dataKey="valor_liquido_total" fill="hsl(280,60%,50%)" radius={[0, 4, 4, 0]} />
+                    <div className="rounded-lg border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
+                      <h3 className="mb-3 text-sm font-semibold text-foreground">Top Origens por Valor Líquido</h3>
+                      <ResponsiveContainer width="100%" height={280}>
+                        <BarChart data={chartData.origens} layout="vertical" margin={{ top: 4, right: 56, bottom: 4, left: 8 }}>
+                          <CartesianGrid horizontal={false} stroke="hsl(var(--chart-grid))" strokeDasharray="3 3" />
+                          <XAxis type="number" tickFormatter={(v) => formatCompactCurrency(v)} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                          <YAxis type="category" dataKey="origem" width={110} tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} tickFormatter={(v) => truncateLabel(String(v), 16)} axisLine={false} tickLine={false} />
+                          <Tooltip cursor={{ fill: 'hsl(var(--muted) / 0.4)' }} content={<ChartMoneyTooltip />} />
+                          <Bar dataKey="valor_liquido_total" fill="hsl(var(--chart-4))" radius={[0, 6, 6, 0]}>
+                            <LabelList dataKey="valor_liquido_total" position="right" formatter={(v: number) => formatCompactCurrency(v)} style={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                          </Bar>
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -1382,56 +1476,63 @@ export default function PainelComprasPage() {
             {gerencialCharts && (
               <div>
                 <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Análise Gerencial</h3>
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                   {gerencialCharts.porMes.length > 0 && !hiddenCharts.compras_por_mes && (
-                    <div className="rounded-md border bg-card p-4">
-                      <h3 className="mb-3 text-sm font-semibold">Compras por Mês</h3>
-                      <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={gerencialCharts.porMes}>
-                          <XAxis dataKey="label" className="text-xs" tick={{ fontSize: 10 }} />
-                          <YAxis tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
-                          <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                          <Bar dataKey="valor" fill="hsl(215,70%,45%)" radius={[4, 4, 0, 0]} cursor="pointer" onClick={(d: any) => openDrill('mes_competencia_calc', d?.label, d?.label)} />
-                        </BarChart>
+                    <div className="rounded-lg border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md lg:col-span-2">
+                      <h3 className="mb-3 text-sm font-semibold text-foreground">Compras por Mês</h3>
+                      <ResponsiveContainer width="100%" height={260}>
+                        <LineChart data={gerencialCharts.porMes} margin={{ top: 8, right: 16, bottom: 4, left: 8 }}>
+                          <CartesianGrid stroke="hsl(var(--chart-grid))" strokeDasharray="3 3" vertical={false} />
+                          <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                          <YAxis tickFormatter={(v) => formatCompactCurrency(v)} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                          <Tooltip cursor={{ stroke: 'hsl(var(--chart-1))', strokeWidth: 1, strokeDasharray: '3 3' }} content={<ChartMoneyTooltip />} />
+                          <Line type="monotone" dataKey="valor" stroke="hsl(var(--chart-1))" strokeWidth={2.5} dot={{ r: 4, fill: 'hsl(var(--chart-1))', stroke: 'hsl(var(--card))', strokeWidth: 2 }} activeDot={{ r: 6, cursor: 'pointer', onClick: (_: any, e: any) => openDrill('mes_competencia_calc', e?.payload?.label, e?.payload?.label) }} />
+                        </LineChart>
                       </ResponsiveContainer>
                     </div>
                   )}
                   {gerencialCharts.porTipoDespesa.length > 0 && !hiddenCharts.por_tipo_despesa && (
-                    <div className="rounded-md border bg-card p-4">
-                      <h3 className="mb-3 text-sm font-semibold">Compras por Tipo de Despesa</h3>
-                      <ResponsiveContainer width="100%" height={250}>
+                    <div className="rounded-lg border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
+                      <h3 className="mb-3 text-sm font-semibold text-foreground">Compras por Tipo de Despesa</h3>
+                      <ResponsiveContainer width="100%" height={260}>
                         <PieChart>
-                          <Pie data={gerencialCharts.porTipoDespesa} dataKey="valor" nameKey="label" cx="50%" cy="50%" outerRadius={80} label cursor="pointer" onClick={(d: any) => openDrill('tipo_despesa_calc', d?.label, d?.label)}>
+                          <Pie data={gerencialCharts.porTipoDespesa} dataKey="valor" nameKey="label" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={2} stroke="hsl(var(--card))" strokeWidth={2} cursor="pointer" onClick={(d: any) => openDrill('tipo_despesa_calc', d?.label, d?.label)}>
                             {gerencialCharts.porTipoDespesa.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                           </Pie>
-                          <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                          <Legend />
+                          <Tooltip content={<ChartMoneyTooltip />} />
+                          <Legend verticalAlign="bottom" iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
                   )}
                   {gerencialCharts.porCentroCusto.length > 0 && !hiddenCharts.por_centro_custo && (
-                    <div className="rounded-md border bg-card p-4">
-                      <h3 className="mb-3 text-sm font-semibold">Top 10 Centros de Custo</h3>
-                      <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={gerencialCharts.porCentroCusto} layout="vertical">
-                          <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
-                          <YAxis type="category" dataKey="label" width={100} className="text-xs" tick={{ fontSize: 10 }} />
-                          <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                          <Bar dataKey="valor" fill="hsl(142,70%,40%)" radius={[0, 4, 4, 0]} cursor="pointer" onClick={(d: any) => openDrill('centro_custo', d?.label, d?.label)} />
+                    <div className="rounded-lg border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
+                      <h3 className="mb-3 text-sm font-semibold text-foreground">Top 10 Centros de Custo</h3>
+                      <ResponsiveContainer width="100%" height={Math.max(260, gerencialCharts.porCentroCusto.length * 28)}>
+                        <BarChart data={gerencialCharts.porCentroCusto} layout="vertical" margin={{ top: 4, right: 56, bottom: 4, left: 8 }}>
+                          <CartesianGrid horizontal={false} stroke="hsl(var(--chart-grid))" strokeDasharray="3 3" />
+                          <XAxis type="number" tickFormatter={(v) => formatCompactCurrency(v)} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                          <YAxis type="category" dataKey="label" width={140} tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} tickFormatter={(v) => truncateLabel(String(v), 20)} axisLine={false} tickLine={false} />
+                          <Tooltip cursor={{ fill: 'hsl(var(--muted) / 0.4)' }} content={<ChartMoneyTooltip />} />
+                          <Bar dataKey="valor" fill="hsl(var(--chart-2))" radius={[0, 6, 6, 0]} cursor="pointer" onClick={(d: any) => openDrill('centro_custo', d?.label, d?.label)}>
+                            <LabelList dataKey="valor" position="right" formatter={(v: number) => formatCompactCurrency(v)} style={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                          </Bar>
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
                   )}
                   {gerencialCharts.porProjeto.length > 0 && !hiddenCharts.por_projeto && (
-                    <div className="rounded-md border bg-card p-4">
-                      <h3 className="mb-3 text-sm font-semibold">Top 10 Projetos</h3>
-                      <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={gerencialCharts.porProjeto} layout="vertical">
-                          <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
-                          <YAxis type="category" dataKey="label" width={100} className="text-xs" tick={{ fontSize: 10 }} />
-                          <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                          <Bar dataKey="valor" fill="hsl(280,60%,50%)" radius={[0, 4, 4, 0]} cursor="pointer" onClick={(d: any) => openDrill('numero_projeto', d?.label, d?.label)} />
+                    <div className="rounded-lg border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
+                      <h3 className="mb-3 text-sm font-semibold text-foreground">Top 10 Projetos</h3>
+                      <ResponsiveContainer width="100%" height={Math.max(260, gerencialCharts.porProjeto.length * 28)}>
+                        <BarChart data={gerencialCharts.porProjeto} layout="vertical" margin={{ top: 4, right: 56, bottom: 4, left: 8 }}>
+                          <CartesianGrid horizontal={false} stroke="hsl(var(--chart-grid))" strokeDasharray="3 3" />
+                          <XAxis type="number" tickFormatter={(v) => formatCompactCurrency(v)} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                          <YAxis type="category" dataKey="label" width={140} tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} tickFormatter={(v) => truncateLabel(String(v), 20)} axisLine={false} tickLine={false} />
+                          <Tooltip cursor={{ fill: 'hsl(var(--muted) / 0.4)' }} content={<ChartMoneyTooltip />} />
+                          <Bar dataKey="valor" fill="hsl(var(--chart-4))" radius={[0, 6, 6, 0]} cursor="pointer" onClick={(d: any) => openDrill('numero_projeto', d?.label, d?.label)}>
+                            <LabelList dataKey="valor" position="right" formatter={(v: number) => formatCompactCurrency(v)} style={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                          </Bar>
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -1439,6 +1540,7 @@ export default function PainelComprasPage() {
                 </div>
               </div>
             )}
+
           </TabsContent>
 
           <TabsContent value="drill" className="space-y-2">
