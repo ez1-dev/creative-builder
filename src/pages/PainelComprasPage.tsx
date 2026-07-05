@@ -21,7 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ChevronsUpDown } from 'lucide-react';
-import { formatNumber, formatCurrency, formatCompactCurrency, formatDate, formatFornecedorLabel, formatProjetoLabel, toUpperPt } from '@/lib/format';
+import { formatNumber, formatCurrency, formatCompactCurrency, formatDate, formatFornecedorLabel, formatProjetoLabel } from '@/lib/format';
 import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, CartesianGrid, LineChart, Line, AreaChart, Area, LabelList } from 'recharts';
 import { ShoppingCart, AlertTriangle, TrendingUp, Package, DollarSign, Clock, Percent, FileText, Layers, Receipt, RefreshCw, Filter as FilterIcon, Eraser, Link2, Unlink } from 'lucide-react';
