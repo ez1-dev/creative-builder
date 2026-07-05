@@ -27,16 +27,18 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { formatNumber, formatCurrency } from '@/lib/format';
+import {
+  formatNumber, formatCurrency, formatFornecedorLabel, formatProjetoLabel, toUpperPt,
+} from '@/lib/format';
 import { toast } from 'sonner';
 import {
   ShoppingCart, Receipt, AlertTriangle, TrendingUp, FileText, Users,
-  ChevronRight, Home, Hash, Undo2,
+  ChevronRight, Home, Hash, Undo2, BarChart3, Layers, Table2, Scale,
 } from 'lucide-react';
 import {
   KpiCard, KpiGrid,
-  BarChartCard, PieChartCard, HorizontalBarChartCard,
-  StackedBarChartCard,
+  BarChartCard, HorizontalBarChartCard,
+  StackedBarChartCard, DonutChartCard,
   LoadingState, ErrorState, NoDataState,
 } from '@/components/bi';
 
@@ -446,17 +448,53 @@ export default function DemonstrativoComprasRecebimentosPage() {
         </div>
       </FilterPanel>
 
-      {/* KPIs */}
-      <KpiGrid cols={7}>
-        <KpiCard title="Valor Comprado" value={kpis?.valor_comprado ?? 0} format="currency"
-          icon={<ShoppingCart className="h-4 w-4" />} variant="info" loading={loading} />
-        <KpiCard title="Valor Recebido" value={kpis?.valor_recebido ?? 0} format="currency"
-          icon={<Receipt className="h-4 w-4" />} variant="success" loading={loading} />
-        <KpiCard title="Valor Pendente" value={kpis?.valor_pendente ?? 0} format="currency"
-          icon={<AlertTriangle className="h-4 w-4" />} variant="warning" loading={loading} />
-        <KpiCard title="Diferença C x R" value={kpis?.diferenca_comprado_recebido ?? 0} format="currency"
-          icon={<TrendingUp className="h-4 w-4" />} loading={loading} />
-        <KpiCard title="Qtd. Linhas" value={kpis?.qtd_linhas ?? 0} format="number"
+      {/* KPIs — Visão Geral */}
+      <SectionHeader icon={<BarChart3 className="h-4 w-4" />} title="Visão Geral" subtitle="Totais do período filtrado" />
+      <KpiGrid cols={4}>
+        <KpiCard
+          title="Valor Comprado"
+          value={kpis?.valor_comprado ?? 0}
+          format="currency"
+          icon={<ShoppingCart className="h-4 w-4" />}
+          variant="info"
+          loading={loading}
+          subtitle={kpis ? `${formatNumber(kpis.qtd_documentos ?? 0, 0)} documentos` : undefined}
+        />
+        <KpiCard
+          title="Valor Recebido"
+          value={kpis?.valor_recebido ?? 0}
+          format="currency"
+          icon={<Receipt className="h-4 w-4" />}
+          variant="success"
+          loading={loading}
+          subtitle={kpis && kpis.valor_comprado
+            ? `${((kpis.valor_recebido / kpis.valor_comprado) * 100).toFixed(1)}% do comprado`
+            : undefined}
+        />
+        <KpiCard
+          title="Valor Pendente"
+          value={kpis?.valor_pendente ?? 0}
+          format="currency"
+          icon={<AlertTriangle className="h-4 w-4" />}
+          variant="warning"
+          loading={loading}
+          subtitle={kpis && kpis.valor_comprado
+            ? `${((kpis.valor_pendente / kpis.valor_comprado) * 100).toFixed(1)}% em aberto`
+            : undefined}
+        />
+        <KpiCard
+          title="Diferença C x R"
+          value={kpis?.diferenca_comprado_recebido ?? 0}
+          format="currency"
+          icon={<Scale className="h-4 w-4" />}
+          variant={kpis && (kpis.diferenca_comprado_recebido ?? 0) < 0 ? 'danger' : 'default'}
+          loading={loading}
+          tooltip="Comprado − Recebido"
+        />
+      </KpiGrid>
+
+      <KpiGrid cols={3}>
+        <KpiCard title="Linhas" value={kpis?.qtd_linhas ?? 0} format="number"
           icon={<Hash className="h-4 w-4" />} loading={loading} />
         <KpiCard title="Fornecedores" value={kpis?.qtd_fornecedores ?? 0} format="number"
           icon={<Users className="h-4 w-4" />} loading={loading} />
@@ -471,63 +509,75 @@ export default function DemonstrativoComprasRecebimentosPage() {
 
       {/* Gráficos */}
       {!error && (
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          <BarChartCard
-            title="Comprado x Recebido x Pendente"
-            data={comparativoData}
-            loading={loading}
-            height={260}
-          />
-          <StackedBarChartCard
-            title="Por mês"
-            data={(graficos.por_mes || []).map((it) => ({
-              label: String(it.label ?? it.mes ?? ''),
-              comprado: Number(it.valor_comprado ?? 0),
-              recebido: Number(it.valor_recebido ?? 0),
-              pendente: Number(it.valor_pendente ?? 0),
-            }))}
-            series={[
-              { dataKey: 'comprado', label: 'Comprado' },
-              { dataKey: 'recebido', label: 'Recebido' },
-              { dataKey: 'pendente', label: 'Pendente' },
-            ]}
-            loading={loading}
-            height={260}
-          />
-          <PieChartCard
-            title="Por tipo de despesa"
-            data={toSerie(graficos.por_tipo_despesa)}
-            loading={loading}
-            height={260}
-          />
-          <BarChartCard
-            title="Por projeto macro"
-            data={toSerie(graficos.por_projeto_macro)}
-            loading={loading}
-            height={260}
-          />
-          <HorizontalBarChartCard
-            title="Top fornecedores"
-            data={toSerie(graficos.por_fornecedor).slice(0, 10)}
-            loading={loading}
-            height={300}
-          />
-          <HorizontalBarChartCard
-            title="Por centro de custo"
-            data={toSerie(graficos.por_centro_custo).slice(0, 10)}
-            loading={loading}
-            height={300}
-          />
-        </div>
+        <>
+          <SectionHeader icon={<TrendingUp className="h-4 w-4" />} title="Comparativo e Evolução" />
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            <BarChartCard
+              title="Comprado x Recebido x Pendente"
+              data={comparativoData}
+              loading={loading}
+              height={280}
+            />
+            <StackedBarChartCard
+              title="Evolução mensal"
+              data={(graficos.por_mes || []).map((it) => ({
+                label: String(it.label ?? it.mes ?? ''),
+                comprado: Number(it.valor_comprado ?? 0),
+                recebido: Number(it.valor_recebido ?? 0),
+                pendente: Number(it.valor_pendente ?? 0),
+              }))}
+              series={[
+                { dataKey: 'comprado', label: 'Comprado' },
+                { dataKey: 'recebido', label: 'Recebido' },
+                { dataKey: 'pendente', label: 'Pendente' },
+              ]}
+              loading={loading}
+              height={280}
+            />
+          </div>
+
+          <SectionHeader icon={<Layers className="h-4 w-4" />} title="Análise por Dimensão" />
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            <DonutChartCard
+              title="Por tipo de despesa"
+              data={toSerie(graficos.por_tipo_despesa).map((d) => ({ ...d, label: toUpperPt(d.label) }))}
+              loading={loading}
+              height={280}
+            />
+            <BarChartCard
+              title="Por projeto macro"
+              data={toSerie(graficos.por_projeto_macro).map((d) => ({ ...d, label: toUpperPt(d.label) }))}
+              loading={loading}
+              height={280}
+            />
+            <HorizontalBarChartCard
+              title="Top 10 fornecedores"
+              data={toSerie(graficos.por_fornecedor).slice(0, 10).map((d) => ({ ...d, label: formatFornecedorLabel(d.label, 28) }))}
+              loading={loading}
+              height={320}
+            />
+            <HorizontalBarChartCard
+              title="Top 10 centros de custo"
+              data={toSerie(graficos.por_centro_custo).slice(0, 10).map((d) => ({ ...d, label: formatProjetoLabel(d.label, 32) }))}
+              loading={loading}
+              height={320}
+            />
+          </div>
+        </>
       )}
 
+
       {/* Drill-down */}
+      <SectionHeader icon={<Table2 className="h-4 w-4" />} title="Drill-down Gerencial" subtitle="Clique nas linhas para aprofundar" />
       <Card>
         <CardHeader className="space-y-2 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <CardTitle className="text-sm">Drill-down</CardTitle>
-              <Badge variant="outline" className="text-xs">Nível: {NIVEL_LABEL[currentNivel]}</Badge>
+              <CardTitle className="text-sm">Detalhamento por nível</CardTitle>
+              <Badge variant="secondary" className="text-xs">Nível: {NIVEL_LABEL[currentNivel]}</Badge>
+              {drill.length > 0 && (
+                <Badge variant="outline" className="text-xs tabular-nums">{drill.length} registros</Badge>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <Button size="sm" variant="outline" disabled={stack.length === 0} onClick={handleVoltarNivel}>
@@ -596,19 +646,19 @@ interface BreadcrumbProps {
 function Breadcrumb({ stack, currentNivel, onClick }: BreadcrumbProps) {
   return (
     <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-      <button onClick={() => onClick(-1)} className="inline-flex items-center gap-1 hover:text-foreground">
+      <button onClick={() => onClick(-1)} className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-accent hover:text-foreground">
         <Home className="h-3 w-3" /> Início
       </button>
       {stack.map((s, i) => (
         <span key={i} className="inline-flex items-center gap-1">
           <ChevronRight className="h-3 w-3" />
-          <button onClick={() => onClick(i)} className="hover:text-foreground">
-            <span className="text-muted-foreground">{NIVEL_LABEL[s.nivel]}:</span>&nbsp;{s.label}
+          <button onClick={() => onClick(i)} className="rounded px-1.5 py-0.5 hover:bg-accent hover:text-foreground">
+            <span className="text-muted-foreground">{NIVEL_LABEL[s.nivel]}:</span>&nbsp;<span className="font-medium text-foreground">{s.label}</span>
           </button>
         </span>
       ))}
       {stack.length > 0 && (
-        <span className="inline-flex items-center gap-1 font-medium text-foreground">
+        <span className="inline-flex items-center gap-1 font-semibold text-foreground">
           <ChevronRight className="h-3 w-3" />
           {NIVEL_LABEL[currentNivel]}
         </span>
@@ -616,3 +666,22 @@ function Breadcrumb({ stack, currentNivel, onClick }: BreadcrumbProps) {
     </div>
   );
 }
+
+interface SectionHeaderProps {
+  icon?: React.ReactNode;
+  title: string;
+  subtitle?: string;
+}
+
+function SectionHeader({ icon, title, subtitle }: SectionHeaderProps) {
+  return (
+    <div className="mt-1 flex items-end justify-between gap-2 border-b pb-1.5">
+      <div className="flex items-center gap-2">
+        <span className="text-primary">{icon}</span>
+        <h2 className="text-sm font-semibold tracking-tight text-foreground">{title}</h2>
+      </div>
+      {subtitle && <span className="text-[11px] text-muted-foreground">{subtitle}</span>}
+    </div>
+  );
+}
+
