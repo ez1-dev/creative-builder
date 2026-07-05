@@ -810,6 +810,13 @@ export default function PainelComprasPage() {
         compras_por_mes:  (dashboard.graficos?.por_mes ?? []).map((p: any) => ({ label: p.mes ?? p.label, valor: p.valor ?? 0 })),
         top_fornecedores: (dashboard.graficos?.por_fornecedor ?? []).map((p: any) => ({ label: p.fornecedor ?? p.label, valor: p.valor ?? 0 })),
         tipos_despesa:    (dashboard.graficos?.por_tipo_despesa ?? []).map((p: any) => ({ label: p.tipo_despesa ?? p.label, valor: p.valor ?? 0 })),
+        por_centro_custo: (dashboard.graficos?.por_centro_custo ?? []).map((p: any) => ({ label: p.centro_custo ?? p.label, valor: p.valor ?? 0 })),
+        por_projeto:      (dashboard.graficos?.por_projeto ?? []).map((p: any) => ({ label: p.projeto ?? p.numero_projeto ?? p.label, valor: p.valor ?? 0 })),
+        situacoes:        (chartData?.situacoes ?? []).map((s: any) => ({ label: situacaoLabel(s.situacao_oc) ?? s.situacao_oc, valor: s.quantidade_itens ?? s.valor ?? 0 })),
+        tipos_item:       (chartData?.tipos ?? []).map((t: any) => ({ label: t.tipo_item, valor: t.quantidade_itens ?? t.valor ?? 0 })),
+        entregas_por_mes: (chartData?.entregas_por_mes ?? []).map((e: any) => ({ label: e.periodo_entrega ?? e.label, valor: e.valor_pendente_total ?? e.valor ?? 0 })),
+        top_familias:     (chartData?.familias ?? []).map((f: any) => ({ label: f.codigo_familia ?? f.label, valor: f.valor_liquido_total ?? f.valor ?? 0 })),
+        top_origens:      (chartData?.origens ?? []).map((o: any) => ({ label: o.origem ?? o.label, valor: o.valor_liquido_total ?? o.valor ?? 0 })),
       } : null}
       rows={dadosFiltrados}
       filtros={filters}
