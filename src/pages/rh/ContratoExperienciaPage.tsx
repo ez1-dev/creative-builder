@@ -147,7 +147,7 @@ export default function ContratoExperienciaPage() {
                           className={cn(
                             "inline-flex items-center rounded px-2 py-0.5 text-xs font-medium",
                             statusBadgeCls(r.status),
-                            urgente && "font-semibold animate-status-blink",
+                            urgente && "font-bold animate-status-blink",
                           )}
                         >
                           {r.status || "-"}
