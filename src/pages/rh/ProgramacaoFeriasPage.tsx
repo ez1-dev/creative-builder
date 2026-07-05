@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AlertOctagon, AlarmClock, Clock, CalendarClock, Users, Palmtree, RefreshCw } from "lucide-react";
+import { AlertOctagon, AlarmClock, Clock, CalendarClock, Users, Palmtree, RefreshCw, Download, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { ProgramacaoFeriasDrillModal, DrillMode } from "@/components/rh/ProgramacaoFeriasDrillModal";
-import { fetchProgramacaoFeriasDashboard } from "@/lib/rh/api";
+import { fetchProgramacaoFeriasDashboard, exportarProgramacaoFeriasExcel } from "@/lib/rh/api";
 import type { ProgramacaoFeriasDetalheItem, DeFeriasDetalheItem } from "@/lib/rh/types";
 
 const formatDateBR = (s?: string | null) => {
@@ -48,6 +48,27 @@ export default function ProgramacaoFeriasPage() {
   });
 
   const [drill, setDrill] = useState<DrillState | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const { blob, filename } = await exportarProgramacaoFeriasExcel(codemp);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      if (e?.statusCode === 401) toast.error("Sessão expirada. Faça login novamente.");
+      else toast.error(e?.message || "Falha ao exportar Excel.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   useEffect(() => {
     if (!error) return;
@@ -146,10 +167,20 @@ export default function ProgramacaoFeriasPage() {
       <RhPageHeader
         title="RH - 04 - Programação de Férias"
         actions={
-          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
-            Atualizar
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={isExporting}>
+              {isExporting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4 mr-2" />
+              )}
+              Exportar Excel
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
+              Atualizar
+            </Button>
+          </div>
         }
       />
 
