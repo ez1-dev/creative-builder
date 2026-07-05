@@ -20,6 +20,22 @@ export interface QuadroKpis {
   [k: string]: number | null | undefined;
 }
 
+export interface QuadroEmpresaLinha {
+  empresa: string;
+  colaboradores?: number | null;
+  trabalhando?: number | null;
+  admitidos?: number | null;
+  demitidos?: number | null;
+  pcd?: number | null;
+  estagiarios?: number | null;
+  jovem_aprendiz?: number | null;
+  ferias?: number | null;
+  aposentadoria_invalidez?: number | null;
+  auxilio_doenca?: number | null;
+  acidente_trabalho?: number | null;
+  atestados?: number | null;
+}
+
 export interface QuadroDashboard {
   data_ref?: string;
   kpis: QuadroKpis;
@@ -31,6 +47,7 @@ export interface QuadroDashboard {
   situacao?: QuadroBreakdown;
   vinculo?: QuadroBreakdown;
   empresa?: QuadroBreakdown | null;
+  empresa_detalhado?: QuadroEmpresaLinha[] | null;
   raw?: any;
 }
 
@@ -38,6 +55,7 @@ export interface QuadroHistoricoItem {
   anomes: string;
   total: number;
 }
+
 
 function toNumOrNull(v: any): number | null {
   if (v === null || v === undefined || v === "") return null;
