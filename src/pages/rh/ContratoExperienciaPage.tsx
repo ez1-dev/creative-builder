@@ -29,8 +29,8 @@ function isUrgente(status?: string): boolean {
 
 function statusBadgeCls(status?: string): string {
   const s = normStatus(status);
-  if (s === "VENCIDO") return "bg-destructive/20 text-destructive";
-  if (s === "A VENCER 5 DIAS") return "bg-destructive/10 text-destructive";
+  if (s === "VENCIDO") return "bg-destructive text-destructive-foreground";
+  if (s === "A VENCER 5 DIAS") return "bg-destructive text-destructive-foreground";
   if (s === "A VENCER 10 DIAS") return "bg-[hsl(var(--warning))]/15 text-[hsl(var(--warning))]";
   if (s === "A VENCER") return "bg-[hsl(var(--success))]/15 text-[hsl(var(--success))]";
   return "bg-muted text-muted-foreground";
