@@ -1529,8 +1529,8 @@ export default function PainelComprasPage() {
                         <BarChart data={gerencialCharts.porProjeto} layout="vertical" margin={{ top: 4, right: 56, bottom: 4, left: 8 }}>
                           <CartesianGrid horizontal={false} stroke="hsl(var(--chart-grid))" strokeDasharray="3 3" />
                           <XAxis type="number" tickFormatter={(v) => formatCompactCurrency(v)} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                          <YAxis type="category" dataKey="label" width={140} tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} tickFormatter={(v) => truncateLabel(String(v), 20)} axisLine={false} tickLine={false} />
-                          <Tooltip cursor={{ fill: 'hsl(var(--muted) / 0.4)' }} content={<ChartMoneyTooltip />} />
+                          <YAxis type="category" dataKey="label" width={160} tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} tickFormatter={(v) => formatProjetoLabel(String(v), 24)} axisLine={false} tickLine={false} />
+                          <Tooltip cursor={{ fill: 'hsl(var(--muted) / 0.4)' }} content={<ChartMoneyTooltip upper />} />
                           <Bar dataKey="valor" fill="hsl(var(--chart-4))" radius={[0, 6, 6, 0]} cursor="pointer" onClick={(d: any) => openDrill('numero_projeto', d?.label, d?.label)}>
                             <LabelList dataKey="valor" position="right" formatter={(v: number) => formatCompactCurrency(v)} style={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                           </Bar>
