@@ -58,7 +58,7 @@ export function BarChartCard({
               label={vc.axis.xLabel ? { value: vc.axis.xLabel, position: 'insideBottom', offset: -4, fontSize: vc.axis.fontSize, fontFamily: fontFamilyCss(vc.axis.fontFamily) } : undefined} />
           )}
           {vc.axis.yVisible && (
-            <YAxis tickFormatter={tickCurrencyAbbrev} tick={{ fontSize: vc.axis.fontSize, fontFamily: fontFamilyCss(vc.axis.fontFamily) }}
+            <YAxis tickFormatter={tickFormatter} tick={{ fontSize: vc.axis.fontSize, fontFamily: fontFamilyCss(vc.axis.fontFamily) }}
               label={vc.axis.yLabel ? { value: vc.axis.yLabel, angle: -90, position: 'insideLeft', fontSize: vc.axis.fontSize, fontFamily: fontFamilyCss(vc.axis.fontFamily) } : undefined} />
           )}
           {vc.tooltip.visible && (
