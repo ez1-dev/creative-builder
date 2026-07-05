@@ -66,6 +66,32 @@ export interface ContratoExperienciaItem {
   [k: string]: any;
 }
 
+export interface ContratoExperienciaKpis {
+  qtde_contratos: number;
+  demitidos_30_apos_exp: number;
+  a_vencer_5_dias: number;
+  a_vencer_10_dias: number;
+}
+
+export interface ContratoExperienciaVencimento {
+  empresa: string;
+  filial: string;
+  cargo: string;
+  matricula: string;
+  colaborador: string;
+  dt_admissao: string;
+  dt_vencimento: string;
+  dias_restantes: number;
+  status: string;
+}
+
+export interface ContratoExperienciaDashboard {
+  kpis: ContratoExperienciaKpis;
+  vencimentos: ContratoExperienciaVencimento[];
+}
+
+
+
 export type StatusFerias =
   | "LIMITE VENCIDO"
   | "LIMITE ATE 30 DIAS"

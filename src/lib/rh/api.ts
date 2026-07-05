@@ -355,6 +355,25 @@ export async function fetchContratoExperiencia(p?: ContratoExperienciaParams): P
   return unwrap<ContratoExperienciaItem>(resp);
 }
 
+export async function fetchContratoExperienciaDashboard(
+  codemp: number = 1,
+): Promise<import("./types").ContratoExperienciaDashboard> {
+  const resp = await api.get<any>(
+    "/api/rh/contrato-experiencia/dashboard",
+    cleanParams({ codemp }),
+  );
+  const k = resp?.kpis ?? {};
+  return {
+    kpis: {
+      qtde_contratos: num(k.qtde_contratos),
+      demitidos_30_apos_exp: num(k.demitidos_30_apos_exp),
+      a_vencer_5_dias: num(k.a_vencer_5_dias),
+      a_vencer_10_dias: num(k.a_vencer_10_dias),
+    },
+    vencimentos: Array.isArray(resp?.vencimentos) ? resp.vencimentos : [],
+  };
+}
+
 export interface ProgramacaoFeriasParams {
   status?: string;
   filial?: string;
