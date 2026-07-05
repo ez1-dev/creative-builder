@@ -335,13 +335,14 @@ export function AppSidebar() {
               className={cn(
                 'relative transition-colors hover:bg-transparent',
                 'before:absolute before:left-0 before:top-1/2 before:h-4 before:w-[2px] before:-translate-y-1/2 before:rounded-r before:bg-primary before:opacity-0 before:transition-opacity group-hover/item:before:opacity-60',
-                active && 'bg-primary/15 text-primary font-medium before:opacity-100',
+                active && 'bg-primary/15 text-primary before:opacity-100',
               )}
-              activeClassName="bg-primary/15 text-primary font-medium"
+              activeClassName="bg-primary/15 text-primary"
             >
-              <item.icon className="mr-2.5 h-[18px] w-[18px]" />
-              {!collapsed && <span className="truncate text-[13.5px]">{item.title}</span>}
+              {!collapsed && <span className="truncate text-[12.5px] font-normal">{item.title}</span>}
+              {collapsed && <item.icon className="h-[18px] w-[18px]" />}
             </NavLink>
+
           </SidebarMenuButton>
 
           {!collapsed && canFavorite && (
@@ -454,10 +455,11 @@ export function AppSidebar() {
                     onOpenChange={(v) => setSubOpen(group.id, sg.id, v)}
                     className={cn(!collapsed && 'ml-[18px] border-l border-sidebar-border/40 pl-1')}
                   >
-                    <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-sidebar-foreground/60 hover:text-sidebar-foreground">
+                    <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-1 text-[12px] font-medium tracking-normal text-sidebar-foreground/60 hover:text-sidebar-foreground">
                       <span className="truncate whitespace-nowrap">{!collapsed && sg.label}</span>
                       {!collapsed && <ChevronDown className={cn('h-3 w-3 transition-transform', subOpen && 'rotate-180')} />}
                     </CollapsibleTrigger>
+
                     <CollapsibleContent>
                       <SidebarMenu className={cn(!collapsed && 'ml-2 border-l border-sidebar-border/30 pl-1.5 gap-0')}>
                         {sg.items.map((it) => renderItemRow(it))}
