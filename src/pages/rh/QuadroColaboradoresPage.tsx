@@ -545,7 +545,7 @@ function EmpresaGrid({
   );
 }
 
-function FilialTable({ data, loading }: { data?: QuadroBreakdown; loading?: boolean }) {
+function FilialTable({ data, loading, onRowClick }: { data?: QuadroBreakdown; loading?: boolean; onRowClick?: (label: string) => void }) {
   const rows = useMemo(() => (data ? [...data].sort((a, b) => b.valor - a.valor) : []), [data]);
   if (loading) {
     return (
