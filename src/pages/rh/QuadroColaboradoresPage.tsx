@@ -342,6 +342,9 @@ const EMPRESA_COLS: { key: keyof QuadroEmpresaLinha; label: string }[] = [
   { key: "auxilio_doenca", label: "Auxílio Doença" },
   { key: "acidente_trabalho", label: "Acidente Trabalho" },
   { key: "atestados", label: "Atestados" },
+  { key: "licenca_maternidade", label: "Licença Maternidade" },
+  { key: "homens", label: "Homens" },
+  { key: "mulheres", label: "Mulheres" },
 ];
 
 function EmpresaGrid({
