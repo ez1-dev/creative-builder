@@ -74,11 +74,12 @@ const KPIS_CONFIG: {
 ];
 
 function KpiOrPending({
-  title, value, variant, loading, subtitle,
+  title, value, variant, loading, subtitle, onClick,
 }: {
   title: string; value: number | null | undefined;
   variant?: "default" | "info" | "success" | "warning" | "danger"; loading?: boolean;
   subtitle?: string;
+  onClick?: () => void;
 }) {
   if (loading) {
     return <KpiCard title={title} value={0} format="number" loading variant={variant} />;
@@ -97,7 +98,16 @@ function KpiOrPending({
       </Card>
     );
   }
-  return <KpiCard title={title} value={value} format="number" variant={variant} subtitle={subtitle} />;
+  return (
+    <KpiCard
+      title={title}
+      value={value}
+      format="number"
+      variant={variant}
+      subtitle={subtitle}
+      onClick={onClick}
+    />
+  );
 }
 
 function BreakdownCard({
