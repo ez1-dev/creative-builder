@@ -327,6 +327,7 @@ export default function QuadroColaboradoresPage() {
               variant={c.variant}
               loading={dashQ.isLoading}
               subtitle={subtitle}
+              onClick={temDetalhe ? () => onKpiClick(c.key, c.title) : undefined}
             />
           );
         })}
