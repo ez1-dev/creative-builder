@@ -24,6 +24,7 @@ import {
   exportQuadroDashboard,
   ExportQuadroIndisponivelError,
   type QuadroBreakdown,
+  type QuadroEmpresaLinha,
 } from "@/lib/rh/quadroDashboardApi";
 
 function toIsoDate(d: Date): string {
