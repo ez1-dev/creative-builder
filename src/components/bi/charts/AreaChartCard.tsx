@@ -9,10 +9,11 @@ import { mergeVisualConfig, formatDataLabel, formatRichLabel, legendPositionProp
 export interface AreaChartCardProps extends Omit<ChartCardShellProps, 'children' | 'isEmpty'> {
   data: BarChartDatum[];
   valueFormatter?: (v: number) => string;
+  tickFormatter?: (v: number) => string;
   color?: string;
 }
 
-export function AreaChartCard({ data, valueFormatter = formatCurrency, color = 'hsl(var(--primary))', height = 280, visualConfig, ...shell }: AreaChartCardProps) {
+export function AreaChartCard({ data, valueFormatter = formatCurrency, tickFormatter = tickCurrencyAbbrev, color = 'hsl(var(--primary))', height = 280, visualConfig, ...shell }: AreaChartCardProps) {
   const vc = mergeVisualConfig(visualConfig);
   const seriesLabel = vc.legend.seriesLabels['valor'] ?? 'Valor';
   const fmtLabel = (v: any) => formatDataLabel(v, vc.dataLabels);
