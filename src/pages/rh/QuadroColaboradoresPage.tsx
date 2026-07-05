@@ -119,6 +119,12 @@ function BreakdownCard({
   if (!data || rows.length === 0) return null;
 
   const fmt = (v: number) => new Intl.NumberFormat("pt-BR").format(v);
+  const tickFmt = (v: number) => {
+    const abs = Math.abs(v);
+    if (abs >= 1_000_000) return `${(v / 1_000_000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mi`;
+    if (abs >= 1_000) return `${(v / 1_000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mil`;
+    return fmt(v);
+  };
 
   if (variant === "donut") {
     return (
@@ -135,6 +141,7 @@ function BreakdownCard({
       title={title}
       data={rows}
       valueFormatter={fmt}
+      tickFormatter={tickFmt}
       height={260}
     />
   );
