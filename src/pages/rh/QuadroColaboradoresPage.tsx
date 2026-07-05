@@ -25,8 +25,15 @@ import {
   ExportQuadroIndisponivelError,
   type QuadroBreakdown,
   type QuadroEmpresaLinha,
+  type ColaboradorDetalhe,
 } from "@/lib/rh/quadroDashboardApi";
 import { QuadroDrillCard } from "@/components/rh/QuadroDrillCard";
+import { QuadroDrillModal } from "@/components/rh/QuadroDrillModal";
+import {
+  filterDetalheByKpi,
+  filterDetalheByDimensao,
+  filterDetalheBySexoLabel,
+} from "@/lib/rh/quadroDrillPredicates";
 
 function toIsoDate(d: Date): string {
   return format(d, "yyyy-MM-dd");
