@@ -1,25 +1,22 @@
-## Compactar sidebar e recuar submenus
+## Ajustes de tipografia dos submenus da sidebar
 
-Deixar os grupos e itens mais próximos verticalmente e aplicar recuo visual claro nos submenus (como no exemplo da imagem: "Ordens de Produção", "Apontamentos", "Roteiros & Operações", "Projetos" com hierarquia visível abaixo de "Produção").
+Alvo: `src/components/AppSidebar.tsx` (apenas apresentação, sem mudar rotas/permissões/ordem).
 
-### Mudanças em `src/components/AppSidebar.tsx`
+### Mudanças
 
-1. **Reduzir espaçamento vertical dos grupos**
-   - No `CollapsibleTrigger` dos grupos principais (Favoritos e demais): trocar `py-2` por `py-1.5` para aproximar os títulos.
-   - No `SidebarGroup` (wrapper), garantir `space-y-0` / remover margem extra padrão do shadcn se estiver empurrando.
+1. **Remover ícones dos itens filhos** (renderizados por `renderItemRow`):
+   - Ocultar `<item.icon>` dentro do `NavLink`.
+   - Ajustar o espaçamento à esquerda (sem `mr-2.5`) para o texto ficar alinhado à guia vertical do submenu.
+   - Ícones dos **grupos principais** (Início, Produção, Comercial, etc.) e do **Favoritos** continuam visíveis — só os itens de menu perdem o ícone.
 
-2. **Reduzir altura dos itens**
-   - No `SidebarMenuButton` do `renderItemRow`: trocar `min-h-[34px]` por `min-h-[30px]` e ajustar padding para itens mais compactos.
+2. **Fonte uniforme e menor nos itens de submenu**:
+   - Trocar `text-[13.5px]` do `<span>` do item por `text-[12.5px] font-normal`.
+   - Garantir mesma família/peso em todos os níveis (sem `font-medium` nos itens; ativo mantém `text-primary` mas sem bold — remover `font-medium` do estado ativo do `NavLink`).
 
-3. **Recuar submenus com indicador visual**
-   - Nos subgrupos (`prod-visao`, `prod-planejamento`, etc.): adicionar `pl-2` no `CollapsibleContent` e uma **borda esquerda sutil** (`border-l border-sidebar-border/40 ml-4`) no wrapper dos itens do subgrupo, criando o efeito de "árvore" recuada visto na imagem.
-   - Os itens dentro do subgrupo recebem `pl-3` adicional para reforçar a hierarquia.
+3. **Subgroup labels (ex.: "Visão Geral", "Planejamento", "DRE")**:
+   - Uniformizar com os itens: remover `uppercase tracking-wider` e o tamanho `text-[11px]`; usar `text-[12px] font-medium` (levemente destacado só para diferenciar do item, mas mesma família e sem caixa alta).
 
-4. **Grupos sem subgrupo (ex: Produção da imagem)**
-   - Quando um grupo tem apenas `items` (sem `subGroups`), aplicar o mesmo recuo com borda esquerda no `SidebarMenu` interno, para que os filhos diretos (ex: "Consulta de Estoques", "Estoque Min/Max") apareçam recuados abaixo do título do grupo, igual à imagem de referência.
+4. **Altura/padding dos itens**: manter compactos (`min-h-[28px] py-1`), sem outras mudanças estruturais.
 
-5. **Nenhuma mudança** em rotas, ordenação, permissões, favoritos ou labels.
-
-### Resultado esperado
-- Sidebar mais densa (economia ~20% de altura vertical).
-- Hierarquia visual clara: título do grupo → filhos recuados com linha guia à esquerda → subgrupos ainda mais recuados.
+### Fora do escopo
+- Nenhuma mudança em favoritos, busca, permissões, colapso, cores/tokens ou nos ícones dos grupos principais.
