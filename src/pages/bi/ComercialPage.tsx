@@ -499,18 +499,28 @@ export default function ComercialPage() {
   };
 
 
+  // Negativos em vermelho e sem sinal (escopo BI Comercial)
+  const fmtCurNeg = (v: number): ReactNode =>
+    v < 0
+      ? <span className="text-destructive">{formatCurrency(Math.abs(v))}</span>
+      : formatCurrency(v);
+  const fmtNumNeg = (v: number): ReactNode =>
+    v < 0
+      ? <span className="text-destructive">{formatNumber(Math.abs(v))}</span>
+      : formatNumber(v);
+
   // ===== Tabela mensal =====
   const colsMensal: Column<ComercialMensalRow>[] = [
     { key:'anomes_emissao', header:'Ano/Mês', render:(_v,r)=> r.anomes_emissao },
-    { key:'faturamento', header:'Faturamento', align:'right', render:(_v,r)=> formatCurrency(n(r.faturamento)) },
-    { key:'fat_liquido', header:'Líquido', align:'right', render:(_v,r)=> formatCurrency(n(r.fat_liquido)) },
-    { key:'impostos', header:'Impostos', align:'right', render:(_v,r)=> formatCurrency(n(r.impostos)) },
-    { key:'devolucao', header:'Devolução', align:'right', render:(_v,r)=> formatCurrency(n(r.devolucao)) },
-    { key:'numero_vendas', header:'Nº Vendas', align:'right', render:(_v,r)=> formatNumber(n(r.numero_vendas)) },
-    { key:'numero_clientes', header:'Nº Clientes', align:'right', render:(_v,r)=> formatNumber(n(r.numero_clientes)) },
-    { key:'quantidade', header:'Quantidade', align:'right', render:(_v,r)=> formatNumber(n(r.quantidade)) },
-    { key:'ticket_medio', header:'Ticket Médio', align:'right', render:(_v,r)=> formatCurrency(n(r.ticket_medio)) },
-    { key:'preco_medio', header:'Preço Médio', align:'right', render:(_v,r)=> formatCurrency(n(r.preco_medio)) },
+    { key:'faturamento', header:'Faturamento', align:'right', render:(_v,r)=> fmtCurNeg(n(r.faturamento)) },
+    { key:'fat_liquido', header:'Líquido', align:'right', render:(_v,r)=> fmtCurNeg(n(r.fat_liquido)) },
+    { key:'impostos', header:'Impostos', align:'right', render:(_v,r)=> fmtCurNeg(n(r.impostos)) },
+    { key:'devolucao', header:'Devolução', align:'right', render:(_v,r)=> fmtCurNeg(n(r.devolucao)) },
+    { key:'numero_vendas', header:'Nº Vendas', align:'right', render:(_v,r)=> fmtNumNeg(n(r.numero_vendas)) },
+    { key:'numero_clientes', header:'Nº Clientes', align:'right', render:(_v,r)=> fmtNumNeg(n(r.numero_clientes)) },
+    { key:'quantidade', header:'Quantidade', align:'right', render:(_v,r)=> fmtNumNeg(n(r.quantidade)) },
+    { key:'ticket_medio', header:'Ticket Médio', align:'right', render:(_v,r)=> fmtCurNeg(n(r.ticket_medio)) },
+    { key:'preco_medio', header:'Preço Médio', align:'right', render:(_v,r)=> fmtCurNeg(n(r.preco_medio)) },
   ];
 
   // ===== Detalhamento por Nota Fiscal =====
@@ -536,17 +546,18 @@ export default function ComercialPage() {
         return cd ? `${cd} — ${ds}` : ds;
       } },
       { key:'cd_rev_pedido', header:'Revenda', render:(_v,r)=> r.cd_rev_pedido ?? '' },
-      { key:'vl_bruto', header:'Vl. Bruto', align:'right', summaryInGroupHeader: true, render:(_v,r)=> formatCurrency(n(r.vl_bruto)) },
-      { key:'vl_desconto', header:'Desconto', align:'right', render:(_v,r)=> formatCurrency(n(r.vl_desconto)) },
-      { key:'vl_impostos', header:'Impostos', align:'right', render:(_v,r)=> formatCurrency(n(r.vl_impostos)) },
-      { key:'vl_liquido', header:'Líquido', align:'right', summaryInGroupHeader: true, render:(_v,r)=> formatCurrency(n(r.vl_liquido)) },
-      { key:'vl_devolucao', header:'Devolução', align:'right', render:(_v,r)=> formatCurrency(n(r.vl_devolucao)) },
-      { key:'qtd_produtos', header:'Qtd. Produtos', align:'right', summaryInGroupHeader: true, render:(_v,r)=> formatNumber(n(r.qtd_produtos)) },
+      { key:'vl_bruto', header:'Vl. Bruto', align:'right', summaryInGroupHeader: true, render:(_v,r)=> fmtCurNeg(n(r.vl_bruto)) },
+      { key:'vl_desconto', header:'Desconto', align:'right', render:(_v,r)=> fmtCurNeg(n(r.vl_desconto)) },
+      { key:'vl_impostos', header:'Impostos', align:'right', render:(_v,r)=> fmtCurNeg(n(r.vl_impostos)) },
+      { key:'vl_liquido', header:'Líquido', align:'right', summaryInGroupHeader: true, render:(_v,r)=> fmtCurNeg(n(r.vl_liquido)) },
+      { key:'vl_devolucao', header:'Devolução', align:'right', render:(_v,r)=> fmtCurNeg(n(r.vl_devolucao)) },
+      { key:'qtd_produtos', header:'Qtd. Produtos', align:'right', summaryInGroupHeader: true, render:(_v,r)=> fmtNumNeg(n(r.qtd_produtos)) },
     ];
     return unidade === 'ESTRUTURAL ZORTEA'
       ? cols.filter(c => c.key !== 'cd_rev_pedido')
       : cols;
   }, [unidade]);
+
 
 
   // ===== Layout / Builder =====
