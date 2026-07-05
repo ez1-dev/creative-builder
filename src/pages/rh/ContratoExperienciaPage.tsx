@@ -129,26 +129,33 @@ export default function ContratoExperienciaPage() {
                     </TableCell>
                   </TableRow>
                 )}
-                {rows.map((r, i) => (
-                  <TableRow key={`${r.matricula}-${i}`}>
-                    <TableCell>{r.empresa}</TableCell>
-                    <TableCell>{r.filial}</TableCell>
-                    <TableCell>{r.cargo}</TableCell>
-                    <TableCell>{r.colaborador}</TableCell>
-                    <TableCell>{formatDatePt(r.dt_admissao)}</TableCell>
-                    <TableCell>{formatDatePt(r.dt_vencimento)}</TableCell>
-                    <TableCell>
-                      <span
-                        className={cn(
-                          "inline-flex items-center rounded px-2 py-0.5 text-xs font-medium",
-                          statusBadgeCls(r.status),
-                        )}
-                      >
-                        {r.status || "-"}
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {rows.map((r, i) => {
+                  const urgente = isUrgente(r.status);
+                  return (
+                    <TableRow
+                      key={`${r.matricula}-${i}`}
+                      className={cn(urgente && "bg-destructive/5 hover:bg-destructive/10")}
+                    >
+                      <TableCell>{r.empresa}</TableCell>
+                      <TableCell>{r.filial}</TableCell>
+                      <TableCell>{r.cargo}</TableCell>
+                      <TableCell>{r.colaborador}</TableCell>
+                      <TableCell>{formatDatePt(r.dt_admissao)}</TableCell>
+                      <TableCell>{formatDatePt(r.dt_vencimento)}</TableCell>
+                      <TableCell>
+                        <span
+                          className={cn(
+                            "inline-flex items-center rounded px-2 py-0.5 text-xs font-medium",
+                            statusBadgeCls(r.status),
+                            urgente && "font-semibold animate-status-blink",
+                          )}
+                        >
+                          {r.status || "-"}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
