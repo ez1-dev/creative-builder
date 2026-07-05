@@ -59,8 +59,8 @@ function pickFirst(src: any, keys: string[]): any {
   for (const k of keys) {
     if (k in src && src[k] !== undefined && src[k] !== null) return src[k];
   }
-  // buscar aninhado em distribuicoes/quebras/dados
-  for (const parent of ["distribuicoes", "quebras", "dados"]) {
+  // buscar aninhado em distribuicoes/quebras/dados/resumo
+  for (const parent of ["distribuicoes", "quebras", "dados", "resumo"]) {
     const p = (src as any)[parent];
     if (p && typeof p === "object") {
       for (const k of keys) {
@@ -77,11 +77,11 @@ function toBreakdown(raw: any): QuadroBreakdown | undefined {
     return raw.map((r: any) => {
       if (r && typeof r === "object") {
         const label = String(
-          r.label ?? r.descricao ?? r.nome ?? r.categoria ?? r.chave ?? r.key ?? r.tipo ?? r.sexo ?? r.situacao ?? r.afastamento ?? r.empresa ?? "-",
+          r.label ?? r.descricao ?? r.nome ?? r.categoria ?? r.chave ?? r.key ?? r.tipo ?? r.sexo ?? r.situacao ?? r.afastamento ?? r.empresa ?? r.grupo ?? r.classificacao ?? "-",
         );
         const valor =
           Number(
-            r.valor ?? r.total ?? r.quantidade ?? r.qtd ?? r.colaboradores ?? r.total_colaboradores ?? 0,
+            r.valor ?? r.total ?? r.quantidade ?? r.qtd ?? r.colaboradores ?? r.total_colaboradores ?? r.qtd_colaboradores ?? 0,
           ) || 0;
         return { label, valor };
       }
