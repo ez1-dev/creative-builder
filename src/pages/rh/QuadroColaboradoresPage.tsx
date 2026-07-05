@@ -25,8 +25,15 @@ import {
   ExportQuadroIndisponivelError,
   type QuadroBreakdown,
   type QuadroEmpresaLinha,
+  type ColaboradorDetalhe,
 } from "@/lib/rh/quadroDashboardApi";
 import { QuadroDrillCard } from "@/components/rh/QuadroDrillCard";
+import { QuadroDrillModal } from "@/components/rh/QuadroDrillModal";
+import {
+  filterDetalheByKpi,
+  filterDetalheByDimensao,
+  filterDetalheBySexoLabel,
+} from "@/lib/rh/quadroDrillPredicates";
 
 function toIsoDate(d: Date): string {
   return format(d, "yyyy-MM-dd");
@@ -67,11 +74,12 @@ const KPIS_CONFIG: {
 ];
 
 function KpiOrPending({
-  title, value, variant, loading, subtitle,
+  title, value, variant, loading, subtitle, onClick,
 }: {
   title: string; value: number | null | undefined;
   variant?: "default" | "info" | "success" | "warning" | "danger"; loading?: boolean;
   subtitle?: string;
+  onClick?: () => void;
 }) {
   if (loading) {
     return <KpiCard title={title} value={0} format="number" loading variant={variant} />;
@@ -90,17 +98,27 @@ function KpiOrPending({
       </Card>
     );
   }
-  return <KpiCard title={title} value={value} format="number" variant={variant} subtitle={subtitle} />;
+  return (
+    <KpiCard
+      title={title}
+      value={value}
+      format="number"
+      variant={variant}
+      subtitle={subtitle}
+      onClick={onClick}
+    />
+  );
 }
 
 function BreakdownCard({
-  title, data, variant = "bar", sort = true, loading,
+  title, data, variant = "bar", sort = true, loading, onItemClick,
 }: {
   title: string;
   data?: QuadroBreakdown;
   variant?: "bar" | "donut";
   sort?: boolean;
   loading?: boolean;
+  onItemClick?: (label: string) => void;
 }) {
   const rows = useMemo(() => {
     if (!data) return [];
@@ -127,6 +145,8 @@ function BreakdownCard({
     return fmt(v);
   };
 
+  const handleClick = onItemClick ? (d: any) => onItemClick(String(d?.label ?? "")) : undefined;
+
   if (variant === "donut") {
     return (
       <DonutChartCard
@@ -134,6 +154,7 @@ function BreakdownCard({
         data={rows}
         valueFormatter={fmt}
         height={260}
+        onItemClick={handleClick}
       />
     );
   }
@@ -144,6 +165,7 @@ function BreakdownCard({
       valueFormatter={fmt}
       tickFormatter={tickFmt}
       height={260}
+      onItemClick={handleClick}
     />
   );
 }
@@ -154,6 +176,9 @@ export default function QuadroColaboradoresPage() {
   const [anomesIni, setAnomesIni] = useState<string>(janOfYear(today));
   const [anomesFim, setAnomesFim] = useState<string>(toAnomes(today));
   const [exportando, setExportando] = useState(false);
+  const [drill, setDrill] = useState<{ open: boolean; label: string; valor: string; itens: ColaboradorDetalhe[] }>({
+    open: false, label: "", valor: "", itens: [],
+  });
   const qc = useQueryClient();
 
   const dataRefIso = toIsoDate(dataRef);
@@ -178,6 +203,25 @@ export default function QuadroColaboradoresPage() {
     () => (histQ.data ?? []).map((h) => ({ label: fmtAnomes(h.anomes), valor: h.total })),
     [histQ.data],
   );
+
+  const detalhe = dashQ.data?.detalhe ?? [];
+  const temDetalhe = detalhe.length > 0;
+
+  function openDrill(label: string, valor: string, itens: ColaboradorDetalhe[]) {
+    if (!itens || itens.length === 0) {
+      toast.info("Sem colaboradores para este recorte.");
+      return;
+    }
+    setDrill({ open: true, label, valor, itens });
+  }
+
+  function onKpiClick(kpiKey: string, title: string) {
+    if (!temDetalhe) return;
+    const itens = filterDetalheByKpi(detalhe, kpiKey);
+    if (!itens) return;
+    openDrill(title, title, itens);
+  }
+
 
   function atualizar() {
     qc.invalidateQueries({ queryKey: ["rh", "quadro-dashboard"] });
@@ -283,6 +327,7 @@ export default function QuadroColaboradoresPage() {
               variant={c.variant}
               loading={dashQ.isLoading}
               subtitle={subtitle}
+              onClick={temDetalhe ? () => onKpiClick(c.key, c.title) : undefined}
             />
           );
         })}
@@ -317,19 +362,26 @@ export default function QuadroColaboradoresPage() {
 
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
-        <BreakdownCard title="Sexo" data={dashQ.data?.sexo} variant="donut" loading={dashQ.isLoading} />
-        <BreakdownCard title="Situação / Afastamento" data={dashQ.data?.situacao} loading={dashQ.isLoading} />
-        <BreakdownCard title="Vínculo" data={dashQ.data?.vinculo} loading={dashQ.isLoading} />
+        <BreakdownCard title="Sexo" data={dashQ.data?.sexo} variant="donut" loading={dashQ.isLoading}
+          onItemClick={temDetalhe ? (label) => openDrill("Sexo", label, filterDetalheBySexoLabel(detalhe, label)) : undefined} />
+        <BreakdownCard title="Situação / Afastamento" data={dashQ.data?.situacao} loading={dashQ.isLoading}
+          onItemClick={temDetalhe ? (label) => openDrill("Situação", label, filterDetalheByDimensao(detalhe, "situacao", label)) : undefined} />
+        <BreakdownCard title="Vínculo" data={dashQ.data?.vinculo} loading={dashQ.isLoading}
+          onItemClick={temDetalhe ? (label) => openDrill("Vínculo", label, filterDetalheByDimensao(detalhe, "vinculo", label)) : undefined} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">
-        <BreakdownCard title="Escolaridade" data={dashQ.data?.escolaridade} loading={dashQ.isLoading} />
-        <BreakdownCard title="Faixa etária" data={dashQ.data?.faixa_etaria} sort={false} loading={dashQ.isLoading} />
+        <BreakdownCard title="Escolaridade" data={dashQ.data?.escolaridade} loading={dashQ.isLoading}
+          onItemClick={temDetalhe ? (label) => openDrill("Escolaridade", label, filterDetalheByDimensao(detalhe, "escolaridade", label)) : undefined} />
+        <BreakdownCard title="Faixa etária" data={dashQ.data?.faixa_etaria} sort={false} loading={dashQ.isLoading}
+          onItemClick={temDetalhe ? (label) => openDrill("Faixa etária", label, filterDetalheByDimensao(detalhe, "faixa_etaria", label)) : undefined} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">
-        <BreakdownCard title="Tempo de casa" data={dashQ.data?.tempo_casa} sort={false} loading={dashQ.isLoading} />
-        <FilialTable data={dashQ.data?.filial} loading={dashQ.isLoading} />
+        <BreakdownCard title="Tempo de casa" data={dashQ.data?.tempo_casa} sort={false} loading={dashQ.isLoading}
+          onItemClick={temDetalhe ? (label) => openDrill("Tempo de casa", label, filterDetalheByDimensao(detalhe, "tempo_casa", label)) : undefined} />
+        <FilialTable data={dashQ.data?.filial} loading={dashQ.isLoading}
+          onRowClick={temDetalhe ? (label) => openDrill("Filial", label, filterDetalheByDimensao(detalhe, "filial", label)) : undefined} />
       </div>
 
       <div className="mb-4">
@@ -338,6 +390,7 @@ export default function QuadroColaboradoresPage() {
           fallback={dashQ.data?.empresa ?? undefined}
           loading={dashQ.isLoading}
           hasResponse={!!dashQ.data}
+          onRowClick={temDetalhe ? (empresa) => openDrill("Empresa", empresa, filterDetalheByDimensao(detalhe, "empresa", empresa)) : undefined}
         />
       </div>
 
@@ -348,9 +401,18 @@ export default function QuadroColaboradoresPage() {
           loading={dashQ.isLoading}
         />
       </div>
+
+      <QuadroDrillModal
+        open={drill.open}
+        onOpenChange={(v) => setDrill((d) => ({ ...d, open: v }))}
+        label={drill.label}
+        valor={drill.valor}
+        itens={drill.itens}
+      />
     </div>
   );
 }
+
 
 const EMPRESA_COLS: { key: keyof QuadroEmpresaLinha; label: string }[] = [
   { key: "colaboradores", label: "Colaboradores" },
@@ -375,11 +437,13 @@ function EmpresaGrid({
   fallback,
   loading,
   hasResponse,
+  onRowClick,
 }: {
   data?: QuadroEmpresaLinha[];
   fallback?: QuadroBreakdown;
   loading?: boolean;
   hasResponse?: boolean;
+  onRowClick?: (empresa: string) => void;
 }) {
   const rows = useMemo<QuadroEmpresaLinha[]>(() => {
     if (data && data.length > 0) {
@@ -447,7 +511,11 @@ function EmpresaGrid({
             </TableHeader>
             <TableBody>
               {rows.map((r, i) => (
-                <TableRow key={i}>
+                <TableRow
+                  key={i}
+                  className={onRowClick ? "cursor-pointer hover:bg-muted/50" : undefined}
+                  onClick={onRowClick ? () => onRowClick(String(r.empresa ?? "")) : undefined}
+                >
                   <TableCell className="font-medium whitespace-nowrap">{r.empresa}</TableCell>
                   {EMPRESA_COLS.map((c) => (
                     <TableCell key={c.key as string} className="text-right tabular-nums">
@@ -477,7 +545,7 @@ function EmpresaGrid({
   );
 }
 
-function FilialTable({ data, loading }: { data?: QuadroBreakdown; loading?: boolean }) {
+function FilialTable({ data, loading, onRowClick }: { data?: QuadroBreakdown; loading?: boolean; onRowClick?: (label: string) => void }) {
   const rows = useMemo(() => (data ? [...data].sort((a, b) => b.valor - a.valor) : []), [data]);
   if (loading) {
     return (
@@ -504,7 +572,11 @@ function FilialTable({ data, loading }: { data?: QuadroBreakdown; loading?: bool
             </TableHeader>
             <TableBody>
               {rows.map((r, i) => (
-                <TableRow key={i}>
+                <TableRow
+                  key={i}
+                  className={onRowClick ? "cursor-pointer hover:bg-muted/50" : undefined}
+                  onClick={onRowClick ? () => onRowClick(r.label) : undefined}
+                >
                   <TableCell>{r.label}</TableCell>
                   <TableCell className="text-right tabular-nums">{new Intl.NumberFormat("pt-BR").format(r.valor)}</TableCell>
                   <TableCell className="text-right tabular-nums">
