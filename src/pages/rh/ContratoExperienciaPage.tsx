@@ -18,8 +18,17 @@ function formatDatePt(v?: string): string {
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
 }
 
+function normStatus(status?: string): string {
+  return (status || "").toUpperCase().trim();
+}
+
+function isUrgente(status?: string): boolean {
+  const s = normStatus(status);
+  return s === "VENCIDO" || s === "A VENCER 5 DIAS";
+}
+
 function statusBadgeCls(status?: string): string {
-  const s = (status || "").toUpperCase().trim();
+  const s = normStatus(status);
   if (s === "VENCIDO") return "bg-destructive/20 text-destructive";
   if (s === "A VENCER 5 DIAS") return "bg-destructive/10 text-destructive";
   if (s === "A VENCER 10 DIAS") return "bg-[hsl(var(--warning))]/15 text-[hsl(var(--warning))]";
