@@ -642,19 +642,19 @@ interface BreadcrumbProps {
 function Breadcrumb({ stack, currentNivel, onClick }: BreadcrumbProps) {
   return (
     <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-      <button onClick={() => onClick(-1)} className="inline-flex items-center gap-1 hover:text-foreground">
+      <button onClick={() => onClick(-1)} className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-accent hover:text-foreground">
         <Home className="h-3 w-3" /> Início
       </button>
       {stack.map((s, i) => (
         <span key={i} className="inline-flex items-center gap-1">
           <ChevronRight className="h-3 w-3" />
-          <button onClick={() => onClick(i)} className="hover:text-foreground">
-            <span className="text-muted-foreground">{NIVEL_LABEL[s.nivel]}:</span>&nbsp;{s.label}
+          <button onClick={() => onClick(i)} className="rounded px-1.5 py-0.5 hover:bg-accent hover:text-foreground">
+            <span className="text-muted-foreground">{NIVEL_LABEL[s.nivel]}:</span>&nbsp;<span className="font-medium text-foreground">{s.label}</span>
           </button>
         </span>
       ))}
       {stack.length > 0 && (
-        <span className="inline-flex items-center gap-1 font-medium text-foreground">
+        <span className="inline-flex items-center gap-1 font-semibold text-foreground">
           <ChevronRight className="h-3 w-3" />
           {NIVEL_LABEL[currentNivel]}
         </span>
@@ -662,3 +662,22 @@ function Breadcrumb({ stack, currentNivel, onClick }: BreadcrumbProps) {
     </div>
   );
 }
+
+interface SectionHeaderProps {
+  icon?: React.ReactNode;
+  title: string;
+  subtitle?: string;
+}
+
+function SectionHeader({ icon, title, subtitle }: SectionHeaderProps) {
+  return (
+    <div className="mt-1 flex items-end justify-between gap-2 border-b pb-1.5">
+      <div className="flex items-center gap-2">
+        <span className="text-primary">{icon}</span>
+        <h2 className="text-sm font-semibold tracking-tight text-foreground">{title}</h2>
+      </div>
+      {subtitle && <span className="text-[11px] text-muted-foreground">{subtitle}</span>}
+    </div>
+  );
+}
+
