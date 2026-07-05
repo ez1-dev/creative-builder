@@ -134,7 +134,7 @@ export default function ContratoExperienciaPage() {
                   return (
                     <TableRow
                       key={`${r.matricula}-${i}`}
-                      className={cn(urgente && "bg-destructive/5 hover:bg-destructive/10")}
+                      className={cn(urgente && "animate-row-urgent")}
                     >
                       <TableCell>{r.empresa}</TableCell>
                       <TableCell>{r.filial}</TableCell>
