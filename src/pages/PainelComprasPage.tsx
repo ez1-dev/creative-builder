@@ -1228,6 +1228,36 @@ export default function PainelComprasPage() {
               </div>
             </div>
 
+            {modoEdicaoDashboard && (
+              <div className="rounded-md border bg-card p-3">
+                <div className="mb-2 text-[11px] font-medium text-muted-foreground">
+                  Gráficos fixos deste dashboard — clique para ocultar/exibir. Widgets aplicados pela Biblioteca BI aparecem automaticamente abaixo.
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.values(COMPRAS_WIDGETS).map((w) => {
+                    const hidden = !!hiddenCharts[w.key];
+                    return (
+                      <button
+                        key={w.key}
+                        type="button"
+                        onClick={() => toggleHiddenChart(w.key)}
+                        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] transition ${
+                          hidden
+                            ? 'border-amber-500/50 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20'
+                            : 'border-border bg-background text-muted-foreground hover:border-primary hover:text-foreground'
+                        }`}
+                        title={hidden ? 'Exibir novamente' : 'Ocultar do dashboard'}
+                      >
+                        {hidden ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                        {w.title}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+
             {chartData && (
               <div>
                 <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Análises Gráficas</h3>
