@@ -425,9 +425,9 @@ export function AppSidebar() {
     const Icon = group.icon;
 
     return (
-      <SidebarGroup key={group.id}>
+      <SidebarGroup key={group.id} className="py-0.5">
         <Collapsible open={isOpen} onOpenChange={(v) => setGroupOpen(group.id, v)}>
-          <CollapsibleTrigger className="group flex w-full items-center justify-between px-3 py-2 text-[13px] font-semibold tracking-wide text-sidebar-foreground/80 hover:text-sidebar-foreground">
+          <CollapsibleTrigger className="group flex w-full items-center justify-between px-3 py-1.5 text-[13px] font-semibold tracking-wide text-sidebar-foreground/80 hover:text-sidebar-foreground">
             <span className="flex min-w-0 items-center gap-2">
               <Icon className="h-[18px] w-[18px] shrink-0" />
               {!collapsed && <span className="truncate whitespace-nowrap">{group.label}</span>}
@@ -437,7 +437,7 @@ export function AppSidebar() {
           <CollapsibleContent>
             <SidebarGroupContent>
               {items.length > 0 && (
-                <SidebarMenu>
+                <SidebarMenu className={cn(!collapsed && 'ml-[18px] border-l border-sidebar-border/40 pl-1.5 gap-0')}>
                   {items.map((it) => renderItemRow(it))}
                 </SidebarMenu>
               )}
@@ -450,13 +450,14 @@ export function AppSidebar() {
                     key={sg.id}
                     open={subOpen}
                     onOpenChange={(v) => setSubOpen(group.id, sg.id, v)}
+                    className={cn(!collapsed && 'ml-[18px] border-l border-sidebar-border/40 pl-1')}
                   >
-                    <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-1.5 text-[12px] font-medium uppercase tracking-wider text-sidebar-foreground/60 hover:text-sidebar-foreground">
+                    <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-sidebar-foreground/60 hover:text-sidebar-foreground">
                       <span className="truncate whitespace-nowrap">{!collapsed && sg.label}</span>
                       {!collapsed && <ChevronDown className={cn('h-3 w-3 transition-transform', subOpen && 'rotate-180')} />}
                     </CollapsibleTrigger>
                     <CollapsibleContent>
-                      <SidebarMenu>
+                      <SidebarMenu className={cn(!collapsed && 'ml-2 border-l border-sidebar-border/30 pl-1.5 gap-0')}>
                         {sg.items.map((it) => renderItemRow(it))}
                       </SidebarMenu>
                     </CollapsibleContent>
@@ -467,6 +468,7 @@ export function AppSidebar() {
           </CollapsibleContent>
         </Collapsible>
       </SidebarGroup>
+
     );
   };
 
