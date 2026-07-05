@@ -37,6 +37,9 @@ import { useSearchTracking } from '@/hooks/useSearchTracking';
 import { VisualGate } from '@/components/VisualGate';
 import { enrichRow } from '@/lib/comprasClassificacao';
 import { PainelDrillView } from '@/components/compras/PainelDrillView';
+import { ComprasAiChartGenerator } from '@/components/compras/ComprasAiChartGenerator';
+import { COMPRAS_WIDGETS, loadHiddenCharts, saveHiddenCharts } from '@/lib/bi/comprasWidgetCatalog';
+import { Pencil, EyeOff, Eye } from 'lucide-react';
 
 const COLORS = ['hsl(215,70%,45%)', 'hsl(142,70%,40%)', 'hsl(38,92%,50%)', 'hsl(0,72%,51%)', 'hsl(199,89%,48%)', 'hsl(280,60%,50%)', 'hsl(160,60%,40%)', 'hsl(30,80%,55%)'];
 
@@ -133,6 +136,15 @@ export default function PainelComprasPage() {
   const [drillSeed, setDrillSeed] = useState<{ nivel: any; chave: string; label: string; nonce: number } | null>(null);
   const [clearDrillSignal, setClearDrillSignal] = useState(0);
   const drillRef = useRef<HTMLDivElement>(null);
+  const [modoEdicaoDashboard, setModoEdicaoDashboard] = useState(false);
+  const [hiddenCharts, setHiddenCharts] = useState<Record<string, boolean>>(() => loadHiddenCharts());
+  const toggleHiddenChart = useCallback((key: string) => {
+    setHiddenCharts((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      saveHiddenCharts(next);
+      return next;
+    });
+  }, []);
   const openDrill = useCallback((nivel: string, chave: any, label?: string) => {
     if (chave == null || chave === '') return;
     const ch = String(chave);
@@ -798,6 +810,13 @@ export default function PainelComprasPage() {
         compras_por_mes:  (dashboard.graficos?.por_mes ?? []).map((p: any) => ({ label: p.mes ?? p.label, valor: p.valor ?? 0 })),
         top_fornecedores: (dashboard.graficos?.por_fornecedor ?? []).map((p: any) => ({ label: p.fornecedor ?? p.label, valor: p.valor ?? 0 })),
         tipos_despesa:    (dashboard.graficos?.por_tipo_despesa ?? []).map((p: any) => ({ label: p.tipo_despesa ?? p.label, valor: p.valor ?? 0 })),
+        por_centro_custo: (dashboard.graficos?.por_centro_custo ?? []).map((p: any) => ({ label: p.centro_custo ?? p.label, valor: p.valor ?? 0 })),
+        por_projeto:      (dashboard.graficos?.por_projeto ?? []).map((p: any) => ({ label: p.projeto ?? p.numero_projeto ?? p.label, valor: p.valor ?? 0 })),
+        situacoes:        (chartData?.situacoes ?? []).map((s: any) => ({ label: situacaoLabel(s.situacao_oc) ?? s.situacao_oc, valor: s.quantidade_itens ?? s.valor ?? 0 })),
+        tipos_item:       (chartData?.tipos ?? []).map((t: any) => ({ label: t.tipo_item, valor: t.quantidade_itens ?? t.valor ?? 0 })),
+        entregas_por_mes: (chartData?.entregas_por_mes ?? []).map((e: any) => ({ label: e.periodo_entrega ?? e.label, valor: e.valor_pendente_total ?? e.valor ?? 0 })),
+        top_familias:     (chartData?.familias ?? []).map((f: any) => ({ label: f.codigo_familia ?? f.label, valor: f.valor_liquido_total ?? f.valor ?? 0 })),
+        top_origens:      (chartData?.origens ?? []).map((o: any) => ({ label: o.origem ?? o.label, valor: o.valor_liquido_total ?? o.valor ?? 0 })),
       } : null}
       rows={dadosFiltrados}
       filtros={filters}
@@ -1173,11 +1192,77 @@ export default function PainelComprasPage() {
           </TabsList>
 
           <TabsContent value="dashboard" className="space-y-6">
+            <ComprasAiChartGenerator filtrosAtivos={filters} onDrill={openDrill} />
+
+            <div className="flex items-center justify-between gap-2 rounded-md border bg-muted/20 px-3 py-2">
+              <div className="text-[11px] text-muted-foreground">
+                {modoEdicaoDashboard
+                  ? 'Modo edição: esconda gráficos fixos e aplique widgets da Biblioteca BI no lugar.'
+                  : 'Use a Biblioteca BI para aplicar/substituir gráficos personalizados nesta página.'}
+                {Object.values(hiddenCharts).some(Boolean) && (
+                  <span className="ml-2 text-amber-600">
+                    ({Object.values(hiddenCharts).filter(Boolean).length} gráfico(s) oculto(s))
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {Object.values(hiddenCharts).some(Boolean) && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 gap-1 text-[11px]"
+                    onClick={() => { setHiddenCharts({}); saveHiddenCharts({}); }}
+                  >
+                    <Eye className="h-3 w-3" /> Restaurar todos
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant={modoEdicaoDashboard ? 'default' : 'outline'}
+                  className="h-7 gap-1 text-[11px]"
+                  onClick={() => setModoEdicaoDashboard((v) => !v)}
+                >
+                  <Pencil className="h-3 w-3" />
+                  {modoEdicaoDashboard ? 'Concluir edição' : 'Editar dashboard'}
+                </Button>
+              </div>
+            </div>
+
+            {modoEdicaoDashboard && (
+              <div className="rounded-md border bg-card p-3">
+                <div className="mb-2 text-[11px] font-medium text-muted-foreground">
+                  Gráficos fixos deste dashboard — clique para ocultar/exibir. Widgets aplicados pela Biblioteca BI aparecem automaticamente abaixo.
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.values(COMPRAS_WIDGETS).map((w) => {
+                    const hidden = !!hiddenCharts[w.key];
+                    return (
+                      <button
+                        key={w.key}
+                        type="button"
+                        onClick={() => toggleHiddenChart(w.key)}
+                        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] transition ${
+                          hidden
+                            ? 'border-amber-500/50 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20'
+                            : 'border-border bg-background text-muted-foreground hover:border-primary hover:text-foreground'
+                        }`}
+                        title={hidden ? 'Exibir novamente' : 'Ocultar do dashboard'}
+                      >
+                        {hidden ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                        {w.title}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+
             {chartData && (
               <div>
                 <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Análises Gráficas</h3>
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-                  {chartData.top_fornecedores?.length > 0 && (
+                  {chartData.top_fornecedores?.length > 0 && !hiddenCharts.top_fornecedores && (
                     <VisualGate visualKey="compras.top-fornecedores">
                     <div className="rounded-md border bg-card p-4">
                       <h3 className="mb-3 text-sm font-semibold">Top Fornecedores (Valor Líquido)</h3>
@@ -1193,7 +1278,7 @@ export default function PainelComprasPage() {
                     </VisualGate>
                   )}
 
-                  {chartData.situacoes?.length > 0 && (
+                  {chartData.situacoes?.length > 0 && !hiddenCharts.situacoes && (
                     <div className="rounded-md border bg-card p-4">
                       <h3 className="mb-1 text-sm font-semibold">Situação das OCs</h3>
                       <p className="mb-2 text-[11px] text-muted-foreground">Clique em uma fatia para filtrar a Lista Detalhada</p>
@@ -1219,7 +1304,7 @@ export default function PainelComprasPage() {
                     </div>
                   )}
 
-                  {chartData.tipos?.length > 0 && (
+                  {chartData.tipos?.length > 0 && !hiddenCharts.tipos_item && (
                     <div className="rounded-md border bg-card p-4">
                       <h3 className="mb-1 text-sm font-semibold">Produtos x Serviços</h3>
                       <p className="mb-2 text-[11px] text-muted-foreground">Clique em uma fatia para filtrar a Lista Detalhada</p>
@@ -1245,7 +1330,7 @@ export default function PainelComprasPage() {
                     </div>
                   )}
 
-                  {chartData.entregas_por_mes?.length > 0 && (
+                  {chartData.entregas_por_mes?.length > 0 && !hiddenCharts.entregas_por_mes && (
                     <div className="rounded-md border bg-card p-4">
                       <h3 className="mb-3 text-sm font-semibold">Entregas por Mês (Itens por mês de entrega)</h3>
                       <ResponsiveContainer width="100%" height={250}>
@@ -1259,7 +1344,7 @@ export default function PainelComprasPage() {
                     </div>
                   )}
 
-                  {chartData.familias?.length > 0 && (
+                  {chartData.familias?.length > 0 && !hiddenCharts.top_familias && (
                     <VisualGate visualKey="compras.top-familias">
                     <div className="rounded-md border bg-card p-4">
                       <h3 className="mb-3 text-sm font-semibold">Top Famílias por Valor Líquido</h3>
@@ -1275,7 +1360,7 @@ export default function PainelComprasPage() {
                     </VisualGate>
                   )}
 
-                  {chartData.origens?.length > 0 && (
+                  {chartData.origens?.length > 0 && !hiddenCharts.top_origens && (
                     <VisualGate visualKey="compras.top-origens">
                     <div className="rounded-md border bg-card p-4">
                       <h3 className="mb-3 text-sm font-semibold">Top Origens por Valor Líquido</h3>
@@ -1298,7 +1383,7 @@ export default function PainelComprasPage() {
               <div>
                 <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Análise Gerencial</h3>
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-                  {gerencialCharts.porMes.length > 0 && (
+                  {gerencialCharts.porMes.length > 0 && !hiddenCharts.compras_por_mes && (
                     <div className="rounded-md border bg-card p-4">
                       <h3 className="mb-3 text-sm font-semibold">Compras por Mês</h3>
                       <ResponsiveContainer width="100%" height={250}>
@@ -1311,7 +1396,7 @@ export default function PainelComprasPage() {
                       </ResponsiveContainer>
                     </div>
                   )}
-                  {gerencialCharts.porTipoDespesa.length > 0 && (
+                  {gerencialCharts.porTipoDespesa.length > 0 && !hiddenCharts.por_tipo_despesa && (
                     <div className="rounded-md border bg-card p-4">
                       <h3 className="mb-3 text-sm font-semibold">Compras por Tipo de Despesa</h3>
                       <ResponsiveContainer width="100%" height={250}>
@@ -1325,7 +1410,7 @@ export default function PainelComprasPage() {
                       </ResponsiveContainer>
                     </div>
                   )}
-                  {gerencialCharts.porCentroCusto.length > 0 && (
+                  {gerencialCharts.porCentroCusto.length > 0 && !hiddenCharts.por_centro_custo && (
                     <div className="rounded-md border bg-card p-4">
                       <h3 className="mb-3 text-sm font-semibold">Top 10 Centros de Custo</h3>
                       <ResponsiveContainer width="100%" height={250}>
@@ -1338,7 +1423,7 @@ export default function PainelComprasPage() {
                       </ResponsiveContainer>
                     </div>
                   )}
-                  {gerencialCharts.porProjeto.length > 0 && (
+                  {gerencialCharts.porProjeto.length > 0 && !hiddenCharts.por_projeto && (
                     <div className="rounded-md border bg-card p-4">
                       <h3 className="mb-3 text-sm font-semibold">Top 10 Projetos</h3>
                       <ResponsiveContainer width="100%" height={250}>
