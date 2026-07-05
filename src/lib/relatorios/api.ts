@@ -34,7 +34,7 @@ export async function getRelatorio(id: string) {
   if (e4) throw e4;
   return {
     relatorio: r as Relatorio | null,
-    parametros: (params ?? []) as RelatorioParametro[],
+    parametros: ((params as unknown) ?? []) as RelatorioParametro[],
     colunas: (cols ?? []) as RelatorioColuna[],
     layout: (layout ?? null) as RelatorioLayout | null,
   };
