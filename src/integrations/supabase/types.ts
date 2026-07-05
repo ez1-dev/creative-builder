@@ -4053,6 +4053,27 @@ export type Database = {
           unidade_negocio: string
         }[]
       }
+      get_relatorio_parametros: {
+        Args: { _relatorio_id: string }
+        Returns: {
+          created_at: string
+          id: string
+          label: string | null
+          nome: string
+          obrigatorio: boolean
+          ordem: number
+          relatorio_id: string
+          sql_lista: string | null
+          tipo: string
+          valor_padrao: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "relatorio_parametros"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_share_link_meta: {
         Args: { _token: string }
         Returns: {
@@ -4083,6 +4104,10 @@ export type Database = {
       upsert_frota_dashboard_default: { Args: never; Returns: string }
       upsert_maquinas_dashboard_default: { Args: never; Returns: string }
       upsert_passagens_dashboard_default: { Args: never; Returns: string }
+      user_owns_profile: {
+        Args: { _profile_id: string; _uid: string }
+        Returns: boolean
+      }
       validate_frota_share_token: {
         Args: { _password?: string; _token: string }
         Returns: boolean
