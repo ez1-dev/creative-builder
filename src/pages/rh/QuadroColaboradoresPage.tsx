@@ -317,16 +317,29 @@ export default function QuadroColaboradoresPage() {
       </div>
 
       <div className="mb-4">
-        {dashQ.data && (!dashQ.data.empresa || dashQ.data.empresa.length === 0) ? (
+        {dashQ.data?.empresa && dashQ.data.empresa.length > 0 ? (
+          <>
+            <BreakdownCard title="Empresa" data={dashQ.data.empresa} loading={dashQ.isLoading} />
+            {!dashQ.data.empresa.some((e) =>
+              String(e.label ?? "")
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .toUpperCase()
+                .includes("MONTAGEM EXTERNA"),
+            ) && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Montagem Externa pendente de regra na API.
+              </p>
+            )}
+          </>
+        ) : dashQ.data ? (
           <Card className="border-warning/40">
             <CardHeader className="pb-2"><CardTitle className="text-sm">Empresa</CardTitle></CardHeader>
             <CardContent>
               <p className="text-sm text-warning">Classificação Empresa pendente de regra na API</p>
             </CardContent>
           </Card>
-        ) : (
-          <BreakdownCard title="Empresa" data={dashQ.data?.empresa ?? undefined} loading={dashQ.isLoading} />
-        )}
+        ) : null}
       </div>
     </div>
   );
