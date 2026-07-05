@@ -1192,6 +1192,42 @@ export default function PainelComprasPage() {
           </TabsList>
 
           <TabsContent value="dashboard" className="space-y-6">
+            <ComprasAiChartGenerator filtrosAtivos={filters} onDrill={openDrill} />
+
+            <div className="flex items-center justify-between gap-2 rounded-md border bg-muted/20 px-3 py-2">
+              <div className="text-[11px] text-muted-foreground">
+                {modoEdicaoDashboard
+                  ? 'Modo edição: esconda gráficos fixos e aplique widgets da Biblioteca BI no lugar.'
+                  : 'Use a Biblioteca BI para aplicar/substituir gráficos personalizados nesta página.'}
+                {Object.values(hiddenCharts).some(Boolean) && (
+                  <span className="ml-2 text-amber-600">
+                    ({Object.values(hiddenCharts).filter(Boolean).length} gráfico(s) oculto(s))
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {Object.values(hiddenCharts).some(Boolean) && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 gap-1 text-[11px]"
+                    onClick={() => { setHiddenCharts({}); saveHiddenCharts({}); }}
+                  >
+                    <Eye className="h-3 w-3" /> Restaurar todos
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant={modoEdicaoDashboard ? 'default' : 'outline'}
+                  className="h-7 gap-1 text-[11px]"
+                  onClick={() => setModoEdicaoDashboard((v) => !v)}
+                >
+                  <Pencil className="h-3 w-3" />
+                  {modoEdicaoDashboard ? 'Concluir edição' : 'Editar dashboard'}
+                </Button>
+              </div>
+            </div>
+
             {chartData && (
               <div>
                 <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Análises Gráficas</h3>
