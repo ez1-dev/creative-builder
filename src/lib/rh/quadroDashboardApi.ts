@@ -301,6 +301,8 @@ function normalizeDashboard(raw: any): QuadroDashboard {
     vinculo: pickBreakdown(raw, ["vinculo", "vinculos", "por_vinculo", "tipo_vinculo"]),
     empresa: empresaBreakdown ?? null,
     empresa_detalhado: empresaDetalhado ?? null,
+    dimensoes_drill: Array.isArray(raw?.dimensoes_drill) ? raw.dimensoes_drill : undefined,
+    detalhe: Array.isArray(raw?.detalhe) ? raw.detalhe : undefined,
     raw,
   };
 }
