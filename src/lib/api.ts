@@ -282,6 +282,7 @@ export interface PainelComprasDashboardResponse {
     comprado_recebido_pendente: Array<{ mes: string; comprado: number; recebido: number; pendente: number }>;
   };
   drill: any[];
+  kpis_dashboard?: Record<string, any>;
 }
 
 export interface BomItem {
