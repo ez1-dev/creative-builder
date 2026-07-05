@@ -21,7 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ChevronsUpDown } from 'lucide-react';
-import { formatNumber, formatCurrency, formatCompactCurrency, formatDate } from '@/lib/format';
+import { formatNumber, formatCurrency, formatCompactCurrency, formatDate, formatFornecedorLabel, formatProjetoLabel } from '@/lib/format';
 import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, CartesianGrid, LineChart, Line, AreaChart, Area, LabelList } from 'recharts';
 import { ShoppingCart, AlertTriangle, TrendingUp, Package, DollarSign, Clock, Percent, FileText, Layers, Receipt, RefreshCw, Filter as FilterIcon, Eraser, Link2, Unlink } from 'lucide-react';
@@ -58,12 +58,13 @@ const truncateLabel = (s: string, max = 22) => {
 };
 
 /** Tooltip customizado com moeda BR e categoria em destaque. */
-const ChartMoneyTooltip = ({ active, payload, label }: any) => {
+const ChartMoneyTooltip = ({ active, payload, label, upper }: any) => {
   if (!active || !payload || !payload.length) return null;
+  const displayLabel = label == null ? '' : (upper ? String(label).toLocaleUpperCase('pt-BR') : String(label));
   return (
     <div className="rounded-md border border-border bg-popover px-3 py-2 text-xs shadow-md">
-      {label !== undefined && label !== null && (
-        <div className="mb-1 font-semibold text-foreground">{String(label)}</div>
+      {displayLabel && (
+        <div className="mb-1 font-semibold text-foreground">{displayLabel}</div>
       )}
       {payload.map((p: any, i: number) => (
         <div key={i} className="flex items-center gap-2 text-muted-foreground">
@@ -676,7 +677,7 @@ export default function PainelComprasPage() {
       return [...map.entries()]
         .sort((a, b) => b[1] - a[1])
         .slice(0, top)
-        .map(([label, val]) => ({ label: label.substring(0, 30), value: formatCurrency(val) }));
+        .map(([label, val]) => ({ label: formatFornecedorLabel(label, 30), value: formatCurrency(val) }));
     };
 
     const topFornByCount = (filterFn: (d: any) => boolean, top = 10) => {
@@ -688,7 +689,7 @@ export default function PainelComprasPage() {
       return [...map.entries()]
         .sort((a, b) => b[1] - a[1])
         .slice(0, top)
-        .map(([label, val]) => ({ label: label.substring(0, 30), value: `${val} itens` }));
+        .map(([label, val]) => ({ label: formatFornecedorLabel(label, 30), value: `${val} itens` }));
     };
 
     const valorBruto = topFornByField('valor_bruto');
@@ -704,7 +705,7 @@ export default function PainelComprasPage() {
       return [...map.entries()]
         .sort((a, b) => b[1] - a[1])
         .slice(0, 10)
-        .map(([label, val]) => ({ label: label.substring(0, 30), value: formatCurrency(val) }));
+        .map(([label, val]) => ({ label: formatFornecedorLabel(label, 30), value: formatCurrency(val) }));
     })();
     const itensPendentes = topFornByCount((d: any) => (d.saldo_pendente || 0) > 0);
     const itensAtrasados = dados
@@ -1342,8 +1343,8 @@ export default function PainelComprasPage() {
                         <BarChart data={chartData.top_fornecedores} layout="vertical" margin={{ top: 4, right: 56, bottom: 4, left: 8 }}>
                           <CartesianGrid horizontal={false} stroke="hsl(var(--chart-grid))" strokeDasharray="3 3" />
                           <XAxis type="number" tickFormatter={(v) => formatCompactCurrency(v)} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                          <YAxis type="category" dataKey="fantasia_fornecedor" width={190} tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} tickFormatter={(v) => truncateLabel(String(v), 28)} axisLine={false} tickLine={false} />
-                          <Tooltip cursor={{ fill: 'hsl(var(--muted) / 0.4)' }} content={<ChartMoneyTooltip />} />
+                          <YAxis type="category" dataKey="fantasia_fornecedor" width={220} tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} tickFormatter={(v) => formatFornecedorLabel(String(v), 32)} axisLine={false} tickLine={false} />
+                          <Tooltip cursor={{ fill: 'hsl(var(--muted) / 0.4)' }} content={<ChartMoneyTooltip upper />} />
                           <Bar dataKey="valor_liquido_total" fill="hsl(var(--chart-1))" radius={[0, 6, 6, 0]} cursor="pointer" onClick={(d: any) => openDrill('fantasia_fornecedor', d?.fantasia_fornecedor, d?.fantasia_fornecedor)}>
                             <LabelList dataKey="valor_liquido_total" position="right" formatter={(v: number) => formatCompactCurrency(v)} style={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                           </Bar>
@@ -1528,8 +1529,8 @@ export default function PainelComprasPage() {
                         <BarChart data={gerencialCharts.porProjeto} layout="vertical" margin={{ top: 4, right: 56, bottom: 4, left: 8 }}>
                           <CartesianGrid horizontal={false} stroke="hsl(var(--chart-grid))" strokeDasharray="3 3" />
                           <XAxis type="number" tickFormatter={(v) => formatCompactCurrency(v)} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                          <YAxis type="category" dataKey="label" width={140} tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} tickFormatter={(v) => truncateLabel(String(v), 20)} axisLine={false} tickLine={false} />
-                          <Tooltip cursor={{ fill: 'hsl(var(--muted) / 0.4)' }} content={<ChartMoneyTooltip />} />
+                          <YAxis type="category" dataKey="label" width={160} tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} tickFormatter={(v) => formatProjetoLabel(String(v), 24)} axisLine={false} tickLine={false} />
+                          <Tooltip cursor={{ fill: 'hsl(var(--muted) / 0.4)' }} content={<ChartMoneyTooltip upper />} />
                           <Bar dataKey="valor" fill="hsl(var(--chart-4))" radius={[0, 6, 6, 0]} cursor="pointer" onClick={(d: any) => openDrill('numero_projeto', d?.label, d?.label)}>
                             <LabelList dataKey="valor" position="right" formatter={(v: number) => formatCompactCurrency(v)} style={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                           </Bar>

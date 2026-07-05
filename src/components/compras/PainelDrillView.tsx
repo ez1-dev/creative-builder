@@ -170,7 +170,11 @@ export function PainelDrillView({ dados, seed, clearSignal }: Props) {
                   className={`border-t ${podeDrill ? 'cursor-pointer hover:bg-accent/40' : ''}`}
                   onClick={() => podeDrill && drillIn(g)}
                 >
-                  <td className="px-3 py-2 font-medium">{g.label || '—'}</td>
+                  <td className="px-3 py-2 font-medium">{
+                    (nivelAtual?.key === 'fantasia_fornecedor' || nivelAtual?.key === 'numero_projeto')
+                      ? (g.label || '—').toLocaleUpperCase('pt-BR')
+                      : (g.label || '—')
+                  }</td>
                   <td className="px-3 py-2 text-right">{formatCurrency(g.comprado)}</td>
                   <td className="px-3 py-2 text-right">{formatCurrency(g.pendente)}</td>
                   <td className="px-3 py-2 text-right">{formatNumber(g.qtdOcs, 0)}</td>
