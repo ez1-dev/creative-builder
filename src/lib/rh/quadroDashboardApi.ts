@@ -75,6 +75,8 @@ export interface QuadroDashboard {
   vinculo?: QuadroBreakdown;
   empresa?: QuadroBreakdown | null;
   empresa_detalhado?: QuadroEmpresaLinha[] | null;
+  dimensoes_drill?: DrillDimension[];
+  detalhe?: ColaboradorDetalhe[];
   raw?: any;
 }
 
