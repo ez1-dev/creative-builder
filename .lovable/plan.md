@@ -1,46 +1,72 @@
-## Escopo
+## Objetivo
 
-Backend 8070 já reiniciado — KPIs do Painel de Compras validados. Agora aplicar as 4 melhorias frontend pendentes.
+Substituir a página atual `RH > Quadro de Colaboradores` (que hoje lista colaboradores em tabela) por um **dashboard de headcount** consumindo os novos endpoints do FastAPI. Nenhuma regra de ponto-no-tempo, ativo/demitido ou headcount é calculada no front — a API já entrega tudo pronto.
 
----
+## Endpoints consumidos
 
-### 1) Análise Gerencial com IA no Painel de Compras
+- `GET /api/rh/quadro-colaboradores/dashboard?data_ref=YYYY-MM-DD` → snapshot com KPIs + quebras (sexo, escolaridade, faixa etária, tempo de casa, filial, situação, vínculo, empresa opcional).
+- `GET /api/rh/quadro-colaboradores/historico?anomes_ini=YYYYMM&anomes_fim=YYYYMM` → série mensal `{ anomes, total }`.
+- (Reservado) `GET /api/rh/quadro-colaboradores/export` para o botão Exportar Excel — se retornar 404/405/501, mostrar "Exportação pendente na API".
 
-- Montar o componente `ComprasAiChartGenerator` (já existe em `src/components/compras/ComprasAiChartGenerator.tsx`) dentro do `PainelComprasPage.tsx`, logo acima da seção de gráficos gerenciais.
-- Passar `filtrosAtivos` = objeto de filtros correntes do painel e `onDrill` = mesma função de drill já usada pelos cartões (abre `PainelDrillView`).
-- Sem mudança de lógica de dados: reaproveita `POST /api/compras/ia-grafico` via `src/lib/bi/comprasIaChartApi.ts` (já pronto).
+Uso do `api` client existente (`src/lib/api.ts`) mantém JWT + header `ngrok-skip-browser-warning`.
 
-### 2) Gráficos do Painel de Compras trocáveis pela Biblioteca BI
+## Arquivos afetados
 
-- Substituir os gráficos gerenciais fixos por `DashboardBlocksRenderer` alimentado pelo catálogo `src/lib/bi/comprasWidgetCatalog.ts` (já existente).
-- Usar o hook `useDashboardBlocks` com `pageKey="painel-compras"` para persistir layout do usuário (mesmo padrão de `/passagens-aereas` e demais páginas BI).
-- Manter cards de KPI e a Lista Detalhada como estão — troca só afeta a faixa de gráficos.
-- Fallback: se `useDashboardBlocks` retornar vazio, chamar `ensureDefaultBlock` com o preset padrão de Compras.
+**Novos:**
+- `src/lib/rh/quadroDashboardApi.ts` — funções `fetchQuadroDashboard(dataRef)`, `fetchQuadroHistorico(anomesIni, anomesFim)`, `exportQuadroDashboard(...)`; tipos `QuadroDashboard`, `QuadroBreakdownItem`, `QuadroHistoricoItem`. Normaliza payload preservando `null` explicitamente (não converte para 0).
 
-### 3) BI Comercial — negativos em vermelho sem sinal
+**Editados:**
+- `src/lib/rh/types.ts` — adicionar interfaces do dashboard/histórico (sem tocar nas existentes).
+- `src/pages/rh/QuadroColaboradoresPage.tsx` — reescrita completa: passa de "lista + filtros de tabela" para dashboard de headcount.
 
-- Ajustar formatters em `src/lib/bi/comercial.ts` / `comercialMetrics.ts` e no `formatCurrency`/`formatNumber` usados pelos cartões BI Comercial: quando `valor < 0`, renderizar `Math.abs(valor)` formatado dentro de `<span className="text-destructive">`.
-- Escopo restrito ao BI Comercial (páginas em `src/pages/bi/comercial/*` e componentes que consomem esses formatters). Não altera Painel de Compras nem DRE.
-- Cobertura: KPIs, tabelas, tooltips e dataLabels de gráficos.
+Nada em Supabase/Cloud. Nada de backend.
 
-### 4) 01 – Resumo Folha: botão Exportar Excel
+## Layout da página nova
 
-- Adicionar `<ExportButton endpoint="/api/rh/resumo-folha/export" params={filtrosAtuais} label="Exportar Excel" />` no header da tela `src/pages/rh/ResumoFolhaPage.tsx` (ou nome equivalente da 01), ao lado dos demais controles.
-- Reaproveita o componente pronto em `src/components/erp/ExportButton.tsx` — sem mudança de backend (endpoint já existente conforme docs de RH).
+```text
+[Header RH]  Data ref [datepicker]  Histórico [anomes_ini] → [anomes_fim]  [Atualizar] [Exportar Excel]
 
----
+┌──────────── KPIs (grid 4 col desktop, 2 col tablet) ─────────────┐
+│ Total | Masculino | Feminino | Jovem Aprendiz                    │
+│ Estagiários | PCD | Admitidos mês | Demitidos mês                │
+│ Trabalhando | Férias | Aux Doença | Acidente                     │
+│ Lic Maternidade | Aposentadoria (só se vier da API)              │
+└──────────────────────────────────────────────────────────────────┘
 
-## Detalhes técnicos
+┌─ Histórico (linha/área, full width) ────────────────────────────┐
 
-- Arquivos a editar:
-  - `src/pages/PainelComprasPage.tsx` (itens 1 e 2)
-  - `src/lib/bi/comercial.ts`, `src/lib/bi/comercialMetrics.ts` e componentes de KPI/tabela de `src/pages/bi/comercial/*` (item 3)
-  - `src/pages/rh/ResumoFolhaPage.tsx` (item 4 — confirmar nome real do arquivo antes de editar)
-- Sem migrations, sem mudanças em Cloud, sem novos endpoints.
-- Verificação: typecheck automático + inspeção visual no preview em `/painel-compras`, `/bi/comercial` e `/rh/resumo-folha`.
+┌─ Sexo (donut) ─┐ ┌─ Situação (barras) ─┐ ┌─ Vínculo (barras) ─┐
+
+┌─ Escolaridade (barras horizontais, desc) ─┐ ┌─ Faixa etária ─┐
+
+┌─ Tempo de casa (barras) ─┐ ┌─ Filial (tabela ordenada desc) ─┐
+
+┌─ Empresa (só se API retornar; senão aviso "pendente de regra na API") ─┐
+```
+
+## Comportamento
+
+- **Estado inicial**: `dataRef = hoje`; `anomesIni = YYYY01` do ano de `dataRef`; `anomesFim = YYYYMM` de `dataRef`.
+- **Botão Atualizar** invalida ambas as queries do React Query.
+- **KPIs com `null`**: renderizados via `KpiOrMissing` reutilizado, exibindo "Campo pendente na API" — nunca 0. Cards para campos que a API não retornou (ex.: `aposentadoria`) ficam ocultos.
+- **Blocos de quebra ausentes** (array vazio ou chave ausente): esconder o card inteiro; para `empresa`, mostrar aviso textual "Classificação Empresa pendente de regra na API".
+- **Exportar Excel**: usa `ExportButton` apontando para `/api/rh/quadro-colaboradores/export?data_ref=...`. Em 404/405/501 exibir toast "Exportação pendente na API" (já suportado pela lógica do ExportButton com ajuste mínimo — ou capturar no próprio botão wrapper).
+
+## Componentes reutilizados
+
+- `KpiCard` / `KpiOrMissing` (RH), `RhPageHeader`, `DataTableBI`, `ExportButton`.
+- Gráficos: `LineChartCard` / `AreaChartCard`, `DonutChartCard`, `BarChartCard` do `@/components/bi/charts` (já usados em outras páginas BI).
+- `Popover` + `Calendar` shadcn para o datepicker de `data_ref`. Inputs `month` HTML nativos para `anomes_ini/anomes_fim` (ou dois selects Ano/Mês, no padrão do módulo).
+
+## Validações
+
+- Amostra abril/2026 (`data_ref=2026-04-30`): esperar total=427, masc=360, fem=67, JA=24, estag=3, PCD=11.
+- Data atual: total ≈ 413.
+- Erros de rede → toast e mantém último snapshot em cache.
 
 ## Fora de escopo
 
-- Qualquer mudança em backend FastAPI.
-- Alterar lógica de KPIs do Painel de Compras (já corrigida).
-- Trocar gráficos do BI Comercial ou do DRE.
+- Backend/FastAPI (endpoints já prontos).
+- Cálculo de headcount, ativo/demitido, empresa customizada no front.
+- Novas tabelas no Cloud.
+- Alterações em outras páginas RH.
