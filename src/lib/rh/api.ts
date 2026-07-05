@@ -385,6 +385,46 @@ export async function fetchProgramacaoFerias(p?: ProgramacaoFeriasParams): Promi
   return unwrap<ProgramacaoFeriasItem>(resp);
 }
 
+export async function fetchProgramacaoFeriasDashboard(
+  codemp: number = 1,
+): Promise<import("./types").ProgramacaoFeriasDashboard> {
+  const resp = await api.get<any>(
+    "/api/rh/programacao-ferias/dashboard",
+    cleanParams({ codemp }),
+  );
+  const k = resp?.kpis ?? {};
+  const pivot = Array.isArray(resp?.limite_ferias_pivot) ? resp.limite_ferias_pivot : [];
+  const pivotNorm = pivot
+    .map((r: any) => ({
+      ano: String(r?.ano ?? ""),
+      m1: num(r?.m1), m2: num(r?.m2), m3: num(r?.m3), m4: num(r?.m4),
+      m5: num(r?.m5), m6: num(r?.m6), m7: num(r?.m7), m8: num(r?.m8),
+      m9: num(r?.m9), m10: num(r?.m10), m11: num(r?.m11), m12: num(r?.m12),
+      total: num(r?.total),
+    }))
+    .sort((a: any, b: any) => (a.ano || "").localeCompare(b.ano || ""));
+  const sem = Array.isArray(resp?.primeiro_vencimento_sem_programacao)
+    ? [...resp.primeiro_vencimento_sem_programacao].sort((a: any, b: any) =>
+        (a?.dt_limite_saida || "").localeCompare(b?.dt_limite_saida || ""),
+      )
+    : [];
+  return {
+    kpis: {
+      ferias_vencidas: num(k.ferias_vencidas),
+      a_vencer_30: num(k.a_vencer_30),
+      a_vencer_60: num(k.a_vencer_60),
+      a_vencer_90: num(k.a_vencer_90),
+      ferias_total: num(k.ferias_total),
+      de_ferias: num(k.de_ferias),
+    },
+    limite_ferias_pivot: pivotNorm,
+    programacao_proximos_90_dias: Array.isArray(resp?.programacao_proximos_90_dias)
+      ? resp.programacao_proximos_90_dias
+      : [],
+    primeiro_vencimento_sem_programacao: sem,
+  };
+}
+
 export async function fetchFormularios(): Promise<FormularioRh[]> {
   const resp = await api.get<any>("/api/rh/formularios");
   return unwrap<FormularioRh>(resp);
