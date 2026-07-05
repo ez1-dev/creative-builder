@@ -39,6 +39,30 @@ export interface QuadroEmpresaLinha {
   mulheres?: number | null;
 }
 
+export interface DrillDimension {
+  chave: string;
+  label: string;
+}
+
+export type ColaboradorDetalhe = {
+  colaborador?: string;
+  matricula?: string;
+  empresa?: string;
+  filial?: string;
+  cargo?: string;
+  centro_custo?: string;
+  escolaridade?: string;
+  faixa_etaria?: string;
+  tempo_casa?: string;
+  sexo?: string;
+  situacao?: string;
+  vinculo?: string;
+  pcd?: string;
+  idade?: number;
+  dt_admissao?: string;
+  [k: string]: any;
+};
+
 export interface QuadroDashboard {
   data_ref?: string;
   kpis: QuadroKpis;

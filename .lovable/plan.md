@@ -1,21 +1,57 @@
-## Problema
+## Objetivo
 
-No RH-04, clicar numa célula da tabela "Limite Férias" (ex.: `12/2026 = 19`) abre o modal com "0 períodos". Backend está correto (19 registros existem em `detalhe` com `ano_limite="2026"`, `mes_limite=12`). O filtro no front está falhando por mismatch de tipo / fallback ausente.
+Adicionar bloco "Lista de Drills" em `/rh/quadro-colaboradores` que consome `dimensoes_drill` + `detalhe` do payload de `GET /api/rh/quadro-colaboradores/dashboard`, agrupando colaboradores client-side por qualquer dimensão retornada pela API, com drill até o colaborador.
 
-## Correção (somente `src/pages/rh/ProgramacaoFeriasPage.tsx`)
+Sem alterar gráficos, KPIs, tabela Empresa/Filial existentes. Sem novos endpoints. Sem regras de RH no front.
 
-1. **`openPivotCell(ano, mesIdx)`** — trocar filtro por versão robusta que:
-   - coage ambos os lados: `String(x.ano_limite) === String(ano)` e `Number(x.mes_limite) === Number(mesIdx)`;
-   - se `ano_limite`/`mes_limite` vierem ausentes/null, faz fallback derivando de `dt_limite_saida` (parse do `YYYY-MM-DD`: `ano = s.slice(0,4)`, `mes = Number(s.slice(5,7))`).
+## Alterações
 
-2. **`openPivotTotal(ano)`** — mesma lógica, filtrando só por ano (com fallback via `dt_limite_saida`).
+### 1. `src/lib/rh/quadroDashboardApi.ts`
+- Estender `QuadroDashboard` com dois campos passthrough:
+  - `dimensoes_drill?: { chave: string; label: string }[]`
+  - `detalhe?: Array<Record<string, any>>` (com campos: `colaborador`, `matricula`, `empresa`, `filial`, `cargo`, `centro_custo`, `escolaridade`, `faixa_etaria`, `tempo_casa`, `sexo`, `situacao`, `vinculo`, `pcd`, `idade`, `dt_admissao`).
+- Em `normalizeDashboard`, apenas repassar `raw.dimensoes_drill` e `raw.detalhe` sem transformação (a API já entrega rotulado).
+- Exportar tipos `DrillDimension` e `ColaboradorDetalhe`.
 
-3. Extrair helper local `getAnoMesLimite(x)` que devolve `{ ano: string, mes: number }` para reuso nos dois handlers.
+### 2. Novo componente `src/components/rh/QuadroDrillCard.tsx`
+- Props: `dimensoes: DrillDimension[]`, `detalhe: ColaboradorDetalhe[]`, `loading?: boolean`.
+- Estado local: `chaveSel` — default `"empresa"` se presente em `dimensoes`, senão primeira dimensão.
+- Se `dimensoes` vazio: exibir card discreto "Drills ainda não disponíveis na API." e retornar.
+- Se `detalhe` vazio: card "Sem colaboradores para detalhar."
+- UI:
+  - Card com título "Lista de Drills".
+  - Select "Drill por..." com options de `dimensoes` (usar `label`, `value=chave`).
+  - Tabela agregada com colunas: Dimensão (label da chave), Colaboradores, Homens, Mulheres, PCD, Estagiários, Jovem Aprendiz.
+  - Ordenação por Colaboradores desc.
+  - Linhas clicáveis (`cursor-pointer`, hover) → abrem modal.
+- Agrupamento com helpers exatamente conforme snippet do usuário (`normalizaValor`, `isMasculino`, `isFeminino`, `isPCD`, `isEstagiario`, `isAprendiz`, `agruparPorDimensao`), definidos no próprio arquivo.
 
-Nenhuma outra parte da página muda. Sem mudanças de tipos, API, backend ou modal.
+### 3. Novo componente `src/components/rh/QuadroDrillModal.tsx`
+- Dialog do shadcn (fecha por clique fora / botão Fechar / ESC).
+- Props: `open`, `onOpenChange`, `label` (dimensão), `valor` (grupo), `itens: ColaboradorDetalhe[]`.
+- Título: `{label}: {valor} — {itens.length} colaboradores`.
+- Tabela scroll vertical (`max-h-[70vh] overflow-auto`), colunas: Colaborador, Matrícula, Cargo, Empresa, Filial, Centro Custos, Escolaridade, Faixa Etária, Tempo de Casa, Sexo, Situação, Vínculo, PCD, Idade, Data Admissão.
+- Ordenar por `colaborador` asc.
+- `dt_admissao` formatado por helper local `formatDateBR` (parse manual regex `^(\d{4})-(\d{2})-(\d{2})`, sem `new Date` / `toLocaleDateString`).
+- Botão Fechar no rodapé. Sem exportação (padrão ausente para lista de colaboradores).
 
-## Verificação
+### 4. `src/pages/rh/QuadroColaboradoresPage.tsx`
+- Importar `QuadroDrillCard`.
+- Após o bloco `<EmpresaGrid />` (final da página, antes do fechamento do container), renderizar:
+  ```
+  <div className="mb-4">
+    <QuadroDrillCard
+      dimensoes={dashQ.data?.dimensoes_drill ?? []}
+      detalhe={dashQ.data?.detalhe ?? []}
+      loading={dashQ.isLoading}
+    />
+  </div>
+  ```
+- Nenhuma outra mudança na página.
 
-- Clicar `12/2026` (valor 19) → modal deve mostrar "19 períodos".
-- Clicar `TOTAL` da linha 2026 → soma dos 12 meses.
-- Células com `-` continuam não-clicáveis.
+## Validações
+
+- Payload sem `dimensoes_drill` → bloco mostra mensagem "Drills ainda não disponíveis na API." (nada quebra).
+- Selecionar "Empresa" → totais batem com tabela Empresa existente (ESTRUTURAL 206 / MONTAGEM EXTERNA 157 / GENIUS 49).
+- Clicar em linha → modal com lista, ordenada por Colaborador, `dt_admissao` em `dd/MM/yyyy` sem shift de fuso.
+- Typecheck OK.
