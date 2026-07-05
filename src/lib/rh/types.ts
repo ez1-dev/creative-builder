@@ -120,6 +120,51 @@ export interface ProgramacaoFeriasItem {
   [k: string]: any;
 }
 
+export interface ProgramacaoFeriasKpis {
+  ferias_vencidas: number;
+  a_vencer_30: number;
+  a_vencer_60: number;
+  a_vencer_90: number;
+  ferias_total: number;
+  de_ferias: number;
+}
+
+export interface LimiteFeriasPivotRow {
+  ano: string;
+  m1: number; m2: number; m3: number; m4: number; m5: number; m6: number;
+  m7: number; m8: number; m9: number; m10: number; m11: number; m12: number;
+  total: number;
+}
+
+export interface ProgramacaoProximos90Item {
+  colaborador?: string;
+  dt_inicio_periodo?: string;
+  dt_fim_periodo?: string;
+  dt_limite_saida?: string;
+  dt_programacao?: string;
+  qtd_dias_direito?: number;
+  qtd_dias_programado?: number;
+  qtd_dias_abono?: number;
+  qtd_dias_saldo?: number;
+}
+
+export interface PrimeiroVencimentoSemProgramacaoItem {
+  empresa?: string;
+  filial?: string;
+  colaborador?: string;
+  dt_limite_saida?: string;
+  qtd_dias_direito?: number;
+  qtd_dias_saldo?: number;
+  qtd_dias_programado?: number;
+}
+
+export interface ProgramacaoFeriasDashboard {
+  kpis: ProgramacaoFeriasKpis;
+  limite_ferias_pivot: LimiteFeriasPivotRow[];
+  programacao_proximos_90_dias: ProgramacaoProximos90Item[];
+  primeiro_vencimento_sem_programacao: PrimeiroVencimentoSemProgramacaoItem[];
+}
+
 export interface FormularioRh {
   id?: number | string;
   cd_tp_formulario?: string;
