@@ -41,7 +41,39 @@ import { ComprasAiChartGenerator } from '@/components/compras/ComprasAiChartGene
 import { COMPRAS_WIDGETS, loadHiddenCharts, saveHiddenCharts } from '@/lib/bi/comprasWidgetCatalog';
 import { Pencil, EyeOff, Eye } from 'lucide-react';
 
-const COLORS = ['hsl(215,70%,45%)', 'hsl(142,70%,40%)', 'hsl(38,92%,50%)', 'hsl(0,72%,51%)', 'hsl(199,89%,48%)', 'hsl(280,60%,50%)', 'hsl(160,60%,40%)', 'hsl(30,80%,55%)'];
+const COLORS = [
+  'hsl(var(--chart-1))',
+  'hsl(var(--chart-2))',
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))',
+  'hsl(var(--chart-5))',
+  'hsl(var(--chart-6))',
+  'hsl(var(--chart-7))',
+  'hsl(var(--chart-8))',
+];
+
+const truncateLabel = (s: string, max = 22) => {
+  if (!s) return '';
+  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
+};
+
+/** Tooltip customizado com moeda BR e categoria em destaque. */
+const ChartMoneyTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload || !payload.length) return null;
+  return (
+    <div className="rounded-md border border-border bg-popover px-3 py-2 text-xs shadow-md">
+      {label !== undefined && label !== null && (
+        <div className="mb-1 font-semibold text-foreground">{String(label)}</div>
+      )}
+      {payload.map((p: any, i: number) => (
+        <div key={i} className="flex items-center gap-2 text-muted-foreground">
+          <span className="inline-block h-2 w-2 rounded-sm" style={{ background: p.color || p.fill }} />
+          <span className="text-foreground">{formatCurrency(p.value)}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 const SITUACOES_OPCOES: { value: string; label: string }[] = [
   { value: '1', label: 'Aberto Total' },
