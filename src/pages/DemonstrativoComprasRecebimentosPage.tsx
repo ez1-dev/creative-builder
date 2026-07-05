@@ -568,12 +568,16 @@ export default function DemonstrativoComprasRecebimentosPage() {
 
 
       {/* Drill-down */}
+      <SectionHeader icon={<Table2 className="h-4 w-4" />} title="Drill-down Gerencial" subtitle="Clique nas linhas para aprofundar" />
       <Card>
         <CardHeader className="space-y-2 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <CardTitle className="text-sm">Drill-down</CardTitle>
-              <Badge variant="outline" className="text-xs">Nível: {NIVEL_LABEL[currentNivel]}</Badge>
+              <CardTitle className="text-sm">Detalhamento por nível</CardTitle>
+              <Badge variant="secondary" className="text-xs">Nível: {NIVEL_LABEL[currentNivel]}</Badge>
+              {drill.length > 0 && (
+                <Badge variant="outline" className="text-xs tabular-nums">{drill.length} registros</Badge>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <Button size="sm" variant="outline" disabled={stack.length === 0} onClick={handleVoltarNivel}>
