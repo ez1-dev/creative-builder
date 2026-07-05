@@ -88,7 +88,7 @@ function KpiOrPending({
       </Card>
     );
   }
-  return <KpiCard title={title} value={value} format="number" variant={variant} />;
+  return <KpiCard title={title} value={value} format="number" variant={variant} subtitle={subtitle} />;
 }
 
 function BreakdownCard({
