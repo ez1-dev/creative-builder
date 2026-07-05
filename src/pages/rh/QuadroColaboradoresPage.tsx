@@ -362,19 +362,26 @@ export default function QuadroColaboradoresPage() {
 
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
-        <BreakdownCard title="Sexo" data={dashQ.data?.sexo} variant="donut" loading={dashQ.isLoading} />
-        <BreakdownCard title="Situação / Afastamento" data={dashQ.data?.situacao} loading={dashQ.isLoading} />
-        <BreakdownCard title="Vínculo" data={dashQ.data?.vinculo} loading={dashQ.isLoading} />
+        <BreakdownCard title="Sexo" data={dashQ.data?.sexo} variant="donut" loading={dashQ.isLoading}
+          onItemClick={temDetalhe ? (label) => openDrill("Sexo", label, filterDetalheBySexoLabel(detalhe, label)) : undefined} />
+        <BreakdownCard title="Situação / Afastamento" data={dashQ.data?.situacao} loading={dashQ.isLoading}
+          onItemClick={temDetalhe ? (label) => openDrill("Situação", label, filterDetalheByDimensao(detalhe, "situacao", label)) : undefined} />
+        <BreakdownCard title="Vínculo" data={dashQ.data?.vinculo} loading={dashQ.isLoading}
+          onItemClick={temDetalhe ? (label) => openDrill("Vínculo", label, filterDetalheByDimensao(detalhe, "vinculo", label)) : undefined} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">
-        <BreakdownCard title="Escolaridade" data={dashQ.data?.escolaridade} loading={dashQ.isLoading} />
-        <BreakdownCard title="Faixa etária" data={dashQ.data?.faixa_etaria} sort={false} loading={dashQ.isLoading} />
+        <BreakdownCard title="Escolaridade" data={dashQ.data?.escolaridade} loading={dashQ.isLoading}
+          onItemClick={temDetalhe ? (label) => openDrill("Escolaridade", label, filterDetalheByDimensao(detalhe, "escolaridade", label)) : undefined} />
+        <BreakdownCard title="Faixa etária" data={dashQ.data?.faixa_etaria} sort={false} loading={dashQ.isLoading}
+          onItemClick={temDetalhe ? (label) => openDrill("Faixa etária", label, filterDetalheByDimensao(detalhe, "faixa_etaria", label)) : undefined} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">
-        <BreakdownCard title="Tempo de casa" data={dashQ.data?.tempo_casa} sort={false} loading={dashQ.isLoading} />
-        <FilialTable data={dashQ.data?.filial} loading={dashQ.isLoading} />
+        <BreakdownCard title="Tempo de casa" data={dashQ.data?.tempo_casa} sort={false} loading={dashQ.isLoading}
+          onItemClick={temDetalhe ? (label) => openDrill("Tempo de casa", label, filterDetalheByDimensao(detalhe, "tempo_casa", label)) : undefined} />
+        <FilialTable data={dashQ.data?.filial} loading={dashQ.isLoading}
+          onRowClick={temDetalhe ? (label) => openDrill("Filial", label, filterDetalheByDimensao(detalhe, "filial", label)) : undefined} />
       </div>
 
       <div className="mb-4">
@@ -383,6 +390,7 @@ export default function QuadroColaboradoresPage() {
           fallback={dashQ.data?.empresa ?? undefined}
           loading={dashQ.isLoading}
           hasResponse={!!dashQ.data}
+          onRowClick={temDetalhe ? (empresa) => openDrill("Empresa", empresa, filterDetalheByDimensao(detalhe, "empresa", empresa)) : undefined}
         />
       </div>
 
