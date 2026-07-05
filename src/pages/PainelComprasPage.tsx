@@ -136,6 +136,15 @@ export default function PainelComprasPage() {
   const [drillSeed, setDrillSeed] = useState<{ nivel: any; chave: string; label: string; nonce: number } | null>(null);
   const [clearDrillSignal, setClearDrillSignal] = useState(0);
   const drillRef = useRef<HTMLDivElement>(null);
+  const [modoEdicaoDashboard, setModoEdicaoDashboard] = useState(false);
+  const [hiddenCharts, setHiddenCharts] = useState<Record<string, boolean>>(() => loadHiddenCharts());
+  const toggleHiddenChart = useCallback((key: string) => {
+    setHiddenCharts((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      saveHiddenCharts(next);
+      return next;
+    });
+  }, []);
   const openDrill = useCallback((nivel: string, chave: any, label?: string) => {
     if (chave == null || chave === '') return;
     const ch = String(chave);
