@@ -27,16 +27,18 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { formatNumber, formatCurrency } from '@/lib/format';
+import {
+  formatNumber, formatCurrency, formatFornecedorLabel, formatProjetoLabel, toUpperPt,
+} from '@/lib/format';
 import { toast } from 'sonner';
 import {
   ShoppingCart, Receipt, AlertTriangle, TrendingUp, FileText, Users,
-  ChevronRight, Home, Hash, Undo2,
+  ChevronRight, Home, Hash, Undo2, BarChart3, Layers, Table2, Scale,
 } from 'lucide-react';
 import {
   KpiCard, KpiGrid,
-  BarChartCard, PieChartCard, HorizontalBarChartCard,
-  StackedBarChartCard,
+  BarChartCard, HorizontalBarChartCard,
+  StackedBarChartCard, DonutChartCard,
   LoadingState, ErrorState, NoDataState,
 } from '@/components/bi';
 
