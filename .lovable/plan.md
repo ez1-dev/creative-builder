@@ -1,43 +1,28 @@
-## Ajustes finos no mapeamento do grid Empresa
+## Remover R$ dos gráficos do Quadro de Colaboradores
 
-Depois do restart da 8070, o payload de `por_empresa` traz alguns nomes de campo que ainda não estão no alias do front. Sem esse ajuste as colunas continuarão "—" mesmo com dado chegando.
+### Causa
 
-### Diferenças detectadas vs. `EMPRESA_KPI_ALIASES` atual
-
-| Coluna do grid | API manda | Alias hoje cobre? |
-|---|---|---|
-| Aposent. Invalidez | `apos_invalidez` | Não (só `aposentadoria_invalidez`, `aposent_invalidez`, `aposentadoria`, `aposentados`, `invalidez`) |
-| Licença Maternidade (nova) | `licenca_maternidade` | Coluna não existe no grid |
-| Homens / Mulheres (novos) | `homens`, `mulheres` | Colunas não existem no grid |
-
-Demais campos (`colaboradores`, `trabalhando`, `admitidos`, `demitidos`, `pcd`, `estagiarios`, `jovem_aprendiz`, `ferias`, `aux_doenca`, `acidente_trabalho`, `atestados`) já batem com os aliases atuais e devem preencher sozinhos.
-
-`pickEmpresaMatriz` já aceita `label` como nome da empresa, então `por_empresa[].label` → coluna "Empresa" continua ok.
+`BarChartCard` e `AreaChartCard` (biblioteca `@/components/bi`) hardcodam `tickFormatter={tickCurrencyAbbrev}` no `<YAxis>`, então os ticks do eixo Y sempre saem em R$ mesmo quando a página passa `valueFormatter` numérico. Isso afeta os gráficos de Sexo/Situação/Vínculo/Escolaridade/Faixa etária/Tempo de casa e o histórico "Nº Colaboradores".
 
 ### Alterações
 
-**`src/lib/rh/quadroDashboardApi.ts`**
-1. `EMPRESA_KPI_ALIASES.aposentadoria_invalidez`: adicionar `"apos_invalidez"` no início da lista de aliases (mantendo os demais para retrocompatibilidade).
-2. Adicionar três chaves opcionais em `QuadroEmpresaLinha`: `licenca_maternidade`, `homens`, `mulheres`.
-3. Adicionar aliases correspondentes em `EMPRESA_KPI_ALIASES`:
-   - `licenca_maternidade`: `["licenca_maternidade", "lic_maternidade", "maternidade"]`
-   - `homens`: `["homens", "masculino", "qtd_masculino"]`
-   - `mulheres`: `["mulheres", "feminino", "qtd_feminino"]`
+**`src/components/bi/charts/BarChartCard.tsx`**
+- Adicionar prop opcional `tickFormatter?: (v: number) => string` (default: `tickCurrencyAbbrev` — mantém comportamento atual em outras páginas).
+- Usar `tickFormatter` no `<YAxis tickFormatter={...} />`.
+
+**`src/components/bi/charts/AreaChartCard.tsx`**
+- Mesmo tratamento: novo prop `tickFormatter?: (v: number) => string` com default `tickCurrencyAbbrev`, usado no `<YAxis>`.
 
 **`src/pages/rh/QuadroColaboradoresPage.tsx`**
-1. Grid Empresa: adicionar 3 novas colunas no header e no `<tbody>`/totais, nesta ordem no fim: `Licença Maternidade`, `Homens`, `Mulheres`.
-2. Manter a mesma regra de "—" para valores ausentes e a linha de totais somando apenas numéricos.
-3. Remover o aviso "Montagem Externa pendente de regra na API." se a linha vier no payload (comportamento já implementado — só confirmar).
+- `BreakdownCard`: passar `tickFormatter={fmt}` também para o `<BarChartCard>` (usa `Intl.NumberFormat("pt-BR")`).
+- Histórico `<AreaChartCard>`: passar `tickFormatter` idêntico ao `valueFormatter` já usado (número pt-BR abreviado ou completo — usar helper `tickNumberAbbrev` local: `1.2 mil`, `3,4 mi`, sem R$).
 
 ### Fora de escopo
 
-- Backend / FastAPI (usuário já confirmou que restart resolve os zeros).
-- KPIs de topo, gráficos por_* e histórico (contrato bate com o que o front já lê).
-- Recalcular Trabalhando / gerar Excel de conferência (usuário perguntou como próximo passo separado — respondo depois de aplicar isto).
+- Alterar `tickCurrencyAbbrev` em si (usado corretamente por BI Comercial/DRE onde é dinheiro).
+- Outros chart cards (Line/Combo/Stacked/Horizontal/Waterfall) — não são usados na tela de RH.
+- KPIs de topo e grid Empresa (já usam formatação numérica).
 
 ### Validação
 
-Após o restart da 8070 + este ajuste, com `data_ref=hoje`:
-- Linhas ESTRUTURAL / GENIUS / MONTAGEM EXTERNA (se vier) preenchidas em todas as 14 colunas antigas + 3 novas.
-- Aposent. Invalidez deixa de ser "—" quando `apos_invalidez` chegar.
-- Totais somam corretamente as novas colunas.
+Recarregar `/rh/quadro-colaboradores`: eixo Y de todos os gráficos e do histórico deixa de mostrar "R$" e passa a mostrar valores inteiros/abreviados em pt-BR.

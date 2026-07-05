@@ -10,13 +10,14 @@ export interface BarChartDatum { label: string; valor: number; [k: string]: any 
 export interface BarChartCardProps extends Omit<ChartCardShellProps, 'children' | 'isEmpty'> {
   data: BarChartDatum[];
   valueFormatter?: (v: number) => string;
+  tickFormatter?: (v: number) => string;
   color?: string;
   showAverage?: boolean;
   onItemClick?: (d: BarChartDatum) => void;
 }
 
 export function BarChartCard({
-  data, valueFormatter = formatCurrency, color = 'hsl(var(--primary))', showAverage, onItemClick, height = 280, visualConfig, ...shell
+  data, valueFormatter = formatCurrency, tickFormatter = tickCurrencyAbbrev, color = 'hsl(var(--primary))', showAverage, onItemClick, height = 280, visualConfig, ...shell
 }: BarChartCardProps) {
   const vc = mergeVisualConfig(visualConfig);
   const isEmpty = !data?.length;
