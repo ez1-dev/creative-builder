@@ -61,7 +61,7 @@ export default function FormulariosPage() {
 
   return (
     <div className="container mx-auto py-6">
-      <RhPageHeader title="99 — Formulários" actions={<FormularioDialog />} />
+      <RhPageHeader title="99 — Formulários" subtitle="Registros complementares do módulo de RH" actions={<FormularioDialog />} />
 
       <Card className="mb-4">
         <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-3 gap-3">

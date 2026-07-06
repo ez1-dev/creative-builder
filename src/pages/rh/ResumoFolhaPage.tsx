@@ -469,8 +469,8 @@ export default function ResumoFolhaPage() {
   return (
     <div className="container mx-auto py-6 space-y-4">
       <RhPageHeader
-        title="01 — Resumo Folha"
-        subtitle="Painel consolidado da folha de pagamento"
+        title="01 — Resumo da Folha"
+        subtitle="Visão consolidada de proventos, descontos e custo total"
         hideSync
         actions={
           <>
