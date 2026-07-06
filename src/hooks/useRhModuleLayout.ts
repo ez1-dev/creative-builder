@@ -117,6 +117,7 @@ export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabl
       setWidgets(mergeWithDefaults(mapped, defaultsRef.current));
     } finally {
       if (!opts?.silent) setLoading(false);
+      setLayoutReady(true);
     }
   }, [moduleKey]);
 
