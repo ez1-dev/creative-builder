@@ -312,7 +312,7 @@ export default function QuadroColaboradoresPage() {
 
   function onKpiClick(kpiKey: string, title: string) {
     if (!temDetalhe) return;
-    const itens = filterDetalheByKpi(detalhe, kpiKey);
+    const itens = filterDetalheByKpi(detalhe, kpiKey, toAnomes(dataRef));
     if (!itens) return;
     openDrill(title, title, itens);
   }
