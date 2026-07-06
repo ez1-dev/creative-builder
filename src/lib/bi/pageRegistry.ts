@@ -411,7 +411,7 @@ const GENERIC_PAGES: BiPageDef[] = [
   { key: 'demonstrativo-compras-recebimentos',label: 'Demonstrativo Compras/Recebimentos',   route: '/demonstrativo-compras-recebimentos' },
   { key: 'monitor-usuarios-senior',           label: 'Monitor Usuários Senior',              route: '/monitor-usuarios-senior' },
   { key: 'gestao-sgu-usuarios',               label: 'Gestão SGU — Usuários',                route: '/gestao-sgu-usuarios' },
-  
+
   { key: 'producao-expedido-obra',            label: 'Produção — Expedido por Obra',         route: '/producao/expedido-obra' },
   { key: 'producao-lead-time',                label: 'Produção — Lead Time',                 route: '/producao/lead-time' },
   { key: 'producao-nao-carregados',           label: 'Produção — Não Carregados',            route: '/producao/nao-carregados' },
@@ -420,7 +420,130 @@ const GENERIC_PAGES: BiPageDef[] = [
   { key: 'producao-saldo-patio',              label: 'Produção — Saldo de Pátio',            route: '/producao/saldo-patio' },
 ].map((p) => ({ ...p, sections: GENERIC_SECTIONS, schema: {} }));
 
-PAGE_REGISTRY.push(...GENERIC_PAGES);
+/** Páginas RH — schema alimentado pelo PageDataProvider de cada tela. */
+const RH_PAGES: BiPageDef[] = [
+  {
+    key: 'rh-resumo-folha',
+    label: 'RH — Resumo Folha',
+    route: '/rh/resumo-folha',
+    sections: GENERIC_SECTIONS,
+    schema: {
+      kpis: [
+        { key: 'custo_total',      label: 'Custo Total',      format: 'currency' },
+        { key: 'proventos',        label: 'Proventos',        format: 'currency' },
+        { key: 'descontos',        label: 'Descontos',        format: 'currency' },
+        { key: 'liquido',          label: 'Líquido',          format: 'currency' },
+        { key: 'inss',             label: 'INSS',             format: 'currency' },
+        { key: 'fgts',             label: 'FGTS',             format: 'currency' },
+        { key: 'hora_extra',       label: 'Hora Extra',       format: 'currency' },
+        { key: 'ferias',           label: 'Férias',           format: 'currency' },
+        { key: 'provisoes',        label: 'Provisões',        format: 'currency' },
+        { key: 'qtd_colaboradores',label: 'Colaboradores',    format: 'number'   },
+      ],
+      series: [
+        { key: 'mensal',       label: 'Evolução mensal' },
+        { key: 'proventos',    label: 'Proventos' },
+        { key: 'descontos',    label: 'Descontos' },
+        { key: 'filial',       label: 'Por Filial' },
+        { key: 'tipos_evento', label: 'Tipos de Evento' },
+      ],
+      rows: { key: 'dados', label: 'Detalhamento', fields: ['anomes', 'valor'] },
+    },
+  },
+  {
+    key: 'rh-quadro',
+    label: 'RH — Quadro Colaboradores',
+    route: '/rh/quadro-colaboradores',
+    sections: GENERIC_SECTIONS,
+    schema: {
+      kpis: [
+        { key: 'total',        label: 'Total Colaboradores', format: 'number' },
+        { key: 'admissoes',    label: 'Admissões',           format: 'number' },
+        { key: 'demissoes',    label: 'Demissões',           format: 'number' },
+        { key: 'ativos',       label: 'Ativos',              format: 'number' },
+      ],
+      series: [
+        { key: 'historico',   label: 'Histórico Nº Colaboradores' },
+        { key: 'por_sexo',    label: 'Por Sexo' },
+        { key: 'por_situacao',label: 'Por Situação' },
+        { key: 'por_vinculo', label: 'Por Vínculo' },
+        { key: 'por_escolaridade', label: 'Por Escolaridade' },
+        { key: 'por_faixa',   label: 'Por Faixa Etária' },
+      ],
+    },
+  },
+  {
+    key: 'rh-absenteismo',
+    label: 'RH — Absenteísmo',
+    route: '/rh/absenteismo',
+    sections: GENERIC_SECTIONS,
+    schema: {
+      kpis: [
+        { key: 'taxa_abs',        label: 'Taxa de Absenteísmo', format: 'percent' },
+        { key: 'total_faltas',    label: 'Total Faltas',        format: 'number'  },
+        { key: 'total_afastados', label: 'Afastados',           format: 'number'  },
+        { key: 'horas_perdidas',  label: 'Horas Perdidas',      format: 'number'  },
+      ],
+      series: [
+        { key: 'por_mes',       label: 'Por Mês' },
+        { key: 'por_categoria', label: 'Por Categoria' },
+        { key: 'por_empresa',   label: 'Por Empresa' },
+        { key: 'por_motivo',    label: 'Por Motivo' },
+      ],
+    },
+  },
+  {
+    key: 'rh-contratos-exp',
+    label: 'RH — Contrato de Experiência',
+    route: '/rh/contrato-experiencia',
+    sections: GENERIC_SECTIONS,
+    schema: {
+      kpis: [
+        { key: 'qtde_contratos',       label: 'Qtde Contratos',      format: 'number' },
+        { key: 'vencidos_pendentes',   label: 'Vencidos Pendentes',  format: 'number' },
+        { key: 'demitidos_30_apos_exp',label: 'Demitidos 30d Após',  format: 'number' },
+        { key: 'a_vencer_5_dias',      label: 'A Vencer 5 Dias',     format: 'number' },
+        { key: 'a_vencer_10_dias',     label: 'A Vencer 10 Dias',    format: 'number' },
+      ],
+    },
+  },
+  {
+    key: 'rh-turnover',
+    label: 'RH — Turnover',
+    route: '/rh/turnover',
+    sections: GENERIC_SECTIONS,
+    schema: {
+      kpis: [
+        { key: 'taxa_turnover',   label: 'Taxa Turnover', format: 'percent' },
+        { key: 'admissoes',       label: 'Admissões',     format: 'number'  },
+        { key: 'demissoes',       label: 'Demissões',     format: 'number'  },
+        { key: 'media_ativos',    label: 'Média Ativos',  format: 'number'  },
+      ],
+      series: [
+        { key: 'serie_mensal', label: 'Admissões x Demissões por Mês' },
+        { key: 'motivos',      label: 'Motivos de Desligamento' },
+        { key: 'por_empresa',  label: 'Por Empresa' },
+      ],
+    },
+  },
+  {
+    key: 'rh-ferias',
+    label: 'RH — Programação de Férias',
+    route: '/rh/programacao-ferias',
+    sections: GENERIC_SECTIONS,
+    schema: {
+      kpis: [
+        { key: 'qtd_ferias',      label: 'Qtd. Programadas',    format: 'number' },
+        { key: 'vencidos',        label: 'Vencidos',            format: 'number' },
+        { key: 'a_vencer_90',     label: 'A vencer em 90 dias', format: 'number' },
+        { key: 'sem_programacao', label: 'Sem Programação',     format: 'number' },
+      ],
+    },
+  },
+];
+
+PAGE_REGISTRY.push(...GENERIC_PAGES, ...RH_PAGES);
+
 
 export function getPage(key: string): BiPageDef | undefined {
   return PAGE_REGISTRY.find((p) => p.key === key);
