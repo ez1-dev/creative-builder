@@ -170,293 +170,184 @@ export default function AbsenteismoPage() {
       />
 
 
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-        <KpiCard
-          title="Taxa de Absenteísmo"
-          value={fmtPct2(kpis?.taxa_absenteismo_pct)}
-          format="raw"
-          variant="danger"
-          icon={<TrendingDown className="h-4 w-4" />}
-          loading={isLoading}
-        />
-        <KpiCard
-          title="Afastamentos"
-          value={kpis?.afastamentos ?? 0}
-          format="number"
-          variant="warning"
-          icon={<AlertOctagon className="h-4 w-4" />}
-          loading={isLoading}
-          onClick={() => openDrill("Absenteísmo", detalhe)}
-        />
-        <KpiCard
-          title="Colaboradores Afastados"
-          value={kpis?.colaboradores_afastados ?? 0}
-          format="number"
-          variant="info"
-          icon={<Users className="h-4 w-4" />}
-          loading={isLoading}
-          onClick={() => openDrill("Colaboradores Afastados", detalhe)}
-        />
-        <KpiCard
-          title="Dias Perdidos"
-          value={fmtDec1(kpis?.dias_perdidos)}
-          format="raw"
-          variant="danger"
-          icon={<CalendarDays className="h-4 w-4" />}
-          loading={isLoading}
-          onClick={() => openDrill("Dias Perdidos", detalhe)}
-        />
-        <KpiCard
-          title="Duração Média"
-          value={`${fmtDec1(kpis?.duracao_media_dias)} dias`}
-          format="raw"
-          icon={<Clock className="h-4 w-4" />}
-          loading={isLoading}
-        />
-        <KpiCard
-          title="Headcount Médio"
-          value={fmtDec1(kpis?.headcount_medio)}
-          format="raw"
-          variant="info"
-          icon={<Activity className="h-4 w-4" />}
-          loading={isLoading}
-        />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Por Mês */}
-        <Card>
-          <CardContent className="pt-6">
-            <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
-              Por Mês
-            </h2>
-            {isLoading ? (
-              <Skeleton className="h-72" />
-            ) : chartMes.length === 0 ? (
-              <div className="py-8 text-center text-sm text-muted-foreground">Sem dados</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={320}>
-                <ComposedChart data={chartMes}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                  <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
-                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
-                  <Tooltip
-                    contentStyle={{
-                      background: "hsl(var(--popover))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: 6,
-                      fontSize: 12,
-                    }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar
-                    yAxisId="left"
-                    dataKey="afastamentos"
-                    name="Afastamentos"
-                    fill="hsl(var(--primary))"
-                    cursor="pointer"
-                    onClick={(d: any) => {
-                      const anomes = d?.payload?.anomes;
-                      openDrill(
-                        `Mês: ${formatAnoMes(anomes)}`,
-                        detalhe.filter((x) => getAnoMesFromDate(x.dt_inicio) === String(anomes)),
-                      );
-                    }}
-                  />
-                  <Line
-                    yAxisId="right"
-                    type="monotone"
-                    dataKey="dias"
-                    name="Dias"
-                    stroke="hsl(var(--destructive))"
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                  />
-                </ComposedChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Por Categoria */}
-        <Card>
-          <CardContent className="pt-6">
-            <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
-              Por Categoria
-            </h2>
-            {isLoading ? (
-              <Skeleton className="h-72" />
-            ) : chartCategoria.length === 0 ? (
-              <div className="py-8 text-center text-sm text-muted-foreground">Sem dados</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={320}>
-                <PieChart>
-                  <Tooltip
-                    contentStyle={{
-                      background: "hsl(var(--popover))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: 6,
-                      fontSize: 12,
-                    }}
-                    formatter={(_v: any, _n: any, p: any) => {
-                      const it = p?.payload;
-                      return [
-                        `${fmtInt(it?.dias)} dias · ${fmtInt(it?.afastamentos)} afast. · ${fmtInt(it?.colaboradores)} colab.`,
-                        it?.categoria,
-                      ];
-                    }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Pie
-                    data={chartCategoria}
-                    dataKey="dias"
-                    nameKey="categoria"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={110}
-                    paddingAngle={2}
-                    cursor="pointer"
-                    onClick={(d: any) => {
-                      const cat = d?.payload?.categoria ?? d?.categoria;
-                      if (!cat) return;
-                      openDrill(
-                        `Categoria: ${cat}`,
-                        detalhe.filter((x) => x.categoria === cat),
-                      );
-                    }}
-                  >
-                    {chartCategoria.map((_, i) => (
-                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Por Empresa */}
-        <Card>
-          <CardContent className="pt-6">
-            <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
-              Por Empresa
-            </h2>
-            <div className="max-h-[55vh] overflow-auto">
-              <Table>
-                <TableHeader className="sticky top-0 bg-background z-10">
-                  <TableRow>
-                    <TableHead>Empresa</TableHead>
-                    <TableHead className="text-right">Afastamentos</TableHead>
-                    <TableHead className="text-right">Dias</TableHead>
-                    <TableHead className="text-right">Colaboradores</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading &&
-                    Array.from({ length: 4 }).map((_, i) => (
-                      <TableRow key={i}>
-                        <TableCell colSpan={4}><Skeleton className="h-6" /></TableCell>
-                      </TableRow>
-                    ))}
-                  {!isLoading && porEmpresa.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground py-6">
-                        Sem dados
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {porEmpresa.map((r, i) => (
-                    <TableRow
-                      key={i}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() =>
-                        openDrill(
-                          `Empresa: ${r.label}`,
-                          detalhe.filter((x) => x.empresa === r.label),
-                        )
-                      }
-                    >
-                      <TableCell>{r.label}</TableCell>
-                      <TableCell className="text-right tabular-nums">{fmtInt(r.afastamentos)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{fmtInt(r.dias)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{fmtInt(r.colaboradores)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+      {(() => {
+        const blocks: Record<string, React.ReactNode> = {
+          "kpis-abs": (
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 h-full">
+              <KpiCard title="Taxa de Absenteísmo" value={fmtPct2(kpis?.taxa_absenteismo_pct)} format="raw" variant="danger" icon={<TrendingDown className="h-4 w-4" />} loading={isLoading} />
+              <KpiCard title="Afastamentos" value={kpis?.afastamentos ?? 0} format="number" variant="warning" icon={<AlertOctagon className="h-4 w-4" />} loading={isLoading} onClick={() => openDrill("Absenteísmo", detalhe)} />
+              <KpiCard title="Colaboradores Afastados" value={kpis?.colaboradores_afastados ?? 0} format="number" variant="info" icon={<Users className="h-4 w-4" />} loading={isLoading} onClick={() => openDrill("Colaboradores Afastados", detalhe)} />
+              <KpiCard title="Dias Perdidos" value={fmtDec1(kpis?.dias_perdidos)} format="raw" variant="danger" icon={<CalendarDays className="h-4 w-4" />} loading={isLoading} onClick={() => openDrill("Dias Perdidos", detalhe)} />
+              <KpiCard title="Duração Média" value={`${fmtDec1(kpis?.duracao_media_dias)} dias`} format="raw" icon={<Clock className="h-4 w-4" />} loading={isLoading} />
+              <KpiCard title="Headcount Médio" value={fmtDec1(kpis?.headcount_medio)} format="raw" variant="info" icon={<Activity className="h-4 w-4" />} loading={isLoading} />
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Por Motivo */}
-        <Card>
-          <CardContent className="pt-6">
-            <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
-              Por Motivo
-            </h2>
-            <div className="max-h-[55vh] overflow-auto">
-              <Table>
-                <TableHeader className="sticky top-0 bg-background z-10">
-                  <TableRow>
-                    <TableHead className="text-right">Cód.</TableHead>
-                    <TableHead>Motivo</TableHead>
-                    <TableHead>Categoria</TableHead>
-                    <TableHead>Absenteísmo?</TableHead>
-                    <TableHead className="text-right">Afastamentos</TableHead>
-                    <TableHead className="text-right">Dias</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading &&
-                    Array.from({ length: 5 }).map((_, i) => (
-                      <TableRow key={i}>
-                        <TableCell colSpan={6}><Skeleton className="h-6" /></TableCell>
-                      </TableRow>
-                    ))}
-                  {!isLoading && porMotivo.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground py-6">
-                        Sem dados
-                      </TableCell>
-                    </TableRow>
+          ),
+          "serie-abs": (
+            <Card className="h-full">
+              <CardContent className="pt-6 h-full flex flex-col">
+                <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Por Mês</h2>
+                <div className="flex-1 min-h-0">
+                  {isLoading ? (
+                    <Skeleton className="h-full min-h-[200px]" />
+                  ) : chartMes.length === 0 ? (
+                    <div className="py-8 text-center text-sm text-muted-foreground">Sem dados</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={chartMes}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                        <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                        <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
+                        <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
+                        <Tooltip contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 6, fontSize: 12 }} />
+                        <Legend wrapperStyle={{ fontSize: 12 }} />
+                        <Bar
+                          yAxisId="left" dataKey="afastamentos" name="Afastamentos" fill="hsl(var(--primary))" cursor="pointer"
+                          onClick={(d: any) => {
+                            const anomes = d?.payload?.anomes;
+                            openDrill(`Mês: ${formatAnoMes(anomes)}`, detalhe.filter((x) => getAnoMesFromDate(x.dt_inicio) === String(anomes)));
+                          }}
+                        />
+                        <Line yAxisId="right" type="monotone" dataKey="dias" name="Dias" stroke="hsl(var(--destructive))" strokeWidth={2} dot={{ r: 3 }} />
+                      </ComposedChart>
+                    </ResponsiveContainer>
                   )}
-                  {porMotivo.map((r, i) => {
-                    const isAbs = r.absenteismo === true;
-                    return (
-                      <TableRow
-                        key={`${r.codsit}-${i}`}
-                        className={cn(
-                          isAbs ? "cursor-pointer hover:bg-muted/50" : "text-muted-foreground opacity-70",
-                        )}
-                        onClick={
-                          isAbs
-                            ? () =>
-                                openDrill(
-                                  `Motivo: ${r.motivo}`,
-                                  detalhe.filter((x) => String(x.codsit) === String(r.codsit)),
-                                )
-                            : undefined
-                        }
-                      >
-                        <TableCell className="text-right tabular-nums">{r.codsit}</TableCell>
-                        <TableCell>{r.motivo}</TableCell>
-                        <TableCell>{r.categoria}</TableCell>
-                        <TableCell>{isAbs ? "Sim" : "Não"}</TableCell>
-                        <TableCell className="text-right tabular-nums">{fmtInt(r.afastamentos)}</TableCell>
-                        <TableCell className="text-right tabular-nums">{fmtInt(r.dias)}</TableCell>
+                </div>
+              </CardContent>
+            </Card>
+          ),
+          "categoria-abs": (
+            <Card className="h-full">
+              <CardContent className="pt-6 h-full flex flex-col">
+                <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Por Categoria</h2>
+                <div className="flex-1 min-h-0">
+                  {isLoading ? (
+                    <Skeleton className="h-full min-h-[200px]" />
+                  ) : chartCategoria.length === 0 ? (
+                    <div className="py-8 text-center text-sm text-muted-foreground">Sem dados</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Tooltip
+                          contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 6, fontSize: 12 }}
+                          formatter={(_v: any, _n: any, p: any) => {
+                            const it = p?.payload;
+                            return [
+                              `${fmtInt(it?.dias)} dias · ${fmtInt(it?.afastamentos)} afast. · ${fmtInt(it?.colaboradores)} colab.`,
+                              it?.categoria,
+                            ];
+                          }}
+                        />
+                        <Legend wrapperStyle={{ fontSize: 12 }} />
+                        <Pie
+                          data={chartCategoria} dataKey="dias" nameKey="categoria" cx="50%" cy="50%"
+                          innerRadius={60} outerRadius={110} paddingAngle={2} cursor="pointer"
+                          onClick={(d: any) => {
+                            const cat = d?.payload?.categoria ?? d?.categoria;
+                            if (!cat) return;
+                            openDrill(`Categoria: ${cat}`, detalhe.filter((x) => x.categoria === cat));
+                          }}
+                        >
+                          {chartCategoria.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ),
+          "empresa-abs": (
+            <Card className="h-full">
+              <CardContent className="pt-6">
+                <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Por Empresa</h2>
+                <div className="max-h-[calc(100%-2rem)] overflow-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-background z-10">
+                      <TableRow>
+                        <TableHead>Empresa</TableHead>
+                        <TableHead className="text-right">Afastamentos</TableHead>
+                        <TableHead className="text-right">Dias</TableHead>
+                        <TableHead className="text-right">Colaboradores</TableHead>
                       </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                    </TableHeader>
+                    <TableBody>
+                      {isLoading && Array.from({ length: 4 }).map((_, i) => (
+                        <TableRow key={i}><TableCell colSpan={4}><Skeleton className="h-6" /></TableCell></TableRow>
+                      ))}
+                      {!isLoading && porEmpresa.length === 0 && (
+                        <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">Sem dados</TableCell></TableRow>
+                      )}
+                      {porEmpresa.map((r, i) => (
+                        <TableRow key={i} className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => openDrill(`Empresa: ${r.label}`, detalhe.filter((x) => x.empresa === r.label))}>
+                          <TableCell>{r.label}</TableCell>
+                          <TableCell className="text-right tabular-nums">{fmtInt(r.afastamentos)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{fmtInt(r.dias)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{fmtInt(r.colaboradores)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          ),
+          "motivo-abs": (
+            <Card className="h-full">
+              <CardContent className="pt-6">
+                <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Por Motivo</h2>
+                <div className="max-h-[calc(100%-2rem)] overflow-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-background z-10">
+                      <TableRow>
+                        <TableHead className="text-right">Cód.</TableHead>
+                        <TableHead>Motivo</TableHead>
+                        <TableHead>Categoria</TableHead>
+                        <TableHead>Absenteísmo?</TableHead>
+                        <TableHead className="text-right">Afastamentos</TableHead>
+                        <TableHead className="text-right">Dias</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {isLoading && Array.from({ length: 5 }).map((_, i) => (
+                        <TableRow key={i}><TableCell colSpan={6}><Skeleton className="h-6" /></TableCell></TableRow>
+                      ))}
+                      {!isLoading && porMotivo.length === 0 && (
+                        <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Sem dados</TableCell></TableRow>
+                      )}
+                      {porMotivo.map((r, i) => {
+                        const isAbs = r.absenteismo === true;
+                        return (
+                          <TableRow key={`${r.codsit}-${i}`}
+                            className={cn(isAbs ? "cursor-pointer hover:bg-muted/50" : "text-muted-foreground opacity-70")}
+                            onClick={isAbs ? () => openDrill(`Motivo: ${r.motivo}`, detalhe.filter((x) => String(x.codsit) === String(r.codsit))) : undefined}>
+                            <TableCell className="text-right tabular-nums">{r.codsit}</TableCell>
+                            <TableCell>{r.motivo}</TableCell>
+                            <TableCell>{r.categoria}</TableCell>
+                            <TableCell>{isAbs ? "Sim" : "Não"}</TableCell>
+                            <TableCell className="text-right tabular-nums">{fmtInt(r.afastamentos)}</TableCell>
+                            <TableCell className="text-right tabular-nums">{fmtInt(r.dias)}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          ),
+        };
+        return (
+          <RhDashboardGrid
+            widgets={layout.widgets}
+            blocks={blocks}
+            editing={layout.editing}
+            onLayoutChange={layout.saveGeometries}
+            onHide={layout.hideWidget}
+          />
+        );
+      })()}
+
 
       <AbsenteismoDrillModal
         open={drill !== null}
