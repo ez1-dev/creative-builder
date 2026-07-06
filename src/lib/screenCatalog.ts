@@ -41,6 +41,7 @@ const EXACT: Record<string, ScreenInfo> = {
   '/rh/contrato-experiencia':   { codigo: 'RH_CONTRATO',   nome: 'RH — Contrato Experiência' },
   '/rh/programacao-ferias':     { codigo: 'RH_FERIAS',     nome: 'RH — Programação de Férias' },
   '/rh/turnover':               { codigo: 'RH_TURNOVER',   nome: 'RH — Rotatividade / Turnover' },
+  '/rh/absenteismo':            { codigo: 'RH_ABSENTEISMO', nome: 'RH — Absenteísmo / Afastamentos' },
   '/rh/formularios':            { codigo: 'RH_FORM',       nome: 'RH — Formulários' },
 
 };
