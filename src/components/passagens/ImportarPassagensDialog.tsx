@@ -255,6 +255,7 @@ export function ImportarPassagensDialog({ open, onOpenChange, onImported }: Prop
           colaborador: colaborador!.toUpperCase(),
           centro_custo: strOrNull(get(raw, 'centro_custo')),
           projeto_obra: strOrNull(get(raw, 'projeto_obra')),
+          produto: strOrNull(get(raw, 'produto')),
           fornecedor: strOrNull(get(raw, 'fornecedor')),
           cia_aerea: ciaAereaResolvida,
           numero_bilhete: strOrNull(get(raw, 'numero_bilhete')),
