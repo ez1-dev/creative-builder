@@ -31,6 +31,7 @@ interface Props {
 
 export function ConfigureRhWidgetDialog({ open, onOpenChange, pageKey, widget, allowedComponentIds, onSave, onDelete }: Props) {
   const page = getPage(pageKey);
+  const ctx = usePageData();
   const kpisOpts = page?.schema.kpis ?? [];
   const seriesOpts = page?.schema.series ?? [];
   const isCustom = !!widget && widget.type.startsWith('custom-');
