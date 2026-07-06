@@ -15,6 +15,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { BotaoRelatorioModuloPdf } from "@/components/rh/BotaoRelatorioModuloPdf";
+import { RhDashboardGrid } from "@/components/rh/RhDashboardGrid";
+import { RhLayoutToolbar } from "@/components/rh/RhLayoutToolbar";
+import { useRhModuleLayout } from "@/hooks/useRhModuleLayout";
+import { QUADRO_DEFAULTS } from "@/lib/rh/widgetCatalogs";
 import { AreaChartCard } from "@/components/bi/charts/AreaChartCard";
 import { BarChartCard } from "@/components/bi/charts/BarChartCard";
 import { DonutChartCard } from "@/components/bi/charts/DonutChartCard";
@@ -336,19 +340,30 @@ export default function QuadroColaboradoresPage() {
     /^\d{6}$/.test(v) ? `${v.slice(0, 4)}-${v.slice(4, 6)}` : "";
   const inputMonthToAnomes = (v: string) => (v ? v.replace("-", "") : "");
 
+  const layout = useRhModuleLayout("rh-quadro", QUADRO_DEFAULTS);
+
   return (
     <div className="container mx-auto py-6">
       <RhPageHeader
         title="02 — Quadro de Colaboradores"
         actions={
-          <BotaoRelatorioModuloPdf
-            modulo="quadro-colaboradores"
-            titulo="Quadro de Colaboradores"
-            disabled={listaQ.isLoading}
-            dados={listaQ.data ? { tipo: "quadro-colaboradores", itens: listaQ.data } : null}
-            filtros={{ outros: { "Data de referência": dataRef ? format(dataRef, "dd/MM/yyyy") : "-" } }}
-            iaPayload={{ data_referencia: dataRefIso, kpis: dashQ.data?.kpis, total: listaQ.data?.length ?? 0, historico: histQ.data?.slice(-12) }}
-          />
+          <>
+            <RhLayoutToolbar
+              editing={layout.editing}
+              onToggle={layout.setEditing}
+              onReset={layout.resetLayout}
+              widgets={layout.widgets}
+              onShow={layout.showWidget}
+            />
+            <BotaoRelatorioModuloPdf
+              modulo="quadro-colaboradores"
+              titulo="Quadro de Colaboradores"
+              disabled={listaQ.isLoading}
+              dados={listaQ.data ? { tipo: "quadro-colaboradores", itens: listaQ.data } : null}
+              filtros={{ outros: { "Data de referência": dataRef ? format(dataRef, "dd/MM/yyyy") : "-" } }}
+              iaPayload={{ data_referencia: dataRefIso, kpis: dashQ.data?.kpis, total: listaQ.data?.length ?? 0, historico: histQ.data?.slice(-12) }}
+            />
+          </>
         }
       />
 
@@ -405,241 +420,193 @@ export default function QuadroColaboradoresPage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3 mb-4">
-        {kpisVisiveis.map((c) => {
-          const v = kpis[c.key];
-          const total = kpis.total;
-          const subtitle =
-            c.showPctOfTotal && typeof v === "number" && typeof total === "number" && total > 0
-              ? `${((v / total) * 100).toFixed(1)}% do total`
-              : undefined;
-          return (
-            <KpiOrPending
-              key={c.key}
-              title={c.title}
-              value={v}
-              variant={c.variant}
-              loading={dashQ.isLoading}
-              subtitle={subtitle}
-              onClick={temDetalhe ? () => onKpiClick(c.key, c.title) : undefined}
+      {(() => {
+        const blocks: Record<string, React.ReactNode> = {
+          "kpis-quadro": (
+            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3 h-full">
+              {kpisVisiveis.map((c) => {
+                const v = kpis[c.key];
+                const total = kpis.total;
+                const subtitle =
+                  c.showPctOfTotal && typeof v === "number" && typeof total === "number" && total > 0
+                    ? `${((v / total) * 100).toFixed(1)}% do total`
+                    : undefined;
+                return (
+                  <KpiOrPending
+                    key={c.key}
+                    title={c.title}
+                    value={v}
+                    variant={c.variant}
+                    loading={dashQ.isLoading}
+                    subtitle={subtitle}
+                    onClick={temDetalhe ? () => onKpiClick(c.key, c.title) : undefined}
+                  />
+                );
+              })}
+            </div>
+          ),
+          "historico": histQ.isLoading ? (
+            <Card className="h-full"><CardContent className="pt-6"><Skeleton className="h-64 w-full" /></CardContent></Card>
+          ) : historicoData.length > 0 ? (
+            <AreaChartCard
+              title="Histórico Nº Colaboradores"
+              data={historicoData}
+              valueFormatter={(v) => new Intl.NumberFormat("pt-BR").format(v)}
+              tickFormatter={(v) => {
+                const abs = Math.abs(v);
+                if (abs >= 1_000_000) return `${(v / 1_000_000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mi`;
+                if (abs >= 1_000) return `${(v / 1_000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mil`;
+                return new Intl.NumberFormat("pt-BR").format(v);
+              }}
+              height={280}
+              visualConfig={{
+                dataLabels: { visible: true, position: 'top', fontSize: 12, fontFamily: 'default', format: 'int', decimals: 0, prefix: '', suffix: '', richLabel: false, showName: false, showPercent: false },
+              }}
             />
-          );
-        })}
-      </div>
-
-      <div className="mb-4">
-        {histQ.isLoading ? (
-          <Card><CardContent className="pt-6"><Skeleton className="h-64 w-full" /></CardContent></Card>
-        ) : historicoData.length > 0 ? (
-          <AreaChartCard
-            title="Histórico Nº Colaboradores"
-            data={historicoData}
-            valueFormatter={(v) => new Intl.NumberFormat("pt-BR").format(v)}
-            tickFormatter={(v) => {
-              const abs = Math.abs(v);
-              if (abs >= 1_000_000) return `${(v / 1_000_000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mi`;
-              if (abs >= 1_000) return `${(v / 1_000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mil`;
-              return new Intl.NumberFormat("pt-BR").format(v);
-            }}
-            height={280}
-            visualConfig={{
-              dataLabels: {
-                visible: true,
-                position: 'top',
-                fontSize: 12,
-                fontFamily: 'default',
-                format: 'int',
-                decimals: 0,
-                prefix: '',
-                suffix: '',
-                richLabel: false,
-                showName: false,
-                showPercent: false,
-              },
-            }}
+          ) : (
+            <Card className="h-full">
+              <CardHeader className="pb-2"><CardTitle className="text-sm">Histórico Nº Colaboradores</CardTitle></CardHeader>
+              <CardContent><p className="text-xs text-muted-foreground">Sem dados no período selecionado.</p></CardContent>
+            </Card>
+          ),
+          "breakdown-sex": (
+            <BreakdownCard title="Sexo" data={dashQ.data?.sexo} variant="donut" loading={dashQ.isLoading}
+              onItemClick={temDetalhe ? (label) => openDrill("Sexo", label, filterDetalheBySexoLabel(detalhe, label)) : undefined} />
+          ),
+          "breakdown-sit": (
+            <BreakdownCard title="Situação / Afastamento" data={dashQ.data?.situacao} loading={dashQ.isLoading}
+              onItemClick={temDetalhe ? (label) => openDrill("Situação", label, filterDetalheByDimensao(detalhe, "situacao", label)) : undefined} />
+          ),
+          "breakdown-vin": (
+            <BreakdownCard title="Vínculo" data={dashQ.data?.vinculo} loading={dashQ.isLoading}
+              onItemClick={temDetalhe ? (label) => openDrill("Vínculo", label, filterDetalheByDimensao(detalhe, "vinculo", label)) : undefined} />
+          ),
+          "breakdown-esc": (
+            <BreakdownCard title="Escolaridade" data={dashQ.data?.escolaridade} loading={dashQ.isLoading}
+              onItemClick={temDetalhe ? (label) => openDrill("Escolaridade", label, filterDetalheByDimensao(detalhe, "escolaridade", label)) : undefined} />
+          ),
+          "breakdown-fx": (
+            <BreakdownCard title="Faixa etária" data={dashQ.data?.faixa_etaria} sort={false} loading={dashQ.isLoading}
+              onItemClick={temDetalhe ? (label) => openDrill("Faixa etária", label, filterDetalheByDimensao(detalhe, "faixa_etaria", label)) : undefined} />
+          ),
+          "faixa-sexo": (
+            <Card className="h-full">
+              <CardHeader className="pb-2"><CardTitle className="text-sm">Faixa Etária × Sexo</CardTitle></CardHeader>
+              <CardContent className="h-[calc(100%-3rem)]">
+                {dashQ.isLoading ? (
+                  <Skeleton className="h-full w-full" />
+                ) : faixaSexoData.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Sem dados.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={faixaSexoData} margin={{ top: 24, right: 12, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                      <XAxis dataKey="faixa" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} />
+                      <Tooltip contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 6, fontSize: 12 }} formatter={(v: number) => new Intl.NumberFormat("pt-BR").format(v)} />
+                      <Legend wrapperStyle={{ fontSize: 12 }} />
+                      <Bar dataKey="homens" name="Homens" stackId="s" fill="hsl(var(--muted-foreground))" fillOpacity={0.75} cursor="pointer"
+                        onClick={(d: any) => {
+                          const faixa = d?.payload?.faixa;
+                          openDrill("Faixa etária × Homens", `${faixa} · Homens`,
+                            detalhe.filter((c) => { const s = String(c.sexo ?? "").trim().toUpperCase(); return String(c.faixa_etaria ?? "").trim() === faixa && s.startsWith("M"); }));
+                        }}>
+                        <LabelList dataKey="homens" position="center" style={{ fontSize: 11, fill: "hsl(var(--background))", fontWeight: 600 }} formatter={(v: number) => (v ? v : "")} />
+                      </Bar>
+                      <Bar dataKey="mulheres" name="Mulheres" stackId="s" fill="hsl(var(--warning))" cursor="pointer"
+                        onClick={(d: any) => {
+                          const faixa = d?.payload?.faixa;
+                          openDrill("Faixa etária × Mulheres", `${faixa} · Mulheres`,
+                            detalhe.filter((c) => { const s = String(c.sexo ?? "").trim().toUpperCase(); return String(c.faixa_etaria ?? "").trim() === faixa && s.startsWith("F"); }));
+                        }}>
+                        <LabelList dataKey="mulheres" position="center" style={{ fontSize: 11, fill: "hsl(var(--foreground))", fontWeight: 600 }} formatter={(v: number) => (v ? v : "")} />
+                        <LabelList dataKey="total" position="top" style={{ fontSize: 11, fill: "hsl(var(--foreground))", fontWeight: 600 }} formatter={(v: number) => (v ? v : "")} />
+                      </Bar>
+                      {temOutros && (
+                        <Bar dataKey="outros" name="Outros" stackId="s" fill="hsl(var(--muted))" cursor="pointer">
+                          <LabelList dataKey="outros" position="center" style={{ fontSize: 11, fill: "hsl(var(--foreground))" }} formatter={(v: number) => (v ? v : "")} />
+                        </Bar>
+                      )}
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+          ),
+          "tempo-sexo": (
+            <Card className="h-full">
+              <CardHeader className="pb-2"><CardTitle className="text-sm">Tempo de Casa × Sexo</CardTitle></CardHeader>
+              <CardContent className="h-[calc(100%-3rem)]">
+                {dashQ.isLoading ? (
+                  <Skeleton className="h-full w-full" />
+                ) : tempoCasaSexoData.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Sem dados.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={tempoCasaSexoData} margin={{ top: 24, right: 12, left: 0, bottom: 0 }} barCategoryGap="20%">
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                      <XAxis dataKey="faixa" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} />
+                      <Tooltip contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 6, fontSize: 12 }} formatter={(v: number) => new Intl.NumberFormat("pt-BR").format(v)} />
+                      <Legend wrapperStyle={{ fontSize: 12 }} />
+                      <Bar dataKey="homens" name="Homens" fill="hsl(var(--muted-foreground))" fillOpacity={0.75} cursor="pointer"
+                        onClick={(d: any) => {
+                          const faixa = d?.payload?.faixa;
+                          openDrill("Tempo de casa × Homens", `${faixa} · Homens`,
+                            detalhe.filter((c) => { const s = String(c.sexo ?? "").trim().toUpperCase(); return String(c.tempo_casa ?? "").trim() === faixa && s.startsWith("M"); }));
+                        }}>
+                        <LabelList dataKey="homens" position="top" style={{ fontSize: 11, fill: "hsl(var(--foreground))", fontWeight: 600 }} formatter={(v: number) => (v ? v : "")} />
+                      </Bar>
+                      <Bar dataKey="mulheres" name="Mulheres" fill="hsl(var(--warning))" cursor="pointer"
+                        onClick={(d: any) => {
+                          const faixa = d?.payload?.faixa;
+                          openDrill("Tempo de casa × Mulheres", `${faixa} · Mulheres`,
+                            detalhe.filter((c) => { const s = String(c.sexo ?? "").trim().toUpperCase(); return String(c.tempo_casa ?? "").trim() === faixa && s.startsWith("F"); }));
+                        }}>
+                        <LabelList dataKey="mulheres" position="top" style={{ fontSize: 11, fill: "hsl(var(--foreground))", fontWeight: 600 }} formatter={(v: number) => (v ? v : "")} />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+          ),
+          "tempo-filial": (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 h-full">
+              <BreakdownCard title="Tempo de casa" data={dashQ.data?.tempo_casa} sort={false} loading={dashQ.isLoading}
+                onItemClick={temDetalhe ? (label) => openDrill("Tempo de casa", label, filterDetalheByDimensao(detalhe, "tempo_casa", label)) : undefined} />
+              <FilialTable data={dashQ.data?.filial} loading={dashQ.isLoading}
+                onRowClick={temDetalhe ? (label) => openDrill("Filial", label, filterDetalheByDimensao(detalhe, "filial", label)) : undefined} />
+            </div>
+          ),
+          "empresa-grid": (
+            <EmpresaGrid
+              data={dashQ.data?.empresa_detalhado ?? undefined}
+              fallback={dashQ.data?.empresa ?? undefined}
+              loading={dashQ.isLoading}
+              hasResponse={!!dashQ.data}
+              onRowClick={temDetalhe ? (empresa) => openDrill("Empresa", empresa, filterDetalheByDimensao(detalhe, "empresa", empresa)) : undefined}
+            />
+          ),
+          "drill-card": (
+            <QuadroDrillCard
+              dimensoes={dashQ.data?.dimensoes_drill ?? []}
+              detalhe={dashQ.data?.detalhe ?? []}
+              loading={dashQ.isLoading}
+            />
+          ),
+        };
+        return (
+          <RhDashboardGrid
+            widgets={layout.widgets}
+            blocks={blocks}
+            editing={layout.editing}
+            onLayoutChange={layout.saveGeometries}
+            onHide={layout.hideWidget}
           />
+        );
+      })()}
 
-
-        ) : (
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Histórico Nº Colaboradores</CardTitle></CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground">Sem dados no período selecionado.</p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
-        <BreakdownCard title="Sexo" data={dashQ.data?.sexo} variant="donut" loading={dashQ.isLoading}
-          onItemClick={temDetalhe ? (label) => openDrill("Sexo", label, filterDetalheBySexoLabel(detalhe, label)) : undefined} />
-        <BreakdownCard title="Situação / Afastamento" data={dashQ.data?.situacao} loading={dashQ.isLoading}
-          onItemClick={temDetalhe ? (label) => openDrill("Situação", label, filterDetalheByDimensao(detalhe, "situacao", label)) : undefined} />
-        <BreakdownCard title="Vínculo" data={dashQ.data?.vinculo} loading={dashQ.isLoading}
-          onItemClick={temDetalhe ? (label) => openDrill("Vínculo", label, filterDetalheByDimensao(detalhe, "vinculo", label)) : undefined} />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">
-        <BreakdownCard title="Escolaridade" data={dashQ.data?.escolaridade} loading={dashQ.isLoading}
-          onItemClick={temDetalhe ? (label) => openDrill("Escolaridade", label, filterDetalheByDimensao(detalhe, "escolaridade", label)) : undefined} />
-        <BreakdownCard title="Faixa etária" data={dashQ.data?.faixa_etaria} sort={false} loading={dashQ.isLoading}
-          onItemClick={temDetalhe ? (label) => openDrill("Faixa etária", label, filterDetalheByDimensao(detalhe, "faixa_etaria", label)) : undefined} />
-      </div>
-
-      <div className="mb-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Faixa Etária × Sexo</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {dashQ.isLoading ? (
-              <Skeleton className="h-72 w-full" />
-            ) : faixaSexoData.length === 0 ? (
-              <p className="text-xs text-muted-foreground">Sem dados.</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={faixaSexoData} margin={{ top: 24, right: 12, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis dataKey="faixa" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip
-                    contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 6, fontSize: 12 }}
-                    formatter={(v: number) => new Intl.NumberFormat("pt-BR").format(v)}
-                  />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar
-                    dataKey="homens" name="Homens" stackId="s"
-                    fill="hsl(var(--muted-foreground))" fillOpacity={0.75}
-                    cursor="pointer"
-                    onClick={(d: any) => {
-                      const faixa = d?.payload?.faixa;
-                      openDrill("Faixa etária × Homens", `${faixa} · Homens`,
-                        detalhe.filter((c) => {
-                          const s = String(c.sexo ?? "").trim().toUpperCase();
-                          return String(c.faixa_etaria ?? "").trim() === faixa && s.startsWith("M");
-                        }));
-                    }}
-                  >
-                    <LabelList dataKey="homens" position="center" style={{ fontSize: 11, fill: "hsl(var(--background))", fontWeight: 600 }} formatter={(v: number) => (v ? v : "")} />
-                  </Bar>
-                  <Bar
-                    dataKey="mulheres" name="Mulheres" stackId="s"
-                    fill="hsl(var(--warning))"
-                    cursor="pointer"
-                    onClick={(d: any) => {
-                      const faixa = d?.payload?.faixa;
-                      openDrill("Faixa etária × Mulheres", `${faixa} · Mulheres`,
-                        detalhe.filter((c) => {
-                          const s = String(c.sexo ?? "").trim().toUpperCase();
-                          return String(c.faixa_etaria ?? "").trim() === faixa && s.startsWith("F");
-                        }));
-                    }}
-                  >
-                    <LabelList dataKey="mulheres" position="center" style={{ fontSize: 11, fill: "hsl(var(--foreground))", fontWeight: 600 }} formatter={(v: number) => (v ? v : "")} />
-                    <LabelList dataKey="total" position="top" style={{ fontSize: 11, fill: "hsl(var(--foreground))", fontWeight: 600 }} formatter={(v: number) => (v ? v : "")} />
-                  </Bar>
-                  {temOutros && (
-                    <Bar
-                      dataKey="outros" name="Outros" stackId="s"
-                      fill="hsl(var(--muted))"
-                      cursor="pointer"
-                    >
-                      <LabelList dataKey="outros" position="center" style={{ fontSize: 11, fill: "hsl(var(--foreground))" }} formatter={(v: number) => (v ? v : "")} />
-                    </Bar>
-                  )}
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-
-
-      <div className="mb-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Tempo de Casa × Sexo</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {dashQ.isLoading ? (
-              <Skeleton className="h-72 w-full" />
-            ) : tempoCasaSexoData.length === 0 ? (
-              <p className="text-xs text-muted-foreground">Sem dados.</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={tempoCasaSexoData} margin={{ top: 24, right: 12, left: 0, bottom: 0 }} barCategoryGap="20%">
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis dataKey="faixa" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip
-                    contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 6, fontSize: 12 }}
-                    formatter={(v: number) => new Intl.NumberFormat("pt-BR").format(v)}
-                  />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar
-                    dataKey="homens" name="Homens"
-                    fill="hsl(var(--muted-foreground))" fillOpacity={0.75}
-                    cursor="pointer"
-                    onClick={(d: any) => {
-                      const faixa = d?.payload?.faixa;
-                      openDrill("Tempo de casa × Homens", `${faixa} · Homens`,
-                        detalhe.filter((c) => {
-                          const s = String(c.sexo ?? "").trim().toUpperCase();
-                          return String(c.tempo_casa ?? "").trim() === faixa && s.startsWith("M");
-                        }));
-                    }}
-                  >
-                    <LabelList dataKey="homens" position="top" style={{ fontSize: 11, fill: "hsl(var(--foreground))", fontWeight: 600 }} formatter={(v: number) => (v ? v : "")} />
-                  </Bar>
-                  <Bar
-                    dataKey="mulheres" name="Mulheres"
-                    fill="hsl(var(--warning))"
-                    cursor="pointer"
-                    onClick={(d: any) => {
-                      const faixa = d?.payload?.faixa;
-                      openDrill("Tempo de casa × Mulheres", `${faixa} · Mulheres`,
-                        detalhe.filter((c) => {
-                          const s = String(c.sexo ?? "").trim().toUpperCase();
-                          return String(c.tempo_casa ?? "").trim() === faixa && s.startsWith("F");
-                        }));
-                    }}
-                  >
-                    <LabelList dataKey="mulheres" position="top" style={{ fontSize: 11, fill: "hsl(var(--foreground))", fontWeight: 600 }} formatter={(v: number) => (v ? v : "")} />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">
-
-        <BreakdownCard title="Tempo de casa" data={dashQ.data?.tempo_casa} sort={false} loading={dashQ.isLoading}
-          onItemClick={temDetalhe ? (label) => openDrill("Tempo de casa", label, filterDetalheByDimensao(detalhe, "tempo_casa", label)) : undefined} />
-        <FilialTable data={dashQ.data?.filial} loading={dashQ.isLoading}
-          onRowClick={temDetalhe ? (label) => openDrill("Filial", label, filterDetalheByDimensao(detalhe, "filial", label)) : undefined} />
-      </div>
-
-      <div className="mb-4">
-        <EmpresaGrid
-          data={dashQ.data?.empresa_detalhado ?? undefined}
-          fallback={dashQ.data?.empresa ?? undefined}
-          loading={dashQ.isLoading}
-          hasResponse={!!dashQ.data}
-          onRowClick={temDetalhe ? (empresa) => openDrill("Empresa", empresa, filterDetalheByDimensao(detalhe, "empresa", empresa)) : undefined}
-        />
-      </div>
-
-      <div className="mb-4">
-        <QuadroDrillCard
-          dimensoes={dashQ.data?.dimensoes_drill ?? []}
-          detalhe={dashQ.data?.detalhe ?? []}
-          loading={dashQ.isLoading}
-        />
-      </div>
 
       <QuadroDrillModal
         open={drill.open}

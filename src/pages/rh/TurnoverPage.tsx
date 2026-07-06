@@ -13,6 +13,10 @@ import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import { BotaoRelatorioModuloPdf } from "@/components/rh/BotaoRelatorioModuloPdf";
 import { RhFiltrosBar } from "@/components/rh/RhFiltrosBar";
+import { RhDashboardGrid } from "@/components/rh/RhDashboardGrid";
+import { RhLayoutToolbar } from "@/components/rh/RhLayoutToolbar";
+import { useRhModuleLayout } from "@/hooks/useRhModuleLayout";
+import { TURNOVER_DEFAULTS } from "@/lib/rh/widgetCatalogs";
 import { addMonths } from "@/lib/rh/relatorio";
 import { TurnoverDrillModal } from "@/components/rh/TurnoverDrillModal";
 import { TurnoverEmpresaDrillModal } from "@/components/rh/TurnoverEmpresaDrillModal";
@@ -103,23 +107,34 @@ export default function TurnoverPage() {
 
   const saldoNeg = (kpis?.saldo ?? 0) < 0;
 
+  const layout = useRhModuleLayout("rh-turnover", TURNOVER_DEFAULTS);
+
   return (
     <div className="container mx-auto py-6 space-y-4">
       <RhPageHeader
         title="RH-05 — Rotatividade / Turnover"
         actions={
-          <BotaoRelatorioModuloPdf
-            modulo="turnover"
-            titulo="Rotatividade / Turnover"
-            disabled={isLoading}
-            dados={data ? { tipo: "turnover", atual: data } : null}
-            filtros={{ anomes_ini: ini, anomes_fim: fim, codemp }}
-            iaPayload={{ periodo: { anomes_ini: ini, anomes_fim: fim }, kpis: data?.kpis, por_mes: data?.por_mes, por_motivo: data?.por_motivo, por_empresa: data?.por_empresa }}
-            carregarAnterior={async () => {
-              const len = (parseInt(fim.slice(0, 4)) * 12 + parseInt(fim.slice(4, 6))) - (parseInt(ini.slice(0, 4)) * 12 + parseInt(ini.slice(4, 6))) + 1;
-              return fetchTurnoverDashboard({ anomes_ini: addMonths(ini, -len), anomes_fim: addMonths(ini, -1), codemp });
-            }}
-          />
+          <>
+            <RhLayoutToolbar
+              editing={layout.editing}
+              onToggle={layout.setEditing}
+              onReset={layout.resetLayout}
+              widgets={layout.widgets}
+              onShow={layout.showWidget}
+            />
+            <BotaoRelatorioModuloPdf
+              modulo="turnover"
+              titulo="Rotatividade / Turnover"
+              disabled={isLoading}
+              dados={data ? { tipo: "turnover", atual: data } : null}
+              filtros={{ anomes_ini: ini, anomes_fim: fim, codemp }}
+              iaPayload={{ periodo: { anomes_ini: ini, anomes_fim: fim }, kpis: data?.kpis, por_mes: data?.por_mes, por_motivo: data?.por_motivo, por_empresa: data?.por_empresa }}
+              carregarAnterior={async () => {
+                const len = (parseInt(fim.slice(0, 4)) * 12 + parseInt(fim.slice(4, 6))) - (parseInt(ini.slice(0, 4)) * 12 + parseInt(ini.slice(4, 6))) + 1;
+                return fetchTurnoverDashboard({ anomes_ini: addMonths(ini, -len), anomes_fim: addMonths(ini, -1), codemp });
+              }}
+            />
+          </>
         }
       />
 
@@ -134,195 +149,209 @@ export default function TurnoverPage() {
       />
 
 
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-        <KpiCard
-          title="Admitidos"
-          value={kpis?.admitidos ?? 0}
-          format="number"
-          variant="success"
-          icon={<UserPlus className="h-4 w-4" />}
-          loading={isLoading}
-          onClick={() => openAdm("Admitidos", detAdm)}
-        />
-        <KpiCard
-          title="Demitidos"
-          value={kpis?.demitidos ?? 0}
-          format="number"
-          variant="danger"
-          icon={<UserMinus className="h-4 w-4" />}
-          loading={isLoading}
-          onClick={() => openDem("Demitidos", detDem)}
-        />
-        <KpiCard
-          title="Saldo"
-          value={kpis?.saldo ?? 0}
-          format="number"
-          variant={saldoNeg ? "danger" : "success"}
-          icon={<TrendingUp className="h-4 w-4" />}
-          loading={isLoading}
-        />
-        <KpiCard
-          title="Taxa Rotatividade"
-          value={formatPct2(kpis?.taxa_rotatividade_pct)}
-          format="raw"
-          variant="warning"
-          icon={<Percent className="h-4 w-4" />}
-          loading={isLoading}
-        />
-        <KpiCard
-          title="Headcount Médio"
-          value={formatDec1(kpis?.headcount_medio)}
-          format="raw"
-          variant="info"
-          icon={<Users className="h-4 w-4" />}
-          loading={isLoading}
-        />
-        <Card className="border-l-4 border-l-[hsl(var(--info,215_70%_45%))]">
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground">Headcount</span>
-              <Activity className="h-4 w-4 text-muted-foreground" />
-            </div>
-            {isLoading ? (
-              <Skeleton className="h-10 mt-2" />
-            ) : (
-              <div className="mt-2 space-y-0.5">
-                <div className="text-sm"><span className="text-muted-foreground">Início:</span> <span className="font-semibold tabular-nums">{formatInt(kpis?.headcount_inicio)}</span></div>
-                <div className="text-sm"><span className="text-muted-foreground">Fim:</span> <span className="font-semibold tabular-nums">{formatInt(kpis?.headcount_fim)}</span></div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Gráfico */}
-      <Card>
-        <CardContent className="pt-6">
-          <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
-            Admissões x Demissões por Mês
-          </h2>
-          {isLoading ? (
-            <Skeleton className="h-72" />
-          ) : chartData.length === 0 ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">Sem dados</div>
-          ) : (
-            <ResponsiveContainer width="100%" height={320}>
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip
-                  contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 6, fontSize: 12 }}
-                />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar
-                  dataKey="admitidos" name="Admitidos" fill="hsl(var(--success))" cursor="pointer"
-                  onClick={(d: any) => {
-                    const anomes = d?.payload?.anomes;
-                    openAdm(`Admitidos ${formatAnoMes(anomes)}`,
-                      detAdm.filter((x) => getAnoMesFromDate(x.dt_admissao) === anomes));
-                  }}
-                />
-                <Bar
-                  dataKey="demitidos" name="Demitidos" fill="hsl(var(--destructive))" cursor="pointer"
-                  onClick={(d: any) => {
-                    const anomes = d?.payload?.anomes;
-                    openDem(`Demitidos ${formatAnoMes(anomes)}`,
-                      detDem.filter((x) => getAnoMesFromDate(x.dt_demissao) === anomes));
-                  }}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Motivos */}
-        <Card>
-          <CardContent className="pt-6">
-            <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
-              Motivos de Desligamento
-            </h2>
-            <div className="max-h-[50vh] overflow-auto">
-              <Table>
-                <TableHeader className="sticky top-0 bg-background z-10">
-                  <TableRow>
-                    <TableHead>Motivo</TableHead>
-                    <TableHead className="text-right">Quantidade</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading && Array.from({ length: 5 }).map((_, i) => (
-                    <TableRow key={i}><TableCell colSpan={2}><Skeleton className="h-6" /></TableCell></TableRow>
-                  ))}
-                  {!isLoading && porMotivo.length === 0 && (
-                    <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground py-6">Sem dados</TableCell></TableRow>
+      {(() => {
+        const blocks: Record<string, React.ReactNode> = {
+          "kpis-turnover": (
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 h-full">
+              <KpiCard
+                title="Admitidos"
+                value={kpis?.admitidos ?? 0}
+                format="number"
+                variant="success"
+                icon={<UserPlus className="h-4 w-4" />}
+                loading={isLoading}
+                onClick={() => openAdm("Admitidos", detAdm)}
+              />
+              <KpiCard
+                title="Demitidos"
+                value={kpis?.demitidos ?? 0}
+                format="number"
+                variant="danger"
+                icon={<UserMinus className="h-4 w-4" />}
+                loading={isLoading}
+                onClick={() => openDem("Demitidos", detDem)}
+              />
+              <KpiCard
+                title="Saldo"
+                value={kpis?.saldo ?? 0}
+                format="number"
+                variant={saldoNeg ? "danger" : "success"}
+                icon={<TrendingUp className="h-4 w-4" />}
+                loading={isLoading}
+              />
+              <KpiCard
+                title="Taxa Rotatividade"
+                value={formatPct2(kpis?.taxa_rotatividade_pct)}
+                format="raw"
+                variant="warning"
+                icon={<Percent className="h-4 w-4" />}
+                loading={isLoading}
+              />
+              <KpiCard
+                title="Headcount Médio"
+                value={formatDec1(kpis?.headcount_medio)}
+                format="raw"
+                variant="info"
+                icon={<Users className="h-4 w-4" />}
+                loading={isLoading}
+              />
+              <Card className="border-l-4 border-l-[hsl(var(--info,215_70%_45%))]">
+                <CardContent className="pt-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-muted-foreground">Headcount</span>
+                    <Activity className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  {isLoading ? (
+                    <Skeleton className="h-10 mt-2" />
+                  ) : (
+                    <div className="mt-2 space-y-0.5">
+                      <div className="text-sm"><span className="text-muted-foreground">Início:</span> <span className="font-semibold tabular-nums">{formatInt(kpis?.headcount_inicio)}</span></div>
+                      <div className="text-sm"><span className="text-muted-foreground">Fim:</span> <span className="font-semibold tabular-nums">{formatInt(kpis?.headcount_fim)}</span></div>
+                    </div>
                   )}
-                  {porMotivo.map((r, i) => (
-                    <TableRow
-                      key={i}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => openDem(`Demitidos — ${r.motivo}`,
-                        detDem.filter((x) => x.motivo === r.motivo))}
-                    >
-                      <TableCell>{r.motivo}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatInt(r.qtd)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                </CardContent>
+              </Card>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Por Empresa */}
-        <Card>
-          <CardContent className="pt-6">
-            <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
-              Por Empresa
-            </h2>
-            <div className="max-h-[50vh] overflow-auto">
-              <Table>
-                <TableHeader className="sticky top-0 bg-background z-10">
-                  <TableRow>
-                    <TableHead>Empresa</TableHead>
-                    <TableHead className="text-right">Admitidos</TableHead>
-                    <TableHead className="text-right">Demitidos</TableHead>
-                    <TableHead className="text-right">Saldo</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading && Array.from({ length: 4 }).map((_, i) => (
-                    <TableRow key={i}><TableCell colSpan={4}><Skeleton className="h-6" /></TableCell></TableRow>
-                  ))}
-                  {!isLoading && porEmpresa.length === 0 && (
-                    <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">Sem dados</TableCell></TableRow>
+          ),
+          "serie-turnover": (
+            <Card className="h-full">
+              <CardContent className="pt-6 h-full flex flex-col">
+                <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
+                  Admissões x Demissões por Mês
+                </h2>
+                <div className="flex-1 min-h-0">
+                  {isLoading ? (
+                    <Skeleton className="h-full min-h-[200px]" />
+                  ) : chartData.length === 0 ? (
+                    <div className="py-8 text-center text-sm text-muted-foreground">Sem dados</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                        <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                        <YAxis tick={{ fontSize: 12 }} />
+                        <Tooltip contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 6, fontSize: 12 }} />
+                        <Legend wrapperStyle={{ fontSize: 12 }} />
+                        <Bar
+                          dataKey="admitidos" name="Admitidos" fill="hsl(var(--success))" cursor="pointer"
+                          onClick={(d: any) => {
+                            const anomes = d?.payload?.anomes;
+                            openAdm(`Admitidos ${formatAnoMes(anomes)}`,
+                              detAdm.filter((x) => getAnoMesFromDate(x.dt_admissao) === anomes));
+                          }}
+                        />
+                        <Bar
+                          dataKey="demitidos" name="Demitidos" fill="hsl(var(--destructive))" cursor="pointer"
+                          onClick={(d: any) => {
+                            const anomes = d?.payload?.anomes;
+                            openDem(`Demitidos ${formatAnoMes(anomes)}`,
+                              detDem.filter((x) => getAnoMesFromDate(x.dt_demissao) === anomes));
+                          }}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
                   )}
-                  {porEmpresa.map((r, i) => {
-                    const saldo = (r.admitidos || 0) - (r.demitidos || 0);
-                    return (
-                      <TableRow
-                        key={i}
-                        className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => setEmpresaDrill(r.label)}
-                      >
-                        <TableCell>{r.label}</TableCell>
-                        <TableCell className="text-right tabular-nums">{formatInt(r.admitidos)}</TableCell>
-                        <TableCell className="text-right tabular-nums">{formatInt(r.demitidos)}</TableCell>
-                        <TableCell className={cn("text-right tabular-nums font-medium",
-                          saldo < 0 ? "text-destructive" : "text-[hsl(var(--success))]")}>
-                          {formatInt(saldo)}
-                        </TableCell>
+                </div>
+              </CardContent>
+            </Card>
+          ),
+          "motivos-turnover": (
+            <Card className="h-full">
+              <CardContent className="pt-6">
+                <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
+                  Motivos de Desligamento
+                </h2>
+                <div className="max-h-[calc(100%-2rem)] overflow-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-background z-10">
+                      <TableRow>
+                        <TableHead>Motivo</TableHead>
+                        <TableHead className="text-right">Quantidade</TableHead>
                       </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                    </TableHeader>
+                    <TableBody>
+                      {isLoading && Array.from({ length: 5 }).map((_, i) => (
+                        <TableRow key={i}><TableCell colSpan={2}><Skeleton className="h-6" /></TableCell></TableRow>
+                      ))}
+                      {!isLoading && porMotivo.length === 0 && (
+                        <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground py-6">Sem dados</TableCell></TableRow>
+                      )}
+                      {porMotivo.map((r, i) => (
+                        <TableRow
+                          key={i}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => openDem(`Demitidos — ${r.motivo}`,
+                            detDem.filter((x) => x.motivo === r.motivo))}
+                        >
+                          <TableCell>{r.motivo}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatInt(r.qtd)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          ),
+          "empresa-turnover": (
+            <Card className="h-full">
+              <CardContent className="pt-6">
+                <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
+                  Por Empresa
+                </h2>
+                <div className="max-h-[calc(100%-2rem)] overflow-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-background z-10">
+                      <TableRow>
+                        <TableHead>Empresa</TableHead>
+                        <TableHead className="text-right">Admitidos</TableHead>
+                        <TableHead className="text-right">Demitidos</TableHead>
+                        <TableHead className="text-right">Saldo</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {isLoading && Array.from({ length: 4 }).map((_, i) => (
+                        <TableRow key={i}><TableCell colSpan={4}><Skeleton className="h-6" /></TableCell></TableRow>
+                      ))}
+                      {!isLoading && porEmpresa.length === 0 && (
+                        <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">Sem dados</TableCell></TableRow>
+                      )}
+                      {porEmpresa.map((r, i) => {
+                        const saldo = (r.admitidos || 0) - (r.demitidos || 0);
+                        return (
+                          <TableRow
+                            key={i}
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => setEmpresaDrill(r.label)}
+                          >
+                            <TableCell>{r.label}</TableCell>
+                            <TableCell className="text-right tabular-nums">{formatInt(r.admitidos)}</TableCell>
+                            <TableCell className="text-right tabular-nums">{formatInt(r.demitidos)}</TableCell>
+                            <TableCell className={cn("text-right tabular-nums font-medium",
+                              saldo < 0 ? "text-destructive" : "text-[hsl(var(--success))]")}>
+                              {formatInt(saldo)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          ),
+        };
+        return (
+          <RhDashboardGrid
+            widgets={layout.widgets}
+            blocks={blocks}
+            editing={layout.editing}
+            onLayoutChange={layout.saveGeometries}
+            onHide={layout.hideWidget}
+          />
+        );
+      })()}
+
 
       <TurnoverDrillModal
         open={drillTipo !== null}

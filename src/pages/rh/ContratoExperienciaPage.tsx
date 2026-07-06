@@ -10,6 +10,10 @@ import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { BotaoRelatorioModuloPdf } from "@/components/rh/BotaoRelatorioModuloPdf";
 import { RhFiltrosBar } from "@/components/rh/RhFiltrosBar";
+import { RhDashboardGrid } from "@/components/rh/RhDashboardGrid";
+import { RhLayoutToolbar } from "@/components/rh/RhLayoutToolbar";
+import { useRhModuleLayout } from "@/hooks/useRhModuleLayout";
+import { CONTRATOS_EXP_DEFAULTS } from "@/lib/rh/widgetCatalogs";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import { fetchContratoExperienciaDashboard, exportarContratoExperienciaExcel } from "@/lib/rh/api";
 import { filtrarContratosPorPeriodo } from "@/lib/rh/filtros";
@@ -59,7 +63,6 @@ export default function ContratoExperienciaPage() {
     queryFn: () => fetchContratoExperienciaDashboard(codemp),
   });
 
-  // Filtra vencimentos por período (client-side)
   const data = useMemo(
     () => filtrarContratosPorPeriodo(dataRaw ?? null, ini, fim),
     [dataRaw, ini, fim],
@@ -103,83 +106,55 @@ export default function ContratoExperienciaPage() {
     }
   }
 
-  return (
-    <div className="container mx-auto py-6 space-y-4">
-      <RhPageHeader
-        title="03 — Contrato Experiência"
-        actions={
-          <>
-            <Button variant="outline" onClick={exportar} disabled={exportando || isLoading}>
-              {exportando ? (
-                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-              ) : (
-                <FileSpreadsheet className="mr-1 h-4 w-4" />
-              )}
-              Exportar Excel
-            </Button>
-            <BotaoRelatorioModuloPdf
-              modulo="contratos-experiencia"
-              titulo="Contratos de Experiência"
-              disabled={isLoading}
-              dados={data ? { tipo: "contratos-experiencia", atual: data } : null}
-              filtros={{ anomes_ini: ini, anomes_fim: fim, codemp }}
-              iaPayload={{ periodo: { anomes_ini: ini, anomes_fim: fim }, kpis: data?.kpis, vencimentos_amostra: data?.vencimentos?.slice(0, 15) }}
-            />
-          </>
-        }
+  const layout = useRhModuleLayout("rh-contratos-exp", CONTRATOS_EXP_DEFAULTS);
+
+  const blocks: Record<string, React.ReactNode> = useMemo(() => ({
+    "kpi-qtde": (
+      <KpiCard
+        title="Qtde Contratos"
+        value={kpis?.qtde_contratos ?? 0}
+        format="number"
+        icon={<FileText className="h-4 w-4" />}
+        loading={isLoading}
       />
-
-      <RhFiltrosBar
-        anomesIni={ini}
-        onAnomesIniChange={setIni}
-        anomesFim={fim}
-        onAnomesFimChange={setFim}
-        codemp={codemp}
-        onCodempChange={setCodemp}
-        disabled={isFetching}
+    ),
+    "kpi-demitidos": (
+      <KpiCard
+        title="Demitidos 30 Após Exp."
+        value={kpis?.demitidos_30_apos_exp ?? 0}
+        format="number"
+        variant="warning"
+        icon={<UserMinus className="h-4 w-4" />}
+        loading={isLoading}
       />
-
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <KpiCard
-          title="Qtde Contratos"
-          value={kpis?.qtde_contratos ?? 0}
-          format="number"
-          icon={<FileText className="h-4 w-4" />}
-          loading={isLoading}
-        />
-        <KpiCard
-          title="Demitidos 30 Após Exp."
-          value={kpis?.demitidos_30_apos_exp ?? 0}
-          format="number"
-          variant="warning"
-          icon={<UserMinus className="h-4 w-4" />}
-          loading={isLoading}
-        />
-        <KpiCard
-          title="A Vencer 5 Dias"
-          value={kpis?.a_vencer_5_dias ?? 0}
-          format="number"
-          variant="danger"
-          icon={<Clock className="h-4 w-4" />}
-          loading={isLoading}
-        />
-        <KpiCard
-          title="A Vencer 10 Dias"
-          value={kpis?.a_vencer_10_dias ?? 0}
-          format="number"
-          variant="warning"
-          icon={<CalendarClock className="h-4 w-4" />}
-          loading={isLoading}
-        />
-      </div>
-
-      <Card>
+    ),
+    "kpi-5dias": (
+      <KpiCard
+        title="A Vencer 5 Dias"
+        value={kpis?.a_vencer_5_dias ?? 0}
+        format="number"
+        variant="danger"
+        icon={<Clock className="h-4 w-4" />}
+        loading={isLoading}
+      />
+    ),
+    "kpi-10dias": (
+      <KpiCard
+        title="A Vencer 10 Dias"
+        value={kpis?.a_vencer_10_dias ?? 0}
+        format="number"
+        variant="warning"
+        icon={<CalendarClock className="h-4 w-4" />}
+        loading={isLoading}
+      />
+    ),
+    "vencimentos": (
+      <Card className="h-full">
         <CardContent className="pt-6">
           <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
             Vencimentos
           </h2>
-          <div className="max-h-[70vh] overflow-auto">
+          <div className="max-h-[calc(100%-2rem)] overflow-auto">
             <Table>
               <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>
@@ -240,6 +215,59 @@ export default function ContratoExperienciaPage() {
           </div>
         </CardContent>
       </Card>
+    ),
+  }), [kpis, isLoading, rows]);
+
+  return (
+    <div className="container mx-auto py-6 space-y-4">
+      <RhPageHeader
+        title="03 — Contrato Experiência"
+        actions={
+          <>
+            <RhLayoutToolbar
+              editing={layout.editing}
+              onToggle={layout.setEditing}
+              onReset={layout.resetLayout}
+              widgets={layout.widgets}
+              onShow={layout.showWidget}
+            />
+            <Button variant="outline" onClick={exportar} disabled={exportando || isLoading}>
+              {exportando ? (
+                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="mr-1 h-4 w-4" />
+              )}
+              Exportar Excel
+            </Button>
+            <BotaoRelatorioModuloPdf
+              modulo="contratos-experiencia"
+              titulo="Contratos de Experiência"
+              disabled={isLoading}
+              dados={data ? { tipo: "contratos-experiencia", atual: data } : null}
+              filtros={{ anomes_ini: ini, anomes_fim: fim, codemp }}
+              iaPayload={{ periodo: { anomes_ini: ini, anomes_fim: fim }, kpis: data?.kpis, vencimentos_amostra: data?.vencimentos?.slice(0, 15) }}
+            />
+          </>
+        }
+      />
+
+      <RhFiltrosBar
+        anomesIni={ini}
+        onAnomesIniChange={setIni}
+        anomesFim={fim}
+        onAnomesFimChange={setFim}
+        codemp={codemp}
+        onCodempChange={setCodemp}
+        disabled={isFetching}
+      />
+
+      <RhDashboardGrid
+        widgets={layout.widgets}
+        blocks={blocks}
+        editing={layout.editing}
+        onLayoutChange={layout.saveGeometries}
+        onHide={layout.hideWidget}
+      />
 
       <AiInsightsPanel
         modulo="contratos-experiencia"
@@ -261,3 +289,4 @@ export default function ContratoExperienciaPage() {
     </div>
   );
 }
+
