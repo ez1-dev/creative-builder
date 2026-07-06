@@ -1,4 +1,5 @@
 import { api, getApiUrl } from "@/lib/api";
+import { supabase } from "@/integrations/supabase/client";
 
 export type QuadroBreakdown = { label: string; valor: number }[];
 
