@@ -143,6 +143,8 @@ export default function AbsenteismoPage() {
               onReset={layout.resetLayout}
               widgets={layout.widgets}
               onShow={layout.showWidget}
+              pageKey="rh-absenteismo"
+              onAdd={layout.addWidget}
             />
             <Button variant="outline" size="sm" onClick={exportar} disabled={isLoading}>
               <FileSpreadsheet className="h-4 w-4 mr-2" /> Exportar Excel
