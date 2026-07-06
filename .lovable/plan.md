@@ -1,119 +1,44 @@
 ## Objetivo
 
-Padronizar os títulos das páginas do módulo RH e das seções/widgets, seguindo o padrão de "01 — Resumo Folha" como referência: numeração de dois dígitos, travessão longo `—`, nome curto e moderno, sem prefixo redundante "RH -".
+No diálogo "Configurar" de cada card RH, adicionar um preview ao vivo do componente selecionado, usando os dados reais que a página já carrega. Vale para todas as páginas RH (Resumo Folha, Quadro, Contrato de Experiência, Programação de Férias, Turnover, Absenteísmo).
 
-## Diagnóstico
+## Como funciona hoje
 
-Hoje cada página usa um formato diferente:
+- O `ConfigureRhWidgetDialog` já é renderizado dentro do `PageDataProvider` (via `RhDashboardWithBiLibrary`), então tem acesso a `usePageData()` — os mesmos `kpis`, `series`, `rows` e `filtros` que os cards do dashboard consomem.
+- O usuário escolhe um componente da Biblioteca BI + faz o mapping (KPI/série) + define título, mas só vê o resultado depois de salvar.
 
-| Rota | Título atual |
-| --- | --- |
-| `/rh/resumo-folha` | `01 — Resumo Folha` |
-| `/rh/quadro-colaboradores` | `02 — Quadro de Colaboradores` |
-| `/rh/contrato-experiencia` | `RH - 03 - Contrato de Experiência` |
-| `/rh/programacao-ferias` | `RH - 04 - Programação de Férias` |
-| `/rh/turnover` | `RH-05 — Rotatividade / Turnover` |
-| `/rh/absenteismo` | `RH - 06 - Absenteísmo / Afastamentos` |
-| `/rh/formularios` | `99 — Formulários` |
+## Mudança
 
-Faltam também subtítulos consistentes e alguns títulos de widgets/seções estão abreviados demais (`Sexo`, `Filial`, `Por Empresa`, `Drill dimensões`, etc.).
+Renderizar, dentro do próprio diálogo, o mesmo componente que seria salvo — com o mapping atual — em uma área "Pré-visualização" que reage em tempo real às escolhas.
 
-## Padrão proposto
+### Detalhes de UI
 
-Formato: `NN — Nome`  (dois dígitos + espaço + `—` + espaço + nome curto e claro).
-Subtítulo: uma linha descritiva curta, orientada ao gestor.
+- Painel de preview abaixo dos campos, altura fixa (~260px), com borda + `bg-muted/30` + label "Pré-visualização".
+- Ampliar o `DialogContent` para `max-w-2xl` (comporta preview + formulário).
+- Estados:
+  - Sem `componentId` escolhido: mensagem "Escolha um componente para ver o preview".
+  - Mapping obrigatório faltando: mensagem "Selecione os campos obrigatórios para ver o preview".
+  - Ok: renderiza `def.render({ title, mapping, options: { filtros: ctx.filtros }, ctx: { kpis, series, rows } })` dentro de um `<Card>` + `WidgetErrorBoundary` (mesmo padrão do `RhDashboardGrid`) para isolar erros de render.
+  - Se `usePageData()` retornar `null` (fora do provider — não ocorre no fluxo atual, mas defensivo): mensagem "Preview indisponível fora da página".
 
-### Títulos e subtítulos das páginas
+### Comportamento
 
-| Rota | Título novo | Subtítulo |
-| --- | --- | --- |
-| `/rh/resumo-folha` | `01 — Resumo da Folha` | `Visão consolidada de proventos, descontos e custo total` |
-| `/rh/quadro-colaboradores` | `02 — Quadro de Colaboradores` | `Headcount, perfil demográfico e distribuição por empresa` |
-| `/rh/contrato-experiencia` | `03 — Contrato de Experiência` | `Vencimentos, renovações e demissões pós-experiência` |
-| `/rh/programacao-ferias` | `04 — Programação de Férias` | `Limites, vencimentos e programações dos próximos 90 dias` |
-| `/rh/turnover` | `05 — Turnover` | `Admissões, demissões e taxa de rotatividade` |
-| `/rh/absenteismo` | `06 — Absenteísmo` | `Afastamentos, dias perdidos e taxa de absenteísmo` |
-| `/rh/formularios` | `99 — Formulários` | `Registros complementares do módulo de RH` |
-| `/rh` (index) | `Recursos Humanos` | `Painéis, indicadores e gestão de pessoas` |
-
-### Títulos de widgets/seções
-
-`src/lib/rh/widgetCatalogs.ts` — atualizar `title` em defaults e catálogo (usado pelo card e pela biblioteca BI):
-
-Resumo da Folha:
-- `KPIs — Folha` → `Indicadores da Folha`
-- `Evolução mensal` → `Evolução Mensal do Custo`
-- `Detalhamento mensal` → `Detalhamento Mensal`
-- `Proventos + Vantagens` → `Proventos e Vantagens`
-- `Descontos` → `Descontos`
-- `Filial` → `Custo por Filial`
-- `Tipos de Evento` → `Tipos de Evento`
-
-Quadro de Colaboradores:
-- `KPIs — Quadro` → `Indicadores do Quadro`
-- `Histórico Nº Colaboradores` → `Histórico de Colaboradores`
-- `Sexo` → `Distribuição por Sexo`
-- `Situação` → `Situação / Afastamento`
-- `Vínculo` → `Tipo de Vínculo`
-- `Escolaridade` → `Escolaridade`
-- `Faixa etária` → `Faixa Etária`
-- `Faixa Etária × Sexo` → `Faixa Etária por Sexo`
-- `Tempo de Casa × Sexo` → `Tempo de Casa por Sexo`
-- `Tempo casa + Filial` → `Tempo de Casa por Filial`
-- `Empresa` → `Distribuição por Empresa`
-- `Drill dimensões` → `Análise Multidimensional`
-
-Contrato de Experiência:
-- `Qtde Contratos` → `Total de Contratos`
-- `Vencidos Pendentes` → `Vencidos Pendentes`
-- `Demitidos 30d Após` → `Demitidos até 30 Dias Após`
-- `A Vencer 5 Dias` → `A Vencer em 5 Dias`
-- `A Vencer 10 Dias` → `A Vencer em 10 Dias`
-- `Vencimentos` → `Vencimentos de Contrato`
-
-Programação de Férias:
-- `KPIs — Férias` → `Indicadores de Férias`
-- `Limite Férias` → `Limites de Férias`
-- `Programação Próximos 90 Dias` → `Programação — Próximos 90 Dias`
-- `1º Vencimento e Sem Programação` → `1º Vencimento sem Programação`
-- `Sem Programação` → `Sem Programação`
-
-Turnover:
-- `KPIs — Turnover` → `Indicadores de Turnover`
-- `Admissões x Demissões por Mês` → `Admissões vs. Demissões por Mês`
-- `Série mensal` → `Evolução Mensal`
-- `Motivos de Desligamento` → `Motivos de Desligamento`
-- `Motivos` → `Motivos`
-- `Por Empresa` → `Turnover por Empresa`
-
-Absenteísmo:
-- `KPIs — Absenteísmo` → `Indicadores de Absenteísmo`
-- `Por Mês` → `Evolução Mensal`
-- `Por Categoria` → `Por Categoria`
-- `Por Empresa` → `Por Empresa`
-- `Por Motivo` → `Principais Motivos`
-
-Também atualizar os `<h2>` em `AbsenteismoPage.tsx`, `TurnoverPage.tsx` e `ContratoExperienciaPage.tsx` para bater com os novos títulos dos widgets equivalentes.
+- Debounce curto (~150ms) no `mapping`/`componentId` para evitar re-render excessivo durante seleção.
+- Nenhuma escrita/save é feita pelo preview — só leitura de contexto e render puro.
+- Botão "Salvar" continua igual; o preview é auxiliar.
 
 ## Arquivos alterados
 
-- `src/pages/rh/ResumoFolhaPage.tsx` — título + subtítulo.
-- `src/pages/rh/QuadroColaboradoresPage.tsx` — título + subtítulo.
-- `src/pages/rh/ContratoExperienciaPage.tsx` — título + subtítulo + `<h2>`.
-- `src/pages/rh/ProgramacaoFeriasPage.tsx` — título + subtítulo.
-- `src/pages/rh/TurnoverPage.tsx` — título + subtítulo + `<h2>`.
-- `src/pages/rh/AbsenteismoPage.tsx` — título + subtítulo + `<h2>`.
-- `src/pages/rh/FormulariosPage.tsx` — título + subtítulo.
-- `src/pages/rh/RhIndexPage.tsx` — subtítulo do índice.
-- `src/lib/rh/widgetCatalogs.ts` — títulos de defaults e catálogo (afeta cards e Biblioteca BI).
+- `src/components/rh/ConfigureRhWidgetDialog.tsx` — novo bloco de preview + import de `usePageData`, `getComponent` e `WidgetErrorBoundary`; ampliar `max-w-lg` → `max-w-2xl`.
 
 ## Fora de escopo
 
-- Não altera dados, endpoints, cores, layout dos grids, componentes visuais ou lógica.
-- Não renomeia rotas nem `type`/`pageKey` internos (apenas strings exibidas).
-- Não mexe nos títulos já salvos em `dashboard_widgets` de usuários existentes — o `title` do banco continua sendo respeitado. Os novos títulos aparecem apenas para quem ainda usa os defaults; usuários que já customizaram continuam com o próprio texto.
+- Não altera o `AddRhBiWidgetDialog` (adicionar da Biblioteca) — pode ser feito depois se você quiser o mesmo lá.
+- Não muda pageRegistry, catálogos, dados nem edge functions.
+- Não muda o comportamento de save nem persistência.
 
 ## Validação
 
-- Abrir cada rota `/rh/*` e verificar o novo cabeçalho (título + subtítulo) e os títulos dos cards.
-- Abrir "Editar layout" e o diálogo "Adicionar da Biblioteca BI" — os títulos do catálogo aparecem atualizados.
+- Em `/rh/resumo-folha` → Editar layout → ⚙ em "Evolução Mensal do Custo": escolher `line-chart`, `area-chart`, `bar-chart` — o preview mostra o gráfico com os dados reais da série mensal.
+- Trocar o mapping (ex.: KPI) e ver o preview atualizar.
+- Repetir em `/rh/quadro-colaboradores` (breakdowns), `/rh/turnover` (série + tabela), `/rh/absenteismo`, `/rh/contrato-experiencia`, `/rh/programacao-ferias`.

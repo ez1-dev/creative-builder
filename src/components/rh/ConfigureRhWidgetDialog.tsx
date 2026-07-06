@@ -10,9 +10,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { COMPONENT_REGISTRY } from '@/lib/bi/componentRegistry';
+import { COMPONENT_REGISTRY, getComponent } from '@/lib/bi/componentRegistry';
 import { getPage } from '@/lib/bi/pageRegistry';
+import { usePageData } from '@/lib/bi/PageDataContext';
+import { WidgetErrorBoundary } from '@/components/bi/runtime/WidgetErrorBoundary';
 import type { RhWidget } from '@/hooks/useRhModuleLayout';
 import { Trash2 } from 'lucide-react';
 
@@ -28,6 +31,7 @@ interface Props {
 
 export function ConfigureRhWidgetDialog({ open, onOpenChange, pageKey, widget, allowedComponentIds, onSave, onDelete }: Props) {
   const page = getPage(pageKey);
+  const ctx = usePageData();
   const kpisOpts = page?.schema.kpis ?? [];
   const seriesOpts = page?.schema.series ?? [];
   const isCustom = !!widget && widget.type.startsWith('custom-');
@@ -63,9 +67,22 @@ export function ConfigureRhWidgetDialog({ open, onOpenChange, pageKey, widget, a
     ? !!def && def.inputs.every((i) => !i.required || !!mapping[i.key])
     : true;
 
+  // Debounce das seleções para não re-renderizar o preview a cada tecla.
+  const [debounced, setDebounced] = useState({ componentId: '', mapping: {} as Record<string, string>, title: '' });
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebounced({ componentId, mapping, title }), 150);
+    return () => window.clearTimeout(t);
+  }, [componentId, mapping, title]);
+
+  const previewDef = useMemo(
+    () => (debounced.componentId ? getComponent(debounced.componentId) : undefined),
+    [debounced.componentId],
+  );
+  const previewMappingReady = !!previewDef && previewDef.inputs.every((i) => !i.required || !!debounced.mapping[i.key]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Configurar {widget?.title}</DialogTitle>
           <DialogDescription>
@@ -121,6 +138,40 @@ export function ConfigureRhWidgetDialog({ open, onOpenChange, pageKey, widget, a
           <div className="space-y-1">
             <Label>Título</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={widget?.title} />
+          </div>
+
+          <div className="space-y-1 pt-2">
+            <Label>Pré-visualização</Label>
+            <Card className="h-[260px] overflow-hidden bg-muted/30">
+              {!ctx ? (
+                <div className="h-full flex items-center justify-center text-xs text-muted-foreground px-4 text-center">
+                  Preview indisponível fora da página.
+                </div>
+              ) : !previewDef ? (
+                <div className="h-full flex items-center justify-center text-xs text-muted-foreground px-4 text-center">
+                  Escolha um componente para ver o preview com dados reais.
+                </div>
+              ) : !previewMappingReady ? (
+                <div className="h-full flex items-center justify-center text-xs text-muted-foreground px-4 text-center">
+                  Selecione os campos obrigatórios para ver o preview.
+                </div>
+              ) : (
+                <div className="h-full p-3 overflow-hidden">
+                  <WidgetErrorBoundary>
+                    {previewDef.render({
+                      title: debounced.title || widget?.customTitle || widget?.title || previewDef.label,
+                      mapping: debounced.mapping,
+                      options: { filtros: ctx.filtros ?? {} },
+                      ctx: {
+                        kpis: ctx.kpis ?? {},
+                        series: ctx.series ?? {},
+                        rows: Array.isArray(ctx.rows) ? ctx.rows : [],
+                      },
+                    })}
+                  </WidgetErrorBoundary>
+                </div>
+              )}
+            </Card>
           </div>
         </div>
 
