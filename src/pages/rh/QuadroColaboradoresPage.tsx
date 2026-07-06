@@ -249,6 +249,37 @@ export default function QuadroColaboradoresPage() {
 
   const temOutros = useMemo(() => faixaSexoData.some((r) => r.outros > 0), [faixaSexoData]);
 
+  const tempoCasaSexoData = useMemo(() => {
+    if (!temDetalhe) return [] as { faixa: string; homens: number; mulheres: number }[];
+    const ORDEM = [
+      "MENOS DE 1 ANO", "DE 1 A 2 ANOS", "DE 2 A 3 ANOS",
+      "DE 3 A 5 ANOS", "DE 5 A 8 ANOS", "MAIS DE 8 ANOS",
+    ];
+    const norm = (s: any) => String(s ?? "")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase().trim();
+    const sexoM = (s: any) => norm(s).startsWith("M");
+    const sexoF = (s: any) => norm(s).startsWith("F");
+    const map = new Map<string, { faixa: string; homens: number; mulheres: number }>();
+    for (const c of detalhe) {
+      const faixa = String(c.tempo_casa ?? "").trim() || "—";
+      const cur = map.get(faixa) ?? { faixa, homens: 0, mulheres: 0 };
+      if (sexoM(c.sexo)) cur.homens += 1;
+      else if (sexoF(c.sexo)) cur.mulheres += 1;
+      map.set(faixa, cur);
+    }
+    const arr = Array.from(map.values());
+    arr.sort((a, b) => {
+      const ia = ORDEM.indexOf(norm(a.faixa));
+      const ib = ORDEM.indexOf(norm(b.faixa));
+      if (ia !== -1 && ib !== -1) return ia - ib;
+      if (ia !== -1) return -1;
+      if (ib !== -1) return 1;
+      return a.faixa.localeCompare(b.faixa, "pt-BR");
+    });
+    return arr;
+  }, [detalhe, temDetalhe]);
+
 
   function openDrill(label: string, valor: string, itens: ColaboradorDetalhe[]) {
     if (!itens || itens.length === 0) {
@@ -490,7 +521,66 @@ export default function QuadroColaboradoresPage() {
 
 
 
+      <div className="mb-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Tempo de Casa × Sexo</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {dashQ.isLoading ? (
+              <Skeleton className="h-72 w-full" />
+            ) : tempoCasaSexoData.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Sem dados.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={tempoCasaSexoData} margin={{ top: 24, right: 12, left: 0, bottom: 0 }} barCategoryGap="20%">
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis dataKey="faixa" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip
+                    contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 6, fontSize: 12 }}
+                    formatter={(v: number) => new Intl.NumberFormat("pt-BR").format(v)}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Bar
+                    dataKey="homens" name="Homens"
+                    fill="hsl(var(--muted-foreground))" fillOpacity={0.75}
+                    cursor="pointer"
+                    onClick={(d: any) => {
+                      const faixa = d?.payload?.faixa;
+                      openDrill("Tempo de casa × Homens", `${faixa} · Homens`,
+                        detalhe.filter((c) => {
+                          const s = String(c.sexo ?? "").trim().toUpperCase();
+                          return String(c.tempo_casa ?? "").trim() === faixa && s.startsWith("M");
+                        }));
+                    }}
+                  >
+                    <LabelList dataKey="homens" position="top" style={{ fontSize: 11, fill: "hsl(var(--foreground))", fontWeight: 600 }} formatter={(v: number) => (v ? v : "")} />
+                  </Bar>
+                  <Bar
+                    dataKey="mulheres" name="Mulheres"
+                    fill="hsl(var(--warning))"
+                    cursor="pointer"
+                    onClick={(d: any) => {
+                      const faixa = d?.payload?.faixa;
+                      openDrill("Tempo de casa × Mulheres", `${faixa} · Mulheres`,
+                        detalhe.filter((c) => {
+                          const s = String(c.sexo ?? "").trim().toUpperCase();
+                          return String(c.tempo_casa ?? "").trim() === faixa && s.startsWith("F");
+                        }));
+                    }}
+                  >
+                    <LabelList dataKey="mulheres" position="top" style={{ fontSize: 11, fill: "hsl(var(--foreground))", fontWeight: 600 }} formatter={(v: number) => (v ? v : "")} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">
+
         <BreakdownCard title="Tempo de casa" data={dashQ.data?.tempo_casa} sort={false} loading={dashQ.isLoading}
           onItemClick={temDetalhe ? (label) => openDrill("Tempo de casa", label, filterDetalheByDimensao(detalhe, "tempo_casa", label)) : undefined} />
         <FilialTable data={dashQ.data?.filial} loading={dashQ.isLoading}
