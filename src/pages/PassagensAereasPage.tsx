@@ -108,6 +108,7 @@ export default function PassagensAereasPage() {
       colaborador: (form.colaborador || '').trim().toUpperCase(),
       centro_custo: form.centro_custo || null,
       projeto_obra: form.projeto_obra || null,
+      produto: form.produto || null,
       fornecedor: form.fornecedor || null,
       cia_aerea: form.cia_aerea || null,
       numero_bilhete: form.numero_bilhete || null,
