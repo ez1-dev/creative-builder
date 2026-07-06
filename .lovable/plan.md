@@ -1,11 +1,6 @@
-## Alteração
+Em `src/pages/rh/ResumoFolhaPage.tsx`:
 
-Em `src/pages/rh/ContratoExperienciaPage.tsx`, remover o `<p>` de ajuda logo abaixo do `<Select>` "Janela de vencidos":
-
-```tsx
-<p className="text-[10px] text-muted-foreground">
-  0 = não mostrar vencidos; 90 = vencidos recentes ainda pendentes
-</p>
-```
+1. Remover o aviso técnico (linhas 573-579): bloco com `<Info />` + texto "Indicadores retornados pela API...".
+2. Remover a seção Diagnóstico Técnico (linhas 612-692): todo o bloco `{!indisponivel && !semDados && isAdmin && ... <Collapsible>...</Collapsible> ... }`.
 
 Nenhuma outra mudança.
