@@ -339,7 +339,7 @@ export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabl
   }, [dashboardId, load]);
 
   return {
-    widgets, loading, editing, setEditing,
+    widgets, loading, layoutReady, editing, setEditing,
     saveLayout, saveGeometries, hideWidget, showWidget, configureWidget, resetLayout, reload: load,
   };
 }
