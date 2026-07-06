@@ -42,6 +42,7 @@ export function TurnoverDrillModal({ open, onOpenChange, titulo, tipo, itens }: 
                   <TableHead>Cargo</TableHead>
                   <TableHead>Empresa</TableHead>
                   <TableHead>Filial</TableHead>
+                  <TableHead>Centro de Custo</TableHead>
                   <TableHead>Data Admissão</TableHead>
                   {tipo === "demitidos" && <TableHead>Data Demissão</TableHead>}
                   {tipo === "demitidos" && <TableHead>Motivo</TableHead>}
@@ -55,6 +56,7 @@ export function TurnoverDrillModal({ open, onOpenChange, titulo, tipo, itens }: 
                     <TableCell className="whitespace-nowrap">{r.cargo ?? "-"}</TableCell>
                     <TableCell className="whitespace-nowrap">{r.empresa ?? "-"}</TableCell>
                     <TableCell className="whitespace-nowrap">{r.filial ?? "-"}</TableCell>
+                    <TableCell className="whitespace-nowrap">{r.centro_custo ?? "-"}</TableCell>
                     <TableCell className="whitespace-nowrap">{formatDateBR(r.dt_admissao)}</TableCell>
                     {tipo === "demitidos" && (
                       <TableCell className="whitespace-nowrap">{formatDateBR(r.dt_demissao)}</TableCell>

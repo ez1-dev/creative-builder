@@ -88,6 +88,7 @@ export function ProgramacaoFeriasDrillModal({
                   <TableHead>Matrícula</TableHead>
                   <TableHead>Empresa</TableHead>
                   <TableHead>Filial</TableHead>
+                  <TableHead>Centro de Custo</TableHead>
                   <TableHead>Cargo</TableHead>
                   <TableHead>Início Período</TableHead>
                   <TableHead>Fim Período</TableHead>
@@ -104,6 +105,7 @@ export function ProgramacaoFeriasDrillModal({
                   <TableHead>Matrícula</TableHead>
                   <TableHead>Empresa</TableHead>
                   <TableHead>Filial</TableHead>
+                  <TableHead>Centro de Custo</TableHead>
                   <TableHead>Cargo</TableHead>
                   <TableHead>Início das Férias</TableHead>
                 </TableRow>
@@ -112,7 +114,7 @@ export function ProgramacaoFeriasDrillModal({
             <TableBody>
               {sorted.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={mode === "periodo" ? 13 : 6} className="text-center text-muted-foreground py-6">
+                  <TableCell colSpan={mode === "periodo" ? 14 : 7} className="text-center text-muted-foreground py-6">
                     Sem dados
                   </TableCell>
                 </TableRow>
@@ -124,6 +126,7 @@ export function ProgramacaoFeriasDrillModal({
                     <TableCell>{r.matricula ?? "-"}</TableCell>
                     <TableCell>{r.empresa ?? "-"}</TableCell>
                     <TableCell>{r.filial ?? "-"}</TableCell>
+                    <TableCell>{r.centro_custo ?? "-"}</TableCell>
                     <TableCell>{r.cargo ?? "-"}</TableCell>
                     <TableCell>{formatDateBR(r.dt_inicio_periodo)}</TableCell>
                     <TableCell>{formatDateBR(r.dt_fim_periodo)}</TableCell>
@@ -142,6 +145,7 @@ export function ProgramacaoFeriasDrillModal({
                     <TableCell>{r.matricula ?? "-"}</TableCell>
                     <TableCell>{r.empresa ?? "-"}</TableCell>
                     <TableCell>{r.filial ?? "-"}</TableCell>
+                    <TableCell>{r.centro_custo ?? "-"}</TableCell>
                     <TableCell>{r.cargo ?? "-"}</TableCell>
                     <TableCell>{formatDateBR(r.dt_inicio_ferias)}</TableCell>
                   </TableRow>

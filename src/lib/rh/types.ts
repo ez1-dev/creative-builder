@@ -77,6 +77,7 @@ export interface ContratoExperienciaKpis {
 export interface ContratoExperienciaVencimento {
   empresa: string;
   filial: string;
+  centro_custo?: string;
   cargo: string;
   matricula: string;
   colaborador: string;
@@ -174,6 +175,7 @@ export type StatusPeriodoFerias =
 export interface ProgramacaoFeriasDetalheItem {
   empresa?: string;
   filial?: string;
+  centro_custo?: string;
   colaborador?: string;
   matricula?: string;
   cargo?: string;
@@ -195,6 +197,7 @@ export interface ProgramacaoFeriasDetalheItem {
 export interface DeFeriasDetalheItem {
   empresa?: string;
   filial?: string;
+  centro_custo?: string;
   colaborador?: string;
   matricula?: string;
   cargo?: string;
@@ -247,7 +250,7 @@ export interface TurnoverPorMes { anomes: string; admitidos: number; demitidos: 
 export interface TurnoverPorMotivo { motivo: string; qtd: number; }
 export interface TurnoverPorEmpresa { label: string; admitidos: number; demitidos: number; }
 export interface TurnoverAdmitidoDetalhe {
-  colaborador: string; matricula: string; empresa: string; filial: string; cargo: string; dt_admissao: string;
+  colaborador: string; matricula: string; empresa: string; filial: string; centro_custo?: string; cargo: string; dt_admissao: string;
 }
 export interface TurnoverDemitidoDetalhe extends TurnoverAdmitidoDetalhe {
   dt_demissao: string; motivo: string;
@@ -383,6 +386,7 @@ export interface AbsenteismoDetalheItem {
   matricula: string;
   empresa: string;
   filial: string;
+  centro_custo?: string;
   cargo: string;
   motivo: string;
   categoria: string;
