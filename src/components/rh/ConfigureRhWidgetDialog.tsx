@@ -33,7 +33,7 @@ export function ConfigureRhWidgetDialog({ open, onOpenChange, pageKey, widget, a
   const page = getPage(pageKey);
   const ctx = usePageData();
   const kpisOpts = page?.schema.kpis ?? [];
-  const seriesOpts = page?.schema.series ?? [];
+  const seriesOpts = ctx?.seriesCatalog?.length ? ctx.seriesCatalog : (page?.schema.series ?? []);
   const isCustom = !!widget && widget.type.startsWith('custom-');
 
   const available = useMemo(() => {

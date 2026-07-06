@@ -29,7 +29,7 @@ export function AddRhBiWidgetDialog({ open, onOpenChange, pageKey, onAdd }: Prop
   const page = getPage(pageKey);
   const ctx = usePageData();
   const kpisOpts = page?.schema.kpis ?? [];
-  const seriesOpts = page?.schema.series ?? [];
+  const seriesOpts = ctx?.seriesCatalog?.length ? ctx.seriesCatalog : (page?.schema.series ?? []);
 
   const [componentId, setComponentId] = useState<string>('kpi-card');
   const [title, setTitle] = useState<string>('');

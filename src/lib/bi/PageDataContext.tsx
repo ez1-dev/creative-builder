@@ -23,18 +23,21 @@ export interface PageDataValue {
   series: Record<string, any>;
   rows: any[];
   filtros: Record<string, any>;
+  /** Catálogo dinâmico de séries (novo contrato uniforme RH). Opcional. */
+  seriesCatalog?: { key: string; label: string }[];
 }
 
 const PageDataCtx = createContext<PageDataValue | null>(null);
 
 export function PageDataProvider({
-  pageKey, kpis, series, rows, filtros, children,
+  pageKey, kpis, series, rows, filtros, seriesCatalog, children,
 }: {
   pageKey: string;
   kpis?: Record<string, any> | null;
   series?: Record<string, any> | null;
   rows?: any[] | null;
   filtros?: Record<string, any> | null;
+  seriesCatalog?: { key: string; label: string }[] | null;
   children: ReactNode;
 }) {
   const value = useMemo<PageDataValue>(() => ({
@@ -44,7 +47,8 @@ export function PageDataProvider({
     series: series ?? {},
     rows: rows ?? [],
     filtros: filtros ?? {},
-  }), [pageKey, kpis, series, rows, filtros]);
+    seriesCatalog: seriesCatalog ?? undefined,
+  }), [pageKey, kpis, series, rows, filtros, seriesCatalog]);
   return <PageDataCtx.Provider value={value}>{children}</PageDataCtx.Provider>;
 }
 

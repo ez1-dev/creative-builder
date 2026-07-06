@@ -600,6 +600,7 @@ export default function ResumoFolhaPage() {
           blocks={blocks}
           catalog={RESUMO_FOLHA_CATALOG}
           kpis={kpis as any}
+          series={(data as any)?.series}
           filtros={{ codemp: baseParams.codemp, anomes_ini: baseParams.anomes_ini, anomes_fim: baseParams.anomes_fim }}
         />
       )}

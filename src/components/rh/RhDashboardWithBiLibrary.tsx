@@ -9,6 +9,7 @@ import { AddRhBiWidgetDialog } from './AddRhBiWidgetDialog';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
 import type { RhWidget } from '@/hooks/useRhModuleLayout';
 import type { RhWidgetDef } from '@/lib/rh/widgetCatalogs';
+import { rhSeriesToOptions, rhSeriesToRecord, type RhSerie } from '@/lib/rh/seriesAdapter';
 
 interface LayoutApi {
   widgets: RhWidget[];
@@ -27,7 +28,11 @@ interface Props {
   blocks: Record<string, ReactNode>;
   catalog?: Record<string, RhWidgetDef>;
   kpis?: Record<string, any> | null;
-  series?: Record<string, any> | null;
+  /**
+   * Aceita o novo contrato uniforme RH — array `{ chave, label, pontos }` —
+   * ou o formato antigo `Record<chave, pontos>` para retrocompatibilidade.
+   */
+  series?: RhSerie[] | Record<string, any> | null;
   rows?: any[] | null;
   filtros?: Record<string, any> | null;
 }
@@ -51,12 +56,17 @@ export function RhDashboardWithBiLibrary({
     return () => window.removeEventListener('rh:add-bi-widget', handleOpenAdd);
   }, [pageKey]);
 
+  const isSeriesArray = Array.isArray(series);
+  const seriesRecord = isSeriesArray ? rhSeriesToRecord(series as RhSerie[]) : (series as any) ?? {};
+  const seriesCatalog = isSeriesArray ? rhSeriesToOptions(series as RhSerie[]) : undefined;
+
   return (
     <>
       <PageDataProvider
         pageKey={pageKey}
         kpis={kpis as any}
-        series={series as any}
+        series={seriesRecord}
+        seriesCatalog={seriesCatalog}
         rows={rows as any}
         filtros={filtros as any}
       >
