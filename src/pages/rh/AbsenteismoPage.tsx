@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/table";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
+import { BotaoRelatorioModuloPdf } from "@/components/rh/BotaoRelatorioModuloPdf";
+import { addMonths } from "@/lib/rh/relatorio";
 import { AnomesSelect } from "@/components/bi/comercial/AnomesSelect";
 import { AbsenteismoDrillModal } from "@/components/rh/AbsenteismoDrillModal";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
@@ -140,6 +142,18 @@ export default function AbsenteismoPage() {
             <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
               <RefreshCw className={cn("h-4 w-4 mr-2", isFetching && "animate-spin")} /> Atualizar
             </Button>
+            <BotaoRelatorioModuloPdf
+              modulo="absenteismo"
+              titulo="Absenteísmo / Afastamentos"
+              disabled={isLoading}
+              dados={data ? { tipo: "absenteismo", atual: data } : null}
+              filtros={{ anomes_ini: ini, anomes_fim: fim, codemp }}
+              iaPayload={{ periodo: { anomes_ini: ini, anomes_fim: fim }, kpis: data?.kpis, por_categoria: data?.por_categoria, por_motivo: data?.por_motivo, por_mes: data?.por_mes, por_empresa: data?.por_empresa }}
+              carregarAnterior={async () => {
+                const len = (parseInt(fim.slice(0, 4)) * 12 + parseInt(fim.slice(4, 6))) - (parseInt(ini.slice(0, 4)) * 12 + parseInt(ini.slice(4, 6))) + 1;
+                return fetchAbsenteismoDashboard({ anomes_ini: addMonths(ini, -len), anomes_fim: addMonths(ini, -1), codemp });
+              }}
+            />
           </div>
         }
       />
