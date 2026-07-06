@@ -1,0 +1,74 @@
+/**
+ * Helper que embrulha o RhDashboardGrid com PageDataProvider e o diálogo de
+ * configuração de widgets, reduzindo o boilerplate em cada página RH.
+ */
+import { useState, type ReactNode } from 'react';
+import { RhDashboardGrid } from './RhDashboardGrid';
+import { ConfigureRhWidgetDialog } from './ConfigureRhWidgetDialog';
+import { PageDataProvider } from '@/lib/bi/PageDataContext';
+import type { RhWidget } from '@/hooks/useRhModuleLayout';
+import type { RhWidgetDef } from '@/lib/rh/widgetCatalogs';
+
+interface LayoutApi {
+  widgets: RhWidget[];
+  editing: boolean;
+  layoutReady: boolean;
+  saveGeometries: (next: any) => void;
+  hideWidget: (t: string) => void;
+  deleteWidget: (t: string) => Promise<void> | void;
+  configureWidget: (t: string, p: any) => Promise<void> | void;
+}
+
+interface Props {
+  pageKey: string;
+  layout: LayoutApi;
+  blocks: Record<string, ReactNode>;
+  catalog?: Record<string, RhWidgetDef>;
+  kpis?: Record<string, any> | null;
+  series?: Record<string, any> | null;
+  rows?: any[] | null;
+  filtros?: Record<string, any> | null;
+}
+
+export function RhDashboardWithBiLibrary({
+  pageKey, layout, blocks, catalog, kpis, series, rows, filtros,
+}: Props) {
+  const [configTarget, setConfigTarget] = useState<RhWidget | null>(null);
+  const configurableTypes = catalog
+    ? Object.keys(catalog).filter((t) => (catalog[t]?.libraryComponentIds?.length ?? 0) > 0)
+    : undefined;
+  const allowed = configTarget && catalog ? catalog[configTarget.type]?.libraryComponentIds : undefined;
+  return (
+    <>
+      <PageDataProvider
+        pageKey={pageKey}
+        kpis={kpis as any}
+        series={series as any}
+        rows={rows as any}
+        filtros={filtros as any}
+      >
+        <RhDashboardGrid
+          loading={!layout.layoutReady}
+          widgets={layout.widgets}
+          blocks={blocks}
+          editing={layout.editing}
+          configurableTypes={configurableTypes}
+          onLayoutChange={layout.saveGeometries}
+          onHide={layout.hideWidget}
+          onConfigure={(type) => setConfigTarget(layout.widgets.find((w) => w.type === type) ?? null)}
+          onDelete={layout.deleteWidget}
+        />
+      </PageDataProvider>
+
+      <ConfigureRhWidgetDialog
+        open={!!configTarget}
+        onOpenChange={(v) => !v && setConfigTarget(null)}
+        pageKey={pageKey}
+        widget={configTarget}
+        allowedComponentIds={allowed}
+        onSave={(patch) => configTarget && layout.configureWidget(configTarget.type, patch)}
+        onDelete={layout.deleteWidget}
+      />
+    </>
+  );
+}
