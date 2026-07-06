@@ -32,6 +32,17 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+export type FrotaCategoria = 'MANUTENCAO' | 'COMBUSTIVEL' | 'PEDAGIO';
+
+export const CATEGORIA_OPTIONS: { value: FrotaCategoria; label: string }[] = [
+  { value: 'MANUTENCAO',  label: 'Manutenção veículo' },
+  { value: 'COMBUSTIVEL', label: 'Combustível' },
+  { value: 'PEDAGIO',     label: 'Pedágio' },
+];
+export const CATEGORIA_LABEL: Record<string, string> = Object.fromEntries(
+  CATEGORIA_OPTIONS.map((o) => [o.value, o.label]),
+);
+
 export interface ManutencaoFrota {
   id: string;
   data: string;
@@ -47,6 +58,7 @@ export interface ManutencaoFrota {
   segmento: string | null;
   tipo_veiculo: string | null;
   observacoes: string | null;
+  categoria: FrotaCategoria;
 }
 
 export const TIPO_VEICULO_OPTIONS = ['LEVE', 'CAMINHÃO', 'CARRETA', 'GUINDASTE', 'CAÇAMBA', 'MUCK', 'OUTRO'] as const;
