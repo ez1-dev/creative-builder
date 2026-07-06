@@ -150,6 +150,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
   const hiddenList = useMemo(() => effectiveWidgets.filter((w) => w.hidden), [effectiveWidgets]);
 
   // ===== Filtros da FilterBar =====
+  const [categoria, setCategoria] = useState<string[]>([]);
   const [segmento, setSegmento] = useState<string[]>([]);
   const [tipoVeiculo, setTipoVeiculo] = useState<string[]>([]);
   const [centroCusto, setCentroCusto] = useState<string[]>([]);
@@ -162,6 +163,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
 
   // ===== Cross-filter =====
   const [selMes, setSelMes] = useState<string[]>([]);
+  const [selCategoria, setSelCategoria] = useState<string[]>([]);
   const [selSegmento, setSelSegmento] = useState<string[]>([]);
   const [selPlaca, setSelPlaca] = useState<string[]>([]);
   const [selFornecedor, setSelFornecedor] = useState<string[]>([]);
@@ -171,12 +173,18 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
 
   // ===== Drill-down =====
   const [drillLevels, setDrillLevels] = useState<string[]>([
-    'segmento', 'centro_custo', 'placa', 'fornecedor',
+    'categoria', 'segmento', 'centro_custo', 'placa',
   ]);
   const toggleDrillLevel = (key: string) => {
     setDrillLevels((prev) => prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]);
   };
 
+  const optsCategoria = useMemo(
+    () => CATEGORIA_OPTIONS
+      .filter((o) => data.some((r) => r.categoria === o.value))
+      .map((o) => ({ value: o.value, label: o.label })),
+    [data],
+  );
   const optsSeg = useMemo(() => uniqueOpts(data.map((r) => r.segmento)), [data]);
   const optsTipo = useMemo(() => uniqueOpts(data.map((r) => r.tipo_veiculo)), [data]);
   const optsCC = useMemo(() => uniqueOpts(data.map((r) => r.centro_custo)), [data]);
@@ -186,6 +194,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
   const filtered = useMemo(() => {
     const q = busca.trim().toLowerCase();
     return data.filter((r) => {
+      if (categoria.length && !categoria.includes(r.categoria)) return false;
       if (segmento.length && !segmento.includes(r.segmento ?? '')) return false;
       if (tipoVeiculo.length && !tipoVeiculo.includes(r.tipo_veiculo ?? '')) return false;
       if (centroCusto.length && !centroCusto.includes(r.centro_custo ?? '')) return false;
@@ -198,10 +207,11 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
       }
       return true;
     });
-  }, [data, segmento, tipoVeiculo, centroCusto, placa, motorista, busca]);
+  }, [data, categoria, segmento, tipoVeiculo, centroCusto, placa, motorista, busca]);
 
   const crossFiltered = useMemo(() => filtered.filter((r) => {
     if (selMes.length && !selMes.includes(r.mes ?? '?')) return false;
+    if (selCategoria.length && !selCategoria.includes(CATEGORIA_LABEL[r.categoria] ?? r.categoria)) return false;
     if (selSegmento.length && !selSegmento.includes(r.segmento ?? 'NÃO INFORMADO')) return false;
     if (selPlaca.length && !selPlaca.includes(r.placa ?? '—')) return false;
     if (selFornecedor.length && !selFornecedor.includes(r.fornecedor ?? '—')) return false;
@@ -209,16 +219,16 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     if (selMotorista.length && !selMotorista.includes(r.motorista ?? '—')) return false;
     if (selTipo.length && !selTipo.includes(r.tipo_veiculo ?? 'NÃO INFORMADO')) return false;
     return true;
-  }), [filtered, selMes, selSegmento, selPlaca, selFornecedor, selCC, selMotorista, selTipo]);
+  }), [filtered, selMes, selCategoria, selSegmento, selPlaca, selFornecedor, selCC, selMotorista, selTipo]);
 
   const totalAtivos =
-    selMes.length + selSegmento.length + selPlaca.length +
+    selMes.length + selCategoria.length + selSegmento.length + selPlaca.length +
     selFornecedor.length + selCC.length + selMotorista.length + selTipo.length;
 
   const limparTudo = () => {
-    setSelMes([]); setSelSegmento([]); setSelPlaca([]);
+    setSelMes([]); setSelCategoria([]); setSelSegmento([]); setSelPlaca([]);
     setSelFornecedor([]); setSelCC([]); setSelMotorista([]); setSelTipo([]);
-    setSegmento([]); setTipoVeiculo([]); setCentroCusto([]); setPlaca([]); setMotorista([]);
+    setCategoria([]); setSegmento([]); setTipoVeiculo([]); setCentroCusto([]); setPlaca([]); setMotorista([]);
     setBusca('');
   };
 
