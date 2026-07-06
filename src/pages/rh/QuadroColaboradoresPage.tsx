@@ -607,13 +607,13 @@ export default function QuadroColaboradoresPage() {
           ),
         };
         return (
-          <RhDashboardGrid
-            loading={!layout.layoutReady}
-            widgets={layout.widgets}
+          <RhDashboardWithBiLibrary
+            pageKey="rh-quadro"
+            layout={layout}
             blocks={blocks}
-            editing={layout.editing}
-            onLayoutChange={layout.saveGeometries}
-            onHide={layout.hideWidget}
+            catalog={QUADRO_CATALOG}
+            kpis={dashQ.data?.kpis as any}
+            filtros={{ codemp }}
           />
         );
       })()}
