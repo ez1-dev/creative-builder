@@ -717,3 +717,39 @@ export async function exportarProgramacaoFeriasExcel(
 }
 
 
+// ===== RH-05 Turnover =====
+export interface TurnoverParams {
+  anomes_ini: string;
+  anomes_fim: string;
+  codemp?: number;
+}
+export async function fetchTurnoverDashboard(
+  p: TurnoverParams,
+): Promise<import("./types").TurnoverDashboard> {
+  const resp = await api.get<any>(
+    "/api/rh/turnover/dashboard",
+    cleanParams({
+      anomes_ini: toAnomes(p.anomes_ini),
+      anomes_fim: toAnomes(p.anomes_fim),
+      codemp: p.codemp ?? 1,
+    }),
+  );
+  const k = resp?.kpis ?? {};
+  return {
+    kpis: {
+      admitidos: num(k.admitidos),
+      demitidos: num(k.demitidos),
+      saldo: num(k.saldo),
+      headcount_inicio: num(k.headcount_inicio),
+      headcount_fim: num(k.headcount_fim),
+      headcount_medio: num(k.headcount_medio),
+      taxa_rotatividade_pct: num(k.taxa_rotatividade_pct),
+    },
+    por_mes: Array.isArray(resp?.por_mes) ? resp.por_mes : [],
+    por_motivo: Array.isArray(resp?.por_motivo) ? resp.por_motivo : [],
+    por_empresa: Array.isArray(resp?.por_empresa) ? resp.por_empresa : [],
+    detalhe_admitidos: Array.isArray(resp?.detalhe_admitidos) ? resp.detalhe_admitidos : [],
+    detalhe_demitidos: Array.isArray(resp?.detalhe_demitidos) ? resp.detalhe_demitidos : [],
+  };
+}
+
