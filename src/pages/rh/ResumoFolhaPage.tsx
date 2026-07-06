@@ -79,6 +79,14 @@ export default function ResumoFolhaPage() {
     retry: (count, err) => (err instanceof DashboardIndisponivelError ? false : count < 1),
   });
 
+  // Série mensal vem em modo separado (backend não devolve `mensal` no completo)
+  const queryMensal = useQuery({
+    queryKey: ["rh", "resumo-folha-dashboard", baseParams, "mensal"],
+    queryFn: () => fetchResumoFolhaDashboard(baseParams, "mensal"),
+    enabled,
+    retry: (count, err) => (err instanceof DashboardIndisponivelError ? false : count < 1),
+  });
+
   const data = query.data;
   const isLoading = query.isLoading;
   const isError = query.isError;
@@ -93,7 +101,7 @@ export default function ResumoFolhaPage() {
   const proventos = data?.proventos_vantagens ?? [];
   const descontos = data?.descontos ?? [];
   const tipos = data?.tipos_evento ?? [];
-  const mensal = data?.mensal ?? [];
+  const mensal = (queryMensal.data?.mensal?.length ? queryMensal.data.mensal : data?.mensal) ?? [];
   const diagnostico = data?.diagnostico ?? data?.debug;
   const { isAdmin } = useUserPermissions();
 
