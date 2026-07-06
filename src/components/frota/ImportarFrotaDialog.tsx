@@ -7,9 +7,12 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Upload, FileSpreadsheet } from 'lucide-react';
+import { Upload, FileSpreadsheet, Wrench, Fuel, Receipt } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { CATEGORIA_OPTIONS, type FrotaCategoria } from './FrotaDashboard';
 
 interface Props {
   open: boolean;
@@ -29,6 +32,14 @@ interface ParsedRow {
   centro_custo: string | null;
   segmento: string | null;
   tipo_veiculo: string | null;
+  categoria: FrotaCategoria;
+}
+
+interface RowResult {
+  linha: number;
+  ok: boolean;
+  erro?: string;
+  data?: ParsedRow;
 }
 
 function classifyTipo(desc: string | null | undefined, placa?: string): string {
@@ -43,36 +54,62 @@ function classifyTipo(desc: string | null | undefined, placa?: string): string {
   return 'OUTRO';
 }
 
-interface RowResult {
-  linha: number;
-  ok: boolean;
-  erro?: string;
-  data?: ParsedRow;
-}
-
 function normKey(s: string): string {
   return String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-const ALIASES: Record<string, string[]> = {
-  data: ['dia', 'data', 'datalancamento'],
-  placa: ['placa', 'veiculo'],
-  fornecedor: ['fornecedor'],
-  descricao: ['descricao', 'servico', 'item'],
-  quilometragem: ['quilometragemkm', 'quilometragem', 'km'],
-  valor: ['valor', 'total', 'valortotal'],
-  motorista: ['motorista'],
-  centro_custo: ['ccusto', 'centrocusto', 'cc'],
-  segmento: ['segmento'],
-  tipo_veiculo: ['tipoveiculo', 'tipodeveiculo', 'tipo'],
+// Mapa de aliases por campo, por categoria. As chaves são normalizadas via normKey.
+const ALIASES_BY_CATEGORIA: Record<FrotaCategoria, Record<string, string[]>> = {
+  MANUTENCAO: {
+    data: ['dia', 'data', 'datalancamento'],
+    placa: ['placa', 'veiculo'],
+    fornecedor: ['fornecedor'],
+    descricao: ['descricao', 'servico', 'item'],
+    quilometragem: ['quilometragemkm', 'quilometragem', 'km'],
+    valor: ['valor', 'total', 'valortotal'],
+    motorista: ['motorista'],
+    centro_custo: ['ccusto', 'centrocusto', 'cc'],
+    segmento: ['segmento'],
+    tipo_veiculo: ['tipoveiculo', 'tipodeveiculo', 'tipo'],
+  },
+  COMBUSTIVEL: {
+    data: ['data', 'dia', 'datalancamento'],
+    placa: ['placa', 'veiculo'],
+    fornecedor: ['fornecedor'],
+    descricao: ['descricao', 'produto', 'combustivel'],
+    quilometragem: ['km', 'quilometragem', 'quilometragemkm'],
+    motorista: ['motorista'],
+    centro_custo: ['ccusto', 'centrocusto', 'cc'],
+    segmento: ['segmento'],
+    tipo_veiculo: ['tipoveiculo', 'tipodeveiculo', 'tipo'],
+    // "valor" ausente por padrão (combustível é 0 conforme regra)
+    valor: ['valor', 'total', 'valortotal'],
+  },
+  PEDAGIO: {
+    data: ['data', 'dia', 'datalancamento'],
+    placa: ['placa', 'veiculo'],
+    fornecedor: ['fornecedor'],
+    descricao: ['descricao', 'servico', 'item'],
+    valor: ['valororiginal', 'valor', 'total', 'valortotal'],
+    motorista: ['motorista'],
+    centro_custo: ['ccusto', 'centrocusto', 'cc'],
+    segmento: ['segmento'],
+    tipo_veiculo: ['tipoveiculo', 'tipodeveiculo', 'tipo'],
+  },
 };
 
-function buildMap(rawKeys: string[]) {
+const REQUIRED_BY_CATEGORIA: Record<FrotaCategoria, string[]> = {
+  MANUTENCAO: ['data', 'placa', 'valor'],
+  COMBUSTIVEL: ['data', 'placa'],
+  PEDAGIO: ['data', 'placa', 'valor'],
+};
+
+function buildMap(rawKeys: string[], aliases: Record<string, string[]>) {
   const map: Record<string, string> = {};
   const indexed = rawKeys.map((k) => ({ orig: k, norm: normKey(k) }));
-  for (const [field, aliases] of Object.entries(ALIASES)) {
-    for (const a of aliases) {
+  for (const [field, alist] of Object.entries(aliases)) {
+    for (const a of alist) {
       const f = indexed.find((i) => i.norm === a);
       if (f) { map[field] = f.orig; break; }
     }
@@ -124,9 +161,22 @@ function splitPlaca(raw: string): { placa: string; veiculo_descricao: string | n
   return { placa, veiculo_descricao: desc || null };
 }
 
+const CATEGORIA_ICON = {
+  MANUTENCAO: Wrench,
+  COMBUSTIVEL: Fuel,
+  PEDAGIO: Receipt,
+};
+
+const CATEGORIA_HINT: Record<FrotaCategoria, string> = {
+  MANUTENCAO: 'Aceita colunas: Data, Placa, Fornecedor, Descrição, Quilometragem (KM), Valor, Motorista, C.Custo, Segmento, Tipo Veículo.',
+  COMBUSTIVEL: 'Aceita colunas: DATA, PLACA, FORNECEDOR, DESCRIÇÃO, KM, MOTORISTA, C.CUSTO, SEGMENTO, TIPO VEÍCULO. Se não houver VALOR, será importado como 0 (edite depois).',
+  PEDAGIO: 'Aceita colunas: DATA, PLACA, FORNECEDOR, DESCRIÇÃO, VALOR ORIGINAL, MOTORISTA, C.CUSTO, SEGMENTO, TIPO VEÍCULO. VALOR ORIGINAL é usado como valor.',
+};
+
 export function ImportarFrotaDialog({ open, onOpenChange, onImported }: Props) {
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [categoria, setCategoria] = useState<FrotaCategoria>('MANUTENCAO');
   const [fileName, setFileName] = useState('');
   const [rows, setRows] = useState<RowResult[]>([]);
   const [parsing, setParsing] = useState(false);
@@ -154,12 +204,13 @@ export function ImportarFrotaDialog({ open, onOpenChange, onImported }: Props) {
     try {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { type: 'array', cellDates: false });
-      const sheetName = wb.SheetNames.includes('MANUTENÇÃO') ? 'MANUTENÇÃO' : wb.SheetNames[0];
-      const ws = wb.Sheets[sheetName];
+      const ws = wb.Sheets[wb.SheetNames[0]];
       const json = XLSX.utils.sheet_to_json<Record<string, any>>(ws, { defval: null, raw: true });
       const rawKeys = json.length ? Object.keys(json[0]) : [];
-      const map = buildMap(rawKeys);
-      const miss = ['data', 'placa', 'valor'].filter((k) => !map[k]);
+      const aliases = ALIASES_BY_CATEGORIA[categoria];
+      const map = buildMap(rawKeys, aliases);
+      const required = REQUIRED_BY_CATEGORIA[categoria];
+      const miss = required.filter((k) => !map[k]);
       setMissing(miss);
 
       const get = (raw: Record<string, any>, field: string) => {
@@ -174,16 +225,17 @@ export function ImportarFrotaDialog({ open, onOpenChange, onImported }: Props) {
 
         const placaRaw = strOrNull(get(raw, 'placa'));
         const dataNorm = normalizeDate(get(raw, 'data'));
-        const valor = normNumber(get(raw, 'valor'));
+        const valorRaw = normNumber(get(raw, 'valor'));
         const errs: string[] = [];
         if (!placaRaw) errs.push('placa vazia');
         if (!dataNorm) errs.push('data inválida');
-        if (valor === null) errs.push('valor inválido');
+        if (required.includes('valor') && valorRaw === null) errs.push('valor inválido');
         if (errs.length) return { linha, ok: false, erro: errs.join('; ') };
 
         const { placa, veiculo_descricao } = splitPlaca(placaRaw!);
         const segmentoRaw = strOrNull(get(raw, 'segmento'));
         const tipoRaw = strOrNull(get(raw, 'tipo_veiculo'));
+        const valorFinal = categoria === 'COMBUSTIVEL' ? (valorRaw ?? 0) : (valorRaw ?? 0);
         const data: ParsedRow = {
           data: dataNorm,
           placa,
@@ -191,11 +243,12 @@ export function ImportarFrotaDialog({ open, onOpenChange, onImported }: Props) {
           fornecedor: strOrNull(get(raw, 'fornecedor')),
           descricao: strOrNull(get(raw, 'descricao')),
           quilometragem: normNumber(get(raw, 'quilometragem')),
-          valor: valor!,
+          valor: valorFinal,
           motorista: strOrNull(get(raw, 'motorista')),
           centro_custo: strOrNull(get(raw, 'centro_custo')),
           segmento: segmentoRaw ? segmentoRaw.toUpperCase() : null,
-          tipo_veiculo: tipoRaw ? tipoRaw.toUpperCase() : classifyTipo(veiculo_descricao, placa),
+          tipo_veiculo: tipoRaw ?? classifyTipo(veiculo_descricao, placa),
+          categoria,
         };
         return { linha, ok: true, data };
       }).filter((r) => r.erro !== '__empty__');
@@ -225,7 +278,7 @@ export function ImportarFrotaDialog({ open, onOpenChange, onImported }: Props) {
     const errors: string[] = [];
     for (let i = 0; i < records.length; i += BATCH) {
       const chunk = records.slice(i, i + BATCH);
-      const { error } = await supabase.from('manutencao_frota').insert(chunk);
+      const { error } = await supabase.from('manutencao_frota').insert(chunk as any);
       if (error) { failed += chunk.length; errors.push(error.message); }
       else inserted += chunk.length;
       setProgress(Math.round(((i + chunk.length) / records.length) * 100));
@@ -245,19 +298,44 @@ export function ImportarFrotaDialog({ open, onOpenChange, onImported }: Props) {
     handleClose(false);
   };
 
+  const catLabel = CATEGORIA_OPTIONS.find((o) => o.value === categoria)?.label ?? categoria;
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] sm:max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FileSpreadsheet className="h-5 w-5" /> Importar Manutenção de Frota
+            <FileSpreadsheet className="h-5 w-5" /> Importar — {catLabel}
           </DialogTitle>
-          <DialogDescription>
-            Aceita planilha .xlsx com colunas: Dia, Placa, Fornecedor, Descrição, Quilometragem (KM), Valor, Motorista, C.Custo, Segmento.
-          </DialogDescription>
+          <DialogDescription>{CATEGORIA_HINT[categoria]}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          <div>
+            <Label className="text-xs">Categoria</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-1">
+              {CATEGORIA_OPTIONS.map((o) => {
+                const Icon = CATEGORIA_ICON[o.value];
+                const active = categoria === o.value;
+                return (
+                  <button
+                    key={o.value}
+                    type="button"
+                    onClick={() => { setCategoria(o.value); reset(); }}
+                    disabled={importing || parsing}
+                    className={cn(
+                      'flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors',
+                      active ? 'border-primary bg-primary/10 text-foreground font-medium' : 'hover:bg-accent/40',
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {o.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <Input
             ref={fileRef}
             type="file"
@@ -309,7 +387,7 @@ export function ImportarFrotaDialog({ open, onOpenChange, onImported }: Props) {
                         <TableHead>Placa</TableHead>
                         <TableHead>Fornecedor</TableHead>
                         <TableHead className="text-right">Valor</TableHead>
-                        <TableHead>Segmento</TableHead>
+                        <TableHead>Tipo Veículo</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -319,7 +397,7 @@ export function ImportarFrotaDialog({ open, onOpenChange, onImported }: Props) {
                           <TableCell className="font-mono text-xs">{r.data!.placa}</TableCell>
                           <TableCell className="text-xs">{r.data!.fornecedor}</TableCell>
                           <TableCell className="text-right">{r.data!.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
-                          <TableCell>{r.data!.segmento}</TableCell>
+                          <TableCell className="text-xs">{r.data!.tipo_veiculo}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -341,7 +419,7 @@ export function ImportarFrotaDialog({ open, onOpenChange, onImported }: Props) {
           <Button variant="outline" onClick={() => handleClose(false)} disabled={importing}>Cancelar</Button>
           <Button onClick={handleImport} disabled={importing || !validRows.length}>
             <Upload className="mr-1 h-4 w-4" />
-            {importing ? 'Importando...' : `Importar ${validRows.length} registro(s)`}
+            {importing ? 'Importando...' : `Importar ${validRows.length} registro(s) — ${catLabel}`}
           </Button>
         </DialogFooter>
       </DialogContent>
