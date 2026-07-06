@@ -96,17 +96,17 @@ export const FERIAS_CATALOG: Record<string, RhWidgetDef> = {
 
 // ============ TURNOVER ============
 export const TURNOVER_DEFAULTS: RhWidget[] = [
-  { id: 'kpis-turnover', type: 'kpis-turnover', title: 'KPIs — Turnover', position: 0, layout: { x: 0, y: 0, w: 12, h: 4 } },
-  { id: 'serie-turnover', type: 'serie-turnover', title: 'Série mensal',    position: 1, layout: { x: 0, y: 4, w: 8, h: 8 } },
-  { id: 'ranking-turnover', type: 'ranking-turnover', title: 'Por empresa/filial', position: 2, layout: { x: 8, y: 4, w: 4, h: 8 } },
-  { id: 'tabela-turnover', type: 'tabela-turnover', title: 'Detalhes', position: 3, layout: { x: 0, y: 12, w: 12, h: 10 } },
+  { id: 'kpis-turnover',    type: 'kpis-turnover',    title: 'KPIs — Turnover',    position: 0, layout: { x: 0, y: 0,  w: 12, h: 4 } },
+  { id: 'serie-turnover',   type: 'serie-turnover',   title: 'Admissões x Demissões por Mês', position: 1, layout: { x: 0, y: 4, w: 12, h: 8 } },
+  { id: 'motivos-turnover', type: 'motivos-turnover', title: 'Motivos de Desligamento', position: 2, layout: { x: 0, y: 12, w: 6, h: 10 } },
+  { id: 'empresa-turnover', type: 'empresa-turnover', title: 'Por Empresa',          position: 3, layout: { x: 6, y: 12, w: 6, h: 10 } },
 ];
 
 export const TURNOVER_CATALOG: Record<string, RhWidgetDef> = {
-  'kpis-turnover':    { type: 'kpis-turnover',    title: 'KPIs — Turnover',      kind: 'compound' },
-  'serie-turnover':   { type: 'serie-turnover',   title: 'Série mensal',         kind: 'chart', libraryComponentIds: LIB_CHART_IDS },
-  'ranking-turnover': { type: 'ranking-turnover', title: 'Por empresa/filial',   kind: 'chart', libraryComponentIds: LIB_CHART_IDS },
-  'tabela-turnover':  { type: 'tabela-turnover',  title: 'Detalhes',             kind: 'table', libraryComponentIds: LIB_TABLE_IDS },
+  'kpis-turnover':    { type: 'kpis-turnover',    title: 'KPIs — Turnover',       kind: 'compound' },
+  'serie-turnover':   { type: 'serie-turnover',   title: 'Série mensal',          kind: 'chart', libraryComponentIds: LIB_CHART_IDS },
+  'motivos-turnover': { type: 'motivos-turnover', title: 'Motivos',               kind: 'table', libraryComponentIds: LIB_TABLE_IDS },
+  'empresa-turnover': { type: 'empresa-turnover', title: 'Por Empresa',           kind: 'table', libraryComponentIds: LIB_TABLE_IDS },
 };
 
 // ============ ABSENTEÍSMO ============
