@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { FileText, UserMinus, Clock, CalendarClock, FileSpreadsheet, Loader2 } from "lucide-react";
+import { AlertTriangle, FileText, UserMinus, Clock, CalendarClock, FileSpreadsheet, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
@@ -16,26 +18,30 @@ import { useRhModuleLayout } from "@/hooks/useRhModuleLayout";
 import { CONTRATOS_EXP_DEFAULTS } from "@/lib/rh/widgetCatalogs";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import { fetchContratoExperienciaDashboardCached, exportarContratoExperienciaExcel } from "@/lib/rh/api";
-import { filtrarContratosPorPeriodo } from "@/lib/rh/filtros";
 import type { ContratoExperienciaVencimento } from "@/lib/rh/types";
 import { cn } from "@/lib/utils";
 
-function currentYearRange() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  return { ini: `${y}01`, fim: `${y}${m}` };
+const JANELA_OPTIONS = [0, 30, 60, 90, 120];
+const STATUS_FILTRO_OPTIONS = ["Todos", "VENCIDO", "A VENCER 5 DIAS", "A VENCER 10 DIAS", "A VENCER"] as const;
+type StatusFiltro = (typeof STATUS_FILTRO_OPTIONS)[number];
+
+function formatDateBR(s?: string | null): string {
+  if (!s) return "-";
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s));
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : String(s);
 }
 
-function formatDatePt(v?: string): string {
-  if (!v) return "-";
-  const d = new Date(v.length <= 10 ? `${v}T00:00:00` : v);
-  if (isNaN(d.getTime())) return v;
-  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+function fmtDias(n?: number | null): string {
+  if (n === null || n === undefined || !Number.isFinite(Number(n))) return "-";
+  return String(Math.trunc(Number(n)));
 }
 
 function normStatus(status?: string): string {
   return (status || "").toUpperCase().trim();
+}
+
+function isVencido(status?: string): boolean {
+  return normStatus(status) === "VENCIDO";
 }
 
 function isUrgente(status?: string): boolean {
@@ -48,49 +54,66 @@ function statusBadgeCls(status?: string): string {
   if (s === "VENCIDO") return "bg-destructive text-destructive-foreground";
   if (s === "A VENCER 5 DIAS") return "bg-destructive text-destructive-foreground";
   if (s === "A VENCER 10 DIAS") return "bg-[hsl(var(--warning))]/15 text-[hsl(var(--warning))]";
-  if (s === "A VENCER") return "bg-[hsl(var(--success))]/15 text-[hsl(var(--success))]";
+  if (s === "A VENCER") return "bg-primary/10 text-primary";
   return "bg-muted text-muted-foreground";
 }
 
 export default function ContratoExperienciaPage() {
-  const initRange = currentYearRange();
-  const [ini, setIni] = useState(initRange.ini);
-  const [fim, setFim] = useState(initRange.fim);
   const [codemp, setCodemp] = useState<number>(1);
+  const [diasVencidoMax, setDiasVencidoMax] = useState<number>(90);
+  const [statusFiltro, setStatusFiltro] = useState<StatusFiltro>("Todos");
 
-  const { data: dataRaw, isLoading, isFetching, error } = useQuery({
-    queryKey: ["rh", "contrato-experiencia", "dashboard", codemp],
-    queryFn: () => fetchContratoExperienciaDashboardCached(codemp),
+  const { data, isLoading, isFetching, error, refetch } = useQuery({
+    queryKey: ["rh", "contrato-experiencia", "dashboard", codemp, diasVencidoMax],
+    queryFn: () => fetchContratoExperienciaDashboardCached(codemp, diasVencidoMax),
     staleTime: 15 * 60_000,
     gcTime: 60 * 60_000,
     refetchOnWindowFocus: false,
     placeholderData: (prev) => prev,
   });
 
-  const data = useMemo(
-    () => filtrarContratosPorPeriodo(dataRaw ?? null, ini, fim),
-    [dataRaw, ini, fim],
-  );
-
   useEffect(() => {
     if (!error) return;
     const err = error as any;
-    const status = err?.status ?? err?.response?.status;
+    const status = err?.status ?? err?.response?.status ?? err?.statusCode;
     if (status === 401) toast.error("Sessão expirada. Faça login novamente.");
-    else toast.error(err?.message || "Falha ao carregar contratos de experiência.");
+    else toast.error("Não foi possível carregar Contrato de Experiência.");
   }, [error]);
 
   const kpis = data?.kpis;
-  const rows = useMemo<ContratoExperienciaVencimento[]>(() => {
+
+  const rowsSorted = useMemo<ContratoExperienciaVencimento[]>(() => {
     const list = data?.vencimentos ?? [];
-    return [...list].sort((a, b) => (a.dt_vencimento || "").localeCompare(b.dt_vencimento || ""));
+    return [...list].sort((a, b) => {
+      const av = isVencido(a.status);
+      const bv = isVencido(b.status);
+      if (av && !bv) return -1;
+      if (!av && bv) return 1;
+      if (av && bv) {
+        // maior dias_vencido primeiro; fallback: data de vencimento mais antiga
+        const ad = a.dias_vencido ?? -Infinity;
+        const bd = b.dias_vencido ?? -Infinity;
+        if (bd !== ad) return bd - ad;
+        return (a.dt_segundo_vencimento || a.dt_primeiro_vencimento || "").localeCompare(
+          b.dt_segundo_vencimento || b.dt_primeiro_vencimento || "",
+        );
+      }
+      const ar = a.dias_restantes ?? Infinity;
+      const br = b.dias_restantes ?? Infinity;
+      return ar - br;
+    });
   }, [data]);
+
+  const rows = useMemo<ContratoExperienciaVencimento[]>(() => {
+    if (statusFiltro === "Todos") return rowsSorted;
+    return rowsSorted.filter((r) => normStatus(r.status) === statusFiltro);
+  }, [rowsSorted, statusFiltro]);
 
   const [exportando, setExportando] = useState(false);
   async function exportar() {
     setExportando(true);
     try {
-      const { blob, filename } = await exportarContratoExperienciaExcel(codemp);
+      const { blob, filename } = await exportarContratoExperienciaExcel(codemp, diasVencidoMax);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -121,6 +144,25 @@ export default function ContratoExperienciaPage() {
         icon={<FileText className="h-4 w-4" />}
         loading={isLoading}
       />
+    ),
+    "kpi-vencidos-pendentes": (
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => setStatusFiltro("VENCIDO")}
+        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setStatusFiltro("VENCIDO")}
+        className="h-full cursor-pointer"
+        title="Filtrar VENCIDO"
+      >
+        <KpiCard
+          title="Vencidos Pendentes"
+          value={kpis?.vencidos_pendentes ?? 0}
+          format="number"
+          variant="danger"
+          icon={<AlertTriangle className="h-4 w-4" />}
+          loading={isLoading}
+        />
+      </div>
     ),
     "kpi-demitidos": (
       <KpiCard
@@ -154,62 +196,93 @@ export default function ContratoExperienciaPage() {
     ),
     "vencimentos": (
       <Card className="h-full">
-        <CardContent className="pt-6">
-          <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
-            Vencimentos
-          </h2>
-          <div className="max-h-[calc(100%-2rem)] overflow-auto">
+        <CardContent className="pt-6 h-full flex flex-col">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Vencimentos
+            </h2>
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-muted-foreground">Status</Label>
+              <Select value={statusFiltro} onValueChange={(v) => setStatusFiltro(v as StatusFiltro)}>
+                <SelectTrigger className="h-8 w-[180px] text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_FILTRO_OPTIONS.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex-1 overflow-auto">
             <Table>
               <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>
                   <TableHead>Empresa</TableHead>
                   <TableHead>Filial</TableHead>
-                  <TableHead>Cargo</TableHead>
                   <TableHead>Colaborador</TableHead>
+                  <TableHead>Matrícula</TableHead>
+                  <TableHead>Cargo</TableHead>
                   <TableHead>Data Admissão</TableHead>
-                  <TableHead>Segundo Vencimento</TableHead>
+                  <TableHead>1º Vencimento</TableHead>
+                  <TableHead>2º Vencimento</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Dias Restantes</TableHead>
+                  <TableHead className="text-right">Dias Vencido</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading &&
                   Array.from({ length: 6 }).map((_, i) => (
                     <TableRow key={i}>
-                      <TableCell colSpan={7}>
+                      <TableCell colSpan={11}>
                         <Skeleton className="h-6" />
                       </TableCell>
                     </TableRow>
                   ))}
                 {!isLoading && rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-6">
-                      Nenhum contrato
+                    <TableCell colSpan={11} className="text-center text-muted-foreground py-6">
+                      Sem contratos para exibir.
                     </TableCell>
                   </TableRow>
                 )}
                 {rows.map((r, i) => {
+                  const vencido = isVencido(r.status);
                   const urgente = isUrgente(r.status);
                   return (
                     <TableRow
                       key={`${r.matricula}-${i}`}
-                      className={cn(urgente && "animate-row-urgent")}
+                      className={cn(
+                        vencido && "bg-destructive/10 hover:bg-destructive/15",
+                        !vencido && urgente && "animate-row-urgent",
+                      )}
                     >
                       <TableCell>{r.empresa}</TableCell>
                       <TableCell>{r.filial}</TableCell>
-                      <TableCell>{r.cargo}</TableCell>
                       <TableCell>{r.colaborador}</TableCell>
-                      <TableCell>{formatDatePt(r.dt_admissao)}</TableCell>
-                      <TableCell>{formatDatePt(r.dt_vencimento)}</TableCell>
+                      <TableCell>{r.matricula}</TableCell>
+                      <TableCell>{r.cargo}</TableCell>
+                      <TableCell>{formatDateBR(r.dt_admissao)}</TableCell>
+                      <TableCell>{formatDateBR(r.dt_primeiro_vencimento)}</TableCell>
+                      <TableCell>{formatDateBR(r.dt_segundo_vencimento)}</TableCell>
                       <TableCell>
                         <span
                           className={cn(
                             "inline-flex items-center rounded px-2 py-0.5 text-xs font-medium",
                             statusBadgeCls(r.status),
-                            urgente && "font-bold animate-status-blink",
+                            urgente && "font-bold",
                           )}
                         >
                           {r.status || "-"}
                         </span>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {vencido ? "-" : r.dias_restantes != null ? `${fmtDias(r.dias_restantes)} dias restantes` : "-"}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {r.dias_vencido != null ? `Vencido há ${fmtDias(r.dias_vencido)} dias` : "-"}
                       </TableCell>
                     </TableRow>
                   );
@@ -220,12 +293,12 @@ export default function ContratoExperienciaPage() {
         </CardContent>
       </Card>
     ),
-  }), [kpis, isLoading, rows]);
+  }), [kpis, isLoading, rows, statusFiltro]);
 
   return (
     <div className="container mx-auto py-6 space-y-4">
       <RhPageHeader
-        title="03 — Contrato Experiência"
+        title="RH - 03 - Contrato de Experiência"
         actions={
           <>
             <RhLayoutToolbar
@@ -235,6 +308,10 @@ export default function ContratoExperienciaPage() {
               widgets={layout.widgets}
               onShow={layout.showWidget}
             />
+            <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
+              {isFetching ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}
+              Atualizar
+            </Button>
             <Button variant="outline" onClick={exportar} disabled={exportando || isLoading}>
               {exportando ? (
                 <Loader2 className="mr-1 h-4 w-4 animate-spin" />
@@ -248,25 +325,50 @@ export default function ContratoExperienciaPage() {
               titulo="Contratos de Experiência"
               disabled={isLoading}
               dados={data ? { tipo: "contratos-experiencia", atual: data } : null}
-              filtros={{ anomes_ini: ini, anomes_fim: fim, codemp }}
-              iaPayload={{ periodo: { anomes_ini: ini, anomes_fim: fim }, kpis: data?.kpis, vencimentos_amostra: data?.vencimentos?.slice(0, 15) }}
+              filtros={{ codemp, outros: { dias_vencido_max: String(diasVencidoMax) } }}
+              iaPayload={{
+                dias_vencido_max: diasVencidoMax,
+                kpis: data?.kpis,
+                vencimentos_amostra: data?.vencimentos?.slice(0, 15),
+              }}
             />
           </>
         }
       />
 
       <RhFiltrosBar
-        anomesIni={ini}
-        onAnomesIniChange={setIni}
-        anomesFim={fim}
-        onAnomesFimChange={setFim}
+        mostrarPeriodo={false}
         codemp={codemp}
         onCodempChange={setCodemp}
         disabled={isFetching}
+        extras={
+          <div className="flex flex-col gap-1">
+            <Label className="text-xs font-medium">Janela de vencidos</Label>
+            <Select
+              value={String(diasVencidoMax)}
+              onValueChange={(v) => setDiasVencidoMax(Number(v))}
+              disabled={isFetching}
+            >
+              <SelectTrigger className="h-9 w-[220px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {JANELA_OPTIONS.map((o) => (
+                  <SelectItem key={o} value={String(o)}>
+                    {o === 0 ? "0 dias (não mostrar vencidos)" : `${o} dias`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[10px] text-muted-foreground">
+              0 = não mostrar vencidos; 90 = vencidos recentes ainda pendentes
+            </p>
+          </div>
+        }
       />
 
       <RhDashboardGrid
-            loading={!layout.layoutReady}
+        loading={!layout.layoutReady}
         widgets={layout.widgets}
         blocks={blocks}
         editing={layout.editing}
@@ -279,14 +381,18 @@ export default function ContratoExperienciaPage() {
         ready={!isLoading && !!data}
         payload={{
           kpis,
-          total_vencimentos: rows.length,
-          amostra_prox_vencimentos: rows.slice(0, 15).map((r) => ({
+          dias_vencido_max: diasVencidoMax,
+          total_vencimentos: rowsSorted.length,
+          amostra_prox_vencimentos: rowsSorted.slice(0, 15).map((r) => ({
             empresa: r.empresa,
             filial: r.filial,
             cargo: r.cargo,
             colaborador: r.colaborador,
             dt_admissao: r.dt_admissao,
-            dt_vencimento: r.dt_vencimento,
+            dt_primeiro_vencimento: r.dt_primeiro_vencimento,
+            dt_segundo_vencimento: r.dt_segundo_vencimento,
+            dias_restantes: r.dias_restantes,
+            dias_vencido: r.dias_vencido,
             status: r.status,
           })),
         }}
@@ -294,4 +400,3 @@ export default function ContratoExperienciaPage() {
     </div>
   );
 }
-
