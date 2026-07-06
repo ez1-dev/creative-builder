@@ -17,7 +17,11 @@ import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { AreaChartCard } from "@/components/bi/charts/AreaChartCard";
 import { BarChartCard } from "@/components/bi/charts/BarChartCard";
 import { DonutChartCard } from "@/components/bi/charts/DonutChartCard";
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid, LabelList, ResponsiveContainer,
+} from "recharts";
 import { cn } from "@/lib/utils";
+
 import {
   fetchQuadroDashboard,
   fetchQuadroHistorico,
@@ -207,6 +211,45 @@ export default function QuadroColaboradoresPage() {
   const detalhe = dashQ.data?.detalhe ?? [];
   const temDetalhe = detalhe.length > 0;
 
+  const faixaSexoData = useMemo(() => {
+    if (!temDetalhe) return [] as { faixa: string; homens: number; mulheres: number; outros: number; total: number }[];
+    const ORDEM = [
+      "ATE 20 ANOS", "ATE 25 ANOS", "ATE 30 ANOS", "ATE 35 ANOS", "ATE 40 ANOS",
+      "ATE 45 ANOS", "ATE 50 ANOS", "ATE 60 ANOS", "MAIS DE 60 ANOS",
+    ];
+    const norm = (s: any) => String(s ?? "")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase().trim();
+    const sexoBucket = (s: any): "homens" | "mulheres" | "outros" => {
+      const n = norm(s);
+      if (!n) return "outros";
+      if (n.startsWith("M")) return "homens";
+      if (n.startsWith("F")) return "mulheres";
+      return "outros";
+    };
+    const map = new Map<string, { faixa: string; homens: number; mulheres: number; outros: number }>();
+    for (const c of detalhe) {
+      const faixa = String(c.faixa_etaria ?? "").trim() || "—";
+      const key = faixa;
+      const cur = map.get(key) ?? { faixa, homens: 0, mulheres: 0, outros: 0 };
+      cur[sexoBucket(c.sexo)] += 1;
+      map.set(key, cur);
+    }
+    const arr = Array.from(map.values()).map((r) => ({ ...r, total: r.homens + r.mulheres + r.outros }));
+    arr.sort((a, b) => {
+      const ia = ORDEM.indexOf(norm(a.faixa));
+      const ib = ORDEM.indexOf(norm(b.faixa));
+      if (ia !== -1 && ib !== -1) return ia - ib;
+      if (ia !== -1) return -1;
+      if (ib !== -1) return 1;
+      return a.faixa.localeCompare(b.faixa, "pt-BR");
+    });
+    return arr;
+  }, [detalhe, temDetalhe]);
+
+  const temOutros = useMemo(() => faixaSexoData.some((r) => r.outros > 0), [faixaSexoData]);
+
+
   function openDrill(label: string, valor: string, itens: ColaboradorDetalhe[]) {
     if (!itens || itens.length === 0) {
       toast.info("Sem colaboradores para este recorte.");
@@ -376,6 +419,76 @@ export default function QuadroColaboradoresPage() {
         <BreakdownCard title="Faixa etária" data={dashQ.data?.faixa_etaria} sort={false} loading={dashQ.isLoading}
           onItemClick={temDetalhe ? (label) => openDrill("Faixa etária", label, filterDetalheByDimensao(detalhe, "faixa_etaria", label)) : undefined} />
       </div>
+
+      <div className="mb-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Faixa Etária × Sexo</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {dashQ.isLoading ? (
+              <Skeleton className="h-72 w-full" />
+            ) : faixaSexoData.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Sem dados.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={faixaSexoData} margin={{ top: 24, right: 12, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis dataKey="faixa" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip
+                    contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 6, fontSize: 12 }}
+                    formatter={(v: number) => new Intl.NumberFormat("pt-BR").format(v)}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Bar
+                    dataKey="homens" name="Homens" stackId="s"
+                    fill="hsl(var(--muted-foreground))" fillOpacity={0.75}
+                    cursor="pointer"
+                    onClick={(d: any) => {
+                      const faixa = d?.payload?.faixa;
+                      openDrill("Faixa etária × Homens", `${faixa} · Homens`,
+                        detalhe.filter((c) => {
+                          const s = String(c.sexo ?? "").trim().toUpperCase();
+                          return String(c.faixa_etaria ?? "").trim() === faixa && s.startsWith("M");
+                        }));
+                    }}
+                  >
+                    <LabelList dataKey="homens" position="center" style={{ fontSize: 11, fill: "hsl(var(--background))", fontWeight: 600 }} formatter={(v: number) => (v ? v : "")} />
+                  </Bar>
+                  <Bar
+                    dataKey="mulheres" name="Mulheres" stackId="s"
+                    fill="hsl(var(--warning))"
+                    cursor="pointer"
+                    onClick={(d: any) => {
+                      const faixa = d?.payload?.faixa;
+                      openDrill("Faixa etária × Mulheres", `${faixa} · Mulheres`,
+                        detalhe.filter((c) => {
+                          const s = String(c.sexo ?? "").trim().toUpperCase();
+                          return String(c.faixa_etaria ?? "").trim() === faixa && s.startsWith("F");
+                        }));
+                    }}
+                  >
+                    <LabelList dataKey="mulheres" position="center" style={{ fontSize: 11, fill: "hsl(var(--foreground))", fontWeight: 600 }} formatter={(v: number) => (v ? v : "")} />
+                    <LabelList dataKey="total" position="top" style={{ fontSize: 11, fill: "hsl(var(--foreground))", fontWeight: 600 }} formatter={(v: number) => (v ? v : "")} />
+                  </Bar>
+                  {temOutros && (
+                    <Bar
+                      dataKey="outros" name="Outros" stackId="s"
+                      fill="hsl(var(--muted))"
+                      cursor="pointer"
+                    >
+                      <LabelList dataKey="outros" position="center" style={{ fontSize: 11, fill: "hsl(var(--foreground))" }} formatter={(v: number) => (v ? v : "")} />
+                    </Bar>
+                  )}
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">
         <BreakdownCard title="Tempo de casa" data={dashQ.data?.tempo_casa} sort={false} loading={dashQ.isLoading}
