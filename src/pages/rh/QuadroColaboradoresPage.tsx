@@ -249,6 +249,37 @@ export default function QuadroColaboradoresPage() {
 
   const temOutros = useMemo(() => faixaSexoData.some((r) => r.outros > 0), [faixaSexoData]);
 
+  const tempoCasaSexoData = useMemo(() => {
+    if (!temDetalhe) return [] as { faixa: string; homens: number; mulheres: number }[];
+    const ORDEM = [
+      "MENOS DE 1 ANO", "DE 1 A 2 ANOS", "DE 2 A 3 ANOS",
+      "DE 3 A 5 ANOS", "DE 5 A 8 ANOS", "MAIS DE 8 ANOS",
+    ];
+    const norm = (s: any) => String(s ?? "")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase().trim();
+    const sexoM = (s: any) => norm(s).startsWith("M");
+    const sexoF = (s: any) => norm(s).startsWith("F");
+    const map = new Map<string, { faixa: string; homens: number; mulheres: number }>();
+    for (const c of detalhe) {
+      const faixa = String(c.tempo_casa ?? "").trim() || "—";
+      const cur = map.get(faixa) ?? { faixa, homens: 0, mulheres: 0 };
+      if (sexoM(c.sexo)) cur.homens += 1;
+      else if (sexoF(c.sexo)) cur.mulheres += 1;
+      map.set(faixa, cur);
+    }
+    const arr = Array.from(map.values());
+    arr.sort((a, b) => {
+      const ia = ORDEM.indexOf(norm(a.faixa));
+      const ib = ORDEM.indexOf(norm(b.faixa));
+      if (ia !== -1 && ib !== -1) return ia - ib;
+      if (ia !== -1) return -1;
+      if (ib !== -1) return 1;
+      return a.faixa.localeCompare(b.faixa, "pt-BR");
+    });
+    return arr;
+  }, [detalhe, temDetalhe]);
+
 
   function openDrill(label: string, valor: string, itens: ColaboradorDetalhe[]) {
     if (!itens || itens.length === 0) {

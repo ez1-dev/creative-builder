@@ -1,33 +1,24 @@
-## Melhorias no PieChartCard (donut/pie compartilhado)
+## Adicionar "Tempo de Casa × Sexo" (barras agrupadas Homens/Mulheres)
 
-Alterar apenas `src/components/bi/charts/PieChartCard.tsx`. Não muda API pública nem quebra chamadas existentes.
+Segue o mesmo padrão de `Faixa Etária × Sexo`, mas com barras **agrupadas lado a lado** (não empilhadas) como no print, usando `detalhe[]` derivado no front.
 
-### 1. Total automático no centro (modo donut)
-Hoje o centro só aparece se o chamador passar `centerLabel` / `centerValue`. Passa a mostrar automaticamente quando `donut` é true e nenhum deles foi informado:
-- valor: `total` formatado com `Intl.NumberFormat('pt-BR')`
-- rótulo: "Total"
+### `src/pages/rh/QuadroColaboradoresPage.tsx`
 
-Se o chamador passar `centerLabel`/`centerValue`, mantém o comportamento atual (override).
+1. Novo `useMemo` `tempoCasaSexoData`:
+   - Agrupa `detalhe` por `tempo_casa`, contando `homens` (sexo → M) e `mulheres` (F). Sem "outros" no gráfico (fica no filtro, se houver — ver item 3).
+   - Ordena por lista canônica: `Menos de 1 ano`, `De 1 a 2 anos`, `De 2 a 3 anos`, `De 3 a 5 anos`, `De 5 a 8 anos`, `Mais de 8 anos`. Fallback: ordem alfabética pt-BR. Normalização case-insensitive/sem acento.
 
-### 2. Legenda com valor e %
-`legendFormatter` passa a receber o `entry` do recharts e renderiza `"Label · 114 (80%)"` (truncando só o label). Se `total = 0`, oculta a parte "(%)".
+2. Novo `<Card>` inserido logo antes do bloco atual `Tempo de casa / Filial` (linha ~493) — mesma largura full que o card "Faixa Etária × Sexo":
+   - Header `<CardTitle>Tempo de Casa × Sexo</CardTitle>`.
+   - `ResponsiveContainer height={300}` com `BarChart` recharts, **sem `stackId`** (agrupado):
+     - `<Bar dataKey="homens" name="Homens" fill="hsl(var(--muted-foreground))" fillOpacity={0.75}>` com `<LabelList position="top">` mostrando valor.
+     - `<Bar dataKey="mulheres" name="Mulheres" fill="hsl(var(--warning))">` com `<LabelList position="top">`.
+   - Ambas as barras com `cursor: pointer` e `onClick` chamando `openDrill("Tempo de casa × Homens/Mulheres", "<faixa> · <sexo>", ...)` filtrando `detalhe` por `tempo_casa === faixa && sexo` correspondente.
+   - Loading: `<Skeleton h-72>`. Vazio: `<p>Sem dados.</p>`.
 
-### 3. % + valor absoluto dentro das fatias grandes
-No layer compacto (modo interno), além do "80,0%" atual, adicionar uma segunda linha com o valor absoluto formatado (`fmt(v)`), quando a fatia for ≥ `MIN_INSIDE_LABEL_PERCENT` (6%). Fica:
-```
-80,0%
-114
-```
-Texto branco com stroke escuro (paint-order) — igual ao atual. Sem mudar o modo "rich/externo" que já tem leader-lines.
-
-### 4. Cores alinhadas ao design system
-Nada a mudar em código: `BI_PALETTE` já usa tokens semânticos (`hsl(var(--chart-*))`). Apenas confirmar visualmente. Se após a mudança o contraste em donut de 2 fatias parecer fraco, ajusto a ordem para pegar `--chart-1` e `--chart-3` (mais distintos) na próxima iteração — não incluído neste plano.
-
-### Impacto colateral
-- Todas as telas que usam `DonutChartCard`/`PieChartCard` ganham legenda enriquecida e (em donut sem centro custom) total no centro.
-- Nenhum breaking change de props.
+3. Mantém o card atual `BreakdownCard "Tempo de casa"` (total, sem separar sexo) — o novo é complementar.
 
 ### Fora de escopo
-- Não mexer em `QuadroColaboradoresPage` (só consome o componente).
-- Não alterar animações, altura padrão, layout do shell.
-- Não trocar paleta.
+- Não muda API/backend.
+- Não muda o card total "Tempo de casa" nem "Faixa Etária × Sexo".
+- Sem novo endpoint — tudo derivado de `detalhe`.
