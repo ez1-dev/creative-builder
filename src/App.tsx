@@ -8,6 +8,7 @@ import AppLayout from "@/components/AppLayout";
 import LoginPage from "@/pages/LoginPage";
 import AuthCallback from "@/pages/AuthCallback";
 import OAuthConsent from "@/pages/OAuthConsent";
+import ConnectAgentPage from "@/pages/ConnectAgentPage";
 
 import EstoquePage from "@/pages/EstoquePage";
 import EstoqueMinMaxPage from "@/pages/EstoqueMinMaxPage";
@@ -150,6 +151,7 @@ const App = () => (
               <Route path="/usuarios-conectados" element={<ProtectedRoute path="/monitor-usuarios-senior"><MonitorUsuariosSeniorPage /></ProtectedRoute>} />
               <Route path="/gestao-sgu-usuarios" element={<ProtectedRoute path="/gestao-sgu-usuarios"><GestaoSguUsuariosPage /></ProtectedRoute>} />
               <Route path="/configuracoes" element={<ProtectedRoute path="/configuracoes"><ConfiguracoesPage /></ProtectedRoute>} />
+              <Route path="/connect" element={<ConnectAgentPage />} />
               <Route path="/bi-components-demo" element={<BiComponentsDemoPage />} />
               <Route path="/biblioteca-bi" element={<BiComponentsDemoPage />} />
               <Route path="/etl" element={<ProtectedRoute path="/etl"><EtlAdminPage /></ProtectedRoute>} />
