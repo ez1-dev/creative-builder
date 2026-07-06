@@ -15,10 +15,13 @@ import { RhFiltrosBar } from "@/components/rh/RhFiltrosBar";
 import { RhDashboardGrid } from "@/components/rh/RhDashboardGrid";
 import { RhLayoutToolbar } from "@/components/rh/RhLayoutToolbar";
 import { useRhModuleLayout } from "@/hooks/useRhModuleLayout";
-import { CONTRATOS_EXP_DEFAULTS } from "@/lib/rh/widgetCatalogs";
+import { CONTRATOS_EXP_DEFAULTS, CONTRATOS_EXP_CATALOG } from "@/lib/rh/widgetCatalogs";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
+import { ConfigureRhWidgetDialog } from "@/components/rh/ConfigureRhWidgetDialog";
+import { PageDataProvider } from "@/lib/bi/PageDataContext";
 import { fetchContratoExperienciaDashboardCached, exportarContratoExperienciaExcel } from "@/lib/rh/api";
 import type { ContratoExperienciaVencimento } from "@/lib/rh/types";
+import type { RhWidget } from "@/hooks/useRhModuleLayout";
 import { cn } from "@/lib/utils";
 
 const JANELA_OPTIONS = [0, 30, 60, 90, 120];
@@ -134,6 +137,7 @@ export default function ContratoExperienciaPage() {
   }
 
   const layout = useRhModuleLayout("rh-contratos-exp", CONTRATOS_EXP_DEFAULTS);
+  const [configTarget, setConfigTarget] = useState<RhWidget | null>(null);
 
   const blocks: Record<string, React.ReactNode> = useMemo(() => ({
     "kpi-qtde": (
@@ -307,6 +311,8 @@ export default function ContratoExperienciaPage() {
               onReset={layout.resetLayout}
               widgets={layout.widgets}
               onShow={layout.showWidget}
+              pageKey="rh-contratos-exp"
+              onAdd={layout.addWidget}
             />
             <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
               {isFetching ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}
@@ -364,13 +370,33 @@ export default function ContratoExperienciaPage() {
         }
       />
 
-      <RhDashboardGrid
-        loading={!layout.layoutReady}
-        widgets={layout.widgets}
-        blocks={blocks}
-        editing={layout.editing}
-        onLayoutChange={layout.saveGeometries}
-        onHide={layout.hideWidget}
+      <PageDataProvider
+        pageKey="rh-contratos-exp"
+        kpis={kpis as any}
+        rows={rowsSorted as any}
+        filtros={{ codemp, dias_vencido_max: diasVencidoMax }}
+      >
+        <RhDashboardGrid
+          loading={!layout.layoutReady}
+          widgets={layout.widgets}
+          blocks={blocks}
+          editing={layout.editing}
+          configurableTypes={Object.keys(CONTRATOS_EXP_CATALOG).filter((t) => (CONTRATOS_EXP_CATALOG as any)[t]?.libraryComponentIds?.length)}
+          onLayoutChange={layout.saveGeometries}
+          onHide={layout.hideWidget}
+          onConfigure={(type) => setConfigTarget(layout.widgets.find((w) => w.type === type) ?? null)}
+          onDelete={layout.deleteWidget}
+        />
+      </PageDataProvider>
+
+      <ConfigureRhWidgetDialog
+        open={!!configTarget}
+        onOpenChange={(v) => !v && setConfigTarget(null)}
+        pageKey="rh-contratos-exp"
+        widget={configTarget}
+        allowedComponentIds={configTarget ? (CONTRATOS_EXP_CATALOG as any)[configTarget.type]?.libraryComponentIds : undefined}
+        onSave={(patch) => configTarget && layout.configureWidget(configTarget.type, patch)}
+        onDelete={layout.deleteWidget}
       />
 
       <AiInsightsPanel

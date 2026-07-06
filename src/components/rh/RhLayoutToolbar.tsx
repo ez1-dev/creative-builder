@@ -1,6 +1,6 @@
 /**
  * Toolbar de layout dos módulos RH: entrar em edição, salvar, resetar,
- * reexibir blocos ocultos.
+ * reexibir blocos ocultos, e adicionar componentes da Biblioteca BI.
  */
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -11,8 +11,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Pencil, Check, RotateCcw, EyeOff, Eye } from 'lucide-react';
+import { Pencil, Check, RotateCcw, EyeOff, Eye, Plus } from 'lucide-react';
 import type { RhWidget } from '@/hooks/useRhModuleLayout';
+import { AddRhBiWidgetDialog } from './AddRhBiWidgetDialog';
 
 interface Props {
   editing: boolean;
@@ -20,13 +21,32 @@ interface Props {
   onReset: () => Promise<void> | void;
   widgets: RhWidget[];
   onShow: (type: string) => void;
+  /** Chave da página no pageRegistry — habilita o botão "Adicionar da Biblioteca BI". */
+  pageKey?: string;
+  onAdd?: (payload: { componentId: string; title: string; mapping: Record<string, string> }) => Promise<void> | void;
 }
 
-export function RhLayoutToolbar({ editing, onToggle, onReset, widgets, onShow }: Props) {
+export function RhLayoutToolbar({ editing, onToggle, onReset, widgets, onShow, pageKey, onAdd }: Props) {
   const [resetting, setResetting] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const hidden = widgets.filter((w) => w.hidden);
   return (
     <div className="flex items-center gap-2">
+      {editing && pageKey && onAdd && (
+        <>
+          <Button size="sm" variant="outline" className="h-8" onClick={() => setAddOpen(true)}>
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            Adicionar da Biblioteca BI
+          </Button>
+          <AddRhBiWidgetDialog
+            open={addOpen}
+            onOpenChange={setAddOpen}
+            pageKey={pageKey}
+            onAdd={onAdd}
+          />
+        </>
+      )}
+
       {hidden.length > 0 && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

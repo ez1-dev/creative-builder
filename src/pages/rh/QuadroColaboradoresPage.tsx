@@ -15,10 +15,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { BotaoRelatorioModuloPdf } from "@/components/rh/BotaoRelatorioModuloPdf";
-import { RhDashboardGrid } from "@/components/rh/RhDashboardGrid";
+import { RhDashboardWithBiLibrary } from "@/components/rh/RhDashboardWithBiLibrary";
 import { RhLayoutToolbar } from "@/components/rh/RhLayoutToolbar";
 import { useRhModuleLayout } from "@/hooks/useRhModuleLayout";
-import { QUADRO_DEFAULTS } from "@/lib/rh/widgetCatalogs";
+import { QUADRO_DEFAULTS, QUADRO_CATALOG } from "@/lib/rh/widgetCatalogs";
 import { AreaChartCard } from "@/components/bi/charts/AreaChartCard";
 import { BarChartCard } from "@/components/bi/charts/BarChartCard";
 import { DonutChartCard } from "@/components/bi/charts/DonutChartCard";
@@ -362,6 +362,8 @@ export default function QuadroColaboradoresPage() {
               onReset={layout.resetLayout}
               widgets={layout.widgets}
               onShow={layout.showWidget}
+              pageKey="rh-quadro"
+              onAdd={layout.addWidget}
             />
             <BotaoRelatorioModuloPdf
               modulo="quadro-colaboradores"
@@ -605,13 +607,13 @@ export default function QuadroColaboradoresPage() {
           ),
         };
         return (
-          <RhDashboardGrid
-            loading={!layout.layoutReady}
-            widgets={layout.widgets}
+          <RhDashboardWithBiLibrary
+            pageKey="rh-quadro"
+            layout={layout}
             blocks={blocks}
-            editing={layout.editing}
-            onLayoutChange={layout.saveGeometries}
-            onHide={layout.hideWidget}
+            catalog={QUADRO_CATALOG}
+            kpis={dashQ.data?.kpis as any}
+            filtros={{}}
           />
         );
       })()}

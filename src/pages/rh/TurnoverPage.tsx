@@ -13,10 +13,10 @@ import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import { BotaoRelatorioModuloPdf } from "@/components/rh/BotaoRelatorioModuloPdf";
 import { RhFiltrosBar } from "@/components/rh/RhFiltrosBar";
-import { RhDashboardGrid } from "@/components/rh/RhDashboardGrid";
+import { RhDashboardWithBiLibrary } from "@/components/rh/RhDashboardWithBiLibrary";
 import { RhLayoutToolbar } from "@/components/rh/RhLayoutToolbar";
 import { useRhModuleLayout } from "@/hooks/useRhModuleLayout";
-import { TURNOVER_DEFAULTS } from "@/lib/rh/widgetCatalogs";
+import { TURNOVER_DEFAULTS, TURNOVER_CATALOG } from "@/lib/rh/widgetCatalogs";
 import { addMonths } from "@/lib/rh/relatorio";
 import { TurnoverDrillModal } from "@/components/rh/TurnoverDrillModal";
 import { TurnoverEmpresaDrillModal } from "@/components/rh/TurnoverEmpresaDrillModal";
@@ -125,6 +125,8 @@ export default function TurnoverPage() {
               onReset={layout.resetLayout}
               widgets={layout.widgets}
               onShow={layout.showWidget}
+              pageKey="rh-turnover"
+              onAdd={layout.addWidget}
             />
             <BotaoRelatorioModuloPdf
               modulo="turnover"
@@ -346,13 +348,13 @@ export default function TurnoverPage() {
           ),
         };
         return (
-          <RhDashboardGrid
-            loading={!layout.layoutReady}
-            widgets={layout.widgets}
+          <RhDashboardWithBiLibrary
+            pageKey="rh-turnover"
+            layout={layout}
             blocks={blocks}
-            editing={layout.editing}
-            onLayoutChange={layout.saveGeometries}
-            onHide={layout.hideWidget}
+            catalog={TURNOVER_CATALOG}
+            kpis={kpis as any}
+            filtros={{ codemp, anomes_ini: ini, anomes_fim: fim }}
           />
         );
       })()}

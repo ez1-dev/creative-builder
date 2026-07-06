@@ -10,10 +10,10 @@ import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { BotaoRelatorioModuloPdf } from "@/components/rh/BotaoRelatorioModuloPdf";
 import { RhFiltrosBar } from "@/components/rh/RhFiltrosBar";
-import { RhDashboardGrid } from "@/components/rh/RhDashboardGrid";
+import { RhDashboardWithBiLibrary } from "@/components/rh/RhDashboardWithBiLibrary";
 import { RhLayoutToolbar } from "@/components/rh/RhLayoutToolbar";
 import { useRhModuleLayout } from "@/hooks/useRhModuleLayout";
-import { FERIAS_DEFAULTS } from "@/lib/rh/widgetCatalogs";
+import { FERIAS_DEFAULTS, FERIAS_CATALOG } from "@/lib/rh/widgetCatalogs";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import { ProgramacaoFeriasDrillModal, DrillMode } from "@/components/rh/ProgramacaoFeriasDrillModal";
 import { fetchProgramacaoFeriasDashboardCached, exportarProgramacaoFeriasExcel } from "@/lib/rh/api";
@@ -375,6 +375,8 @@ export default function ProgramacaoFeriasPage() {
               onReset={layout.resetLayout}
               widgets={layout.widgets}
               onShow={layout.showWidget}
+              pageKey="rh-ferias"
+              onAdd={layout.addWidget}
             />
             <Button variant="outline" size="sm" onClick={handleExport} disabled={isExporting}>
               {isExporting ? (
@@ -406,13 +408,13 @@ export default function ProgramacaoFeriasPage() {
         disabled={isFetching}
       />
 
-      <RhDashboardGrid
-            loading={!layout.layoutReady}
-        widgets={layout.widgets}
+      <RhDashboardWithBiLibrary
+        pageKey="rh-ferias"
+        layout={layout}
         blocks={blocks}
-        editing={layout.editing}
-        onLayoutChange={layout.saveGeometries}
-        onHide={layout.hideWidget}
+        catalog={FERIAS_CATALOG}
+        kpis={kpis as any}
+        filtros={{ codemp, anomes_ini: ini, anomes_fim: fim }}
       />
 
 

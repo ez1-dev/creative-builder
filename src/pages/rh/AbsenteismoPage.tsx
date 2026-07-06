@@ -18,10 +18,10 @@ import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { BotaoRelatorioModuloPdf } from "@/components/rh/BotaoRelatorioModuloPdf";
 import { RhFiltrosBar } from "@/components/rh/RhFiltrosBar";
-import { RhDashboardGrid } from "@/components/rh/RhDashboardGrid";
+import { RhDashboardWithBiLibrary } from "@/components/rh/RhDashboardWithBiLibrary";
 import { RhLayoutToolbar } from "@/components/rh/RhLayoutToolbar";
 import { useRhModuleLayout } from "@/hooks/useRhModuleLayout";
-import { ABSENTEISMO_DEFAULTS } from "@/lib/rh/widgetCatalogs";
+import { ABSENTEISMO_DEFAULTS, ABSENTEISMO_CATALOG } from "@/lib/rh/widgetCatalogs";
 import { addMonths } from "@/lib/rh/relatorio";
 import { AbsenteismoDrillModal } from "@/components/rh/AbsenteismoDrillModal";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
@@ -143,6 +143,8 @@ export default function AbsenteismoPage() {
               onReset={layout.resetLayout}
               widgets={layout.widgets}
               onShow={layout.showWidget}
+              pageKey="rh-absenteismo"
+              onAdd={layout.addWidget}
             />
             <Button variant="outline" size="sm" onClick={exportar} disabled={isLoading}>
               <FileSpreadsheet className="h-4 w-4 mr-2" /> Exportar Excel
@@ -342,13 +344,13 @@ export default function AbsenteismoPage() {
           ),
         };
         return (
-          <RhDashboardGrid
-            loading={!layout.layoutReady}
-            widgets={layout.widgets}
+          <RhDashboardWithBiLibrary
+            pageKey="rh-absenteismo"
+            layout={layout}
             blocks={blocks}
-            editing={layout.editing}
-            onLayoutChange={layout.saveGeometries}
-            onHide={layout.hideWidget}
+            catalog={ABSENTEISMO_CATALOG}
+            kpis={kpis as any}
+            filtros={{ codemp, anomes_ini: ini, anomes_fim: fim }}
           />
         );
       })()}

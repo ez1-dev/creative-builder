@@ -2,18 +2,17 @@
  * Grid editável para páginas RH — wrapper fino sobre PassagensLayoutGrid,
  * reaproveitando a lógica de drag/resize/edit.
  *
- * Diferenças do módulo Passagens:
- *  - densidade `compact` (margens/rowHeight menores) para dashboards densos.
- *  - compactação vertical em modo visualização: reescreve `y` para eliminar
- *    "vãos" verticais entre widgets sem alterar o layout salvo no banco.
- *
- * Quando `loading===true` (layout ainda não carregado do banco), renderiza
- * um placeholder para evitar o flash de tamanho padrão nos cards.
+ * Suporta widgets custom-* (ou canônicos com componentId setado) renderizando
+ * o componente da Biblioteca BI correspondente, consumindo dados do
+ * PageDataContext quando presente.
  */
 import { useMemo, type ReactNode } from 'react';
 import { PassagensLayoutGrid } from '@/components/passagens/PassagensLayoutGrid';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent } from '@/components/ui/card';
 import type { RhWidget } from '@/hooks/useRhModuleLayout';
+import { usePageData } from '@/lib/bi/PageDataContext';
+import { getComponent } from '@/lib/bi/componentRegistry';
 
 interface Props {
   widgets: RhWidget[];
@@ -24,19 +23,10 @@ interface Props {
   onHide?: (type: string) => void;
   onConfigure?: (type: string) => void;
   onDelete?: (type: string) => void;
-  /** Se true, esconde o grid e mostra um skeleton — evita paint com defaults antes do load do banco. */
   loading?: boolean;
-  /** Altura do skeleton em px (default 600). */
   skeletonHeight?: number;
 }
 
-/**
- * Reescreve o `y` de cada widget para o menor valor possível respeitando
- * colisões horizontais com widgets já posicionados. Preserva x/w/h.
- *
- * Chamada apenas em modo visualização — em edição a posição bruta é a fonte
- * da verdade para não brigar com o drag do usuário.
- */
 function compactVerticalLayout(widgets: RhWidget[]): RhWidget[] {
   const visible = widgets.filter((w) => !w.hidden);
   const sorted = [...visible].sort((a, b) => {
@@ -64,11 +54,59 @@ function compactVerticalLayout(widgets: RhWidget[]): RhWidget[] {
   });
 }
 
-export function RhDashboardGrid({ loading, skeletonHeight = 600, widgets, editing, ...rest }: Props) {
+export function RhDashboardGrid({ loading, skeletonHeight = 600, widgets, editing, blocks, configurableTypes, ...rest }: Props) {
+  const ctx = usePageData();
+
   const effectiveWidgets = useMemo(
     () => (editing ? widgets : compactVerticalLayout(widgets)),
     [widgets, editing],
   );
+
+  // Blocks augmentados: para widgets com componentId, renderiza via BI Library.
+  const effectiveBlocks = useMemo<Record<string, ReactNode>>(() => {
+    const out: Record<string, ReactNode> = { ...blocks };
+    for (const w of widgets) {
+      if (w.componentId) {
+        const def = getComponent(w.componentId);
+        if (!def) continue;
+        const title = w.customTitle ?? w.title;
+        const mapping = w.mapping ?? {};
+        const options = w.options ?? {};
+        out[w.type] = (
+          <Card className="h-full">
+            <CardContent className="pt-4 h-full overflow-hidden">
+              {def.render({
+                title,
+                mapping,
+                options: { ...options, filtros: ctx?.filtros ?? {} },
+                ctx: {
+                  kpis: ctx?.kpis ?? {},
+                  series: ctx?.series ?? {},
+                  rows: Array.isArray(ctx?.rows) ? ctx!.rows : [],
+                },
+              })}
+            </CardContent>
+          </Card>
+        );
+      } else if (w.type.startsWith('custom-') && !out[w.type]) {
+        out[w.type] = (
+          <Card className="h-full">
+            <CardContent className="pt-6 text-xs text-muted-foreground">
+              Widget custom sem componente configurado. Clique em ⚙ para configurar.
+            </CardContent>
+          </Card>
+        );
+      }
+    }
+    return out;
+  }, [blocks, widgets, ctx]);
+
+  // Todo widget custom-* é configurável; canônicos passam via prop.
+  const effectiveConfigurableTypes = useMemo(() => {
+    const s = new Set(configurableTypes ?? []);
+    for (const w of widgets) if (w.type.startsWith('custom-')) s.add(w.type);
+    return Array.from(s);
+  }, [configurableTypes, widgets]);
 
   if (loading) {
     return <Skeleton className="w-full rounded-lg" style={{ height: skeletonHeight }} />;
@@ -76,8 +114,10 @@ export function RhDashboardGrid({ loading, skeletonHeight = 600, widgets, editin
   return (
     <PassagensLayoutGrid
       {...(rest as any)}
+      blocks={effectiveBlocks as any}
       widgets={effectiveWidgets as any}
       editing={editing}
+      configurableTypes={effectiveConfigurableTypes}
       density="compact"
     />
   );
