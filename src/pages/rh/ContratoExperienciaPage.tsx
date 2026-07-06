@@ -15,10 +15,13 @@ import { RhFiltrosBar } from "@/components/rh/RhFiltrosBar";
 import { RhDashboardGrid } from "@/components/rh/RhDashboardGrid";
 import { RhLayoutToolbar } from "@/components/rh/RhLayoutToolbar";
 import { useRhModuleLayout } from "@/hooks/useRhModuleLayout";
-import { CONTRATOS_EXP_DEFAULTS } from "@/lib/rh/widgetCatalogs";
+import { CONTRATOS_EXP_DEFAULTS, CONTRATOS_EXP_CATALOG } from "@/lib/rh/widgetCatalogs";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
+import { ConfigureRhWidgetDialog } from "@/components/rh/ConfigureRhWidgetDialog";
+import { PageDataProvider } from "@/lib/bi/PageDataContext";
 import { fetchContratoExperienciaDashboardCached, exportarContratoExperienciaExcel } from "@/lib/rh/api";
 import type { ContratoExperienciaVencimento } from "@/lib/rh/types";
+import type { RhWidget } from "@/hooks/useRhModuleLayout";
 import { cn } from "@/lib/utils";
 
 const JANELA_OPTIONS = [0, 30, 60, 90, 120];
