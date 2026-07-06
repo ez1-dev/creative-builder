@@ -220,7 +220,15 @@ export function PieChartCard({
     return [`${valStr} (${pctStr}%)`, fullName];
   };
 
-  const legendFormatter = (value: any) => truncateLabel(String(value ?? ''), 22);
+  const legendFormatter = (value: any, entry: any) => {
+    const v = Number(entry?.payload?.valor ?? entry?.payload?.value ?? 0);
+    const name = truncateLabel(String(value ?? ''), 22);
+    if (!total) return name;
+    const pct = (v / total) * 100;
+    const pctStr = pct.toLocaleString('pt-BR', { maximumFractionDigits: pct >= 10 ? 0 : 1 });
+    return `${name} · ${valueFormatter(v)} (${pctStr}%)`;
+  };
+
 
   // Quando rich e visível, suprimimos o LabelList simples (o layer cuida).
   const useSimpleLabelList = vc.dataLabels.visible && !rich;
