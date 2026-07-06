@@ -340,6 +340,8 @@ export default function QuadroColaboradoresPage() {
     /^\d{6}$/.test(v) ? `${v.slice(0, 4)}-${v.slice(4, 6)}` : "";
   const inputMonthToAnomes = (v: string) => (v ? v.replace("-", "") : "");
 
+  const layout = useRhModuleLayout("rh-quadro", QUADRO_DEFAULTS);
+
   return (
     <div className="container mx-auto py-6">
       <RhPageHeader
