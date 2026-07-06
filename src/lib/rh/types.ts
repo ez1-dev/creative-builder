@@ -274,6 +274,8 @@ export interface ResumoFolhaKpis {
   custo_ferias: number;
   rescisoes: number;
   fgts: number;
+  salario_base?: number;
+  salario_bruto?: number;
 }
 
 export interface ResumoFolhaEventoAgg {
