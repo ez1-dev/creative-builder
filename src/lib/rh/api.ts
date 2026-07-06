@@ -753,3 +753,48 @@ export async function fetchTurnoverDashboard(
   };
 }
 
+
+// ===== RH-06 Absenteísmo =====
+export interface AbsenteismoParams {
+  anomes_ini: string;
+  anomes_fim: string;
+  codemp?: number;
+}
+export async function fetchAbsenteismoDashboard(
+  p: AbsenteismoParams,
+): Promise<import("./types").AbsenteismoDashboard> {
+  const resp = await api.get<any>(
+    "/api/rh/absenteismo/dashboard",
+    cleanParams({
+      anomes_ini: toAnomes(p.anomes_ini),
+      anomes_fim: toAnomes(p.anomes_fim),
+      codemp: p.codemp ?? 1,
+    }),
+  );
+  const k = resp?.kpis ?? {};
+  return {
+    kpis: {
+      taxa_absenteismo_pct: num(k.taxa_absenteismo_pct),
+      afastamentos: num(k.afastamentos),
+      colaboradores_afastados: num(k.colaboradores_afastados),
+      dias_perdidos: num(k.dias_perdidos),
+      duracao_media_dias: num(k.duracao_media_dias),
+      headcount_medio: num(k.headcount_medio),
+      dias_periodo: num(k.dias_periodo),
+    },
+    por_categoria: Array.isArray(resp?.por_categoria) ? resp.por_categoria : [],
+    por_motivo: Array.isArray(resp?.por_motivo) ? resp.por_motivo : [],
+    por_mes: Array.isArray(resp?.por_mes) ? resp.por_mes : [],
+    por_empresa: Array.isArray(resp?.por_empresa) ? resp.por_empresa : [],
+    detalhe: Array.isArray(resp?.detalhe) ? resp.detalhe : [],
+  };
+}
+export function getAbsenteismoExportUrl(p: AbsenteismoParams): string {
+  return api.getExportUrl("/api/rh/absenteismo/exportar", {
+    anomes_ini: toAnomes(p.anomes_ini),
+    anomes_fim: toAnomes(p.anomes_fim),
+    codemp: p.codemp ?? 1,
+  });
+}
+
+
