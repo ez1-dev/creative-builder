@@ -73,10 +73,10 @@ export function PieChartCard({
   const fontFamily = fontFamilyCss(vc.dataLabels.fontFamily);
   const fs = vc.dataLabels.fontSize;
 
-  // Layout estático (sempre seguro para modo compacto). Layer externo respeita os 20px de margem.
-  const outerRadius: number | string = rich ? '58%' : 90;
-  const innerRadius: number | string = donut ? (rich ? '35%' : 55) : 0;
-  const cy = '45%';
+  // Layout responsivo (percentuais) para não cortar em cards pequenos.
+  const outerRadius: number | string = rich ? '58%' : '78%';
+  const innerRadius: number | string = donut ? (rich ? '35%' : '55%') : 0;
+  const cy = '46%';
 
   const PieLabelsLayer = (props: any) => {
     const { width: cw, height: ch } = props;
@@ -86,8 +86,10 @@ export function PieChartCard({
     const allowExternal = rich && !isCompact && data.length <= MAX_DATA_FOR_EXTERNAL;
 
     const cx = cw / 2;
-    // cy = 45% precisa bater com o Pie cy="45%"
-    const cyPx = ch * 0.45;
+    const cyPx = ch * 0.46;
+    const RADIAN = Math.PI / 180;
+    const rPx = Math.min(cw, ch) * 0.34;
+
     const RADIAN = Math.PI / 180;
     const rPx = Math.min(cw, ch) * 0.29;
 
