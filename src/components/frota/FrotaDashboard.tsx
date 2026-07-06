@@ -477,10 +477,20 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
         />
       </VisualGate>
     ),
+    'chart-categoria': (
+      <VisualGate visualKey="frota.chart-categoria">
+        <PieChartCard
+          title="Por Segmento (Categoria)"
+          subtitle="Manutenção veículo / Combustível / Pedágio — % e valor"
+          data={porCategoria} loading={loading} donut height={420}
+          onItemClick={(d) => setSelCategoria((prev) => toggleItem(prev, d.label))}
+        />
+      </VisualGate>
+    ),
     'chart-segmento': (
       <VisualGate visualKey="frota.chart-segmento">
         <PieChartCard
-          title="Distribuição por Segmento"
+          title="Distribuição por Segmento (FROTA/GENIUS/OBRA)"
           subtitle="Clique numa fatia para filtrar"
           data={porSegmento} loading={loading} donut
           onItemClick={(d) => setSelSegmento((prev) => toggleItem(prev, d.label))}
