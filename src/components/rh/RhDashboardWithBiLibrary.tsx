@@ -9,6 +9,7 @@ import { AddRhBiWidgetDialog } from './AddRhBiWidgetDialog';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
 import type { RhWidget } from '@/hooks/useRhModuleLayout';
 import type { RhWidgetDef } from '@/lib/rh/widgetCatalogs';
+import { rhSeriesToOptions, rhSeriesToRecord, type RhSerie } from '@/lib/rh/seriesAdapter';
 
 interface LayoutApi {
   widgets: RhWidget[];
@@ -27,7 +28,11 @@ interface Props {
   blocks: Record<string, ReactNode>;
   catalog?: Record<string, RhWidgetDef>;
   kpis?: Record<string, any> | null;
-  series?: Record<string, any> | null;
+  /**
+   * Aceita o novo contrato uniforme RH — array `{ chave, label, pontos }` —
+   * ou o formato antigo `Record<chave, pontos>` para retrocompatibilidade.
+   */
+  series?: RhSerie[] | Record<string, any> | null;
   rows?: any[] | null;
   filtros?: Record<string, any> | null;
 }
