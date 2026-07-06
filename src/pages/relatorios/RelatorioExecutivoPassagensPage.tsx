@@ -105,7 +105,7 @@ export default function RelatorioExecutivoPassagensPage() {
       mensal,
       topColab: aggBy('colaborador'),
       topDest: aggBy('destino'),
-      topCia: aggBy('cia_aerea'),
+      topProduto: aggBy('produto' as keyof Passagem),
       topCC: aggBy('centro_custo'),
     };
   }, [dados, de, ate]);
