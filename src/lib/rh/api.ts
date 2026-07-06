@@ -798,3 +798,44 @@ export function getAbsenteismoExportUrl(p: AbsenteismoParams): string {
 }
 
 
+// ===== Cache persistente (Lovable Cloud) para dashboards do RH =====
+import { withRhCache, RH_CACHE_DEFAULT_TTL_MS } from "./rhCache";
+
+export async function fetchResumoFolhaDashboardCached(
+  p: ResumoFolhaParams & { codemp?: number },
+  modo: ResumoFolhaModo = "completo",
+): Promise<ResumoFolhaDashboard> {
+  const key = `rh:folha:${modo}:${p.codemp ?? 1}:${toAnomes(p.anomes_ini)}:${toAnomes(p.anomes_fim)}:${p.filial ?? ""}:${p.matricula ?? ""}`;
+  return withRhCache(key, RH_CACHE_DEFAULT_TTL_MS, () => fetchResumoFolhaDashboard(p, modo));
+}
+
+export async function fetchTurnoverDashboardCached(
+  p: TurnoverParams,
+): Promise<import("./types").TurnoverDashboard> {
+  const key = `rh:turnover:${p.codemp ?? 1}:${toAnomes(p.anomes_ini)}:${toAnomes(p.anomes_fim)}`;
+  return withRhCache(key, RH_CACHE_DEFAULT_TTL_MS, () => fetchTurnoverDashboard(p));
+}
+
+export async function fetchAbsenteismoDashboardCached(
+  p: AbsenteismoParams,
+): Promise<import("./types").AbsenteismoDashboard> {
+  const key = `rh:absenteismo:${p.codemp ?? 1}:${toAnomes(p.anomes_ini)}:${toAnomes(p.anomes_fim)}`;
+  return withRhCache(key, RH_CACHE_DEFAULT_TTL_MS, () => fetchAbsenteismoDashboard(p));
+}
+
+export async function fetchContratoExperienciaDashboardCached(
+  codemp: number = 1,
+): Promise<import("./types").ContratoExperienciaDashboard> {
+  const key = `rh:contrato-exp:${codemp}`;
+  return withRhCache(key, RH_CACHE_DEFAULT_TTL_MS, () => fetchContratoExperienciaDashboard(codemp));
+}
+
+export async function fetchProgramacaoFeriasDashboardCached(
+  codemp: number = 1,
+): Promise<import("./types").ProgramacaoFeriasDashboard> {
+  const key = `rh:programacao-ferias:${codemp}`;
+  return withRhCache(key, RH_CACHE_DEFAULT_TTL_MS, () => fetchProgramacaoFeriasDashboard(codemp));
+}
+
+
+
