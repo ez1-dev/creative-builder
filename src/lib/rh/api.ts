@@ -521,6 +521,54 @@ export interface StatusSincronizacaoRh {
 }
 
 /**
+ * Baixa o Excel de conferência do RH-03 (Contrato Experiência).
+ * GET /api/rh/contrato-experiencia/exportar?codemp=... com Bearer via header.
+ */
+export async function exportarContratoExperienciaExcel(
+  codemp: number | string = 1,
+): Promise<{ blob: Blob; filename: string }> {
+  const codempStr = String(codemp ?? 1);
+  const qs = new URLSearchParams({ codemp: codempStr });
+  const url = `${getApiUrl()}/api/rh/contrato-experiencia/exportar?${qs.toString()}`;
+  const headers: Record<string, string> = { "ngrok-skip-browser-warning": "true" };
+  const token = api.getToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  let resp: Response;
+  try {
+    resp = await fetch(url, { headers });
+  } catch (e: any) {
+    const err: any = new Error(e?.message || "Falha de rede ao exportar");
+    err.code = "ERRO_GENERICO";
+    throw err;
+  }
+
+  if (!resp.ok) {
+    const err: any = new Error(
+      resp.status === 401
+        ? "Sessão expirada."
+        : resp.status === 404 || resp.status === 405 || resp.status === 501
+        ? "Exportação ainda não disponível no backend."
+        : `Falha ao exportar (HTTP ${resp.status})`,
+    );
+    err.statusCode = resp.status;
+    if (resp.status === 404 || resp.status === 405 || resp.status === 501) {
+      err.code = "ENDPOINT_INDISPONIVEL";
+    }
+    throw err;
+  }
+
+  const blob = await resp.blob();
+  const disposition = resp.headers.get("Content-Disposition");
+  let filename = `rh03_contrato_experiencia_${codempStr}.xlsx`;
+  if (disposition) {
+    const m = disposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)"?/i);
+    if (m?.[1]) filename = decodeURIComponent(m[1].replace(/"/g, ""));
+  }
+  return { blob, filename };
+}
+
+/**
  * Consulta o status atual de uma sincronização RH em andamento.
  * Se o backend ainda não expuser o endpoint (404), devolve `null`
  * para o chamador desligar o polling silenciosamente.
