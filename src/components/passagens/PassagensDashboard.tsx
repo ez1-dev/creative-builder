@@ -591,6 +591,21 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const dimOpacity = 0.3;
 
   // ===== Séries para a Biblioteca BI / configurador de gráficos =====
+  // Por produto (com valor e % do total)
+  const porProduto = useMemo(() => {
+    const base = applyCross(filtered, { mes: true, motivo: true, cc: true, destino: true, uf: true });
+    const map = new Map<string, number>();
+    base.forEach((r) => {
+      const k = (r.produto ?? '').trim() || 'Sem produto';
+      map.set(k, (map.get(k) ?? 0) + Number(r.valor || 0));
+    });
+    const total = Array.from(map.values()).reduce((s, v) => s + v, 0);
+    return Array.from(map.entries())
+      .map(([name, value]) => ({ name, value, pct: total > 0 ? (value / total) * 100 : 0 }))
+      .sort((a, b) => b.value - a.value);
+  }, [filtered, selectedMes, selectedMotivo, selectedCC, selectedDestino, selectedUF]);
+  const totalProduto = useMemo(() => porProduto.reduce((s, p) => s + p.value, 0), [porProduto]);
+
   const seriesPayload = useMemo(() => {
     // Top destinos por valor
     const topDestinosValor = porCidade
@@ -605,15 +620,6 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       tipoMap.set(k, (tipoMap.get(k) ?? 0) + Number(r.valor || 0));
     });
     const porTipoDespesa = Array.from(tipoMap.entries()).map(([name, value]) => ({ name, value }));
-    // Por cia aérea
-    const ciaMap = new Map<string, number>();
-    crossFiltered.forEach((r) => {
-      const k = (r.cia_aerea ?? '').trim() || 'Não informada';
-      ciaMap.set(k, (ciaMap.get(k) ?? 0) + Number(r.valor || 0));
-    });
-    const porCiaAerea = Array.from(ciaMap.entries())
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
     // Top colaboradores
     const colabMap = new Map<string, number>();
     crossFiltered.forEach((r) => {
@@ -635,10 +641,10 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       top_uf_valor: porUF.map((u) => ({ name: u.name, value: u.valor })),
       top_destinos_valor: topDestinosValor,
       por_tipo_despesa: porTipoDespesa,
-      por_cia_aerea: porCiaAerea,
+      por_produto: porProduto.map((p) => ({ name: p.name, value: p.value })),
       top_colaboradores: topColaboradores,
     };
-  }, [porMes, porMotivo, porCentroCusto, porCidade, porUF, crossFiltered]);
+  }, [porMes, porMotivo, porCentroCusto, porCidade, porUF, porProduto, crossFiltered]);
 
   const kpiPayload = useMemo(() => ({
     total_geral: totalGeral,
