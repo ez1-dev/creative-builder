@@ -213,12 +213,14 @@ export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabl
     }
 
     // Updates em paralelo.
-    const updates = toUpdate.map((u) =>
-      supabase.from('dashboard_widgets').update(u.payload).eq('id', u.id),
+    const updatesPromise = Promise.all(
+      toUpdate.map((u) =>
+        supabase.from('dashboard_widgets').update(u.payload).eq('id', u.id),
+      ),
     );
 
-    // Inserts precisam de block_id e um único await para ele.
-    let insertsPromise: Promise<any> = Promise.resolve();
+    // Inserts precisam de block_id — resolve uma única vez.
+    let insertRes: any = null;
     if (toInsert.length > 0) {
       const blockId = await ensureDefaultBlockId(id);
       const rows = toInsert.map((item) => {
@@ -234,16 +236,16 @@ export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabl
           config: cfg as any,
         };
       });
-      insertsPromise = supabase
+      insertRes = await supabase
         .from('dashboard_widgets')
         .insert(rows)
         .select('id, type');
     }
 
-    const [insertRes, ...updateRes] = await Promise.all([insertsPromise, ...updates]);
+    const updateRes = await updatesPromise;
 
     // Atualiza ids dos inseridos no estado.
-    const inserted = (insertRes as any)?.data as { id: string; type: string }[] | undefined;
+    const inserted = insertRes?.data as { id: string; type: string }[] | undefined;
     if (inserted && inserted.length > 0) {
       setWidgets((prev) => prev.map((w) => {
         const match = inserted.find((r) => r.type === w.type);
@@ -252,8 +254,7 @@ export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabl
     }
 
     // Verifica erros; em caso de falha, faz reload para reconciliar.
-    const anyError = (insertRes as any)?.error
-      || updateRes.find((r: any) => r?.error);
+    const anyError = insertRes?.error || updateRes.find((r: any) => r?.error);
     if (anyError) {
       await load({ silent: true });
       throw new Error((anyError as any)?.error?.message || 'Falha ao salvar layout');
