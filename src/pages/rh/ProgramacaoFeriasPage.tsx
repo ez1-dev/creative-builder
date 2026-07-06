@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AlertOctagon, AlarmClock, Clock, CalendarClock, Users, Palmtree, RefreshCw, Download, Loader2 } from "lucide-react";
+import { AlertOctagon, AlarmClock, Clock, CalendarClock, Users, Palmtree, Download, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,10 +9,18 @@ import { Button } from "@/components/ui/button";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { BotaoRelatorioModuloPdf } from "@/components/rh/BotaoRelatorioModuloPdf";
+import { RhFiltrosBar } from "@/components/rh/RhFiltrosBar";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import { ProgramacaoFeriasDrillModal, DrillMode } from "@/components/rh/ProgramacaoFeriasDrillModal";
 import { fetchProgramacaoFeriasDashboard, exportarProgramacaoFeriasExcel } from "@/lib/rh/api";
+import { filtrarFeriasPorPeriodo } from "@/lib/rh/filtros";
 import type { ProgramacaoFeriasDetalheItem, DeFeriasDetalheItem } from "@/lib/rh/types";
+
+function currentYearRange() {
+  const now = new Date();
+  const y = now.getFullYear();
+  return { ini: `${y}01`, fim: `${y + 1}12` };
+}
 
 const formatDateBR = (s?: string | null) => {
   if (!s) return "-";
