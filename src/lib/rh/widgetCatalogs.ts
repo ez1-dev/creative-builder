@@ -111,15 +111,17 @@ export const TURNOVER_CATALOG: Record<string, RhWidgetDef> = {
 
 // ============ ABSENTEÍSMO ============
 export const ABSENTEISMO_DEFAULTS: RhWidget[] = [
-  { id: 'kpis-abs',   type: 'kpis-abs',   title: 'KPIs — Absenteísmo', position: 0, layout: { x: 0, y: 0,  w: 12, h: 4 } },
-  { id: 'serie-abs',  type: 'serie-abs',  title: 'Série mensal',       position: 1, layout: { x: 0, y: 4,  w: 8,  h: 8 } },
-  { id: 'motivos',    type: 'motivos',    title: 'Top motivos',        position: 2, layout: { x: 8, y: 4,  w: 4,  h: 8 } },
-  { id: 'tabela-abs', type: 'tabela-abs', title: 'Ocorrências',        position: 3, layout: { x: 0, y: 12, w: 12, h: 10 } },
+  { id: 'kpis-abs',      type: 'kpis-abs',      title: 'KPIs — Absenteísmo', position: 0, layout: { x: 0, y: 0,  w: 12, h: 4 } },
+  { id: 'serie-abs',     type: 'serie-abs',     title: 'Por Mês',            position: 1, layout: { x: 0, y: 4,  w: 6,  h: 8 } },
+  { id: 'categoria-abs', type: 'categoria-abs', title: 'Por Categoria',      position: 2, layout: { x: 6, y: 4,  w: 6,  h: 8 } },
+  { id: 'empresa-abs',   type: 'empresa-abs',   title: 'Por Empresa',        position: 3, layout: { x: 0, y: 12, w: 6,  h: 10 } },
+  { id: 'motivo-abs',    type: 'motivo-abs',    title: 'Por Motivo',         position: 4, layout: { x: 6, y: 12, w: 6,  h: 10 } },
 ];
 
 export const ABSENTEISMO_CATALOG: Record<string, RhWidgetDef> = {
-  'kpis-abs':   { type: 'kpis-abs',   title: 'KPIs — Absenteísmo', kind: 'compound' },
-  'serie-abs':  { type: 'serie-abs',  title: 'Série mensal',       kind: 'chart', libraryComponentIds: LIB_CHART_IDS },
-  'motivos':    { type: 'motivos',    title: 'Top motivos',        kind: 'chart', libraryComponentIds: LIB_CHART_IDS },
-  'tabela-abs': { type: 'tabela-abs', title: 'Ocorrências',        kind: 'table', libraryComponentIds: LIB_TABLE_IDS },
+  'kpis-abs':      { type: 'kpis-abs',      title: 'KPIs — Absenteísmo', kind: 'compound' },
+  'serie-abs':     { type: 'serie-abs',     title: 'Por Mês',            kind: 'chart', libraryComponentIds: LIB_CHART_IDS },
+  'categoria-abs': { type: 'categoria-abs', title: 'Por Categoria',      kind: 'chart', libraryComponentIds: LIB_CHART_IDS },
+  'empresa-abs':   { type: 'empresa-abs',   title: 'Por Empresa',        kind: 'table', libraryComponentIds: LIB_TABLE_IDS },
+  'motivo-abs':    { type: 'motivo-abs',    title: 'Por Motivo',         kind: 'table', libraryComponentIds: LIB_TABLE_IDS },
 };
