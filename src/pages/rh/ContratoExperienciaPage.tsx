@@ -370,13 +370,33 @@ export default function ContratoExperienciaPage() {
         }
       />
 
-      <RhDashboardGrid
-        loading={!layout.layoutReady}
-        widgets={layout.widgets}
-        blocks={blocks}
-        editing={layout.editing}
-        onLayoutChange={layout.saveGeometries}
-        onHide={layout.hideWidget}
+      <PageDataProvider
+        pageKey="rh-contratos-exp"
+        kpis={kpis as any}
+        rows={rowsSorted as any}
+        filtros={{ codemp, dias_vencido_max: diasVencidoMax }}
+      >
+        <RhDashboardGrid
+          loading={!layout.layoutReady}
+          widgets={layout.widgets}
+          blocks={blocks}
+          editing={layout.editing}
+          configurableTypes={Object.keys(CONTRATOS_EXP_CATALOG).filter((t) => (CONTRATOS_EXP_CATALOG as any)[t]?.libraryComponentIds?.length)}
+          onLayoutChange={layout.saveGeometries}
+          onHide={layout.hideWidget}
+          onConfigure={(type) => setConfigTarget(layout.widgets.find((w) => w.type === type) ?? null)}
+          onDelete={layout.deleteWidget}
+        />
+      </PageDataProvider>
+
+      <ConfigureRhWidgetDialog
+        open={!!configTarget}
+        onOpenChange={(v) => !v && setConfigTarget(null)}
+        pageKey="rh-contratos-exp"
+        widget={configTarget}
+        allowedComponentIds={configTarget ? (CONTRATOS_EXP_CATALOG as any)[configTarget.type]?.libraryComponentIds : undefined}
+        onSave={(patch) => configTarget && layout.configureWidget(configTarget.type, patch)}
+        onDelete={layout.deleteWidget}
       />
 
       <AiInsightsPanel
