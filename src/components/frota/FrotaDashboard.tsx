@@ -490,10 +490,10 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     ),
     'chart-segmento': (
       <VisualGate visualKey="frota.chart-segmento">
-        <PieChartCard
+        <DonutSideLegendCard
           title="Distribuição por Segmento (FROTA/GENIUS/OBRA)"
-          subtitle="Clique numa fatia para filtrar"
-          data={porSegmento} loading={loading} donut
+          subtitle="Clique num item para filtrar"
+          data={porSegmento} loading={loading} height={380}
           onItemClick={(d) => setSelSegmento((prev) => toggleItem(prev, d.label))}
         />
       </VisualGate>

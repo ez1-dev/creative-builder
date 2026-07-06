@@ -1,62 +1,23 @@
-## Redesign dos gráficos "Por Segmento" e "Por Tipo de Veículo" — Donut + legenda lateral rica
+## Aplicar o mesmo donut moderno ao "Por Segmento" e demais pizzas do Frota
 
-Trocar o layout atual (pizza cheia com leader-lines) por um **donut moderno com legenda lateral rica**, padrão Stripe / Tremor / Linear.
-
-### Como fica
-
-```text
-┌───────────────────────────────────────────────────────────────┐
-│ Por Segmento (Categoria)                                    ⛶│
-│ Manutenção / Combustível / Pedágio — % e valor               │
-│                                                               │
-│                       ╭──────╮      ● Manutenção veículo      │
-│                     ╭─╯      ╰─╮     R$ 121,0 mil     82,2%   │
-│                     │          │                              │
-│                     │  R$ 147  │    ● Pedágio                  │
-│                     │   mil    │     R$ 26,1 mil       17,8%  │
-│                     │  Total   │                              │
-│                     ╰─╮      ╭─╯    ● Combustível              │
-│                       ╰──────╯       R$ 0,00           0,0%   │
-│                                                               │
-└───────────────────────────────────────────────────────────────┘
-```
-
-- **Rosca à esquerda** (~40% da largura) com total grande + label "Total" no centro. Sem rótulos flutuantes na fatia — nada de leader-lines nem texto radial.
-- **Legenda à direita** (~60%), lista vertical clicável:
-  - bolinha colorida (cor da fatia),
-  - nome da categoria (truncado com tooltip se estourar),
-  - valor em R$ formatado à direita,
-  - % em cinza logo abaixo do valor,
-  - hover destaca a fatia correspondente (aumenta opacidade das outras, sublinha o item),
-  - clique aciona o `onItemClick` existente (cross-filter mantido).
-- Fatia clicada/hovered ganha leve `outerRadius` maior (efeito "puxar para fora" suave).
-- Tooltip da fatia mantém: nome + valor + %.
-- Cores: paleta `BI_PALETTE` existente. Nada de cores hardcoded.
-- Responsivo: em telas estreitas (`<640px`) a legenda cai abaixo do donut em grid de 2 colunas.
+Os gráficos da imagem ("Por Segmento" com OBRA/FROTA/EZORTEA/GENIUS e "Por Tipo de Veículo") ainda estão no formato antigo (`PieChartCard` com labels flutuantes). Vou trocar todos os `PieChartCard` restantes do Frota pelo `DonutSideLegendCard` (mesmo componente moderno já usado em `chart-categoria` e `chart-tipo-veiculo`).
 
 ### Onde muda
 
-Criar um **novo componente** dedicado (não mexer no `PieChartCard`, que é compartilhado por Máquinas, Comercial, IA, etc.):
+Em `src/components/frota/FrotaDashboard.tsx`:
 
-- **Novo**: `src/components/bi/charts/DonutSideLegendCard.tsx`
-  - API: `{ title, subtitle, data: {label, valor}[], loading, height, onItemClick, valueFormatter, centerLabel }`
-  - Usa `ChartCardShell` como wrapper (mesma header/loading/empty que os outros cards).
-  - Usa `recharts` `PieChart`+`Pie`+`Cell` para o donut; a legenda é HTML/Tailwind (não `<Legend/>` do recharts — dá mais controle).
-  - Estado interno `hoverIdx` para o realce cruzado donut ↔ legenda.
+- Bloco `chart-segmento` (linhas ~491-499) — "Distribuição por Segmento (FROTA/GENIUS/OBRA)" — hoje ainda é `PieChartCard donut`.
 
-- **Alterado**: `src/components/frota/FrotaDashboard.tsx`
-  - Trocar os dois `PieChartCard` (blocos `chart-categoria` linha ~480 e `chart-tipo-veiculo` linha ~543) pelo novo `DonutSideLegendCard`. Remover o `visualConfig` inline adicionado antes.
+Vou trocar por `DonutSideLegendCard` com o mesmo `data={porSegmento}`, `onItemClick` e `loading`, `height={380}`, mantendo título e subtítulo atuais e o `VisualGate`.
 
-### Detalhes técnicos
+Se restar algum outro `PieChartCard` no arquivo (verificação final via grep), aplico a mesma troca.
 
-- Tokens semânticos: `text-foreground`, `text-muted-foreground`, `bg-card`, `border-border`. Zero cor hardcoded.
-- Layout: `grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-4` no desktop; `grid-cols-1` no mobile.
-- Lista lateral com `max-h-full overflow-y-auto` para casos com muitas categorias (ex.: Tipo de Veículo tem 10+).
-- Ordenação da legenda: decrescente por valor.
-- Formatação: `formatCurrency` já disponível em `@/components/bi/utils/formatters`; % com 1 casa decimal, vírgula pt-BR.
-- Sem novas dependências. Sem migration. Sem alterações de dados/filtros/layout do grid.
+### O que não muda
 
-### Arquivos
+- Nenhum cálculo, filtro, cross-filter, dados ou layout do grid.
+- Nenhuma alteração no `PieChartCard` (segue disponível para os outros módulos: Máquinas, Comercial, IA).
+- Nenhuma migration ou mudança de backend.
 
-- Criar: `src/components/bi/charts/DonutSideLegendCard.tsx`
-- Editar: `src/components/frota/FrotaDashboard.tsx` (dois blocos)
+### Arquivos alterados
+
+- `src/components/frota/FrotaDashboard.tsx` — apenas o bloco `chart-segmento`.
