@@ -47,6 +47,7 @@ export interface Passagem {
   colaborador: string;
   centro_custo: string | null;
   projeto_obra: string | null;
+  produto: string | null;
   fornecedor: string | null;
   cia_aerea: string | null;
   numero_bilhete: string | null;
