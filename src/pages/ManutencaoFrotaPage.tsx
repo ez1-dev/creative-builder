@@ -194,6 +194,15 @@ export default function ManutencaoFrotaPage() {
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editing ? 'Editar' : 'Novo'} registro de manutenção</DialogTitle></DialogHeader>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div>
+              <Label>Categoria *</Label>
+              <Select value={form.categoria ?? 'MANUTENCAO'} onValueChange={(v) => setForm({ ...form, categoria: v as any })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CATEGORIA_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div><Label>Data *</Label><Input type="date" value={form.data ?? ''} onChange={(e) => setForm({ ...form, data: e.target.value })} /></div>
             <div><Label>Placa *</Label><Input value={form.placa ?? ''} onChange={(e) => setForm({ ...form, placa: e.target.value })} placeholder="ABC1D23" /></div>
             <div>
