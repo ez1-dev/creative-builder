@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fetchMenuRh } from "@/lib/rh/api";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
-import { Users, FileText, Calendar, Briefcase, Wallet, FileCheck, TrendingUp } from "lucide-react";
+import { Users, FileText, Calendar, Briefcase, Wallet, FileCheck, TrendingUp, Activity } from "lucide-react";
 
 const FALLBACK = [
   { codigo: "01", titulo: "Resumo Folha", rota: "/rh/resumo-folha", icon: Wallet },
@@ -11,6 +11,7 @@ const FALLBACK = [
   { codigo: "03", titulo: "Contrato Experiência", rota: "/rh/contrato-experiencia", icon: Briefcase },
   { codigo: "04", titulo: "Programação de Férias", rota: "/rh/programacao-ferias", icon: Calendar },
   { codigo: "05", titulo: "Rotatividade / Turnover", rota: "/rh/turnover", icon: TrendingUp },
+  { codigo: "06", titulo: "Absenteísmo / Afastamentos", rota: "/rh/absenteismo", icon: Activity },
   { codigo: "99", titulo: "Formulários", rota: "/rh/formularios", icon: FileText },
 ];
 
@@ -20,6 +21,7 @@ const ROTA_POR_CODIGO: Record<string, string> = {
   "03": "/rh/contrato-experiencia",
   "04": "/rh/programacao-ferias",
   "05": "/rh/turnover",
+  "06": "/rh/absenteismo",
   "99": "/rh/formularios",
 };
 

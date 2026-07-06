@@ -336,6 +336,65 @@ export interface ResumoFolhaDashboard {
 }
 
 
+// ===== RH-06 Absenteísmo =====
+export interface AbsenteismoKpis {
+  taxa_absenteismo_pct: number;
+  afastamentos: number;
+  colaboradores_afastados: number;
+  dias_perdidos: number;
+  duracao_media_dias: number;
+  headcount_medio: number;
+  dias_periodo: number;
+}
+export interface AbsenteismoCategoriaItem {
+  categoria: string;
+  afastamentos: number;
+  dias: number;
+  colaboradores: number;
+}
+export interface AbsenteismoMotivoItem {
+  codsit: number;
+  motivo: string;
+  categoria: string;
+  absenteismo: boolean;
+  afastamentos: number;
+  dias: number;
+}
+export interface AbsenteismoMesItem {
+  anomes: string;
+  afastamentos: number;
+  dias: number;
+}
+export interface AbsenteismoEmpresaItem {
+  label: string;
+  afastamentos: number;
+  dias: number;
+  colaboradores: number;
+}
+export interface AbsenteismoDetalheItem {
+  colaborador: string;
+  matricula: string;
+  empresa: string;
+  filial: string;
+  cargo: string;
+  motivo: string;
+  categoria: string;
+  codsit: number;
+  dt_inicio: string;
+  dt_fim: string;
+  dias: number;
+  cid: string | null;
+}
+export interface AbsenteismoDashboard {
+  kpis: AbsenteismoKpis;
+  por_categoria: AbsenteismoCategoriaItem[];
+  por_motivo: AbsenteismoMotivoItem[];
+  por_mes: AbsenteismoMesItem[];
+  por_empresa: AbsenteismoEmpresaItem[];
+  detalhe: AbsenteismoDetalheItem[];
+}
+
+
 
 
 export interface NovoFormularioPayload {

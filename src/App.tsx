@@ -87,6 +87,7 @@ import QuadroColaboradoresPage from "@/pages/rh/QuadroColaboradoresPage";
 import ContratoExperienciaPage from "@/pages/rh/ContratoExperienciaPage";
 import ProgramacaoFeriasPage from "@/pages/rh/ProgramacaoFeriasPage";
 import TurnoverPage from "@/pages/rh/TurnoverPage";
+import AbsenteismoPage from "@/pages/rh/AbsenteismoPage";
 import FormulariosPage from "@/pages/rh/FormulariosPage";
 
 import NotFound from "@/pages/NotFound";
@@ -205,6 +206,7 @@ const App = () => (
               <Route path="/rh/contrato-experiencia" element={<ProtectedRoute path="/rh/contrato-experiencia"><ContratoExperienciaPage /></ProtectedRoute>} />
               <Route path="/rh/programacao-ferias" element={<ProtectedRoute path="/rh/programacao-ferias"><ProgramacaoFeriasPage /></ProtectedRoute>} />
               <Route path="/rh/turnover" element={<ProtectedRoute path="/rh/turnover"><TurnoverPage /></ProtectedRoute>} />
+              <Route path="/rh/absenteismo" element={<ProtectedRoute path="/rh/absenteismo"><AbsenteismoPage /></ProtectedRoute>} />
 
               <Route path="/rh/formularios" element={<ProtectedRoute path="/rh/formularios"><FormulariosPage /></ProtectedRoute>} />
               {/* Redirect old route */}
