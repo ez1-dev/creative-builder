@@ -66,14 +66,14 @@ export function RhFiltrosBar({
 
   return (
     <Card>
-      <CardContent className="pt-4 flex flex-wrap items-end gap-3">
+      <CardContent className="pt-4 grid grid-cols-1 sm:grid-cols-2 md:flex md:flex-wrap items-end gap-3">
         {mostrarPeriodo && anomesIni != null && onAnomesIniChange && (
           <AnomesSelect
             label="Mês inicial"
             value={anomesIni}
             onChange={onAnomesIniChange}
             disabled={disabled}
-            className="w-52"
+            className="w-full md:w-52"
           />
         )}
         {mostrarPeriodo && anomesFim != null && onAnomesFimChange && (
@@ -82,11 +82,11 @@ export function RhFiltrosBar({
             value={anomesFim}
             onChange={onAnomesFimChange}
             disabled={disabled}
-            className="w-52"
+            className="w-full md:w-52"
           />
         )}
         {mostrarEmpresa && (
-          <div className="w-32">
+          <div className="w-full md:w-32">
             <Label className="text-xs font-medium">Empresa (codemp)</Label>
             <Input
               className="h-8 text-xs mt-1"

@@ -267,7 +267,7 @@ export default function ResumoFolhaPage() {
 
   const blocks: Record<string, React.ReactNode> = useMemo(() => ({
     "kpis-resumo": (
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-3 h-full">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 h-full">
         <Card className="md:row-span-2 border-l-4 border-l-primary">
           <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Líquido</CardTitle></CardHeader>
           <CardContent className="space-y-3">
@@ -468,7 +468,7 @@ export default function ResumoFolhaPage() {
   }), [kpis, isMissing, isLoading, isAdmin, data, mensal, proventos, descontos, filiaisData, tiposPie]);
 
   return (
-    <div className="container mx-auto py-6 space-y-4">
+    <div className="container mx-auto px-3 md:px-6 py-4 md:py-6 space-y-3 md:space-y-4">
       <RhPageHeader
         title="01 — Resumo da Folha"
         subtitle="Visão consolidada de proventos, descontos e custo total"
@@ -521,7 +521,7 @@ export default function ResumoFolhaPage() {
 
       {/* Filtros */}
       <Card>
-        <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+        <CardContent className="pt-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 items-end">
           <div><Label>Ano/mês inicial</Label><Input type="month" value={ini} onChange={(e) => setIni(e.target.value)} /></div>
           <div><Label>Ano/mês final</Label><Input type="month" value={fim} onChange={(e) => setFim(e.target.value)} /></div>
           <div><Label>Empresa (codemp)</Label><Input value={codemp} onChange={(e) => setCodemp(e.target.value)} placeholder="1" /></div>

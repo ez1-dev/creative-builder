@@ -41,9 +41,10 @@ export default function RhIndexPage() {
   }));
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto px-3 md:px-6 py-4 md:py-6">
       <RhPageHeader title="Recursos Humanos" subtitle="Painéis, indicadores e gestão de pessoas" />
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+
         {items.map((m: any) => {
           const Fb = FALLBACK.find((f) => f.codigo === m.codigo);
           const Icon = (Fb?.icon ?? FileCheck) as any;

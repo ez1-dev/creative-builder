@@ -3,12 +3,12 @@ import { SincronizarRhDialog } from "./SincronizarRhDialog";
 
 export function RhPageHeader({ title, subtitle, actions, hideSync }: { title: string; subtitle?: string; actions?: ReactNode; hideSync?: boolean }) {
   return (
-    <div className="flex items-center justify-between gap-4 mb-4">
-      <div>
-        <h1 className="text-2xl font-bold">{title}</h1>
-        {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
+      <div className="min-w-0">
+        <h1 className="text-xl md:text-2xl font-bold truncate">{title}</h1>
+        {subtitle && <p className="text-xs md:text-sm text-muted-foreground">{subtitle}</p>}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {actions}
         {!hideSync && <SincronizarRhDialog />}
       </div>

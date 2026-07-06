@@ -352,7 +352,7 @@ export default function QuadroColaboradoresPage() {
   const layout = useRhModuleLayout("rh-quadro", QUADRO_DEFAULTS);
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto px-3 md:px-6 py-4 md:py-6">
       <RhPageHeader
         title="02 — Quadro de Colaboradores"
         subtitle="Headcount, perfil demográfico e distribuição por empresa"
@@ -380,7 +380,7 @@ export default function QuadroColaboradoresPage() {
       />
 
       <Card className="mb-4">
-        <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
+        <CardContent className="pt-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 items-end">
           <div className="md:col-span-2">
             <Label>Data de referência</Label>
             <Popover>
@@ -435,7 +435,7 @@ export default function QuadroColaboradoresPage() {
       {(() => {
         const blocks: Record<string, React.ReactNode> = {
           "kpis-quadro": (
-            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3 h-full">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7 gap-2 md:gap-3 h-full">
               {kpisVisiveis.map((c) => {
                 const v = kpis[c.key];
                 const total = kpis.total;

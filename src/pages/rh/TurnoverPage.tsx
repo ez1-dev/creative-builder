@@ -115,7 +115,7 @@ export default function TurnoverPage() {
   const layout = useRhModuleLayout("rh-turnover", TURNOVER_DEFAULTS);
 
   return (
-    <div className="container mx-auto py-6 space-y-4">
+    <div className="container mx-auto px-3 md:px-6 py-4 md:py-6 space-y-3 md:space-y-4">
       <RhPageHeader
         title="05 — Turnover"
         subtitle="Admissões, demissões e taxa de rotatividade"
@@ -160,7 +160,7 @@ export default function TurnoverPage() {
       {(() => {
         const blocks: Record<string, React.ReactNode> = {
           "kpis-turnover": (
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 h-full">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-3 h-full">
               <KpiCard
                 title="Admitidos"
                 value={kpis?.admitidos ?? 0}

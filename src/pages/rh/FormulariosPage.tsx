@@ -60,11 +60,12 @@ export default function FormulariosPage() {
   });
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto px-3 md:px-6 py-4 md:py-6">
       <RhPageHeader title="99 — Formulários" subtitle="Registros complementares do módulo de RH" actions={<FormularioDialog />} />
 
       <Card className="mb-4">
-        <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-3 gap-3">
+        <CardContent className="pt-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+
           <div>
             <Label>Tipo</Label>
             <Select value={tipo} onValueChange={setTipo}>
@@ -91,8 +92,9 @@ export default function FormulariosPage() {
 
       <Card>
         <CardContent className="pt-6">
-          <div className="max-h-[70vh] overflow-auto">
+          <div className="max-h-[70vh] overflow-auto -mx-3 px-3 md:mx-0 md:px-0">
             <Table>
+
               <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>
                   <TableHead>Tipo</TableHead>
