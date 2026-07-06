@@ -25,7 +25,6 @@ import { addMonths } from "@/lib/rh/relatorio";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import {
-  fetchResumoFolhaDashboard,
   fetchResumoFolhaDashboardCached,
   sincronizarResumoFolha,
   consultarStatusSincronizacaoRh,

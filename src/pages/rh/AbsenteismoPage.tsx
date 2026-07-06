@@ -26,7 +26,6 @@ import { addMonths } from "@/lib/rh/relatorio";
 import { AbsenteismoDrillModal } from "@/components/rh/AbsenteismoDrillModal";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import {
-  fetchAbsenteismoDashboard,
   fetchAbsenteismoDashboardCached,
   getAbsenteismoExportUrl,
 } from "@/lib/rh/api";

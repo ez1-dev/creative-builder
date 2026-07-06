@@ -20,7 +20,7 @@ import { TURNOVER_DEFAULTS } from "@/lib/rh/widgetCatalogs";
 import { addMonths } from "@/lib/rh/relatorio";
 import { TurnoverDrillModal } from "@/components/rh/TurnoverDrillModal";
 import { TurnoverEmpresaDrillModal } from "@/components/rh/TurnoverEmpresaDrillModal";
-import { fetchTurnoverDashboard, fetchTurnoverDashboardCached } from "@/lib/rh/api";
+import { fetchTurnoverDashboardCached } from "@/lib/rh/api";
 import type {
   TurnoverAdmitidoDetalhe, TurnoverDemitidoDetalhe,
 } from "@/lib/rh/types";
