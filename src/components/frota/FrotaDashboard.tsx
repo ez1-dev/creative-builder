@@ -487,7 +487,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
             dataLabels: { visible: true, richLabel: true, position: 'outside', fontSize: 11 },
             tooltip: { visible: true },
             legend: { visible: true },
-          }}
+          } as any}
           onItemClick={(d) => setSelCategoria((prev) => toggleItem(prev, d.label))}
         />
       </VisualGate>
@@ -555,7 +555,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
             dataLabels: { visible: true, richLabel: true, position: 'outside', fontSize: 11 },
             tooltip: { visible: true },
             legend: { visible: true },
-          }}
+          } as any}
           onItemClick={(d) => setSelTipo((prev) => toggleItem(prev, d.label))}
         />
       </VisualGate>
