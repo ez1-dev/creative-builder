@@ -67,6 +67,7 @@ const FIELD_ALIASES: Record<string, string[]> = {
   colaborador:   ['colaborador', 'local', 'passageiro', 'nome', 'funcionario'],
   centro_custo:  ['centrocusto', 'ccusto', 'cc', 'codigocentrodecusto', 'codcc'],
   projeto_obra:  ['projetoobra', 'obra', 'projeto', 'centrocustodescricao', 'ccdescricao'],
+  produto:       ['produto', 'servico', 'categoria'],
   fornecedor:    ['fornecedor', 'cartao', 'meio', 'meiopagamento'],
   cia_aerea:     ['ciaaerea', 'cia', 'companhiaaerea', 'companhia'],
   numero_bilhete:['numerobilhete', 'bilhete', 'nrobilhete', 'nb', 'nf', 'notafiscal'],
