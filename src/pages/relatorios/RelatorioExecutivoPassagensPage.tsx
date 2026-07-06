@@ -242,11 +242,12 @@ export default function RelatorioExecutivoPassagensPage() {
               rows={dados}
               colunas={[
                 { header: 'Data', cell: (r) => r.data_registro },
+                { header: 'Produto', cell: (r) => (r as any).produto ?? '—' },
                 { header: 'Colaborador', cell: (r) => r.colaborador },
-                { header: 'Destino', cell: (r) => r.destino ?? '—' },
-                { header: 'Cia', cell: (r) => r.cia_aerea ?? '—' },
                 { header: 'Centro de Custo', cell: (r) => r.centro_custo ?? '—' },
-                { header: 'Projeto/Obra', cell: (r) => r.projeto_obra ?? '—' },
+                { header: 'Origem', cell: (r) => r.origem ?? '—' },
+                { header: 'Destino', cell: (r) => r.destino ?? '—' },
+                { header: 'Motivo', cell: (r) => r.motivo_viagem ?? '—' },
                 { header: 'Valor', cell: (r) => BRL(Number(r.valor || 0)), align: 'right' },
               ]}
             />
