@@ -282,10 +282,14 @@ export function PieChartCard({
           const value = centerValue ?? (total ? new Intl.NumberFormat('pt-BR').format(total) : undefined);
           if (!label && !value) return null;
           return (
-            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center pb-16">
+            <div
+              className="pointer-events-none absolute inset-x-0 flex flex-col items-center"
+              style={{ top: '46%', transform: 'translateY(-50%)' }}
+            >
               {label && <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>}
               {value && <span className="text-lg font-bold tabular-nums">{value}</span>}
             </div>
+
           );
         })()}
 
