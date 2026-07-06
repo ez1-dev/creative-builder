@@ -360,9 +360,6 @@ export default function ContratoExperienciaPage() {
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-[10px] text-muted-foreground">
-              0 = não mostrar vencidos; 90 = vencidos recentes ainda pendentes
-            </p>
           </div>
         }
       />
