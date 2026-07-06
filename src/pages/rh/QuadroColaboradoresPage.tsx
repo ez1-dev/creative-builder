@@ -25,7 +25,6 @@ import { cn } from "@/lib/utils";
 
 import {
   fetchQuadroDashboard,
-  fetchQuadroColaboradores,
   fetchQuadroHistorico,
   exportQuadroDashboard,
   ExportQuadroIndisponivelError,
@@ -33,6 +32,7 @@ import {
   type QuadroEmpresaLinha,
   type ColaboradorDetalhe,
 } from "@/lib/rh/quadroDashboardApi";
+import { fetchQuadroColaboradores } from "@/lib/rh/api";
 import { QuadroDrillCard } from "@/components/rh/QuadroDrillCard";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import { QuadroDrillModal } from "@/components/rh/QuadroDrillModal";
