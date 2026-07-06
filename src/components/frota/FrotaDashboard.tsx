@@ -482,7 +482,12 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
         <PieChartCard
           title="Por Segmento (Categoria)"
           subtitle="Manutenção veículo / Combustível / Pedágio — % e valor"
-          data={porCategoria} loading={loading} donut height={420}
+          data={porCategoria} loading={loading} height={460}
+          visualConfig={{
+            dataLabels: { visible: true, richLabel: true, position: 'outside', fontSize: 11 },
+            tooltip: { visible: true },
+            legend: { visible: true },
+          } as any}
           onItemClick={(d) => setSelCategoria((prev) => toggleItem(prev, d.label))}
         />
       </VisualGate>
@@ -545,7 +550,12 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
         <PieChartCard
           title="Por Tipo de Veículo"
           subtitle="% e valor por tipo. Clique numa fatia para filtrar"
-          data={porTipo} loading={loading} donut height={420}
+          data={porTipo} loading={loading} height={460}
+          visualConfig={{
+            dataLabels: { visible: true, richLabel: true, position: 'outside', fontSize: 11 },
+            tooltip: { visible: true },
+            legend: { visible: true },
+          } as any}
           onItemClick={(d) => setSelTipo((prev) => toggleItem(prev, d.label))}
         />
       </VisualGate>
