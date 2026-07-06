@@ -45,10 +45,11 @@ export function AddRhBiWidgetDialog({ open, onOpenChange, pageKey, onAdd }: Prop
   }, [open]);
 
   useEffect(() => {
+    if (!open) return;
     if (!def || !page) { setMapping({}); return; }
     const auto = def.autoMap(page.schema);
     setMapping(auto);
-  }, [def, page]);
+  }, [open, def, page]);
 
   const canAdd = !!def && (def.inputs.every((i) => !i.required || !!mapping[i.key]));
 
