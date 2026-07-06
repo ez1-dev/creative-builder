@@ -103,8 +103,6 @@ export default function TurnoverPage() {
 
   const saldoNeg = (kpis?.saldo ?? 0) < 0;
 
-  const atualizar = () => { setIni(iniDraft); setFim(fimDraft); refetch(); };
-
   return (
     <div className="container mx-auto py-6 space-y-4">
       <RhPageHeader
@@ -125,13 +123,16 @@ export default function TurnoverPage() {
         }
       />
 
-      <Card>
-        <CardContent className="pt-4 flex flex-wrap items-end gap-3">
-          <AnomesSelect label="Mês inicial" value={iniDraft} onChange={setIniDraft} className="w-52" />
-          <AnomesSelect label="Mês final" value={fimDraft} onChange={setFimDraft} className="w-52" />
-          <Button onClick={atualizar} disabled={isFetching}>Atualizar</Button>
-        </CardContent>
-      </Card>
+      <RhFiltrosBar
+        anomesIni={ini}
+        onAnomesIniChange={setIni}
+        anomesFim={fim}
+        onAnomesFimChange={setFim}
+        codemp={codemp}
+        onCodempChange={setCodemp}
+        disabled={isFetching}
+      />
+
 
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         <KpiCard
