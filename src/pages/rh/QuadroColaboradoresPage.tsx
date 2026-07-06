@@ -211,6 +211,45 @@ export default function QuadroColaboradoresPage() {
   const detalhe = dashQ.data?.detalhe ?? [];
   const temDetalhe = detalhe.length > 0;
 
+  const faixaSexoData = useMemo(() => {
+    if (!temDetalhe) return [] as { faixa: string; homens: number; mulheres: number; outros: number; total: number }[];
+    const ORDEM = [
+      "ATE 20 ANOS", "ATE 25 ANOS", "ATE 30 ANOS", "ATE 35 ANOS", "ATE 40 ANOS",
+      "ATE 45 ANOS", "ATE 50 ANOS", "ATE 60 ANOS", "MAIS DE 60 ANOS",
+    ];
+    const norm = (s: any) => String(s ?? "")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase().trim();
+    const sexoBucket = (s: any): "homens" | "mulheres" | "outros" => {
+      const n = norm(s);
+      if (!n) return "outros";
+      if (n.startsWith("M")) return "homens";
+      if (n.startsWith("F")) return "mulheres";
+      return "outros";
+    };
+    const map = new Map<string, { faixa: string; homens: number; mulheres: number; outros: number }>();
+    for (const c of detalhe) {
+      const faixa = String(c.faixa_etaria ?? "").trim() || "—";
+      const key = faixa;
+      const cur = map.get(key) ?? { faixa, homens: 0, mulheres: 0, outros: 0 };
+      cur[sexoBucket(c.sexo)] += 1;
+      map.set(key, cur);
+    }
+    const arr = Array.from(map.values()).map((r) => ({ ...r, total: r.homens + r.mulheres + r.outros }));
+    arr.sort((a, b) => {
+      const ia = ORDEM.indexOf(norm(a.faixa));
+      const ib = ORDEM.indexOf(norm(b.faixa));
+      if (ia !== -1 && ib !== -1) return ia - ib;
+      if (ia !== -1) return -1;
+      if (ib !== -1) return 1;
+      return a.faixa.localeCompare(b.faixa, "pt-BR");
+    });
+    return arr;
+  }, [detalhe, temDetalhe]);
+
+  const temOutros = useMemo(() => faixaSexoData.some((r) => r.outros > 0), [faixaSexoData]);
+
+
   function openDrill(label: string, valor: string, itens: ColaboradorDetalhe[]) {
     if (!itens || itens.length === 0) {
       toast.info("Sem colaboradores para este recorte.");
