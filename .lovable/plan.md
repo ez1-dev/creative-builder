@@ -1,91 +1,62 @@
-# Relatório PDF Gerencial de RH — Consolidado com IA
+# Botão "Relatório Gerencial (PDF + IA)" em cada página RH
 
-Criar um relatório PDF único que consolida os 6 módulos RH (Resumo Folha, Quadro de Colaboradores, Contratos de Experiência, Férias, Turnover, Absenteísmo) para um período comum, com análise de IA detalhada por seção, comparativos com período anterior e alertas priorizados.
+Adicionar em cada uma das 6 páginas de RH um botão que gera um PDF gerencial focado no módulo daquela página, usando os filtros já selecionados na tela e a análise IA do módulo.
 
-## Fluxo do usuário
+## Fluxo
 
-1. Nova página `/rh/relatorio-gerencial` (card no `RhIndexPage`).
-2. Usuário escolhe `anomes_ini` e `anomes_fim` (filtro único aplicado a todos os módulos).
-3. Ao clicar em **Gerar Relatório PDF**:
-   - Frontend busca em paralelo os 6 dashboards para o período atual + o período anterior equivalente (mesmo tamanho de janela) para benchmarks.
-   - Envia o payload consolidado (KPIs + agregados) para a edge function `rh-relatorio-ia`, que retorna análise estruturada por seção.
-   - Frontend renderiza o PDF client-side com `@react-pdf/renderer` e dispara download.
-4. Preview antes do download com botões **Baixar PDF** e **Regenerar Análise IA**.
+1. Usuário está em qualquer página RH (ex.: `/rh/turnover`) com filtros/período já aplicados.
+2. Clica em **Relatório PDF (IA)** no header da página.
+3. O sistema:
+   - Reusa o dashboard já carregado (evita nova chamada).
+   - Para módulos com anomes (Folha, Turnover, Absenteísmo), busca o período anterior equivalente para comparativo.
+   - Chama a edge function existente `rh-ai-insights` (`modulo` = `resumo-folha` | `quadro-colaboradores` | `contratos-experiencia` | `ferias` | `turnover` | `absenteismo`).
+   - Renderiza PDF com `@react-pdf/renderer` e dispara download.
+4. Nome do arquivo: `rh_<modulo>_${anomesIni}_${anomesFim}.pdf` (ou `${data}.pdf` para módulos sem período).
 
-## Estrutura do PDF
+## Estrutura do PDF (por módulo)
 
 ```text
-Capa
-  Título, período, empresa, data de geração, logo
+Capa compacta
+  Título do módulo, período (se houver), filtros aplicados, data de geração
 
-Sumário Executivo (IA)
-  3-5 highlights consolidados, principais riscos e oportunidades
-
-1. Resumo da Folha
-   KPIs (custo total, líquido, HE, benefícios, INSS, FGTS, provisões)
-   Comparativo vs período anterior (Δ absoluto e %)
-   Top 5 proventos e top 5 descontos
-   Gráfico mensal (custo × líquido × HE)
-   Análise IA: diagnóstico, tendências, riscos, recomendações, plano de ação
-
-2. Quadro de Colaboradores
-   Headcount, distribuição por filial/CC/cargo, faixa etária, tempo de casa
-   Comparativo vs período anterior
-   Análise IA idem
-
-3. Contratos de Experiência
-   Vigentes, a vencer 5/10 dias, demitidos pós-experiência
-   Lista dos vencimentos críticos
-   Análise IA: risco de perda, ações sugeridas
-
-4. Férias
-   Vencidas, a vencer 30/60/90, em gozo, sem programação
-   Pivot por ano/mês
-   Análise IA: risco trabalhista, exposição financeira, prioridades
-
-5. Turnover
-   Admissões, demissões, taxa, motivos
-   Comparativo vs período anterior
-   Análise IA: causas prováveis, benchmarks de mercado, ações
-
-6. Absenteísmo / Afastamentos
-   Dias perdidos, taxa %, top CIDs/motivos, top setores
-   Comparativo vs período anterior
-   Análise IA: padrões, riscos de saúde ocupacional, recomendações
-
-Alertas Priorizados (IA)
-  Lista consolidada ordenada por severidade (crítico / alto / médio)
-  Cada alerta: título, seção de origem, impacto estimado, ação recomendada
-
-Rodapé: gerado por Sapiens Control Center + IA em <data>, página X/Y
+Página 1+  KPIs em cards (com delta vs período anterior quando aplicável)
+           Tabelas principais do módulo (top proventos/descontos, top motivos, pivot férias etc.)
+           Análise IA: diagnóstico, riscos, recomendações
+Rodapé em todas as páginas
 ```
+
+Conteúdo específico:
+- **Resumo Folha**: KPIs (custo, líquido, HE, benef., INSS, FGTS) + Δ; top 10 proventos, top 10 descontos; série mensal.
+- **Quadro Colaboradores**: total, distribuição por situação/filial/CC/cargo/sexo/faixa etária.
+- **Contratos Experiência**: KPIs (ativos, a vencer 5/10, demitidos pós-exp) + lista de vencimentos críticos.
+- **Programação Férias**: KPIs (vencidas, 30/60/90, em férias) + pivot ano×mês + amostra sem programação.
+- **Turnover**: KPIs (taxa, admitidos, demitidos, saldo, headcount) + Δ; por mês; top motivos; por empresa.
+- **Absenteísmo**: KPIs (taxa, dias, afastamentos, duração média) + Δ; por categoria; top motivos; por mês.
+
+## Arquivos
+
+**Novos**
+- `src/components/rh/pdf/ModuloPdf.tsx` — documento react-pdf único que renderiza qualquer módulo via `switch(modulo)`; reusa `pdfStyles.ts` já criado.
+- `src/components/rh/BotaoRelatorioModuloPdf.tsx` — botão reutilizável que:
+  - Recebe props: `modulo`, `titulo`, `filtros` (opcional), `dadosAtuais` (já carregados), `carregarAnterior?()` opcional.
+  - Faz `supabase.functions.invoke("rh-ai-insights", { modulo, payload })`.
+  - Se `carregarAnterior` existir, chama em paralelo para obter dashboard anterior.
+  - Renderiza `<ModuloPdf .../>` via `pdf(...).toBlob()` e dispara download.
+  - Estados: loading, erro (toast); fallback: PDF sem seção IA se IA falhar.
+
+**Editados** (adicionar o botão no header/toolbar de cada página)
+- `src/pages/rh/ResumoFolhaPage.tsx`
+- `src/pages/rh/QuadroColaboradoresPage.tsx`
+- `src/pages/rh/ContratoExperienciaPage.tsx`
+- `src/pages/rh/ProgramacaoFeriasPage.tsx`
+- `src/pages/rh/TurnoverPage.tsx`
+- `src/pages/rh/AbsenteismoPage.tsx`
 
 ## Detalhes técnicos
 
-**Dependências a instalar**
-- `@react-pdf/renderer` (geração PDF client-side, permite gráficos SVG via `<Svg>`).
-
-**Novos arquivos**
-- `src/pages/rh/RelatorioGerencialPage.tsx` — filtros + orquestração + preview.
-- `src/lib/rh/relatorio.ts` — `fetchRelatorioConsolidado(periodoAtual, periodoAnterior)`: dispara em paralelo os 6 fetchers já existentes em `src/lib/rh/api.ts` (`fetchResumoFolhaDashboard`, `fetchQuadroColaboradores`, `fetchContratoExperienciaDashboard`, `fetchProgramacaoFeriasDashboard`, `fetchTurnoverDashboard`, `fetchAbsenteismoDashboard`) e calcula deltas.
-- `src/components/rh/pdf/RelatorioPdf.tsx` — documento `@react-pdf/renderer` com todas as seções.
-- `src/components/rh/pdf/pdfStyles.ts` — StyleSheet usando cores do design system (mapeadas para hex, pois `@react-pdf/renderer` não lê CSS vars).
-- `supabase/functions/rh-relatorio-ia/index.ts` — recebe payload consolidado, chama Lovable AI (`google/gemini-3-flash-preview`) via AI SDK com `Output.object` para retornar `{ sumario_executivo, secoes: {resumo_folha, quadro, ...}, alertas: [] }`. Reaproveita padrão de `rh-ai-insights`.
-
-**Arquivos editados**
-- `src/App.tsx` — rota `/rh/relatorio-gerencial` protegida.
-- `src/lib/screenCatalog.ts` — código `RH_RELATORIO_GERENCIAL`.
-- `src/components/AppSidebar.tsx` — item de menu no grupo RH.
-- `src/pages/rh/RhIndexPage.tsx` — card destaque.
-
-**Backend (edge function `rh-relatorio-ia`)**
-- CORS + validação Zod do payload.
-- Schema `Output.object` flat (sem `.min/.max`) — limites de tamanho no prompt, clamp em código.
-- Fallback: se IA falhar (429/402/schema), gera PDF sem seções IA e mostra aviso.
-- Sem consulta direta ao Supabase de negócio; apenas Lovable AI Gateway.
-
-**Regras respeitadas**
-- Nenhum fetch novo para o ERP; reusa fetchers RH atuais.
-- Tokens de design mapeados manualmente para hex no PDF (limitação do renderer).
-- Bearer token e chamadas mantidas via `api` helper (padrão das demais páginas RH).
-- PDF salvo via download direto no navegador; nome `rh_relatorio_gerencial_${ini}_${fim}.pdf`.
+- Reusa `pdfStyles.ts`, `PDF_COLORS`, formatters e helpers já criados em `src/components/rh/pdf/`.
+- Reusa `fetchers` existentes em `src/lib/rh/api.ts` para buscar período anterior (nenhum fetch novo ao ERP).
+- Reusa a edge function existente `rh-ai-insights` (não cria nova função).
+- Nada de consulta direta ao Supabase de negócio; tudo via `api` helper + gateway IA já configurado.
+- Botão desabilitado enquanto o dashboard da página ainda não carregou.
+- Regras de design tokens respeitadas (cores mapeadas para hex apenas dentro do PDF por limitação do renderer).

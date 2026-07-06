@@ -17,6 +17,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChevronDown, Info, RefreshCw, Loader2, AlertTriangle, FileSpreadsheet } from "lucide-react";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
+import { BotaoRelatorioModuloPdf } from "@/components/rh/BotaoRelatorioModuloPdf";
+import { addMonths } from "@/lib/rh/relatorio";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import {
@@ -283,6 +285,20 @@ export default function ResumoFolhaPage() {
               {syncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
               Sincronizar RH
             </Button>
+            <BotaoRelatorioModuloPdf
+              modulo="resumo-folha"
+              titulo="Resumo da Folha"
+              disabled={!enabled || isLoading}
+              dados={data ? { tipo: "resumo-folha", atual: data } : null}
+              filtros={{ anomes_ini: baseParams.anomes_ini, anomes_fim: baseParams.anomes_fim, codemp: baseParams.codemp }}
+              iaPayload={{ periodo: baseParams, kpis: data?.kpis, filiais: data?.filiais, tipos_evento: data?.tipos_evento, mensal: data?.mensal, top_proventos: data?.proventos_vantagens?.slice(0, 10), top_descontos: data?.descontos?.slice(0, 10) }}
+              carregarAnterior={async () => {
+                const len = baseParams.anomes_fim && baseParams.anomes_ini
+                  ? (parseInt(baseParams.anomes_fim.slice(0, 4)) * 12 + parseInt(baseParams.anomes_fim.slice(4, 6))) - (parseInt(baseParams.anomes_ini.slice(0, 4)) * 12 + parseInt(baseParams.anomes_ini.slice(4, 6))) + 1
+                  : 1;
+                return fetchResumoFolhaDashboard({ anomes_ini: addMonths(baseParams.anomes_ini, -len), anomes_fim: addMonths(baseParams.anomes_ini, -1), codemp: baseParams.codemp }, "completo");
+              }}
+            />
           </>
         }
       />

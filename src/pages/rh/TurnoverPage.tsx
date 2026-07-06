@@ -12,6 +12,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
+import { BotaoRelatorioModuloPdf } from "@/components/rh/BotaoRelatorioModuloPdf";
+import { addMonths } from "@/lib/rh/relatorio";
 import { AnomesSelect } from "@/components/bi/comercial/AnomesSelect";
 import { TurnoverDrillModal } from "@/components/rh/TurnoverDrillModal";
 import { TurnoverEmpresaDrillModal } from "@/components/rh/TurnoverEmpresaDrillModal";
@@ -109,7 +111,23 @@ export default function TurnoverPage() {
 
   return (
     <div className="container mx-auto py-6 space-y-4">
-      <RhPageHeader title="RH-05 — Rotatividade / Turnover" />
+      <RhPageHeader
+        title="RH-05 — Rotatividade / Turnover"
+        actions={
+          <BotaoRelatorioModuloPdf
+            modulo="turnover"
+            titulo="Rotatividade / Turnover"
+            disabled={isLoading}
+            dados={data ? { tipo: "turnover", atual: data } : null}
+            filtros={{ anomes_ini: ini, anomes_fim: fim, codemp }}
+            iaPayload={{ periodo: { anomes_ini: ini, anomes_fim: fim }, kpis: data?.kpis, por_mes: data?.por_mes, por_motivo: data?.por_motivo, por_empresa: data?.por_empresa }}
+            carregarAnterior={async () => {
+              const len = (parseInt(fim.slice(0, 4)) * 12 + parseInt(fim.slice(4, 6))) - (parseInt(ini.slice(0, 4)) * 12 + parseInt(ini.slice(4, 6))) + 1;
+              return fetchTurnoverDashboard({ anomes_ini: addMonths(ini, -len), anomes_fim: addMonths(ini, -1), codemp });
+            }}
+          />
+        }
+      />
 
       <Card>
         <CardContent className="pt-4 flex flex-wrap items-end gap-3">

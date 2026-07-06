@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
+import { BotaoRelatorioModuloPdf } from "@/components/rh/BotaoRelatorioModuloPdf";
 import { AreaChartCard } from "@/components/bi/charts/AreaChartCard";
 import { BarChartCard } from "@/components/bi/charts/BarChartCard";
 import { DonutChartCard } from "@/components/bi/charts/DonutChartCard";
@@ -31,6 +32,7 @@ import {
   type QuadroEmpresaLinha,
   type ColaboradorDetalhe,
 } from "@/lib/rh/quadroDashboardApi";
+import { fetchQuadroColaboradores } from "@/lib/rh/api";
 import { QuadroDrillCard } from "@/components/rh/QuadroDrillCard";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import { QuadroDrillModal } from "@/components/rh/QuadroDrillModal";
@@ -197,6 +199,11 @@ export default function QuadroColaboradoresPage() {
     queryFn: () => fetchQuadroHistorico(anomesIni, anomesFim),
     enabled: /^\d{6}$/.test(anomesIni) && /^\d{6}$/.test(anomesFim),
   });
+  const listaQ = useQuery({
+    queryKey: ["rh", "quadro-lista"],
+    queryFn: () => fetchQuadroColaboradores(),
+    staleTime: 60_000,
+  });
 
   const kpis = dashQ.data?.kpis ?? {};
   const kpisVisiveis = KPIS_CONFIG.filter((c) => {
@@ -331,7 +338,19 @@ export default function QuadroColaboradoresPage() {
 
   return (
     <div className="container mx-auto py-6">
-      <RhPageHeader title="02 — Quadro de Colaboradores" />
+      <RhPageHeader
+        title="02 — Quadro de Colaboradores"
+        actions={
+          <BotaoRelatorioModuloPdf
+            modulo="quadro-colaboradores"
+            titulo="Quadro de Colaboradores"
+            disabled={listaQ.isLoading}
+            dados={listaQ.data ? { tipo: "quadro-colaboradores", itens: listaQ.data } : null}
+            filtros={{ outros: { "Data de referência": dataRef ? format(dataRef, "dd/MM/yyyy") : "-" } }}
+            iaPayload={{ data_referencia: dataRefIso, kpis: dashQ.data?.kpis, total: listaQ.data?.length ?? 0, historico: histQ.data?.slice(-12) }}
+          />
+        }
+      />
 
       <Card className="mb-4">
         <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-6 gap-3 items-end">

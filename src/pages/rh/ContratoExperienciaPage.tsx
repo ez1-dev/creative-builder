@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
+import { BotaoRelatorioModuloPdf } from "@/components/rh/BotaoRelatorioModuloPdf";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import { fetchContratoExperienciaDashboard, exportarContratoExperienciaExcel } from "@/lib/rh/api";
 import type { ContratoExperienciaVencimento } from "@/lib/rh/types";
@@ -88,14 +89,24 @@ export default function ContratoExperienciaPage() {
       <RhPageHeader
         title="03 — Contrato Experiência"
         actions={
-          <Button variant="outline" onClick={exportar} disabled={exportando || isLoading}>
-            {exportando ? (
-              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-            ) : (
-              <FileSpreadsheet className="mr-1 h-4 w-4" />
-            )}
-            Exportar Excel
-          </Button>
+          <>
+            <Button variant="outline" onClick={exportar} disabled={exportando || isLoading}>
+              {exportando ? (
+                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="mr-1 h-4 w-4" />
+              )}
+              Exportar Excel
+            </Button>
+            <BotaoRelatorioModuloPdf
+              modulo="contratos-experiencia"
+              titulo="Contratos de Experiência"
+              disabled={isLoading}
+              dados={data ? { tipo: "contratos-experiencia", atual: data } : null}
+              filtros={{ codemp }}
+              iaPayload={{ kpis: data?.kpis, vencimentos_amostra: data?.vencimentos?.slice(0, 15) }}
+            />
+          </>
         }
       />
 

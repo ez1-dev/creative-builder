@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
+import { BotaoRelatorioModuloPdf } from "@/components/rh/BotaoRelatorioModuloPdf";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import { ProgramacaoFeriasDrillModal, DrillMode } from "@/components/rh/ProgramacaoFeriasDrillModal";
 import { fetchProgramacaoFeriasDashboard, exportarProgramacaoFeriasExcel } from "@/lib/rh/api";
@@ -201,6 +202,14 @@ export default function ProgramacaoFeriasPage() {
               <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
               Atualizar
             </Button>
+            <BotaoRelatorioModuloPdf
+              modulo="ferias"
+              titulo="Programação de Férias"
+              disabled={isLoading}
+              dados={data ? { tipo: "ferias", atual: data } : null}
+              filtros={{ codemp }}
+              iaPayload={{ kpis: data?.kpis, limite_ferias_pivot: data?.limite_ferias_pivot, sem_programacao_amostra: data?.primeiro_vencimento_sem_programacao?.slice(0, 15) }}
+            />
           </div>
         }
       />
