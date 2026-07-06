@@ -238,7 +238,7 @@ export function PieChartCard({
     <ChartCardShell {...shell} height={height} isEmpty={!data?.length} visualConfig={visualConfig}>
       <div className="relative">
         <ResponsiveContainer width="100%" height={height}>
-          <PieChart margin={{ top: 10, right: 20, bottom: 70, left: 20 }}>
+          <PieChart margin={{ top: 16, right: 20, bottom: 56, left: 20 }}>
             <Pie data={data} dataKey="valor" nameKey="label" cx="50%" cy={cy}
               innerRadius={innerRadius} outerRadius={outerRadius} paddingAngle={donut ? 2 : 0}
               cursor={onItemClick ? 'pointer' : undefined}
