@@ -711,6 +711,8 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     <div className="space-y-4">
       {/* FilterBar */}
       <FilterBar>
+        <MultiSelectFilter label="Categoria" values={categoria} onChange={setCategoria}
+          options={optsCategoria} placeholder="Todas" />
         <MultiSelectFilter label="Segmento" values={segmento} onChange={setSegmento}
           options={optsSeg} placeholder="Todos" />
         <MultiSelectFilter label="Tipo de Veículo" values={tipoVeiculo} onChange={setTipoVeiculo}
@@ -721,14 +723,14 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
           options={optsCC} placeholder="Todos" />
         <MultiSelectFilter label="Motorista" values={motorista} onChange={setMotorista}
           options={optsMot} placeholder="Todos" />
-        
+
         <div className="flex items-end">
           <Button
             size="sm"
             variant="outline"
             className="h-8 gap-1 text-xs"
             onClick={limparTudo}
-            disabled={segmento.length + tipoVeiculo.length + placa.length + centroCusto.length + motorista.length + busca.length + totalAtivos === 0}
+            disabled={categoria.length + segmento.length + tipoVeiculo.length + placa.length + centroCusto.length + motorista.length + busca.length + totalAtivos === 0}
           >
             <X className="h-3 w-3" /> Limpar filtros
           </Button>
@@ -740,6 +742,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
         <div className="flex flex-wrap items-center gap-1.5 rounded-md border bg-muted/40 px-2 py-1.5 text-xs">
           <span className="font-semibold text-muted-foreground">Filtros ativos:</span>
           {renderChips('Mês', selMes, (v) => setSelMes((p) => p.filter((x) => x !== v)))}
+          {renderChips('Categoria', selCategoria, (v) => setSelCategoria((p) => p.filter((x) => x !== v)))}
           {renderChips('Segmento', selSegmento, (v) => setSelSegmento((p) => p.filter((x) => x !== v)))}
           {renderChips('Placa', selPlaca, (v) => setSelPlaca((p) => p.filter((x) => x !== v)))}
           {renderChips('Fornecedor', selFornecedor, (v) => setSelFornecedor((p) => p.filter((x) => x !== v)))}
