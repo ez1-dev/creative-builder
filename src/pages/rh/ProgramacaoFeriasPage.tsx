@@ -51,11 +51,21 @@ interface DrillState {
 }
 
 export default function ProgramacaoFeriasPage() {
-  const codemp = 1;
-  const { data, isLoading, isFetching, error, refetch } = useQuery({
+  const initRange = currentYearRange();
+  const [ini, setIni] = useState(initRange.ini);
+  const [fim, setFim] = useState(initRange.fim);
+  const [codemp, setCodemp] = useState<number>(1);
+
+  const { data: dataRaw, isLoading, isFetching, error } = useQuery({
     queryKey: ["rh", "programacao-ferias", "dashboard", codemp],
     queryFn: () => fetchProgramacaoFeriasDashboard(codemp),
   });
+
+  // Filtra por período (client-side)
+  const data = useMemo(
+    () => filtrarFeriasPorPeriodo(dataRaw ?? null, ini, fim),
+    [dataRaw, ini, fim],
+  );
 
   const [drill, setDrill] = useState<DrillState | null>(null);
   const [isExporting, setIsExporting] = useState(false);
