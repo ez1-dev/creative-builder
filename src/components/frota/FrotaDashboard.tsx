@@ -99,6 +99,32 @@ const CONFIGURABLE_CANONICAL = [
   'chart-tipo-veiculo',
 ];
 
+const FULL_WIDTH_DONUT_WIDGET_TYPES = new Set([
+  'chart-categoria',
+  'chart-segmento',
+  'chart-tipo-veiculo',
+]);
+
+const FULL_WIDTH_DONUT_COMPONENTS = new Set(['donut-chart', 'pie-chart']);
+
+function forceDonutWidgetsFullWidth<T extends { type: string; componentId?: string | null; layout: { x: number; y: number; w: number; h: number } }>(widgets: T[]): T[] {
+  return widgets.map((w) => {
+    if (!FULL_WIDTH_DONUT_WIDGET_TYPES.has(w.type) && !FULL_WIDTH_DONUT_COMPONENTS.has(w.componentId ?? '')) {
+      return w;
+    }
+
+    return {
+      ...w,
+      layout: {
+        ...w.layout,
+        x: 0,
+        w: 12,
+        h: Math.max(w.layout?.h ?? 9, 9),
+      },
+    };
+  });
+}
+
 function toggleItem(arr: string[], value: string): string[] {
   return arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
 }
@@ -145,7 +171,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
       componentId: nw.componentId, mapping: nw.mapping, options: nw.options,
       customTitle: nw.title,
     }));
-    return [...filtered, ...news];
+    return forceDonutWidgetsFullWidth([...filtered, ...news]);
   }, [widgets, pendingHidden, pendingConfig, pendingNewWidgets, pendingDeletes]);
 
   const hiddenList = useMemo(() => effectiveWidgets.filter((w) => w.hidden), [effectiveWidgets]);

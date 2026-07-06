@@ -1,22 +1,18 @@
-## Aplicar o donut moderno também no dashboard de Máquinas
+Plano:
 
-Os gráficos da imagem ("Por Segmento" com OBRA/FROTA/EZORTEA/GENIUS e "Por Tipo de Veículo" com GUINDAUTO/CAVALO MECÂNICO/CARRETA) pertencem ao módulo **Máquinas** (`/maquinas`), que ainda usa `PieChartCard` no formato antigo.
+1. Ajustar o layout dos gráficos de rosca na página de Frota para que cada cartão ocupe uma linha inteira, em vez de ficarem lado a lado.
+2. Aplicar o mesmo padrão nos dashboards relacionados que usam esses cards de rosca, se estiverem compartilhando o mesmo grid visual.
+3. Manter o conteúdo atual do card: título, gráfico, legenda lateral, valores, percentuais e ações.
+4. Não alterar dados, filtros, regras de cálculo ou integrações — somente o posicionamento visual.
 
-### O que fazer
+Resultado esperado:
 
-Em `src/components/maquinas/MaquinasDashboard.tsx`:
+```text
+Por Segmento
+[ gráfico + legenda em um card largo ]
 
-- Trocar todos os `PieChartCard` pelo `DonutSideLegendCard` já criado em `src/components/bi/charts/DonutSideLegendCard.tsx`.
-- Manter exatamente: `data`, `loading`, `onItemClick`, título, subtítulo, `VisualGate` e qualquer wrapper existente.
-- Padronizar `height={380}` (mesmo do Frota).
-- Adicionar o import do `DonutSideLegendCard`.
+Por Tipo de Veículo
+[ gráfico + legenda em um card largo ]
+```
 
-### O que não muda
-
-- Nenhum cálculo, filtro, cross-filter ou layout do grid.
-- `PieChartCard` continua disponível para os outros consumidores (Comercial, IA, etc.).
-- Zero mudança de dados/backend/migration.
-
-### Arquivos alterados
-
-- `src/components/maquinas/MaquinasDashboard.tsx` — apenas as ocorrências de `PieChartCard`.
+Em telas menores, o comportamento continuará empilhado naturalmente.
