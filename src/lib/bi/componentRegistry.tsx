@@ -20,6 +20,7 @@ import {
   BrazilMapCard,
   BrazilStateMapWidget,
 } from '@/components/bi';
+import { DonutSideLegendCard } from '@/components/bi/charts/DonutSideLegendCard';
 import { BrazilHeatMap } from '@/components/bi/maps/BrazilHeatMap';
 import { BrazilHeatMapWidget } from '@/components/bi/comercial/BrazilHeatMapWidget';
 import { FaturamentoRealizadoMetaCard } from '@/components/bi/kpis/FaturamentoRealizadoMetaCard';
@@ -391,11 +392,11 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
       const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
       const valueFormatter = formatterForSeriesKey(mapping.series);
       return (
-        <DonutChartCard
+        <DonutSideLegendCard
           title={title || mapping.series}
           data={data}
+          height={380}
           onItemClick={makeClickHandler(ctx, mapping.series)}
-          visualConfig={opts.visual}
           valueFormatter={valueFormatter}
         />
       );
@@ -413,11 +414,11 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
       const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
       const valueFormatter = formatterForSeriesKey(mapping.series);
       return (
-        <PieChartCard
+        <DonutSideLegendCard
           title={title || mapping.series}
           data={data}
+          height={380}
           onItemClick={makeClickHandler(ctx, mapping.series)}
-          visualConfig={opts.visual}
           valueFormatter={valueFormatter}
         />
       );

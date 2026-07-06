@@ -1,23 +1,22 @@
-## Aplicar o mesmo donut moderno ao "Por Segmento" e demais pizzas do Frota
+## Aplicar o donut moderno também no dashboard de Máquinas
 
-Os gráficos da imagem ("Por Segmento" com OBRA/FROTA/EZORTEA/GENIUS e "Por Tipo de Veículo") ainda estão no formato antigo (`PieChartCard` com labels flutuantes). Vou trocar todos os `PieChartCard` restantes do Frota pelo `DonutSideLegendCard` (mesmo componente moderno já usado em `chart-categoria` e `chart-tipo-veiculo`).
+Os gráficos da imagem ("Por Segmento" com OBRA/FROTA/EZORTEA/GENIUS e "Por Tipo de Veículo" com GUINDAUTO/CAVALO MECÂNICO/CARRETA) pertencem ao módulo **Máquinas** (`/maquinas`), que ainda usa `PieChartCard` no formato antigo.
 
-### Onde muda
+### O que fazer
 
-Em `src/components/frota/FrotaDashboard.tsx`:
+Em `src/components/maquinas/MaquinasDashboard.tsx`:
 
-- Bloco `chart-segmento` (linhas ~491-499) — "Distribuição por Segmento (FROTA/GENIUS/OBRA)" — hoje ainda é `PieChartCard donut`.
-
-Vou trocar por `DonutSideLegendCard` com o mesmo `data={porSegmento}`, `onItemClick` e `loading`, `height={380}`, mantendo título e subtítulo atuais e o `VisualGate`.
-
-Se restar algum outro `PieChartCard` no arquivo (verificação final via grep), aplico a mesma troca.
+- Trocar todos os `PieChartCard` pelo `DonutSideLegendCard` já criado em `src/components/bi/charts/DonutSideLegendCard.tsx`.
+- Manter exatamente: `data`, `loading`, `onItemClick`, título, subtítulo, `VisualGate` e qualquer wrapper existente.
+- Padronizar `height={380}` (mesmo do Frota).
+- Adicionar o import do `DonutSideLegendCard`.
 
 ### O que não muda
 
-- Nenhum cálculo, filtro, cross-filter, dados ou layout do grid.
-- Nenhuma alteração no `PieChartCard` (segue disponível para os outros módulos: Máquinas, Comercial, IA).
-- Nenhuma migration ou mudança de backend.
+- Nenhum cálculo, filtro, cross-filter ou layout do grid.
+- `PieChartCard` continua disponível para os outros consumidores (Comercial, IA, etc.).
+- Zero mudança de dados/backend/migration.
 
 ### Arquivos alterados
 
-- `src/components/frota/FrotaDashboard.tsx` — apenas o bloco `chart-segmento`.
+- `src/components/maquinas/MaquinasDashboard.tsx` — apenas as ocorrências de `PieChartCard`.
