@@ -77,6 +77,7 @@ interface Props {
 const MESES_ORDER = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
 const ALL_DRILL_LEVELS: { key: keyof ManutencaoFrota; label: string }[] = [
+  { key: 'categoria', label: 'Categoria' },
   { key: 'segmento', label: 'Segmento' },
   { key: 'tipo_veiculo', label: 'Tipo de Veículo' },
   { key: 'centro_custo', label: 'Centro de Custo' },
@@ -88,6 +89,7 @@ const ALL_DRILL_LEVELS: { key: keyof ManutencaoFrota; label: string }[] = [
 
 const CONFIGURABLE_CANONICAL = [
   'chart-evolucao-mensal',
+  'chart-categoria',
   'chart-segmento',
   'chart-top-veiculos',
   'chart-top-fornecedores',
