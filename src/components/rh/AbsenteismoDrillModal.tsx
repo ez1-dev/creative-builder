@@ -53,6 +53,7 @@ export function AbsenteismoDrillModal({ open, onOpenChange, titulo, itens }: Pro
                   <TableHead>Cargo</TableHead>
                   <TableHead>Empresa</TableHead>
                   <TableHead>Filial</TableHead>
+                  <TableHead>Centro de Custo</TableHead>
                   <TableHead>Motivo</TableHead>
                   <TableHead>Categoria</TableHead>
                   <TableHead className="text-right">Cód. Situação</TableHead>
@@ -70,6 +71,7 @@ export function AbsenteismoDrillModal({ open, onOpenChange, titulo, itens }: Pro
                     <TableCell className="whitespace-nowrap">{r.cargo ?? "-"}</TableCell>
                     <TableCell className="whitespace-nowrap">{r.empresa ?? "-"}</TableCell>
                     <TableCell className="whitespace-nowrap">{r.filial ?? "-"}</TableCell>
+                    <TableCell className="whitespace-nowrap">{r.centro_custo ?? "-"}</TableCell>
                     <TableCell className="whitespace-nowrap">{r.motivo ?? "-"}</TableCell>
                     <TableCell className="whitespace-nowrap">{r.categoria ?? "-"}</TableCell>
                     <TableCell className="text-right tabular-nums">{r.codsit ?? "-"}</TableCell>

@@ -225,6 +225,7 @@ export default function ContratoExperienciaPage() {
                 <TableRow>
                   <TableHead>Empresa</TableHead>
                   <TableHead>Filial</TableHead>
+                  <TableHead>Centro de Custo</TableHead>
                   <TableHead>Colaborador</TableHead>
                   <TableHead>Matrícula</TableHead>
                   <TableHead>Cargo</TableHead>
@@ -240,14 +241,14 @@ export default function ContratoExperienciaPage() {
                 {isLoading &&
                   Array.from({ length: 6 }).map((_, i) => (
                     <TableRow key={i}>
-                      <TableCell colSpan={11}>
+                      <TableCell colSpan={12}>
                         <Skeleton className="h-6" />
                       </TableCell>
                     </TableRow>
                   ))}
                 {!isLoading && rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center text-muted-foreground py-6">
+                    <TableCell colSpan={12} className="text-center text-muted-foreground py-6">
                       Sem contratos para exibir.
                     </TableCell>
                   </TableRow>
@@ -265,6 +266,7 @@ export default function ContratoExperienciaPage() {
                     >
                       <TableCell>{r.empresa}</TableCell>
                       <TableCell>{r.filial}</TableCell>
+                      <TableCell>{r.centro_custo ?? "-"}</TableCell>
                       <TableCell>{r.colaborador}</TableCell>
                       <TableCell>{r.matricula}</TableCell>
                       <TableCell>{r.cargo}</TableCell>

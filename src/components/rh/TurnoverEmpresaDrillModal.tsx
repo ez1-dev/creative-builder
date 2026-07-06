@@ -47,6 +47,7 @@ export function TurnoverEmpresaDrillModal({ open, onOpenChange, empresa, admitid
                       <TableHead>Matrícula</TableHead>
                       <TableHead>Cargo</TableHead>
                       <TableHead>Filial</TableHead>
+                      <TableHead>Centro de Custo</TableHead>
                       <TableHead>Data Admissão</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -57,6 +58,7 @@ export function TurnoverEmpresaDrillModal({ open, onOpenChange, empresa, admitid
                         <TableCell className="whitespace-nowrap">{r.matricula ?? "-"}</TableCell>
                         <TableCell className="whitespace-nowrap">{r.cargo ?? "-"}</TableCell>
                         <TableCell className="whitespace-nowrap">{r.filial ?? "-"}</TableCell>
+                        <TableCell className="whitespace-nowrap">{(r as any).centro_custo ?? "-"}</TableCell>
                         <TableCell className="whitespace-nowrap">{formatDateBR(r.dt_admissao)}</TableCell>
                       </TableRow>
                     ))}
@@ -77,6 +79,7 @@ export function TurnoverEmpresaDrillModal({ open, onOpenChange, empresa, admitid
                       <TableHead>Matrícula</TableHead>
                       <TableHead>Cargo</TableHead>
                       <TableHead>Filial</TableHead>
+                      <TableHead>Centro de Custo</TableHead>
                       <TableHead>Data Admissão</TableHead>
                       <TableHead>Data Demissão</TableHead>
                       <TableHead>Motivo</TableHead>
@@ -89,6 +92,7 @@ export function TurnoverEmpresaDrillModal({ open, onOpenChange, empresa, admitid
                         <TableCell className="whitespace-nowrap">{r.matricula ?? "-"}</TableCell>
                         <TableCell className="whitespace-nowrap">{r.cargo ?? "-"}</TableCell>
                         <TableCell className="whitespace-nowrap">{r.filial ?? "-"}</TableCell>
+                        <TableCell className="whitespace-nowrap">{(r as any).centro_custo ?? "-"}</TableCell>
                         <TableCell className="whitespace-nowrap">{formatDateBR(r.dt_admissao)}</TableCell>
                         <TableCell className="whitespace-nowrap">{formatDateBR(r.dt_demissao)}</TableCell>
                         <TableCell className="whitespace-nowrap">{r.motivo ?? "-"}</TableCell>
