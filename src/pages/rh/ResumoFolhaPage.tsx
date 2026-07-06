@@ -17,10 +17,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChevronDown, Info, RefreshCw, Loader2, AlertTriangle, FileSpreadsheet } from "lucide-react";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { BotaoRelatorioModuloPdf } from "@/components/rh/BotaoRelatorioModuloPdf";
-import { RhDashboardGrid } from "@/components/rh/RhDashboardGrid";
+import { RhDashboardWithBiLibrary } from "@/components/rh/RhDashboardWithBiLibrary";
 import { RhLayoutToolbar } from "@/components/rh/RhLayoutToolbar";
 import { useRhModuleLayout } from "@/hooks/useRhModuleLayout";
-import { RESUMO_FOLHA_DEFAULTS } from "@/lib/rh/widgetCatalogs";
+import { RESUMO_FOLHA_DEFAULTS, RESUMO_FOLHA_CATALOG } from "@/lib/rh/widgetCatalogs";
 import { addMonths } from "@/lib/rh/relatorio";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
