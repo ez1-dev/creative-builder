@@ -58,9 +58,45 @@ export default function ContratoExperienciaPage() {
     return [...list].sort((a, b) => (a.dt_vencimento || "").localeCompare(b.dt_vencimento || ""));
   }, [data]);
 
+  const [exportando, setExportando] = useState(false);
+  async function exportar() {
+    setExportando(true);
+    try {
+      const { blob, filename } = await exportarContratoExperienciaExcel(codemp);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success("Excel gerado");
+    } catch (e: any) {
+      const st = e?.statusCode;
+      if (st === 401) toast.error("Sessão expirada.");
+      else if (e?.code === "ENDPOINT_INDISPONIVEL") toast.error("Exportação pendente na API.");
+      else toast.error(e?.message || "Falha ao exportar");
+    } finally {
+      setExportando(false);
+    }
+  }
+
   return (
     <div className="container mx-auto py-6">
-      <RhPageHeader title="03 — Contrato Experiência" />
+      <RhPageHeader
+        title="03 — Contrato Experiência"
+        actions={
+          <Button variant="outline" onClick={exportar} disabled={exportando || isLoading}>
+            {exportando ? (
+              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+            ) : (
+              <FileSpreadsheet className="mr-1 h-4 w-4" />
+            )}
+            Exportar Excel
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <KpiCard
