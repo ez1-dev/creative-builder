@@ -89,6 +89,7 @@ import ProgramacaoFeriasPage from "@/pages/rh/ProgramacaoFeriasPage";
 import TurnoverPage from "@/pages/rh/TurnoverPage";
 import AbsenteismoPage from "@/pages/rh/AbsenteismoPage";
 import FormulariosPage from "@/pages/rh/FormulariosPage";
+import RelatorioGerencialPage from "@/pages/rh/RelatorioGerencialPage";
 
 import NotFound from "@/pages/NotFound";
 import { ProtectedRoute, PostLoginRedirect } from "@/components/ProtectedRoute";
@@ -209,6 +210,7 @@ const App = () => (
               <Route path="/rh/absenteismo" element={<ProtectedRoute path="/rh/absenteismo"><AbsenteismoPage /></ProtectedRoute>} />
 
               <Route path="/rh/formularios" element={<ProtectedRoute path="/rh/formularios"><FormulariosPage /></ProtectedRoute>} />
+              <Route path="/rh/relatorio-gerencial" element={<ProtectedRoute path="/rh/relatorio-gerencial"><RelatorioGerencialPage /></ProtectedRoute>} />
               {/* Redirect old route */}
               <Route path="/engenharia-producao" element={<Navigate to="/producao/engenharia" replace />} />
             </Route>
