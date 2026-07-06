@@ -10,14 +10,23 @@ export default function AuthCallback() {
     let mounted = true;
     let unsub: (() => void) | undefined;
 
-    // Tenta detectar a sessão por polling (Supabase consome o token do hash via detectSessionInUrl).
-    // Também escuta onAuthStateChange como atalho assim que a sessão for criada.
+    const nextTarget = () => {
+      try {
+        const saved = sessionStorage.getItem('post_login_next');
+        if (saved && saved.startsWith('/') && !saved.startsWith('//')) {
+          sessionStorage.removeItem('post_login_next');
+          return saved;
+        }
+      } catch { /* ignore */ }
+      return '/';
+    };
+
     const tryRedirect = async () => {
       const { data } = await supabase.auth.getSession();
       if (!mounted) return false;
       if (data.session) {
         toast.success('Login realizado com sucesso!');
-        navigate('/', { replace: true });
+        navigate(nextTarget(), { replace: true });
         return true;
       }
       return false;
@@ -26,10 +35,11 @@ export default function AuthCallback() {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       if (mounted && session) {
         toast.success('Login realizado com sucesso!');
-        navigate('/', { replace: true });
+        navigate(nextTarget(), { replace: true });
       }
     });
     unsub = () => sub.subscription.unsubscribe();
+
 
     let attempts = 0;
     const interval = setInterval(async () => {

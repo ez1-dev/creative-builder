@@ -7,6 +7,8 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import LoginPage from "@/pages/LoginPage";
 import AuthCallback from "@/pages/AuthCallback";
+import OAuthConsent from "@/pages/OAuthConsent";
+
 import EstoquePage from "@/pages/EstoquePage";
 import EstoqueMinMaxPage from "@/pages/EstoqueMinMaxPage";
 import SugestaoMinMaxPage from "@/pages/SugestaoMinMaxPage";
@@ -114,6 +116,8 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
+
             <Route path="/passagens-aereas/compartilhado" element={<PassagensAereasCompartilhadoPage />} />
             <Route path="/frota/compartilhado" element={<ManutencaoFrotaCompartilhadoPage />} />
             <Route path="/manutencao-maquinas/compartilhado" element={<ManutencaoMaquinasCompartilhadoPage />} />
