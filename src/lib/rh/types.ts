@@ -228,6 +228,35 @@ export interface FormularioRh {
   [k: string]: any;
 }
 
+// ===== RH-05 Turnover =====
+export interface TurnoverKpis {
+  admitidos: number;
+  demitidos: number;
+  saldo: number;
+  headcount_inicio: number;
+  headcount_fim: number;
+  headcount_medio: number;
+  taxa_rotatividade_pct: number;
+}
+export interface TurnoverPorMes { anomes: string; admitidos: number; demitidos: number; }
+export interface TurnoverPorMotivo { motivo: string; qtd: number; }
+export interface TurnoverPorEmpresa { label: string; admitidos: number; demitidos: number; }
+export interface TurnoverAdmitidoDetalhe {
+  colaborador: string; matricula: string; empresa: string; filial: string; cargo: string; dt_admissao: string;
+}
+export interface TurnoverDemitidoDetalhe extends TurnoverAdmitidoDetalhe {
+  dt_demissao: string; motivo: string;
+}
+export interface TurnoverDashboard {
+  kpis: TurnoverKpis;
+  por_mes: TurnoverPorMes[];
+  por_motivo: TurnoverPorMotivo[];
+  por_empresa: TurnoverPorEmpresa[];
+  detalhe_admitidos: TurnoverAdmitidoDetalhe[];
+  detalhe_demitidos: TurnoverDemitidoDetalhe[];
+}
+
+
 export interface ResumoFolhaKpis {
   provento: number;
   desconto: number;
