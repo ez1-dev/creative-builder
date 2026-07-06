@@ -95,6 +95,7 @@ export default function ManutencaoFrotaPage() {
       segmento: form.segmento || null,
       tipo_veiculo: form.tipo_veiculo || null,
       observacoes: form.observacoes || null,
+      categoria: form.categoria || 'MANUTENCAO',
     };
     if (editing) {
       const { error } = await supabase.from('manutencao_frota').update(payload).eq('id', editing.id);
