@@ -422,7 +422,23 @@ export default function QuadroColaboradoresPage() {
               return new Intl.NumberFormat("pt-BR").format(v);
             }}
             height={280}
+            visualConfig={{
+              dataLabels: {
+                visible: true,
+                position: 'top',
+                fontSize: 12,
+                fontFamily: 'default',
+                format: 'int',
+                decimals: 0,
+                prefix: '',
+                suffix: '',
+                richLabel: false,
+                showName: false,
+                showPercent: false,
+              },
+            }}
           />
+
 
         ) : (
           <Card>
