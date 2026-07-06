@@ -49,12 +49,11 @@ function currentYearRange() {
 
 export default function TurnoverPage() {
   const initRange = currentYearRange();
-  const [iniDraft, setIniDraft] = useState(initRange.ini);
-  const [fimDraft, setFimDraft] = useState(initRange.fim);
   const [ini, setIni] = useState(initRange.ini);
   const [fim, setFim] = useState(initRange.fim);
+  const [codemp, setCodemp] = useState<number>(1);
 
-  const { data, isLoading, error, refetch, isFetching } = useQuery({
+  const { data, isLoading, error, isFetching } = useQuery({
     queryKey: ["rh", "turnover", ini, fim, codemp],
     queryFn: () => fetchTurnoverDashboard({ anomes_ini: ini, anomes_fim: fim, codemp }),
   });
