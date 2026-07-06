@@ -108,6 +108,7 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
   );
 
   const lastEmitted = useRef<string>('');
+  const emitTimer = useRef<number | null>(null);
 
   const emit = (next: Layout) => {
     if (!editing || !onLayoutChange) return;
@@ -115,8 +116,16 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
     const key = JSON.stringify(mapped);
     if (key === lastEmitted.current) return;
     lastEmitted.current = key;
-    onLayoutChange(mapped);
+    // Debounce: coalesca commits rápidos consecutivos (drag/resize/mover).
+    if (emitTimer.current) window.clearTimeout(emitTimer.current);
+    emitTimer.current = window.setTimeout(() => {
+      onLayoutChange(mapped);
+    }, 250);
   };
+
+  useEffect(() => () => {
+    if (emitTimer.current) window.clearTimeout(emitTimer.current);
+  }, []);
 
   if (isCompact) {
     return (
