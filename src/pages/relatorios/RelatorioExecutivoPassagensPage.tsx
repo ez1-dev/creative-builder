@@ -232,7 +232,7 @@ export default function RelatorioExecutivoPassagensPage() {
               rankings={[
                 { titulo: 'Top Colaboradores', rows: calc.topColab, chartId: 'pa-rk-colab' },
                 { titulo: 'Top Destinos', rows: calc.topDest, chartId: 'pa-rk-dest' },
-                { titulo: 'Top Companhias', rows: calc.topCia, chartId: 'pa-rk-cia' },
+                { titulo: 'Top Produtos', rows: calc.topProduto, chartId: 'pa-rk-produto' },
                 { titulo: 'Top Centros de Custo', rows: calc.topCC, chartId: 'pa-rk-cc' },
               ]}
             />
