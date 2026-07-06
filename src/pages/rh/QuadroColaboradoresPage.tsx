@@ -362,6 +362,8 @@ export default function QuadroColaboradoresPage() {
               onReset={layout.resetLayout}
               widgets={layout.widgets}
               onShow={layout.showWidget}
+              pageKey="rh-quadro"
+              onAdd={layout.addWidget}
             />
             <BotaoRelatorioModuloPdf
               modulo="quadro-colaboradores"
