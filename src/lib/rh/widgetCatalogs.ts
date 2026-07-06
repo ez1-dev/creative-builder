@@ -83,15 +83,17 @@ export const CONTRATOS_EXP_CATALOG: Record<string, RhWidgetDef> = {
 
 // ============ FÉRIAS ============
 export const FERIAS_DEFAULTS: RhWidget[] = [
-  { id: 'kpis-ferias',  type: 'kpis-ferias',  title: 'KPIs — Férias', position: 0, layout: { x: 0, y: 0, w: 12, h: 4 } },
-  { id: 'pivot-ferias', type: 'pivot-ferias', title: 'Programação',   position: 1, layout: { x: 0, y: 4, w: 12, h: 10 } },
-  { id: 'ranking-ferias', type: 'ranking-ferias', title: 'Ranking',   position: 2, layout: { x: 0, y: 14, w: 12, h: 8 } },
+  { id: 'kpis-ferias',   type: 'kpis-ferias',   title: 'KPIs — Férias',                    position: 0, layout: { x: 0, y: 0,  w: 12, h: 4 } },
+  { id: 'pivot-ferias',  type: 'pivot-ferias',  title: 'Limite Férias',                    position: 1, layout: { x: 0, y: 4,  w: 12, h: 8 } },
+  { id: 'prox90-ferias', type: 'prox90-ferias', title: 'Programação Próximos 90 Dias',     position: 2, layout: { x: 0, y: 12, w: 6,  h: 10 } },
+  { id: 'sem-prog-ferias', type: 'sem-prog-ferias', title: '1º Vencimento e Sem Programação', position: 3, layout: { x: 6, y: 12, w: 6, h: 10 } },
 ];
 
 export const FERIAS_CATALOG: Record<string, RhWidgetDef> = {
-  'kpis-ferias':    { type: 'kpis-ferias',    title: 'KPIs — Férias', kind: 'compound' },
-  'pivot-ferias':   { type: 'pivot-ferias',   title: 'Programação',   kind: 'table', libraryComponentIds: LIB_TABLE_IDS },
-  'ranking-ferias': { type: 'ranking-ferias', title: 'Ranking',       kind: 'chart', libraryComponentIds: LIB_CHART_IDS },
+  'kpis-ferias':      { type: 'kpis-ferias',      title: 'KPIs — Férias',               kind: 'compound' },
+  'pivot-ferias':     { type: 'pivot-ferias',     title: 'Limite Férias',               kind: 'table', libraryComponentIds: LIB_TABLE_IDS },
+  'prox90-ferias':    { type: 'prox90-ferias',    title: 'Programação Próximos 90 Dias',kind: 'table', libraryComponentIds: LIB_TABLE_IDS },
+  'sem-prog-ferias':  { type: 'sem-prog-ferias',  title: 'Sem Programação',             kind: 'table', libraryComponentIds: LIB_TABLE_IDS },
 };
 
 // ============ TURNOVER ============
