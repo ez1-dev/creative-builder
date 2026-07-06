@@ -234,6 +234,8 @@ const KPI_ALIASES: Record<keyof ResumoFolhaKpis, string[]> = {
   custo_ferias: ["custo_ferias"],
   rescisoes: ["rescisoes"],
   fgts: ["fgts"],
+  salario_base: ["salario_base", "salarioBase"],
+  salario_bruto: ["salario_bruto", "salarioBruto"],
 };
 
 function buildKpis(k: any): { kpis: ResumoFolhaKpis; missing: string[] } {
