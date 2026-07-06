@@ -216,21 +216,28 @@ export default function ProgramacaoFeriasPage() {
               )}
               Exportar Excel
             </Button>
-            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
-              Atualizar
-            </Button>
             <BotaoRelatorioModuloPdf
               modulo="ferias"
               titulo="Programação de Férias"
               disabled={isLoading}
               dados={data ? { tipo: "ferias", atual: data } : null}
-              filtros={{ codemp }}
-              iaPayload={{ kpis: data?.kpis, limite_ferias_pivot: data?.limite_ferias_pivot, sem_programacao_amostra: data?.primeiro_vencimento_sem_programacao?.slice(0, 15) }}
+              filtros={{ anomes_ini: ini, anomes_fim: fim, codemp }}
+              iaPayload={{ periodo: { anomes_ini: ini, anomes_fim: fim }, kpis: data?.kpis, limite_ferias_pivot: data?.limite_ferias_pivot, sem_programacao_amostra: data?.primeiro_vencimento_sem_programacao?.slice(0, 15) }}
             />
           </div>
         }
       />
+
+      <RhFiltrosBar
+        anomesIni={ini}
+        onAnomesIniChange={setIni}
+        anomesFim={fim}
+        onAnomesFimChange={setFim}
+        codemp={codemp}
+        onCodempChange={setCodemp}
+        disabled={isFetching}
+      />
+
 
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         <div className="cursor-pointer" onClick={() => openByStatus("VENCIDA", "Férias Vencidas")}>
