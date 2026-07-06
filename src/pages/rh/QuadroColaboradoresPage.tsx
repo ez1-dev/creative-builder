@@ -616,7 +616,7 @@ export default function QuadroColaboradoresPage() {
             catalog={QUADRO_CATALOG}
             kpis={dashQ.data?.kpis as any}
             series={(dashQ.data as any)?.series}
-            derivedSeries={buildQuadroSeries(dashQ.data, rows)}
+            derivedSeries={buildQuadroSeries(dashQ.data, listaQ.data ?? dashQ.data?.detalhe)}
             filtros={{}}
           />
         );
