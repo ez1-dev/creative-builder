@@ -33,11 +33,12 @@ export function RhLayoutToolbar({ editing, onToggle, onReset, widgets, onShow, p
     window.dispatchEvent(new CustomEvent('rh:add-bi-widget', { detail: { pageKey } }));
   };
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       {editing && pageKey && onAdd && (
         <Button size="sm" variant="outline" className="h-8" onClick={openAddDialog}>
           <Plus className="mr-1.5 h-3.5 w-3.5" />
-          Adicionar da Biblioteca BI
+          <span className="hidden sm:inline">Adicionar da Biblioteca BI</span>
+          <span className="sm:hidden">Adicionar</span>
         </Button>
       )}
 
@@ -46,7 +47,7 @@ export function RhLayoutToolbar({ editing, onToggle, onReset, widgets, onShow, p
           <DropdownMenuTrigger asChild>
             <Button size="sm" variant="outline" className="h-8">
               <EyeOff className="mr-1.5 h-3.5 w-3.5" />
-              Ocultos ({hidden.length})
+              <span className="hidden sm:inline">Ocultos</span> ({hidden.length})
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
@@ -66,10 +67,11 @@ export function RhLayoutToolbar({ editing, onToggle, onReset, widgets, onShow, p
           <AlertDialogTrigger asChild>
             <Button size="sm" variant="outline" className="h-8" disabled={resetting}>
               <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-              Resetar layout
+              <span className="hidden sm:inline">Resetar layout</span>
+              <span className="sm:hidden">Resetar</span>
             </Button>
           </AlertDialogTrigger>
-          <AlertDialogContent>
+          <AlertDialogContent className="max-w-[95vw] sm:max-w-md">
             <AlertDialogHeader>
               <AlertDialogTitle>Resetar layout desta página?</AlertDialogTitle>
               <AlertDialogDescription>
@@ -98,9 +100,9 @@ export function RhLayoutToolbar({ editing, onToggle, onReset, widgets, onShow, p
         onClick={() => onToggle(!editing)}
       >
         {editing ? (
-          <><Check className="mr-1.5 h-3.5 w-3.5" />Concluir</>
+          <><Check className="mr-1.5 h-3.5 w-3.5" /><span className="hidden sm:inline">Concluir</span><span className="sm:hidden">OK</span></>
         ) : (
-          <><Pencil className="mr-1.5 h-3.5 w-3.5" />Editar layout</>
+          <><Pencil className="mr-1.5 h-3.5 w-3.5" /><span className="hidden sm:inline">Editar layout</span><span className="sm:hidden">Editar</span></>
         )}
       </Button>
     </div>

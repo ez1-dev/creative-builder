@@ -110,8 +110,9 @@ export function BotaoRelatorioModuloPdf({
 
   return (
     <Button onClick={gerar} disabled={disabled || loading || !dados} size={size} variant={variant}>
-      {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
-      {label}
+      {loading ? <Loader2 className="h-4 w-4 sm:mr-2 animate-spin" /> : <FileDown className="h-4 w-4 sm:mr-2" />}
+      <span className="hidden sm:inline">{label}</span>
+      <span className="sm:hidden">PDF</span>
     </Button>
   );
 }
