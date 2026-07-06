@@ -210,6 +210,7 @@ const GROUPS: Group[] = [
       { title: 'Contratos de Experiência', url: '/rh/contrato-experiencia', icon: FileCheck },
       { title: 'Férias', url: '/rh/programacao-ferias', icon: CalendarRange },
       { title: 'Turnover', url: '/rh/turnover', icon: TrendingUp },
+      { title: 'Absenteísmo / Afastamentos', url: '/rh/absenteismo', icon: Activity },
       { title: 'Formulários', url: '/rh/formularios', icon: FileText },
     ],
   },
