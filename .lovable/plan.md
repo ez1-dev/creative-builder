@@ -1,34 +1,49 @@
-## Ajustar donut do PieChartCard (não cortar e centralizar)
+# Análise IA no rodapé dos módulos de RH
 
-Problema: no modo compacto (donut sem `rich`), o raio é fixo em pixels (`outerRadius=90`, `innerRadius=55`) e `cy='45%'`, então:
-- em cards pequenos as fatias encostam nas bordas superiores;
-- em cards maiores o donut fica pequeno e "solto" no topo;
-- o overlay do "Total / valor" fica desalinhado com o centro real do donut.
+Adicionar um bloco "Análise da IA" ao final das páginas **Resumo Folha**, **Quadro Colaboradores**, **Contratos de Experiência**, **Férias** e **Turnover**, com 3 cards padronizados: **Diagnóstico**, **Riscos** e **Recomendações**.
 
-### `src/components/bi/charts/PieChartCard.tsx`
-Substituir apenas o layout do modo compacto (não mexer no rich/externo que já funciona):
+## Comportamento
+- Disparo **automático** ao abrir a página, após os dados carregarem.
+- Enquanto gera: skeleton nos 3 cards + badge "Analisando...".
+- Cache leve em memória por página+filtros (evita regerar ao alternar abas na mesma sessão).
+- Botão discreto "Regenerar análise" no cabeçalho do bloco.
+- Erros (429/402/etc) exibidos como card único com mensagem clara e botão tentar novamente.
 
-1. Radii responsivos:
-   - `outerRadius: rich ? '58%' : '78%'`
-   - `innerRadius: donut ? (rich ? '35%' : '55%') : 0`
+## Layout (idêntico nas 5 páginas)
+Componente novo `AiInsightsPanel` reutilizável:
+- Título "Análise da IA" + subtítulo com data/hora da geração.
+- Grid responsivo 3 colunas (mobile: 1 coluna) com cards:
+  1. **Diagnóstico** (ícone Activity, cor primary) — leitura do cenário atual.
+  2. **Riscos** (ícone AlertTriangle, cor warning/destructive) — pontos de atenção.
+  3. **Recomendações** (ícone Lightbulb, cor success) — ações sugeridas.
+- Cada card: 3–5 bullets curtos em markdown.
+- Tokens semânticos do design system (sem cores hardcoded).
 
-2. Recentrar para dar espaço à legenda:
-   - `cy: '46%'` (era 45%)
-   - margem do `PieChart`: `{ top: 16, right: 20, bottom: 56, left: 20 }` (era top:10, bottom:70) — reduz sobra e evita clipping topo.
+## Backend
+- Nova edge function `rh-ai-insights` no Lovable Cloud.
+- Recebe: `{ modulo: 'resumo-folha'|'quadro-colaboradores'|'contratos-experiencia'|'ferias'|'turnover', empresa, filtros, kpis, amostras }`.
+- Chama Lovable AI Gateway com **google/gemini-3-flash-preview** via AI SDK (`@ai-sdk/openai-compatible`) + `generateText` com `Output.object` (schema `{ diagnostico: string[], riscos: string[], recomendacoes: string[] }`).
+- Prompt do sistema personalizado por módulo (contexto de RH, foco em folha/headcount/contratos/férias/turnover).
+- Trata 429 (rate limit) e 402 (créditos) devolvendo status apropriado.
 
-3. Ajustar o `insideR` (labels internos) para usar os novos percentuais (`0.78` e `0.55`).
+## Escopo dos dados enviados
+Para cada módulo, o frontend monta um payload compacto:
+- **Resumo Folha**: totais por rubrica, custo total, variação mês anterior, top 5 rubricas.
+- **Quadro Colaboradores**: headcount atual, série mensal, distribuição por setor/cargo, admissões/demissões do período.
+- **Contratos de Experiência**: total ativos, próximos a vencer (30/60/90 dias), top 10 amostras.
+- **Férias**: saldo vencido, a vencer, top 10 colaboradores em risco.
+- **Turnover**: taxa do período, série mensal, motivos principais, setores com maior turnover.
 
-4. Ajustar o layer `PieLabelsLayer` para usar `cyPx = ch * 0.46` (bater com o novo `cy`).
+## Integração nas páginas
+Cada página RH ganha `<AiInsightsPanel modulo="..." payload={...} />` no final do JSX, alimentado pelos mesmos dados/hooks já existentes (sem refetch adicional). Nada é alterado na lógica de negócio existente.
 
-5. Overlay do centro:
-   - trocar `pb-16` por posicionamento alinhado ao `cy`:
-     ```tsx
-     <div className="pointer-events-none absolute inset-x-0 flex flex-col items-center"
-          style={{ top: '46%', transform: 'translateY(-50%)' }}>
-     ```
-   - mantém `text-lg font-bold` no valor e `text-[10px] uppercase` no rótulo.
+## Detalhes técnicos
+- Hook `useRhAiInsights(modulo, payload)` faz debounce (400ms) sobre o payload e chama `supabase.functions.invoke('rh-ai-insights', ...)`.
+- Cache em `Map<string, Insights>` por hash(modulo+payload) durante a sessão.
+- Sem persistência em banco nesta iteração.
+- Sem alteração em `src/integrations/supabase/*`.
 
-### Fora de escopo
-- Sem mudar API pública (`centerLabel`, `centerValue`, `height`, `visualConfig`).
-- Sem alterar paleta, tooltip ou legenda.
-- Sem trocar o modo rich/externo.
+## Fora de escopo
+- Chat/aprofundamento interativo.
+- Persistência histórica das análises.
+- Alteração de gráficos ou KPIs já existentes.

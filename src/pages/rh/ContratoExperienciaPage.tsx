@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
+import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import { fetchContratoExperienciaDashboard, exportarContratoExperienciaExcel } from "@/lib/rh/api";
 import type { ContratoExperienciaVencimento } from "@/lib/rh/types";
 import { cn } from "@/lib/utils";
@@ -198,6 +199,24 @@ export default function ContratoExperienciaPage() {
           </div>
         </CardContent>
       </Card>
+
+      <AiInsightsPanel
+        modulo="contratos-experiencia"
+        ready={!isLoading && !!data}
+        payload={{
+          kpis,
+          total_vencimentos: rows.length,
+          amostra_prox_vencimentos: rows.slice(0, 15).map((r) => ({
+            empresa: r.empresa,
+            filial: r.filial,
+            cargo: r.cargo,
+            colaborador: r.colaborador,
+            dt_admissao: r.dt_admissao,
+            dt_vencimento: r.dt_vencimento,
+            status: r.status,
+          })),
+        }}
+      />
     </div>
   );
 }

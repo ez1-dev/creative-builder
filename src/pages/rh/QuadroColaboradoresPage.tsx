@@ -32,6 +32,7 @@ import {
   type ColaboradorDetalhe,
 } from "@/lib/rh/quadroDashboardApi";
 import { QuadroDrillCard } from "@/components/rh/QuadroDrillCard";
+import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import { QuadroDrillModal } from "@/components/rh/QuadroDrillModal";
 import {
   filterDetalheByKpi,
@@ -627,6 +628,24 @@ export default function QuadroColaboradoresPage() {
         label={drill.label}
         valor={drill.valor}
         itens={drill.itens}
+      />
+
+      <AiInsightsPanel
+        modulo="quadro-colaboradores"
+        ready={!dashQ.isLoading && !!dashQ.data}
+        payload={{
+          data_ref: dataRefIso,
+          periodo_historico: { anomes_ini: anomesIni, anomes_fim: anomesFim },
+          kpis,
+          historico_mensal: historicoData,
+          distribuicao_faixa_sexo: faixaSexoData,
+          distribuicao_tempo_casa_sexo: tempoCasaSexoData,
+          dimensoes_drill: (dashQ.data?.dimensoes_drill ?? []).slice(0, 8).map((d: any) => ({
+            dimensao: d?.dimensao ?? d?.label,
+            top: (d?.itens ?? d?.valores ?? []).slice(0, 8),
+          })),
+          total_colaboradores: detalhe.length,
+        }}
       />
     </div>
   );
