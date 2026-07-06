@@ -355,6 +355,7 @@ export default function TurnoverPage() {
             blocks={blocks}
             catalog={TURNOVER_CATALOG}
             kpis={kpis as any}
+            series={(data as any)?.series}
             filtros={{ codemp, anomes_ini: ini, anomes_fim: fim }}
           />
         );
