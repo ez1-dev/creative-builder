@@ -4084,6 +4084,7 @@ export type Database = {
         }[]
       }
       get_share_link_visuals: { Args: { _token: string }; Returns: string[] }
+      has_bi_access: { Args: { _uid: string }; Returns: boolean }
       is_admin: { Args: { _uid: string }; Returns: boolean }
       move_widget_to_block: {
         Args: { _block_id: string; _widget_id: string }
