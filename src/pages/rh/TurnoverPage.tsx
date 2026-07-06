@@ -14,6 +14,7 @@ import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import { BotaoRelatorioModuloPdf } from "@/components/rh/BotaoRelatorioModuloPdf";
 import { RhFiltrosBar } from "@/components/rh/RhFiltrosBar";
 import { RhDashboardWithBiLibrary } from "@/components/rh/RhDashboardWithBiLibrary";
+import { buildTurnoverSeries } from "@/lib/rh/seriesBuilders";
 import { RhLayoutToolbar } from "@/components/rh/RhLayoutToolbar";
 import { useRhModuleLayout } from "@/hooks/useRhModuleLayout";
 import { TURNOVER_DEFAULTS, TURNOVER_CATALOG } from "@/lib/rh/widgetCatalogs";
@@ -356,6 +357,7 @@ export default function TurnoverPage() {
             catalog={TURNOVER_CATALOG}
             kpis={kpis as any}
             series={(data as any)?.series}
+            derivedSeries={buildTurnoverSeries(data)}
             filtros={{ codemp, anomes_ini: ini, anomes_fim: fim }}
           />
         );

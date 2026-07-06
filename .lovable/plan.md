@@ -1,111 +1,111 @@
+# Calcular todas as séries RH no frontend (fallback para a Biblioteca BI)
+
 ## Objetivo
 
-Fazer todos os gráficos configuráveis da Biblioteca BI nas páginas RH usarem, como fonte única de séries, o novo array `dashboard.series` (contrato uniforme `{ chave, label, pontos: [{label, valor}] }`) retornado pelos endpoints RH. Nada de agregação no front, nada de campos antigos (`por_filial`, `qtd`, `value`, etc.).
-
-## Escopo
-
-Frontend apenas (a Biblioteca BI + páginas RH). Backend / endpoints não mudam.
-
-Páginas envolvidas:
-- `src/pages/rh/ResumoFolhaPage.tsx` (RH-01)
-- `src/pages/rh/QuadroColaboradoresPage.tsx` (RH-02)
-- `src/pages/rh/ContratoExperienciaPage.tsx` (RH-03)
-- `src/pages/rh/ProgramacaoFeriasPage.tsx` (RH-04)
-- `src/pages/rh/TurnoverPage.tsx` (RH-05)
-- `src/pages/rh/AbsenteismoPage.tsx` (RH-06)
-
-## Detalhes técnicos
-
-### 1. Novo helper `rhSeriesToRecord`
-
-Novo arquivo `src/lib/rh/seriesAdapter.ts`:
+Enriquecer o `PageDataContext` de cada página RH com um conjunto completo de séries derivadas dos dados brutos já retornados pelos endpoints (`kpis`, `rows`, `mensal`, `filiais`, `detalhe`, `vencimentos`, etc.), no mesmo formato uniforme do backend:
 
 ```ts
-export interface RhSeriePonto { label: string; valor: number; [k: string]: any }
-export interface RhSerie { chave: string; label: string; pontos: RhSeriePonto[] }
-
-// { chave: pontos } — formato consumido por PageDataContext.series
-export function rhSeriesToRecord(series?: RhSerie[] | null): Record<string, RhSeriePonto[]> {
-  const out: Record<string, RhSeriePonto[]> = {};
-  (series ?? []).forEach((s) => { if (s?.chave) out[s.chave] = s.pontos ?? []; });
-  return out;
-}
-
-// [{key,label}] — usado nos dropdowns "Série" dos diálogos
-export function rhSeriesToOptions(series?: RhSerie[] | null): { key: string; label: string }[] {
-  return (series ?? []).map((s) => ({ key: s.chave, label: s.label }));
-}
+{ chave, label, pontos: [{ label, valor }] }
 ```
 
-### 2. `RhDashboardWithBiLibrary`
+Assim, qualquer gráfico configurável da Biblioteca BI passa a listar TODAS as séries possíveis no dropdown "Série" — mesmo quando o backend ainda não entrega o array `series[]`. Quando o backend passar a devolver `series`, elas são preservadas e apenas complementadas pelas derivadas (sem duplicar `chave`).
 
-Trocar a prop `series?: Record<string, any>` por `series?: RhSerie[] | Record<string, any>` e normalizar antes de passar para `PageDataProvider`. Também guardar as `RhSerie[]` originais em um novo contexto/prop simples (via um Provider leve) ou expor via `PageDataContext` como `seriesCatalog` para os diálogos.
+## Arquitetura
 
-Solução mais simples: expor `seriesCatalog` como campo adicional no `PageDataContext` (opcional, mantém compat):
+### 1. Novo módulo `src/lib/rh/seriesBuilders.ts`
+
+Funções puras, uma por página, que recebem os dados brutos do dashboard e devolvem `RhSerie[]`:
 
 ```ts
-// PageDataContext.tsx — acrescentar
-seriesCatalog?: { key: string; label: string }[];
+buildResumoFolhaSeries(dash): RhSerie[]
+buildQuadroSeries(dash): RhSerie[]
+buildContratoExpSeries(dash): RhSerie[]
+buildFeriasSeries(dash): RhSerie[]
+buildTurnoverSeries(dash): RhSerie[]
+buildAbsenteismoSeries(dash): RhSerie[]
 ```
 
-`RhDashboardWithBiLibrary` calcula:
-```ts
-const seriesRecord = Array.isArray(series) ? rhSeriesToRecord(series) : (series ?? {});
-const seriesCatalog = Array.isArray(series) ? rhSeriesToOptions(series) : undefined;
-```
-E repassa ambos ao provider.
+Todas as agregações usam somente `rows`/coleções já presentes no payload — sem chamada nova ao backend, sem `name`/`value`/`qtd` legados.
 
-### 3. Diálogos de configuração e adição
+Helper interno `groupBy(rows, keyFn, valueFn)` retorna `pontos: [{label, valor}]` ordenados por valor desc.
 
-`src/components/rh/ConfigureRhWidgetDialog.tsx` e `src/components/rh/AddRhBiWidgetDialog.tsx`: para inputs com `source === 'series'`, usar como bag primeiro `ctx.seriesCatalog` (novo contrato) e cair para `page.schema.series` (retrocompat).
+### 2. Merge em `RhDashboardWithBiLibrary.tsx`
 
-```ts
-const seriesOpts = ctx?.seriesCatalog?.length
-  ? ctx.seriesCatalog
-  : (page?.schema.series ?? []);
-```
+Novo prop opcional `derivedSeries?: RhSerie[]`. A normalização passa a:
 
-Assim o dropdown reflete exatamente `dashboard.series` de cada tela — sem depender do registry estático.
+1. Converter `series` (backend) em `Record<chave,pontos>` + `seriesCatalog` — como já faz.
+2. Adicionar cada `derivedSeries[i]` cuja `chave` ainda não existe no catálogo.
+3. Passar o resultado unificado para `PageDataProvider`.
 
-### 4. Páginas RH
+O contrato uniforme é mantido; retrocompatibilidade preservada; nada quebra se `derivedSeries` for `undefined`.
 
-Em cada uma das 6 páginas, passar a resposta do dashboard como está:
+### 3. Uso em cada página RH
+
+Cada página importa seu builder e passa:
 
 ```tsx
 <RhDashboardWithBiLibrary
-  pageKey="..."
-  layout={layout}
-  blocks={blocks}
-  catalog={...}
-  kpis={dash.data?.kpis}
-  series={dash.data?.series}   // ← novo, array uniforme do backend
-  filtros={filtrosAtuais}
+  series={dash.data?.series}
+  derivedSeries={buildXxxSeries(dash.data)}
+  ...
 />
 ```
 
-Isso preenche `PageDataContext.series` com `{ chave: pontos }` — que é exatamente o que os renderers de gráfico da Biblioteca BI já consomem (`label` / `valor` dentro de cada ponto — confere com `SERIES_LIKE` em `componentRegistry.tsx`).
+`ContratoExperienciaPage.tsx` hoje usa `PageDataProvider` diretamente (não `RhDashboardWithBiLibrary`) — vamos migrar para o wrapper (ou aplicar o mesmo merge manualmente) para receber as séries derivadas.
 
-### 5. Retrocompatibilidade
+## Séries derivadas por página
 
-- Layouts já salvos que apontam para chaves antigas (`por_filial`, `por_faixa_etaria`, etc.) continuam funcionando porque o backend mantém esses arrays e passa a espelhá-los como itens do novo `series` sob as mesmas chaves. Se uma chave antiga não vier em `series`, o gráfico simplesmente mostra "Sem dados".
-- Nada é agregado no front. Nenhum uso de `name`, `value`, `qtd`, `total`.
+### RH-01 Resumo Folha (a partir de `mensal`, `filiais`, `proventos_vantagens`, `descontos`, `tipos_evento`)
+- `custo_por_mes` — Custo Mensal por Competência
+- `provento_por_mes` — Proventos por Competência
+- `desconto_por_mes` — Descontos por Competência
+- `liquido_por_mes` — Líquido por Competência
+- `hora_extra_por_mes` — Custo Hora Extra por Competência
+- `custo_por_filial` — Custo Total por Filial
+- `liquido_por_filial` — Líquido por Filial
+- `he_por_filial` — Hora Extra por Filial
+- `beneficios_por_filial` — Benefícios por Filial
+- `top_proventos` — Top 15 Proventos e Vantagens
+- `top_descontos` — Top 15 Descontos
+- `por_tipo_evento` — Distribuição por Tipo de Evento
 
-### 6. Não alterar
+### RH-02 Quadro Colaboradores (a partir de `rows` = `QuadroColaboradorItem[]`)
+- `por_situacao` · `por_sexo` · `por_vinculo` · `por_escolaridade` · `por_filial` · `por_empresa` · `por_cargo` (top 20) · `por_centro_custo` (top 20) · `por_faixa_etaria` (<20, 20-29, 30-39, 40-49, 50-59, 60+) · `por_tempo_casa` (<1a, 1-3a, 3-5a, 5-10a, 10a+) · `admissoes_por_mes` (últimos 24m) · `demissoes_por_mes`
 
-- `src/lib/bi/componentRegistry.tsx` (já opera sobre `{label,valor}[]`).
-- `src/lib/bi/pageRegistry.ts` schemas RH — permanecem apenas como fallback caso `seriesCatalog` esteja vazio.
-- Backend, endpoints, tipos gerados.
+### RH-03 Contrato Experiência (a partir de `vencimentos`)
+- `por_status` — Contratos por Status
+- `por_empresa` — Contratos por Empresa
+- `por_filial` — Contratos por Filial
+- `por_cargo` — Top 15 Cargos
+- `por_mes_1o_vencimento` — 1º Vencimento por Mês
+- `por_mes_2o_vencimento` — 2º Vencimento por Mês
+- `faixa_dias_restantes` — <=5, 6-10, 11-30, 31-60, 60+
+- `faixa_dias_vencido` — 1-5, 6-15, 16-30, 30+
 
-## Entregáveis
+### RH-04 Férias (a partir de `detalhe`, `limite_ferias_pivot`, `programacao_proximos_90_dias`, `de_ferias_detalhe`)
+- `por_status` · `por_empresa` · `por_filial` · `por_cargo` (top 15) · `por_mes_limite` · `por_ano_limite` · `saldo_por_faixa` (0, 1-10, 11-20, 21-30, 30+) · `programados_por_mes` · `de_ferias_por_empresa`
 
-1. Novo `src/lib/rh/seriesAdapter.ts`.
-2. `PageDataContext.tsx` recebe campo opcional `seriesCatalog`.
-3. `RhDashboardWithBiLibrary.tsx` aceita `series` como array uniforme e monta `seriesRecord` + `seriesCatalog`.
-4. `ConfigureRhWidgetDialog.tsx` e `AddRhBiWidgetDialog.tsx` priorizam `ctx.seriesCatalog` na origem `series`.
-5. As 6 páginas RH passam `series={dash.data?.series}` para o wrapper.
+### RH-05 Turnover (a partir de `por_mes`, `por_motivo`, `por_empresa`, `detalhe_*`)
+- `admitidos_por_mes` · `demitidos_por_mes` · `saldo_por_mes` · `por_motivo` · `admitidos_por_empresa` · `demitidos_por_empresa` · `admitidos_por_cargo` (top 15) · `demitidos_por_cargo` (top 15) · `admitidos_por_filial` · `demitidos_por_filial`
 
-## Fora do escopo
+### RH-06 Absenteísmo (a partir de `por_categoria`, `por_motivo`, `por_mes`, `por_empresa`, `detalhe`)
+- `dias_por_categoria` · `afastamentos_por_categoria` · `colab_por_categoria` · `dias_por_mes` · `afastamentos_por_mes` · `dias_por_empresa` · `afastamentos_por_empresa` · `dias_por_motivo` (top 15) · `dias_por_cargo` (top 15) · `dias_por_filial` · `duracao_media_por_categoria`
 
-- Alterações em páginas não-RH.
-- Remoção do schema `series` antigo do `pageRegistry.ts` (mantido como fallback).
-- Mudanças em drill-downs, KPIs, tabelas custom das páginas RH.
+## Regras que serão respeitadas
+
+- Nenhuma nova chamada de API; agregação 100% frontend.
+- Séries do backend têm prioridade — `derivedSeries` só preenchem `chave` que não existir.
+- Formato uniforme `{ chave, label, pontos: [{label, valor}] }` — sem `name`/`value`/`qtd`/`total`.
+- `pageRegistry` schemas permanecem apenas como fallback quando `seriesCatalog` estiver vazio.
+- `ContratoExperienciaPage` migra para `RhDashboardWithBiLibrary` (ou recebe o mesmo merge no `PageDataProvider` local) para expor o dropdown "Série".
+
+## Arquivos afetados
+
+- **criar** `src/lib/rh/seriesBuilders.ts`
+- **editar** `src/components/rh/RhDashboardWithBiLibrary.tsx` (novo prop `derivedSeries` + merge)
+- **editar** `src/pages/rh/ResumoFolhaPage.tsx`
+- **editar** `src/pages/rh/QuadroColaboradoresPage.tsx`
+- **editar** `src/pages/rh/ContratoExperienciaPage.tsx` (passar a usar o wrapper ou aplicar merge local)
+- **editar** `src/pages/rh/ProgramacaoFeriasPage.tsx`
+- **editar** `src/pages/rh/TurnoverPage.tsx`
+- **editar** `src/pages/rh/AbsenteismoPage.tsx`

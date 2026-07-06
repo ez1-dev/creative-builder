@@ -34,12 +34,17 @@ interface Props {
    * ou o formato antigo `Record<chave, pontos>` para retrocompatibilidade.
    */
   series?: RhSerie[] | Record<string, any> | null;
+  /**
+   * Séries derivadas pelo frontend (fallback). São mescladas depois das do
+   * backend — só preenchem chaves que ainda não existirem no catálogo.
+   */
+  derivedSeries?: RhSerie[] | null;
   rows?: any[] | null;
   filtros?: Record<string, any> | null;
 }
 
 export function RhDashboardWithBiLibrary({
-  pageKey, layout, blocks, catalog, kpis, series, rows, filtros,
+  pageKey, layout, blocks, catalog, kpis, series, derivedSeries, rows, filtros,
 }: Props) {
   const [configTarget, setConfigTarget] = useState<RhWidget | null>(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -57,9 +62,24 @@ export function RhDashboardWithBiLibrary({
     return () => window.removeEventListener('rh:add-bi-widget', handleOpenAdd);
   }, [pageKey]);
 
+  // Backend `series` (formato uniforme ou legado) tem prioridade; derivadas
+  // do frontend só preenchem chaves ausentes.
   const isSeriesArray = Array.isArray(series);
-  const seriesRecord = isSeriesArray ? rhSeriesToRecord(series as RhSerie[]) : (series as any) ?? {};
-  const seriesCatalog = isSeriesArray ? rhSeriesToOptions(series as RhSerie[]) : undefined;
+  const backendRecord: Record<string, any> = isSeriesArray
+    ? rhSeriesToRecord(series as RhSerie[])
+    : ((series as any) ?? {});
+  const backendCatalog = isSeriesArray ? rhSeriesToOptions(series as RhSerie[]) : [];
+
+  const derived = derivedSeries ?? [];
+  const seriesRecord: Record<string, any> = { ...backendRecord };
+  const seriesCatalog = [...backendCatalog];
+  derived.forEach((s) => {
+    if (s?.chave && !(s.chave in seriesRecord)) {
+      seriesRecord[s.chave] = s.pontos ?? [];
+      seriesCatalog.push({ key: s.chave, label: s.label || s.chave });
+    }
+  });
+  const finalCatalog = seriesCatalog.length ? seriesCatalog : undefined;
 
   return (
     <>
@@ -67,7 +87,7 @@ export function RhDashboardWithBiLibrary({
         pageKey={pageKey}
         kpis={kpis as any}
         series={seriesRecord}
-        seriesCatalog={seriesCatalog}
+        seriesCatalog={finalCatalog}
         rows={rows as any}
         filtros={filtros as any}
       >

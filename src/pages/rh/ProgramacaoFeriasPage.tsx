@@ -11,6 +11,7 @@ import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { BotaoRelatorioModuloPdf } from "@/components/rh/BotaoRelatorioModuloPdf";
 import { RhFiltrosBar } from "@/components/rh/RhFiltrosBar";
 import { RhDashboardWithBiLibrary } from "@/components/rh/RhDashboardWithBiLibrary";
+import { buildFeriasSeries } from "@/lib/rh/seriesBuilders";
 import { RhLayoutToolbar } from "@/components/rh/RhLayoutToolbar";
 import { useRhModuleLayout } from "@/hooks/useRhModuleLayout";
 import { FERIAS_DEFAULTS, FERIAS_CATALOG } from "@/lib/rh/widgetCatalogs";
@@ -416,6 +417,7 @@ export default function ProgramacaoFeriasPage() {
         catalog={FERIAS_CATALOG}
         kpis={kpis as any}
         series={(data as any)?.series}
+        derivedSeries={buildFeriasSeries(data)}
         filtros={{ codemp, anomes_ini: ini, anomes_fim: fim }}
       />
 
