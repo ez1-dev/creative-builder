@@ -49,9 +49,8 @@ interface DrillState {
 }
 
 export default function ProgramacaoFeriasPage() {
-  const initRange = currentYearRange();
-  const [ini, setIni] = useState(initRange.ini);
-  const [fim, setFim] = useState(initRange.fim);
+  const [ini, setIni] = useState("");
+  const [fim, setFim] = useState("");
   const [codemp, setCodemp] = useState<number>(1);
 
   const { data: dataRaw, isLoading, isFetching, error } = useQuery({
