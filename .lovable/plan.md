@@ -1,77 +1,124 @@
+
 ## Objetivo
 
-Deixar o app inteiro responsivo (mobile → tablet → desktop wide) e permitir instalação como PWA (ícone na tela inicial), sem modo offline. O trabalho é 100% de layout/apresentação — nada de lógica, dados ou contratos de API muda.
+Ampliar o módulo **Manutenção de Frota** para acomodar três tipos de lançamento — **Manutenção veículo**, **Combustível** e **Pedágio** — com filtro por categoria, importação dedicada por planilha e um dashboard reorganizado conforme o pedido.
 
-## Diagnóstico
+## 1. Backend (Lovable Cloud)
 
-- `AppLayout` header: `h-11 3xl:h-14` fixo, `HeaderInfo` sem controle de largura, botão "Sair" com ícone-only só em `<sm`. Em mobile o header comprime bem.
-- `AppSidebar` (shadcn) já é responsiva: `useIsMobile` (<768 px) transforma em drawer (Sheet). `SidebarTrigger` já está no header. **Nada a mudar aqui.**
-- Páginas fora do RH: maioria usa `space-y-4 p-4` (já fluido). Casos problemáticos: `container mx-auto py-*` (só RH — já corrigido), tabelas sem `overflow-x-auto`, filtros/toolbars em `flex items-center gap-2` sem `flex-wrap`, KPI grids com breakpoints hardcoded (`md:grid-cols-5`, `md:grid-cols-6`), diálogos com `max-w-*` fixo.
-- `PainelComprasPage` (rota atual): wrapper `space-y-4 p-4` ok, mas linha 903 `flex flex-wrap items-center gap-2` já wrap; várias sublinhas com grids fixos precisarão de checagem.
-- PWA: `public/manifest.json` já existe (`display: standalone`, name, cores). `public/icon-192.png` e `icon-512.png` já estão em `public/`. `index.html` já tem tags `manifest`, `theme-color`, `apple-mobile-web-app-*`, `apple-touch-icon`. **A infra PWA manifest-only já está no ar** — precisa apenas de auditoria/ajustes finais.
+Migration nova em `supabase/migrations/`:
 
-## Implementação
+- `ALTER TABLE public.manutencao_frota ADD COLUMN categoria text` com CHECK `IN ('MANUTENCAO','COMBUSTIVEL','PEDAGIO')`.
+- Backfill: todos os registros existentes → `categoria = 'MANUTENCAO'`.
+- `ALTER COLUMN categoria SET NOT NULL` + `DEFAULT 'MANUTENCAO'`.
+- `CREATE INDEX manutencao_frota_categoria_idx ON public.manutencao_frota(categoria)`.
+- Sem alteração em GRANTs/RLS (herda os atuais).
 
-### 1. Auditar/consolidar o app-shell responsivo
-- `src/components/AppLayout.tsx`
-  - Garantir que o `<main>` tenha `overflow-x-hidden` como fallback (mantendo `overflow-auto` no eixo Y) para bloquear vazamentos.
-  - Header: manter estrutura atual, apenas assegurar que `HeaderInfo` receba `min-w-0 truncate` no wrapper.
-- `src/components/HeaderInfo.tsx`
-  - Truncar textos longos, esconder itens secundários em `<md` com `hidden md:inline-flex`.
-- `src/components/erp/AiAssistantChat.tsx` (verificar): posicionamento do botão flutuante deve respeitar `bottom-safe` no mobile.
+Campo `segmento` continua livre (FROTA / GENIUS / OBRA). `tipo_veiculo` continua livre (aceita "Cavalo Mecânico", "Utilitário/Passeio", "Passeio" etc. — hoje já é `text`).
 
-### 2. Auditoria PWA manifest-only
-- Revisar `public/manifest.json`: confirmar campos `id`, `scope`, `orientation: "any"`. Adicionar `icons[].purpose: "any maskable"` para melhor render Android.
-- Confirmar `index.html`: tudo já presente. Apenas garantir `<link rel="icon" href="/favicon.ico" ...>` continua servindo como fallback (não mexer no favicon).
-- Testar em Playwright mobile: manifest carrega, sem erro no console.
+## 2. Tipos (frontend)
 
-### 3. Padrões responsivos aplicados por sweep
-Criar utilitário `src/lib/ui/responsive.ts` (ou reaproveitar `src/components/bi/utils/responsive.ts` já existente) e usar como referência. Aplicar por regex-guided sweep nas páginas listadas abaixo:
+`ManutencaoFrota` em `src/components/frota/FrotaDashboard.tsx`:
 
-**Padrões a substituir (só quando literal, sem `sm:`/`md:` companheira):**
-- `flex items-center gap-2` em headers/toolbars com muitos botões → `flex flex-wrap items-center gap-2`
-- `grid grid-cols-N` sem breakpoints menores → adicionar `grid-cols-1 sm:grid-cols-2 md:grid-cols-N`
-- Tabelas em `<Table>` sem wrapper → envolver com `<div className="overflow-x-auto -mx-3 px-3 md:mx-0 md:px-0">`
-- `DialogContent` com `max-w-{2xl|3xl|4xl}` → prefixar `max-w-[95vw] sm:` mantendo o valor original
-- Botões com labels longos em toolbars → `<span className="hidden sm:inline">Texto</span>` quando aplicável
+- Adicionar `categoria: 'MANUTENCAO' | 'COMBUSTIVEL' | 'PEDAGIO'`.
+- Constantes utilitárias:
 
-**Páginas alvo (aplicação pontual, mudanças mínimas e cirúrgicas):**
+```ts
+export const CATEGORIA_OPTIONS = [
+  { value: 'MANUTENCAO', label: 'Manutenção veículo' },
+  { value: 'COMBUSTIVEL', label: 'Combustível' },
+  { value: 'PEDAGIO', label: 'Pedágio' },
+] as const;
+```
 
-BI / Dashboards:
-- `src/pages/PainelComprasPage.tsx` (rota atual — prioridade)
-- `src/pages/FaturamentoGeniusPage.tsx`
-- `src/pages/NotasRecebimentoPage.tsx`
-- `src/pages/DemonstrativoComprasRecebimentosPage.tsx`
-- `src/pages/Index.tsx`
-- `src/pages/bi/**/*.tsx` (comercial, contabilidade, financeiro)
+## 3. Importação — `ImportarFrotaDialog.tsx`
 
-Operacionais:
-- `src/pages/EstoquePage.tsx`, `EstoqueMinMaxPage.tsx`, `SugestaoMinMaxPage.tsx`
-- `src/pages/ComprasProdutoPage.tsx`, `ContasPagarPage.tsx`, `ContasReceberPage.tsx`
-- `src/pages/ConciliacaoEdocsPage.tsx`, `NumeroSeriePage.tsx`
-- `src/pages/producao/**`, `src/pages/cadastros/**`, `src/pages/relatorios/**`
-- `src/pages/ManutencaoFrotaPage.tsx`, `ManutencaoMaquinasPage.tsx`, `PassagensAereasPage.tsx`
-- `src/pages/EngenhariaProducaoPage.tsx`, `BomPage.tsx`, `OndeUsaPage.tsx`
-- `src/pages/AuditoriaApontamentoGeniusPage.tsx`, `AuditoriaTributariaPage.tsx`
-- `src/pages/regras-senior/**`, `src/pages/auditoria-genius/**`
-- `src/pages/MonitorUsuariosSeniorPage.tsx`, `GestaoSguUsuariosPage.tsx`
-- `src/pages/ConfiguracoesPage.tsx`, `EtlAdminPage.tsx`, `EtlTarefaDetalhePage.tsx`
+Reescrever o dialog para trabalhar por **categoria escolhida antes do upload**:
 
-### 4. Validação
-- Playwright em viewports 375×812, 768×1024 e 1440×900 em rotas-chave: `/`, `/painel-compras`, `/bi/comercial/*`, `/estoque`, `/faturamento-genius`, `/contas-pagar`, `/notas-recebimento`, `/producao/programacao`, `/rh` (já feito), `/configuracoes`. Screenshot + checar `document.documentElement.scrollWidth - clientWidth === 0`.
-- Verificar console/network limpos.
-- Confirmar drawer da sidebar abre/fecha em mobile.
-- Testar manifest via `curl` do endpoint `/manifest.json` local.
+- Passo 1: usuário escolhe a categoria (radio: Manutenção / Combustível / Pedágio).
+- Passo 2: upload do arquivo. Cada categoria tem seu mapa de colunas e regras:
 
-## Fora de escopo
+| Categoria    | Colunas aceitas na planilha                                                                                                                    | Regras                                                                                     |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Manutenção   | Data, Placa, Fornecedor, Descrição, Quilometragem (KM), Valor, Motorista, C.Custo, Segmento, Tipo Veículo                                     | comportamento atual                                                                        |
+| Combustível  | DATA, PLACA, FORNECEDOR, DESCRIÇÃO, KM, MOTORISTA, C.CUSTO, SEGMENTO, TIPO VEÍCULO                                                             | **Valor = 0** (planilha não traz valor; edição manual depois)                              |
+| Pedágio      | DATA, PLACA, FORNECEDOR, DESCRIÇÃO, VALOR ORIGINAL, MOTORISTA, C.CUSTO, SEGMENTO, TIPO VEÍCULO, DÉBITO, CRÉDITO                                | `valor` = `VALOR ORIGINAL`; `quilometragem` = null                                          |
 
-- Nenhuma mudança em `src/lib/**` (exceto criação eventual do helper responsivo).
-- Nenhuma alteração em contratos de API, hooks de dados, RLS ou edge functions.
-- Nenhuma mudança em cores/tokens do design system.
-- Sem service worker / modo offline.
-- Sem redesenhar componentes — só ajustar breakpoints, wraps e paddings.
+Todas gravam `categoria` conforme o passo 1. Placa continua sendo dividida por `-` (mantém `veiculo_descricao`). `tipo_veiculo` grava exatamente o texto da planilha (sem cair no classifier antigo). `classifyTipo` fica só como fallback quando planilha não tem a coluna.
 
-## Arquivos afetados (estimativa)
+Título/descrição do dialog e o botão "Importar" refletem a categoria selecionada.
 
-- **Editar**: `src/components/AppLayout.tsx`, `src/components/HeaderInfo.tsx`, `public/manifest.json`, mais ~30-40 páginas (edições pontuais de 1-3 linhas cada em headers/filtros/tabelas).
-- **Criar (opcional)**: `src/lib/ui/responsive.ts` com helpers compartilhados.
+## 4. Dashboard — `FrotaDashboard.tsx`
+
+### 4.1 Filtro de categoria
+
+Novo filtro na `FilterBar`: **MultiSelectFilter "Categoria"** com as 3 opções (Manutenção veículo / Combustível / Pedágio). Aplica antes do resto dos filtros.
+
+### 4.2 Cross-filter
+
+Adicionar `selCategoria: string[]` seguindo o mesmo padrão de `selSegmento`. Chip incluído em "Filtros ativos".
+
+### 4.3 Gráficos (canônicos, na ordem pedida)
+
+Blocos canônicos passam a ser:
+
+1. **KPIs** (mantém: Total, Manutenções, Ticket médio, Veículos).
+2. **`chart-evolucao-mensal`** — barras por mês (Jan..Dez ordenado). Já existe; segue.
+3. **`chart-categoria`** — **novo**. Rosca com **% e valor** (mesmo estilo do módulo Passagens). Tela inteira (`w = 12`).
+4. **`chart-tipo-veiculo`** — rosca com **% e valor** (padrão Passagens). Tela inteira (`w = 12`).
+5. **`chart-top-placas`** — `RankingChartCard` (renomear o atual "Top Veículos por Valor" para "Placa — Ranking"; comportamento igual).
+6. **`chart-top-fornecedores`** — Ranking (mantém).
+7. **`chart-top-cc`** — Ranking (mantém).
+
+Blocos removidos do layout canônico padrão: `chart-segmento` (segmento vira dimensão secundária, ainda disponível como widget custom via "Novo gráfico") e `chart-top-motoristas` (idem — não faz parte do pedido).
+
+### 4.4 Modo "tela inteira" dos donuts
+
+Confirmar que o `PieChartCard` já mostra `% + valor` como no módulo Passagens. Se ainda não, ativar as props equivalentes (`showValues`, `showPercent`) — o card usado é o mesmo componente da biblioteca BI.
+
+No layout padrão salvo em `useFrotaLayout` (defaults), definir `layout.w = 12` para `chart-categoria` e `chart-tipo-veiculo` para que ocupem a linha inteira.
+
+### 4.5 Registro (tabela) — colunas exatas pedidas
+
+Substituir `cols` em `FrotaDashboard.tsx`:
+
+`Data — Placa — Fornecedor — Descrição — Km — Valor — C.Custo — Segmento — Tipo Veículo`
+
+Adicionar coluna **Categoria** ao final (rótulo amigável via `CATEGORIA_OPTIONS`). Remover a coluna Motorista da tabela principal (fica disponível via agrupamento e como filtro; se preferir manter, sinalizar). Ações (editar/excluir) permanecem à direita.
+
+Ajustar exportações CSV/XLSX para refletir as mesmas colunas + Categoria.
+
+## 5. `useFrotaLayout` e registry
+
+- Adicionar `chart-categoria` ao array de canônicos e ao `CONFIGURABLE_CANONICAL`.
+- Ajustar `pageRegistry` (`FROTA_DIMENSOES`) para incluir `categoria` como dimensão.
+- `seriesPayload` passa a construir `por_categoria__valor` etc.
+- Migração de layout: usuários que já têm layout salvo continuam com o antigo; ao restaurar o padrão, recebem o novo (com donut de categoria em tela inteira).
+
+## 6. Página / formulário de edição
+
+`src/pages/ManutencaoFrotaPage.tsx`:
+
+- Adicionar select "Categoria" no form de criar/editar (obrigatório).
+- Ao criar manualmente, default = `MANUTENCAO`.
+- Persistir `categoria` no insert/update.
+
+## 7. Fora de escopo
+
+- Não altera backend FastAPI, RLS, ETL ou edge functions.
+- Não altera o Relatório Executivo de Frota (usa os mesmos campos; passa a mostrar a categoria automaticamente quando presente, sem novos blocos).
+- Sem mudanças em módulos vizinhos (Máquinas, Passagens).
+
+## 8. Importação das 3 planilhas enviadas
+
+Após o deploy da migration, você importa manualmente pela nova UI:
+
+1. Categoria = Combustível → `COMBUSTÍVEL.xlsx` (751 linhas, valor=0).
+2. Categoria = Manutenção → `MANUTENÇÃO.xlsx` (246 linhas).
+3. Categoria = Pedágio → `PEDAGIO_NOVO.xlsx` (2656 linhas, valor = VALOR ORIGINAL).
+
+## Detalhes técnicos
+
+- Não há alteração em `src/integrations/supabase/{client,types}.ts` além do que o gerador refaz sozinho após a migration.
+- Chart de rosca com % e valor: `PieChartCard donut showPercent showValue` (props já usadas nos widgets do módulo Passagens em `PassagensLayoutGrid`).
+- Ordem dos meses continua usando `MESES_ORDER`.
+- Placa continua deduzida por `splitPlaca` para preencher `veiculo_descricao`.
