@@ -1016,6 +1016,7 @@ type FrotaMetricKey = typeof FROTA_METRICAS[number]['key'];
 
 function dimValue(r: ManutencaoFrota, key: FrotaDimKey): string {
   switch (key) {
+    case 'categoria':    return CATEGORIA_LABEL[r.categoria] ?? r.categoria ?? 'NÃO INFORMADO';
     case 'placa':        return r.placa || '—';
     case 'fornecedor':   return r.fornecedor || '—';
     case 'descricao':    return (r.descricao || '—').trim() || '—';
