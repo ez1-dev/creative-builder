@@ -26,13 +26,17 @@ interface Props {
   moveTargets?: MoveTarget[];
   /** Callback ao escolher um destino no menu de mover. */
   onMoveToBlock?: (type: string, blockId: string) => void;
+  /** Densidade do grid. "compact" reduz margin/rowHeight para dashboards densos (RH). */
+  density?: 'default' | 'compact';
 }
 
 const MIN_W = 3;
 const MIN_H = 2;
 const MAX_W = 12;
 
-export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, onHide, onConfigure, configurableTypes, onDelete, moveTargets, onMoveToBlock }: Props) {
+export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, onHide, onConfigure, configurableTypes, onDelete, moveTargets, onMoveToBlock, density = 'default' }: Props) {
+  const gridMargin: [number, number] = density === 'compact' ? [12, 12] : [16, 16];
+  const gridRowHeight = density === 'compact' ? 44 : 60;
   const [isCompact, setIsCompact] = useState<boolean>(() =>
     typeof window !== 'undefined' ? window.innerWidth < 1024 : false,
   );
@@ -286,8 +290,8 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
       className={cn('layout', editing && 'is-editing')}
       layout={layoutItems}
       cols={12}
-      rowHeight={60}
-      margin={[16, 16]}
+      rowHeight={gridRowHeight}
+      margin={gridMargin}
       isDraggable={editing}
       isResizable={editing}
       compactType="vertical"
