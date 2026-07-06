@@ -1,22 +1,33 @@
-## Faltou expor RH-05 no menu lateral e no catálogo
+## Melhorias no PieChartCard (donut/pie compartilhado)
 
-A página, rota e index `/rh` já estão prontos, mas o item não aparece no menu lateral (que é o caminho normal de navegação) porque o `AppSidebar` e o `screenCatalog` não conhecem a rota.
+Alterar apenas `src/components/bi/charts/PieChartCard.tsx`. Não muda API pública nem quebra chamadas existentes.
 
-## Alterações
+### 1. Total automático no centro (modo donut)
+Hoje o centro só aparece se o chamador passar `centerLabel` / `centerValue`. Passa a mostrar automaticamente quando `donut` é true e nenhum deles foi informado:
+- valor: `total` formatado com `Intl.NumberFormat('pt-BR')`
+- rótulo: "Total"
 
-### `src/components/AppSidebar.tsx` (linha 211, seção RH)
-Adicionar item logo abaixo de "Férias":
+Se o chamador passar `centerLabel`/`centerValue`, mantém o comportamento atual (override).
+
+### 2. Legenda com valor e %
+`legendFormatter` passa a receber o `entry` do recharts e renderiza `"Label · 114 (80%)"` (truncando só o label). Se `total = 0`, oculta a parte "(%)".
+
+### 3. % + valor absoluto dentro das fatias grandes
+No layer compacto (modo interno), além do "80,0%" atual, adicionar uma segunda linha com o valor absoluto formatado (`fmt(v)`), quando a fatia for ≥ `MIN_INSIDE_LABEL_PERCENT` (6%). Fica:
 ```
-{ title: 'Turnover', url: '/rh/turnover', icon: TrendingUp },
+80,0%
+114
 ```
-Importar `TrendingUp` de `lucide-react` se ainda não estiver importado nesse arquivo.
+Texto branco com stroke escuro (paint-order) — igual ao atual. Sem mudar o modo "rich/externo" que já tem leader-lines.
 
-### `src/lib/screenCatalog.ts` (após linha 42)
-Registrar a tela para logs de navegação e permissões:
-```
-'/rh/turnover': { codigo: 'RH_TURNOVER', nome: 'RH — Rotatividade / Turnover' },
-```
+### 4. Cores alinhadas ao design system
+Nada a mudar em código: `BI_PALETTE` já usa tokens semânticos (`hsl(var(--chart-*))`). Apenas confirmar visualmente. Se após a mudança o contraste em donut de 2 fatias parecer fraco, ajusto a ordem para pegar `--chart-1` e `--chart-3` (mais distintos) na próxima iteração — não incluído neste plano.
 
-## Observações
-- Usuário atual é admin (`isAdmin: true`), então `ProtectedRoute` já libera acesso mesmo sem entrada em `profile_screens`. Para usuários não-admin, será preciso conceder permissão na tela Configurações.
-- Nada muda na página `TurnoverPage`, rotas ou API — só exposição no menu e catálogo.
+### Impacto colateral
+- Todas as telas que usam `DonutChartCard`/`PieChartCard` ganham legenda enriquecida e (em donut sem centro custom) total no centro.
+- Nenhum breaking change de props.
+
+### Fora de escopo
+- Não mexer em `QuadroColaboradoresPage` (só consome o componente).
+- Não alterar animações, altura padrão, layout do shell.
+- Não trocar paleta.

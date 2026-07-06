@@ -182,13 +182,14 @@ export function PieChartCard({
 
     return (
       <g style={{ pointerEvents: 'none' }}>
-        {slices.map(({ i, pct, mid }) => {
+        {slices.map(({ i, d, v, pct, mid }) => {
           if (pct * 100 < MIN_INSIDE_LABEL_PERCENT) return null;
           const cosA = Math.cos(-mid * RADIAN);
           const sinA = Math.sin(-mid * RADIAN);
           const x = cx + insideR * cosA;
           const y = cyPx + insideR * sinA;
           const pctStr = (pct * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+          const valStr = fmtLabel(v);
           return (
             <text
               key={i}
@@ -198,15 +199,17 @@ export function PieChartCard({
               dominantBaseline="central"
               fontSize={fs}
               fill="#fff"
-              style={{ fontFamily, fontWeight: 600, paintOrder: 'stroke', stroke: 'rgba(0,0,0,0.35)', strokeWidth: 2 }}
+              style={{ fontFamily, fontWeight: 600, paintOrder: 'stroke', stroke: 'rgba(0,0,0,0.45)', strokeWidth: 2 }}
             >
-              {pctStr}%
+              <tspan x={x} dy="-0.35em">{pctStr}%</tspan>
+              <tspan x={x} dy="1.15em" fontWeight={500} fontSize={Math.max(10, fs - 1)}>{valStr}</tspan>
             </text>
           );
         })}
       </g>
     );
   };
+
 
   // Tooltip enriquecido: nome + valor + %.
   const tooltipFormatter = (v: number, _name: any, entry: any) => {
