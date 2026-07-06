@@ -428,7 +428,7 @@ export default function QuadroColaboradoresPage() {
                 position: 'top',
                 fontSize: 12,
                 fontFamily: 'default',
-                format: 'number',
+                format: 'int',
                 decimals: 0,
                 prefix: '',
                 suffix: '',
