@@ -313,8 +313,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     const filteredRows = q
       ? crossFiltered.filter((r) => {
           const hay = [
-            r.colaborador, r.centro_custo, r.projeto_obra, r.fornecedor,
-            r.cia_aerea, r.numero_bilhete, r.localizador,
+            r.colaborador, r.centro_custo, r.projeto_obra, r.produto,
             r.origem, r.destino, r.motivo_viagem, r.tipo_despesa,
           ].map((v) => (v ?? '').toString().toLowerCase()).join(' | ');
           return hay.includes(q);
