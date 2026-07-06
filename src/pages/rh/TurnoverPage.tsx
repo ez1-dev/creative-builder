@@ -343,6 +343,7 @@ export default function TurnoverPage() {
         };
         return (
           <RhDashboardGrid
+            loading={!layout.layoutReady}
             widgets={layout.widgets}
             blocks={blocks}
             editing={layout.editing}

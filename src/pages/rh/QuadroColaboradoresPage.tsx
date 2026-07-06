@@ -598,6 +598,7 @@ export default function QuadroColaboradoresPage() {
         };
         return (
           <RhDashboardGrid
+            loading={!layout.layoutReady}
             widgets={layout.widgets}
             blocks={blocks}
             editing={layout.editing}

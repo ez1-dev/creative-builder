@@ -592,6 +592,7 @@ export default function ResumoFolhaPage() {
       {/* Grid editável dos widgets */}
       {!indisponivel && !semDados && (
         <RhDashboardGrid
+            loading={!layout.layoutReady}
           widgets={layout.widgets}
           blocks={blocks}
           editing={layout.editing}

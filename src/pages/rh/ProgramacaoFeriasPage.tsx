@@ -403,6 +403,7 @@ export default function ProgramacaoFeriasPage() {
       />
 
       <RhDashboardGrid
+            loading={!layout.layoutReady}
         widgets={layout.widgets}
         blocks={blocks}
         editing={layout.editing}
