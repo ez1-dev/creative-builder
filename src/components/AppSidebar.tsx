@@ -212,6 +212,7 @@ const GROUPS: Group[] = [
       { title: 'Turnover', url: '/rh/turnover', icon: TrendingUp },
       { title: 'Absenteísmo / Afastamentos', url: '/rh/absenteismo', icon: Activity },
       { title: 'Formulários', url: '/rh/formularios', icon: FileText },
+      { title: 'Relatório Gerencial (PDF+IA)', url: '/rh/relatorio-gerencial', icon: Sparkles },
     ],
   },
   {

@@ -43,6 +43,7 @@ const EXACT: Record<string, ScreenInfo> = {
   '/rh/turnover':               { codigo: 'RH_TURNOVER',   nome: 'RH — Rotatividade / Turnover' },
   '/rh/absenteismo':            { codigo: 'RH_ABSENTEISMO', nome: 'RH — Absenteísmo / Afastamentos' },
   '/rh/formularios':            { codigo: 'RH_FORM',       nome: 'RH — Formulários' },
+  '/rh/relatorio-gerencial':    { codigo: 'RH_RELATORIO_GERENCIAL', nome: 'RH — Relatório Gerencial (PDF+IA)' },
 
 };
 
