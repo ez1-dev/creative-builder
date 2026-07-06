@@ -67,9 +67,22 @@ export function ConfigureRhWidgetDialog({ open, onOpenChange, pageKey, widget, a
     ? !!def && def.inputs.every((i) => !i.required || !!mapping[i.key])
     : true;
 
+  // Debounce das seleções para não re-renderizar o preview a cada tecla.
+  const [debounced, setDebounced] = useState({ componentId: '', mapping: {} as Record<string, string>, title: '' });
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebounced({ componentId, mapping, title }), 150);
+    return () => window.clearTimeout(t);
+  }, [componentId, mapping, title]);
+
+  const previewDef = useMemo(
+    () => (debounced.componentId ? getComponent(debounced.componentId) : undefined),
+    [debounced.componentId],
+  );
+  const previewMappingReady = !!previewDef && previewDef.inputs.every((i) => !i.required || !!debounced.mapping[i.key]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Configurar {widget?.title}</DialogTitle>
           <DialogDescription>
