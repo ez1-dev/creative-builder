@@ -117,7 +117,7 @@ export default function RelatorioExecutivoPassagensPage() {
     rankings: {
       colaboradores: calc.topColab.slice(0, 10),
       destinos: calc.topDest.slice(0, 10),
-      cias: calc.topCia.slice(0, 10),
+      produtos: calc.topProduto.slice(0, 10),
     },
   }), [calc, de, ate]);
 
