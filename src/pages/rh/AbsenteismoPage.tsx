@@ -19,6 +19,7 @@ import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { BotaoRelatorioModuloPdf } from "@/components/rh/BotaoRelatorioModuloPdf";
 import { RhFiltrosBar } from "@/components/rh/RhFiltrosBar";
 import { RhDashboardWithBiLibrary } from "@/components/rh/RhDashboardWithBiLibrary";
+import { buildAbsenteismoSeries } from "@/lib/rh/seriesBuilders";
 import { RhLayoutToolbar } from "@/components/rh/RhLayoutToolbar";
 import { useRhModuleLayout } from "@/hooks/useRhModuleLayout";
 import { ABSENTEISMO_DEFAULTS, ABSENTEISMO_CATALOG } from "@/lib/rh/widgetCatalogs";
@@ -352,6 +353,7 @@ export default function AbsenteismoPage() {
             catalog={ABSENTEISMO_CATALOG}
             kpis={kpis as any}
             series={(data as any)?.series}
+            derivedSeries={buildAbsenteismoSeries(data)}
             filtros={{ codemp, anomes_ini: ini, anomes_fim: fim }}
           />
         );

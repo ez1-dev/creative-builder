@@ -16,6 +16,7 @@ import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { BotaoRelatorioModuloPdf } from "@/components/rh/BotaoRelatorioModuloPdf";
 import { RhDashboardWithBiLibrary } from "@/components/rh/RhDashboardWithBiLibrary";
+import { buildQuadroSeries } from "@/lib/rh/seriesBuilders";
 import { RhLayoutToolbar } from "@/components/rh/RhLayoutToolbar";
 import { useRhModuleLayout } from "@/hooks/useRhModuleLayout";
 import { QUADRO_DEFAULTS, QUADRO_CATALOG } from "@/lib/rh/widgetCatalogs";
@@ -615,6 +616,7 @@ export default function QuadroColaboradoresPage() {
             catalog={QUADRO_CATALOG}
             kpis={dashQ.data?.kpis as any}
             series={(dashQ.data as any)?.series}
+            derivedSeries={buildQuadroSeries(dashQ.data, rows)}
             filtros={{}}
           />
         );

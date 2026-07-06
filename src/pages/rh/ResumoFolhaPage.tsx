@@ -18,6 +18,7 @@ import { ChevronDown, Info, RefreshCw, Loader2, AlertTriangle, FileSpreadsheet }
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { BotaoRelatorioModuloPdf } from "@/components/rh/BotaoRelatorioModuloPdf";
 import { RhDashboardWithBiLibrary } from "@/components/rh/RhDashboardWithBiLibrary";
+import { buildResumoFolhaSeries } from "@/lib/rh/seriesBuilders";
 import { RhLayoutToolbar } from "@/components/rh/RhLayoutToolbar";
 import { useRhModuleLayout } from "@/hooks/useRhModuleLayout";
 import { RESUMO_FOLHA_DEFAULTS, RESUMO_FOLHA_CATALOG } from "@/lib/rh/widgetCatalogs";
@@ -601,6 +602,7 @@ export default function ResumoFolhaPage() {
           catalog={RESUMO_FOLHA_CATALOG}
           kpis={kpis as any}
           series={(data as any)?.series}
+          derivedSeries={buildResumoFolhaSeries(data)}
           filtros={{ codemp: baseParams.codemp, anomes_ini: baseParams.anomes_ini, anomes_fim: baseParams.anomes_fim }}
         />
       )}
