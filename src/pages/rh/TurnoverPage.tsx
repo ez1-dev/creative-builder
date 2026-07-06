@@ -20,7 +20,7 @@ import { TURNOVER_DEFAULTS } from "@/lib/rh/widgetCatalogs";
 import { addMonths } from "@/lib/rh/relatorio";
 import { TurnoverDrillModal } from "@/components/rh/TurnoverDrillModal";
 import { TurnoverEmpresaDrillModal } from "@/components/rh/TurnoverEmpresaDrillModal";
-import { fetchTurnoverDashboard } from "@/lib/rh/api";
+import { fetchTurnoverDashboardCached } from "@/lib/rh/api";
 import type {
   TurnoverAdmitidoDetalhe, TurnoverDemitidoDetalhe,
 } from "@/lib/rh/types";
@@ -59,7 +59,11 @@ export default function TurnoverPage() {
 
   const { data, isLoading, error, isFetching } = useQuery({
     queryKey: ["rh", "turnover", ini, fim, codemp],
-    queryFn: () => fetchTurnoverDashboard({ anomes_ini: ini, anomes_fim: fim, codemp }),
+    queryFn: () => fetchTurnoverDashboardCached({ anomes_ini: ini, anomes_fim: fim, codemp }),
+    staleTime: 15 * 60_000,
+    gcTime: 60 * 60_000,
+    refetchOnWindowFocus: false,
+    placeholderData: (prev) => prev,
   });
 
   useEffect(() => {
@@ -131,7 +135,7 @@ export default function TurnoverPage() {
               iaPayload={{ periodo: { anomes_ini: ini, anomes_fim: fim }, kpis: data?.kpis, por_mes: data?.por_mes, por_motivo: data?.por_motivo, por_empresa: data?.por_empresa }}
               carregarAnterior={async () => {
                 const len = (parseInt(fim.slice(0, 4)) * 12 + parseInt(fim.slice(4, 6))) - (parseInt(ini.slice(0, 4)) * 12 + parseInt(ini.slice(4, 6))) + 1;
-                return fetchTurnoverDashboard({ anomes_ini: addMonths(ini, -len), anomes_fim: addMonths(ini, -1), codemp });
+                return fetchTurnoverDashboardCached({ anomes_ini: addMonths(ini, -len), anomes_fim: addMonths(ini, -1), codemp });
               }}
             />
           </>

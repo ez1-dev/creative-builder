@@ -16,7 +16,7 @@ import { useRhModuleLayout } from "@/hooks/useRhModuleLayout";
 import { FERIAS_DEFAULTS } from "@/lib/rh/widgetCatalogs";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import { ProgramacaoFeriasDrillModal, DrillMode } from "@/components/rh/ProgramacaoFeriasDrillModal";
-import { fetchProgramacaoFeriasDashboard, exportarProgramacaoFeriasExcel } from "@/lib/rh/api";
+import { fetchProgramacaoFeriasDashboardCached, exportarProgramacaoFeriasExcel } from "@/lib/rh/api";
 import { filtrarFeriasPorPeriodo } from "@/lib/rh/filtros";
 import type { ProgramacaoFeriasDetalheItem, DeFeriasDetalheItem } from "@/lib/rh/types";
 
@@ -55,7 +55,11 @@ export default function ProgramacaoFeriasPage() {
 
   const { data: dataRaw, isLoading, isFetching, error } = useQuery({
     queryKey: ["rh", "programacao-ferias", "dashboard", codemp],
-    queryFn: () => fetchProgramacaoFeriasDashboard(codemp),
+    queryFn: () => fetchProgramacaoFeriasDashboardCached(codemp),
+    staleTime: 15 * 60_000,
+    gcTime: 60 * 60_000,
+    refetchOnWindowFocus: false,
+    placeholderData: (prev) => prev,
   });
 
   // Filtra por período (client-side)

@@ -25,7 +25,7 @@ import { addMonths } from "@/lib/rh/relatorio";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import {
-  fetchResumoFolhaDashboard,
+  fetchResumoFolhaDashboardCached,
   sincronizarResumoFolha,
   consultarStatusSincronizacaoRh,
   exportarResumoFolhaExcel,
@@ -74,17 +74,25 @@ export default function ResumoFolhaPage() {
   const qc = useQueryClient();
   const query = useQuery({
     queryKey: ["rh", "resumo-folha-dashboard", baseParams, "completo"],
-    queryFn: () => fetchResumoFolhaDashboard(baseParams, "completo"),
+    queryFn: () => fetchResumoFolhaDashboardCached(baseParams, "completo"),
     enabled,
     retry: (count, err) => (err instanceof DashboardIndisponivelError ? false : count < 1),
+    staleTime: 15 * 60_000,
+    gcTime: 60 * 60_000,
+    refetchOnWindowFocus: false,
+    placeholderData: (prev) => prev,
   });
 
   // Série mensal vem em modo separado (backend não devolve `mensal` no completo)
   const queryMensal = useQuery({
     queryKey: ["rh", "resumo-folha-dashboard", baseParams, "mensal"],
-    queryFn: () => fetchResumoFolhaDashboard(baseParams, "mensal"),
+    queryFn: () => fetchResumoFolhaDashboardCached(baseParams, "mensal"),
     enabled,
     retry: (count, err) => (err instanceof DashboardIndisponivelError ? false : count < 1),
+    staleTime: 15 * 60_000,
+    gcTime: 60 * 60_000,
+    refetchOnWindowFocus: false,
+    placeholderData: (prev) => prev,
   });
 
   const data = query.data;
@@ -501,7 +509,7 @@ export default function ResumoFolhaPage() {
                 const len = baseParams.anomes_fim && baseParams.anomes_ini
                   ? (parseInt(baseParams.anomes_fim.slice(0, 4)) * 12 + parseInt(baseParams.anomes_fim.slice(4, 6))) - (parseInt(baseParams.anomes_ini.slice(0, 4)) * 12 + parseInt(baseParams.anomes_ini.slice(4, 6))) + 1
                   : 1;
-                return fetchResumoFolhaDashboard({ anomes_ini: addMonths(baseParams.anomes_ini, -len), anomes_fim: addMonths(baseParams.anomes_ini, -1), codemp: baseParams.codemp }, "completo");
+                return fetchResumoFolhaDashboardCached({ anomes_ini: addMonths(baseParams.anomes_ini, -len), anomes_fim: addMonths(baseParams.anomes_ini, -1), codemp: baseParams.codemp }, "completo");
               }}
             />
           </>
