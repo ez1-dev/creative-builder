@@ -8,6 +8,7 @@ import {
   DrillDownTable,
   formatCurrency,
 } from '@/components/bi';
+import { DonutSideLegendCard } from '@/components/bi/charts/DonutSideLegendCard';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -479,15 +480,10 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     ),
     'chart-categoria': (
       <VisualGate visualKey="frota.chart-categoria">
-        <PieChartCard
+        <DonutSideLegendCard
           title="Por Segmento (Categoria)"
           subtitle="Manutenção veículo / Combustível / Pedágio — % e valor"
-          data={porCategoria} loading={loading} height={460}
-          visualConfig={{
-            dataLabels: { visible: true, richLabel: true, position: 'outside', fontSize: 11 },
-            tooltip: { visible: true },
-            legend: { visible: true },
-          } as any}
+          data={porCategoria} loading={loading} height={380}
           onItemClick={(d) => setSelCategoria((prev) => toggleItem(prev, d.label))}
         />
       </VisualGate>
