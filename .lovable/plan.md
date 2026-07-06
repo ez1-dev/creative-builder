@@ -1,32 +1,62 @@
-## Melhorar "Por Segmento (Categoria)" e "Por Tipo de Veículo" no dashboard de Frota
+## Redesign dos gráficos "Por Segmento" e "Por Tipo de Veículo" — Donut + legenda lateral rica
 
-Deixar os dois gráficos com o mesmo visual do gráfico **"Por Motivo de Viagem"** (Passagens Aéreas): pizza cheia com rótulos externos ricos (nome + valor + %), leader-lines coloridos, tooltip enriquecido e legenda compacta abaixo.
+Trocar o layout atual (pizza cheia com leader-lines) por um **donut moderno com legenda lateral rica**, padrão Stripe / Tremor / Linear.
 
-### O que muda
+### Como fica
 
-Só na renderização em `src/components/frota/FrotaDashboard.tsx` (blocos `chart-categoria` e `chart-tipo-veiculo`, linhas ~480 e ~543). Nenhum cálculo, filtro ou dado é alterado.
+```text
+┌───────────────────────────────────────────────────────────────┐
+│ Por Segmento (Categoria)                                    ⛶│
+│ Manutenção / Combustível / Pedágio — % e valor               │
+│                                                               │
+│                       ╭──────╮      ● Manutenção veículo      │
+│                     ╭─╯      ╰─╮     R$ 121,0 mil     82,2%   │
+│                     │          │                              │
+│                     │  R$ 147  │    ● Pedágio                  │
+│                     │   mil    │     R$ 26,1 mil       17,8%  │
+│                     │  Total   │                              │
+│                     ╰─╮      ╭─╯    ● Combustível              │
+│                       ╰──────╯       R$ 0,00           0,0%   │
+│                                                               │
+└───────────────────────────────────────────────────────────────┘
+```
 
-**Para cada um dos dois `PieChartCard`:**
+- **Rosca à esquerda** (~40% da largura) com total grande + label "Total" no centro. Sem rótulos flutuantes na fatia — nada de leader-lines nem texto radial.
+- **Legenda à direita** (~60%), lista vertical clicável:
+  - bolinha colorida (cor da fatia),
+  - nome da categoria (truncado com tooltip se estourar),
+  - valor em R$ formatado à direita,
+  - % em cinza logo abaixo do valor,
+  - hover destaca a fatia correspondente (aumenta opacidade das outras, sublinha o item),
+  - clique aciona o `onItemClick` existente (cross-filter mantido).
+- Fatia clicada/hovered ganha leve `outerRadius` maior (efeito "puxar para fora" suave).
+- Tooltip da fatia mantém: nome + valor + %.
+- Cores: paleta `BI_PALETTE` existente. Nada de cores hardcoded.
+- Responsivo: em telas estreitas (`<640px`) a legenda cai abaixo do donut em grid de 2 colunas.
 
-1. Trocar `donut` para pizza cheia (`donut={false}` — remove o prop).
-2. Passar `visualConfig` habilitando rótulos ricos, o que ativa o layer de leader-lines já existente no `PieChartCard`:
-   ```ts
-   visualConfig={{
-     dataLabels: { visible: true, richLabel: true, position: 'outside', fontSize: 11 },
-     tooltip:    { visible: true },
-     legend:     { visible: true },
-   }}
-   ```
-3. Aumentar `height` para `460` (mesmo tamanho do gráfico de Motivo em modo confortável), para garantir espaço para os rótulos externos.
-4. Manter comportamento de clique (`onItemClick`) para cross-filter (categoria/tipo).
+### Onde muda
+
+Criar um **novo componente** dedicado (não mexer no `PieChartCard`, que é compartilhado por Máquinas, Comercial, IA, etc.):
+
+- **Novo**: `src/components/bi/charts/DonutSideLegendCard.tsx`
+  - API: `{ title, subtitle, data: {label, valor}[], loading, height, onItemClick, valueFormatter, centerLabel }`
+  - Usa `ChartCardShell` como wrapper (mesma header/loading/empty que os outros cards).
+  - Usa `recharts` `PieChart`+`Pie`+`Cell` para o donut; a legenda é HTML/Tailwind (não `<Legend/>` do recharts — dá mais controle).
+  - Estado interno `hoverIdx` para o realce cruzado donut ↔ legenda.
+
+- **Alterado**: `src/components/frota/FrotaDashboard.tsx`
+  - Trocar os dois `PieChartCard` (blocos `chart-categoria` linha ~480 e `chart-tipo-veiculo` linha ~543) pelo novo `DonutSideLegendCard`. Remover o `visualConfig` inline adicionado antes.
 
 ### Detalhes técnicos
 
-- O componente `PieChartCard` (`src/components/bi/charts/PieChartCard.tsx`) já implementa **exatamente** o layout do "Por Motivo de Viagem" quando `dataLabels.richLabel` está ligado: seleciona top 6 fatias ≥4%, distribui rótulos em duas colunas, resolve colisões e desenha leader-lines na cor da fatia (linhas 106-176). Basta ativar via `visualConfig`.
-- O `mergeVisualConfig` (usado internamente) preenche defaults, então só é preciso passar as chaves que queremos sobrescrever.
-- Não altero `PieChartCard` nem os outros consumidores (`MaquinasDashboard`, `ComercialPage`, etc.). Mudança fica isolada em `FrotaDashboard.tsx`.
-- Layout do grid (`useFrotaLayout.ts` — `w:12` full-width para os dois) já está adequado; não precisa mexer.
+- Tokens semânticos: `text-foreground`, `text-muted-foreground`, `bg-card`, `border-border`. Zero cor hardcoded.
+- Layout: `grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-4` no desktop; `grid-cols-1` no mobile.
+- Lista lateral com `max-h-full overflow-y-auto` para casos com muitas categorias (ex.: Tipo de Veículo tem 10+).
+- Ordenação da legenda: decrescente por valor.
+- Formatação: `formatCurrency` já disponível em `@/components/bi/utils/formatters`; % com 1 casa decimal, vírgula pt-BR.
+- Sem novas dependências. Sem migration. Sem alterações de dados/filtros/layout do grid.
 
-### Arquivos alterados
+### Arquivos
 
-- `src/components/frota/FrotaDashboard.tsx` — apenas os dois blocos `chart-categoria` e `chart-tipo-veiculo`.
+- Criar: `src/components/bi/charts/DonutSideLegendCard.tsx`
+- Editar: `src/components/frota/FrotaDashboard.tsx` (dois blocos)
