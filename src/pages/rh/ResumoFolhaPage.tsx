@@ -570,13 +570,6 @@ export default function ResumoFolhaPage() {
         </div>
       )}
 
-      {/* Aviso técnico */}
-      {!indisponivel && !semDados && (
-        <div className="flex items-start gap-2 rounded-md border border-info/30 bg-info/5 px-3 py-2 text-xs text-muted-foreground">
-          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-          <span>Indicadores retornados pela API a partir das tabelas oficiais do ERP Senior/Vetorh. Use "Editar layout" para reorganizar os cards e gráficos.</span>
-        </div>
-      )}
 
       {/* Componentes VM_FOLHA pendentes (visível a todos) */}
       {!indisponivel && !semDados &&
@@ -609,87 +602,6 @@ export default function ResumoFolhaPage() {
         />
       )}
 
-      {/* Diagnóstico Técnico (admin) */}
-      {!indisponivel && !semDados && isAdmin && (diagnostico || data?.fonte) && (
-        <Collapsible>
-          <Card>
-            <CollapsibleTrigger asChild>
-              <button className="w-full text-left">
-                <CardHeader className="py-3 flex flex-row items-center justify-between">
-                  <CardTitle className="text-sm">Diagnóstico Técnico</CardTitle>
-                  <ChevronDown className="h-4 w-4" />
-                </CardHeader>
-              </button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                  {[
-                    ["__fonte__", "Fonte"],
-                    ["fonte_cards", "Fonte cards"],
-                    ["vm_folha_status", "Status VM_FOLHA"],
-                    ["qtd_linhas", "Qtd. linhas"],
-                    ["qtd_linhas_vm_folha", "Qtd. linhas VM_FOLHA"],
-                    ["anomes_ini", "Anomes inicial"],
-                    ["anomes_fim", "Anomes final"],
-                    ["menor_anomes_vm_folha", "Menor anomes"],
-                    ["maior_anomes_vm_folha", "Maior anomes"],
-                  ].map(([key, label]) => {
-                    const v =
-                      key === "__fonte__"
-                        ? (data?.fonte === "public.rh_vm_folha"
-                            ? "API RH / cache técnico public.rh_vm_folha"
-                            : data?.fonte)
-                        : (diagnostico as any)?.[key as string];
-                    if (v == null) return null;
-                    return (
-                      <div key={key} className="rounded border bg-muted/40 p-2">
-                        <div className="text-[10px] uppercase text-muted-foreground">{label}</div>
-                        <div className="font-mono break-all">{String(v)}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-                {(qtdLinhas === 0) && (
-                  <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning font-medium">
-                    API retornou 0 linhas para o período selecionado.
-                  </div>
-                )}
-                {(diagnostico as any)?.erro_tecnico && (
-                  <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs">
-                    <div className="font-semibold text-destructive mb-1">Erro técnico</div>
-                    <pre className="whitespace-pre-wrap text-[11px]">
-                      {typeof (diagnostico as any).erro_tecnico === "string"
-                        ? (diagnostico as any).erro_tecnico
-                        : JSON.stringify((diagnostico as any).erro_tecnico, null, 2)}
-                    </pre>
-                  </div>
-                )}
-                {[
-                  ["vm_folha_componentes", "VM_FOLHA — componentes"],
-                  ["custo_total_componentes", "Custo Total — componentes"],
-                  ["inss_componentes", "INSS — componentes"],
-                  ["hora_extra_componentes", "Hora Extra — componentes"],
-                  ["ferias_componentes", "Férias — componentes"],
-                  ["fgts_componentes", "FGTS — componentes"],
-                  ["provisoes_componentes", "Provisões — componentes"],
-                ].map(([key, label]) => {
-                  const v = (diagnostico as any)?.[key];
-                  if (v == null) return null;
-                  return (
-                    <div key={key}>
-                      <div className="text-xs font-semibold mb-1">{label}</div>
-                      <pre className="text-[11px] bg-muted p-2 rounded overflow-auto max-h-64">
-                        {typeof v === "string" ? v : JSON.stringify(v, null, 2)}
-                      </pre>
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </CollapsibleContent>
-          </Card>
-        </Collapsible>
-      )}
 
       <AiInsightsPanel
         modulo="resumo-folha"
