@@ -1,111 +1,76 @@
-# Calcular todas as séries RH no frontend (fallback para a Biblioteca BI)
-
 ## Objetivo
 
-Enriquecer o `PageDataContext` de cada página RH com um conjunto completo de séries derivadas dos dados brutos já retornados pelos endpoints (`kpis`, `rows`, `mensal`, `filiais`, `detalhe`, `vencimentos`, etc.), no mesmo formato uniforme do backend:
+Tornar o módulo RH (index + 8 páginas) totalmente responsivo — de smartphone (≥360 px) a desktop wide — sem alterar dados, contratos de API ou lógica de negócio. Apenas layout e presentation.
 
-```ts
-{ chave, label, pontos: [{ label, valor }] }
-```
+## Diagnóstico atual
 
-Assim, qualquer gráfico configurável da Biblioteca BI passa a listar TODAS as séries possíveis no dropdown "Série" — mesmo quando o backend ainda não entrega o array `series[]`. Quando o backend passar a devolver `series`, elas são preservadas e apenas complementadas pelas derivadas (sem duplicar `chave`).
+- `RhPageHeader`: `flex items-center justify-between` sem wrap → título e botões de ação (Atualizar, Exportar, PDF, Sync, toolbar de layout) estouram a viewport no mobile.
+- `RhFiltrosBar`: campos com largura fixa (`w-52`, `w-32`) — no mobile ficam apertados, mas `flex-wrap` já existe. Precisa larguras fluidas.
+- Páginas RH: envolvidas em `container mx-auto py-6` com KPI grids hardcoded (`grid-cols-2 md:grid-cols-3 xl:grid-cols-6`, `md:grid-cols-5`, `md:grid-cols-6`) — em telas pequenas cabe, mas o padding e espaçamento não escalam. Filtros internos usam `md:grid-cols-3/6` sem fallback ergonômico.
+- `RhDashboardGrid` → `PassagensLayoutGrid` usa `ResponsiveGridLayout` com `cols={12}` fixo e `breakpoints` ausentes. Em telas <768 px cada widget ocupa fração ilegível.
+- Tabelas grandes (Vencimentos, Detalhe Folha, Turnover, Absenteísmo) já têm `overflow-auto`, mas o wrapper `Card` não deixa scroll horizontal aparecer sem margem negativa.
+- Modais de drill (`QuadroDrillModal`, `TurnoverDrillModal`, etc.) usam larguras fixas — cortam no mobile.
 
-## Arquitetura
+## Implementação
 
-### 1. Novo módulo `src/lib/rh/seriesBuilders.ts`
+### 1. Tokens responsivos compartilhados
+Reaproveitar `src/components/bi/utils/responsive.ts` (já existente) e criar helper análogo `src/components/rh/rhResponsive.ts` com classes padrão:
+- `pagePad`: `p-3 md:p-6 space-y-3 md:space-y-4`
+- `kpiGrid6`: `grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-3`
+- `kpiGrid5`: `grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-3`
+- `filterGrid`: `grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 items-end`
+- `tableWrap`: `overflow-x-auto -mx-3 px-3 md:mx-0 md:px-0`
 
-Funções puras, uma por página, que recebem os dados brutos do dashboard e devolvem `RhSerie[]`:
+### 2. `RhPageHeader`
+- Trocar por `flex flex-col gap-3 md:flex-row md:items-center md:justify-between`.
+- Ações: wrapper `flex flex-wrap items-center gap-2` (evita overflow horizontal).
+- Título: `text-xl md:text-2xl`.
 
-```ts
-buildResumoFolhaSeries(dash): RhSerie[]
-buildQuadroSeries(dash): RhSerie[]
-buildContratoExpSeries(dash): RhSerie[]
-buildFeriasSeries(dash): RhSerie[]
-buildTurnoverSeries(dash): RhSerie[]
-buildAbsenteismoSeries(dash): RhSerie[]
-```
+### 3. `RhFiltrosBar`
+- `CardContent`: `pt-4 grid grid-cols-1 sm:grid-cols-2 md:flex md:flex-wrap items-end gap-3`.
+- Selects/inputs: `w-full md:w-52` (`md:w-32` para codemp).
+- Slot `extras` idem — instruir consumidores a usar `w-full md:w-auto` nos filtros extras.
 
-Todas as agregações usam somente `rows`/coleções já presentes no payload — sem chamada nova ao backend, sem `name`/`value`/`qtd` legados.
+### 4. Páginas RH — trocar wrappers
+Nas 8 páginas (`RhIndexPage`, `ResumoFolhaPage`, `QuadroColaboradoresPage`, `ContratoExperienciaPage`, `ProgramacaoFeriasPage`, `TurnoverPage`, `AbsenteismoPage`, `FormulariosPage`, `RelatorioGerencialPage`):
+- `container mx-auto py-6` → `container mx-auto px-3 md:px-6 py-4 md:py-6 space-y-3 md:space-y-4`.
+- KPI grids hardcoded → usar helpers do passo 1.
+- Filtros locais (`grid-cols-1 md:grid-cols-6` etc.) → usar `filterGrid`.
+- Tabelas: envolver com `tableWrap`.
+- Cards de "Detalhe/Sumário": trocar `grid grid-cols-1 lg:grid-cols-2 gap-3` por `grid grid-cols-1 xl:grid-cols-2 gap-3` (empilha em tablet).
 
-Helper interno `groupBy(rows, keyFn, valueFn)` retorna `pontos: [{label, valor}]` ordenados por valor desc.
+### 5. Grid drag-and-drop mobile (`PassagensLayoutGrid`)
+No `ResponsiveGrid`:
+- Adicionar `breakpoints={{ lg: 1024, md: 768, sm: 480, xs: 0 }}`.
+- Adicionar `cols={{ lg: 12, md: 12, sm: 6, xs: 2 }}`.
+- Passar `layouts` derivado do `layout` atual (idêntico em lg/md; em sm/xs cada widget vira full-width empilhado).
+- Em `xs`/`sm` forçar `isDraggable={false} isResizable={false}` (evita gestos conflitantes com scroll no toque). Manter edição só em md+.
+- Ajustar `rowHeight`/`margin` para valores menores em mobile.
 
-### 2. Merge em `RhDashboardWithBiLibrary.tsx`
+### 6. Modais RH (drill/config)
+`QuadroDrillModal`, `TurnoverDrillModal`, `TurnoverEmpresaDrillModal`, `AbsenteismoDrillModal`, `ProgramacaoFeriasDrillModal`, `ConfigureRhWidgetDialog`, `AddRhBiWidgetDialog`, `FormularioDialog`, `SincronizarRhDialog`, `AiInsightsPanel`:
+- `DialogContent`: `max-w-[95vw] md:max-w-3xl` (ou tamanho atual como upper bound).
+- Body: `max-h-[80vh] overflow-y-auto`.
+- Grids internos usando padrões dos passos 1/4.
 
-Novo prop opcional `derivedSeries?: RhSerie[]`. A normalização passa a:
+### 7. Toolbars RH (`RhLayoutToolbar`, `BotaoRelatorioModuloPdf`)
+- Botões com labels longos → `<span className="hidden sm:inline">Texto</span>` para colapsar em ícone-only no mobile.
+- Toolbar wrapper: `flex flex-wrap gap-2`.
 
-1. Converter `series` (backend) em `Record<chave,pontos>` + `seriesCatalog` — como já faz.
-2. Adicionar cada `derivedSeries[i]` cuja `chave` ainda não existe no catálogo.
-3. Passar o resultado unificado para `PageDataProvider`.
+### 8. Validação
+- Executar `bun run build` (harness já faz).
+- Rodar Playwright headless em `/rh`, `/rh/resumo-folha`, `/rh/quadro-colaboradores`, `/rh/contratos-experiencia`, `/rh/programacao-ferias`, `/rh/turnover`, `/rh/absenteismo` nos viewports 375×812 (iPhone), 768×1024 (tablet) e 1440×900 (desktop). Screenshots comparativos.
+- Checar console/network sem novos erros.
 
-O contrato uniforme é mantido; retrocompatibilidade preservada; nada quebra se `derivedSeries` for `undefined`.
+## Arquivos a editar
 
-### 3. Uso em cada página RH
+- **Criar**: `src/components/rh/rhResponsive.ts`
+- **Editar**: `src/components/rh/RhPageHeader.tsx`, `RhFiltrosBar.tsx`, `RhLayoutToolbar.tsx`, `BotaoRelatorioModuloPdf.tsx`, `AiInsightsPanel.tsx`, `ConfigureRhWidgetDialog.tsx`, `AddRhBiWidgetDialog.tsx`, `FormularioDialog.tsx`, `SincronizarRhDialog.tsx`, `QuadroDrillModal.tsx`, `TurnoverDrillModal.tsx`, `TurnoverEmpresaDrillModal.tsx`, `AbsenteismoDrillModal.tsx`, `ProgramacaoFeriasDrillModal.tsx`
+- **Editar (páginas)**: `src/pages/rh/RhIndexPage.tsx`, `ResumoFolhaPage.tsx`, `QuadroColaboradoresPage.tsx`, `ContratoExperienciaPage.tsx`, `ProgramacaoFeriasPage.tsx`, `TurnoverPage.tsx`, `AbsenteismoPage.tsx`, `FormulariosPage.tsx`, `RelatorioGerencialPage.tsx`
+- **Editar (grid base)**: `src/components/passagens/PassagensLayoutGrid.tsx` (adicionar breakpoints/layouts sem quebrar consumidores existentes)
 
-Cada página importa seu builder e passa:
+## Fora de escopo
 
-```tsx
-<RhDashboardWithBiLibrary
-  series={dash.data?.series}
-  derivedSeries={buildXxxSeries(dash.data)}
-  ...
-/>
-```
-
-`ContratoExperienciaPage.tsx` hoje usa `PageDataProvider` diretamente (não `RhDashboardWithBiLibrary`) — vamos migrar para o wrapper (ou aplicar o mesmo merge manualmente) para receber as séries derivadas.
-
-## Séries derivadas por página
-
-### RH-01 Resumo Folha (a partir de `mensal`, `filiais`, `proventos_vantagens`, `descontos`, `tipos_evento`)
-- `custo_por_mes` — Custo Mensal por Competência
-- `provento_por_mes` — Proventos por Competência
-- `desconto_por_mes` — Descontos por Competência
-- `liquido_por_mes` — Líquido por Competência
-- `hora_extra_por_mes` — Custo Hora Extra por Competência
-- `custo_por_filial` — Custo Total por Filial
-- `liquido_por_filial` — Líquido por Filial
-- `he_por_filial` — Hora Extra por Filial
-- `beneficios_por_filial` — Benefícios por Filial
-- `top_proventos` — Top 15 Proventos e Vantagens
-- `top_descontos` — Top 15 Descontos
-- `por_tipo_evento` — Distribuição por Tipo de Evento
-
-### RH-02 Quadro Colaboradores (a partir de `rows` = `QuadroColaboradorItem[]`)
-- `por_situacao` · `por_sexo` · `por_vinculo` · `por_escolaridade` · `por_filial` · `por_empresa` · `por_cargo` (top 20) · `por_centro_custo` (top 20) · `por_faixa_etaria` (<20, 20-29, 30-39, 40-49, 50-59, 60+) · `por_tempo_casa` (<1a, 1-3a, 3-5a, 5-10a, 10a+) · `admissoes_por_mes` (últimos 24m) · `demissoes_por_mes`
-
-### RH-03 Contrato Experiência (a partir de `vencimentos`)
-- `por_status` — Contratos por Status
-- `por_empresa` — Contratos por Empresa
-- `por_filial` — Contratos por Filial
-- `por_cargo` — Top 15 Cargos
-- `por_mes_1o_vencimento` — 1º Vencimento por Mês
-- `por_mes_2o_vencimento` — 2º Vencimento por Mês
-- `faixa_dias_restantes` — <=5, 6-10, 11-30, 31-60, 60+
-- `faixa_dias_vencido` — 1-5, 6-15, 16-30, 30+
-
-### RH-04 Férias (a partir de `detalhe`, `limite_ferias_pivot`, `programacao_proximos_90_dias`, `de_ferias_detalhe`)
-- `por_status` · `por_empresa` · `por_filial` · `por_cargo` (top 15) · `por_mes_limite` · `por_ano_limite` · `saldo_por_faixa` (0, 1-10, 11-20, 21-30, 30+) · `programados_por_mes` · `de_ferias_por_empresa`
-
-### RH-05 Turnover (a partir de `por_mes`, `por_motivo`, `por_empresa`, `detalhe_*`)
-- `admitidos_por_mes` · `demitidos_por_mes` · `saldo_por_mes` · `por_motivo` · `admitidos_por_empresa` · `demitidos_por_empresa` · `admitidos_por_cargo` (top 15) · `demitidos_por_cargo` (top 15) · `admitidos_por_filial` · `demitidos_por_filial`
-
-### RH-06 Absenteísmo (a partir de `por_categoria`, `por_motivo`, `por_mes`, `por_empresa`, `detalhe`)
-- `dias_por_categoria` · `afastamentos_por_categoria` · `colab_por_categoria` · `dias_por_mes` · `afastamentos_por_mes` · `dias_por_empresa` · `afastamentos_por_empresa` · `dias_por_motivo` (top 15) · `dias_por_cargo` (top 15) · `dias_por_filial` · `duracao_media_por_categoria`
-
-## Regras que serão respeitadas
-
-- Nenhuma nova chamada de API; agregação 100% frontend.
-- Séries do backend têm prioridade — `derivedSeries` só preenchem `chave` que não existir.
-- Formato uniforme `{ chave, label, pontos: [{label, valor}] }` — sem `name`/`value`/`qtd`/`total`.
-- `pageRegistry` schemas permanecem apenas como fallback quando `seriesCatalog` estiver vazio.
-- `ContratoExperienciaPage` migra para `RhDashboardWithBiLibrary` (ou recebe o mesmo merge no `PageDataProvider` local) para expor o dropdown "Série".
-
-## Arquivos afetados
-
-- **criar** `src/lib/rh/seriesBuilders.ts`
-- **editar** `src/components/rh/RhDashboardWithBiLibrary.tsx` (novo prop `derivedSeries` + merge)
-- **editar** `src/pages/rh/ResumoFolhaPage.tsx`
-- **editar** `src/pages/rh/QuadroColaboradoresPage.tsx`
-- **editar** `src/pages/rh/ContratoExperienciaPage.tsx` (passar a usar o wrapper ou aplicar merge local)
-- **editar** `src/pages/rh/ProgramacaoFeriasPage.tsx`
-- **editar** `src/pages/rh/TurnoverPage.tsx`
-- **editar** `src/pages/rh/AbsenteismoPage.tsx`
+- Nenhuma alteração em `api.ts`, `seriesBuilders.ts`, `widgetCatalogs.ts`, hooks de dados ou lógica de negócio.
+- Não altera contrato `series` nem PageDataContext.
+- Não muda cores/tokens semânticos.
