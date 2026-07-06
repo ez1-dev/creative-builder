@@ -88,25 +88,25 @@ export function HeaderInfo() {
   });
 
   return (
-    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-      <span className="flex items-center gap-1">
+    <div className="flex items-center gap-2 sm:gap-3 text-xs text-muted-foreground min-w-0 overflow-hidden">
+      <span className="hidden xs:flex sm:flex items-center gap-1 shrink-0">
         <Calendar className="h-3 w-3" />
-        <span className="capitalize">{dateStr}</span>
+        <span className="capitalize truncate max-w-[140px]">{dateStr}</span>
       </span>
-      <span className="flex items-center gap-1">
+      <span className="flex items-center gap-1 shrink-0">
         <Clock className="h-3 w-3" />
         {timeStr}
       </span>
-      <span className="hidden sm:flex items-center gap-1">
-        <MapPin className="h-3 w-3" />
-        {location}
+      <span className="hidden md:flex items-center gap-1 min-w-0">
+        <MapPin className="h-3 w-3 shrink-0" />
+        <span className="truncate max-w-[180px]">{location}</span>
         <button
           type="button"
           onClick={requestLocation}
           disabled={resolving}
           aria-label="Usar minha localização"
           title="Usar minha localização"
-          className="ml-1 inline-flex items-center justify-center rounded p-0.5 hover:bg-accent disabled:opacity-50"
+          className="ml-1 inline-flex items-center justify-center rounded p-0.5 hover:bg-accent disabled:opacity-50 shrink-0"
         >
           <Locate className="h-3 w-3" />
         </button>
