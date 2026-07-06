@@ -15,7 +15,7 @@ import { RhLayoutToolbar } from "@/components/rh/RhLayoutToolbar";
 import { useRhModuleLayout } from "@/hooks/useRhModuleLayout";
 import { CONTRATOS_EXP_DEFAULTS } from "@/lib/rh/widgetCatalogs";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
-import { fetchContratoExperienciaDashboard, exportarContratoExperienciaExcel } from "@/lib/rh/api";
+import { fetchContratoExperienciaDashboardCached, exportarContratoExperienciaExcel } from "@/lib/rh/api";
 import { filtrarContratosPorPeriodo } from "@/lib/rh/filtros";
 import type { ContratoExperienciaVencimento } from "@/lib/rh/types";
 import { cn } from "@/lib/utils";
@@ -60,7 +60,11 @@ export default function ContratoExperienciaPage() {
 
   const { data: dataRaw, isLoading, isFetching, error } = useQuery({
     queryKey: ["rh", "contrato-experiencia", "dashboard", codemp],
-    queryFn: () => fetchContratoExperienciaDashboard(codemp),
+    queryFn: () => fetchContratoExperienciaDashboardCached(codemp),
+    staleTime: 15 * 60_000,
+    gcTime: 60 * 60_000,
+    refetchOnWindowFocus: false,
+    placeholderData: (prev) => prev,
   });
 
   const data = useMemo(

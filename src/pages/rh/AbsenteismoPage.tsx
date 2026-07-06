@@ -27,6 +27,7 @@ import { AbsenteismoDrillModal } from "@/components/rh/AbsenteismoDrillModal";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import {
   fetchAbsenteismoDashboard,
+  fetchAbsenteismoDashboardCached,
   getAbsenteismoExportUrl,
 } from "@/lib/rh/api";
 import type { AbsenteismoDetalheItem } from "@/lib/rh/types";
@@ -78,7 +79,11 @@ export default function AbsenteismoPage() {
   const { data, isLoading, isFetching, error } = useQuery({
     queryKey: ["rh", "absenteismo", ini, fim, codemp],
     queryFn: () =>
-      fetchAbsenteismoDashboard({ anomes_ini: ini, anomes_fim: fim, codemp }),
+      fetchAbsenteismoDashboardCached({ anomes_ini: ini, anomes_fim: fim, codemp }),
+    staleTime: 15 * 60_000,
+    gcTime: 60 * 60_000,
+    refetchOnWindowFocus: false,
+    placeholderData: (prev) => prev,
   });
 
   useEffect(() => {
@@ -152,7 +157,7 @@ export default function AbsenteismoPage() {
               iaPayload={{ periodo: { anomes_ini: ini, anomes_fim: fim }, kpis: data?.kpis, por_categoria: data?.por_categoria, por_motivo: data?.por_motivo, por_mes: data?.por_mes, por_empresa: data?.por_empresa }}
               carregarAnterior={async () => {
                 const len = (parseInt(fim.slice(0, 4)) * 12 + parseInt(fim.slice(4, 6))) - (parseInt(ini.slice(0, 4)) * 12 + parseInt(ini.slice(4, 6))) + 1;
-                return fetchAbsenteismoDashboard({ anomes_ini: addMonths(ini, -len), anomes_fim: addMonths(ini, -1), codemp });
+                return fetchAbsenteismoDashboardCached({ anomes_ini: addMonths(ini, -len), anomes_fim: addMonths(ini, -1), codemp });
               }}
             />
           </div>
