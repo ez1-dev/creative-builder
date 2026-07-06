@@ -182,13 +182,14 @@ export function PieChartCard({
 
     return (
       <g style={{ pointerEvents: 'none' }}>
-        {slices.map(({ i, pct, mid }) => {
+        {slices.map(({ i, d, v, pct, mid }) => {
           if (pct * 100 < MIN_INSIDE_LABEL_PERCENT) return null;
           const cosA = Math.cos(-mid * RADIAN);
           const sinA = Math.sin(-mid * RADIAN);
           const x = cx + insideR * cosA;
           const y = cyPx + insideR * sinA;
           const pctStr = (pct * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+          const valStr = fmtLabel(v);
           return (
             <text
               key={i}
@@ -198,15 +199,17 @@ export function PieChartCard({
               dominantBaseline="central"
               fontSize={fs}
               fill="#fff"
-              style={{ fontFamily, fontWeight: 600, paintOrder: 'stroke', stroke: 'rgba(0,0,0,0.35)', strokeWidth: 2 }}
+              style={{ fontFamily, fontWeight: 600, paintOrder: 'stroke', stroke: 'rgba(0,0,0,0.45)', strokeWidth: 2 }}
             >
-              {pctStr}%
+              <tspan x={x} dy="-0.35em">{pctStr}%</tspan>
+              <tspan x={x} dy="1.15em" fontWeight={500} fontSize={Math.max(10, fs - 1)}>{valStr}</tspan>
             </text>
           );
         })}
       </g>
     );
   };
+
 
   // Tooltip enriquecido: nome + valor + %.
   const tooltipFormatter = (v: number, _name: any, entry: any) => {
@@ -217,7 +220,15 @@ export function PieChartCard({
     return [`${valStr} (${pctStr}%)`, fullName];
   };
 
-  const legendFormatter = (value: any) => truncateLabel(String(value ?? ''), 22);
+  const legendFormatter = (value: any, entry: any) => {
+    const v = Number(entry?.payload?.valor ?? entry?.payload?.value ?? 0);
+    const name = truncateLabel(String(value ?? ''), 22);
+    if (!total) return name;
+    const pct = (v / total) * 100;
+    const pctStr = pct.toLocaleString('pt-BR', { maximumFractionDigits: pct >= 10 ? 0 : 1 });
+    return `${name} · ${valueFormatter(v)} (${pctStr}%)`;
+  };
+
 
   // Quando rich e visível, suprimimos o LabelList simples (o layer cuida).
   const useSimpleLabelList = vc.dataLabels.visible && !rich;
@@ -265,12 +276,18 @@ export function PieChartCard({
             )}
           </PieChart>
         </ResponsiveContainer>
-        {donut && (centerLabel || centerValue) && (
-          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center pb-10">
-            {centerLabel && <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{centerLabel}</span>}
-            {centerValue && <span className="text-sm font-bold tabular-nums">{centerValue}</span>}
-          </div>
-        )}
+        {donut && (() => {
+          const label = centerLabel ?? (centerValue ? undefined : 'Total');
+          const value = centerValue ?? (total ? new Intl.NumberFormat('pt-BR').format(total) : undefined);
+          if (!label && !value) return null;
+          return (
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center pb-16">
+              {label && <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>}
+              {value && <span className="text-lg font-bold tabular-nums">{value}</span>}
+            </div>
+          );
+        })()}
+
       </div>
     </ChartCardShell>
   );
