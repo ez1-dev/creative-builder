@@ -424,12 +424,13 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
       Veículo: r.veiculo_descricao ?? '',
       Fornecedor: r.fornecedor ?? '',
       Descrição: r.descricao ?? '',
-      KM: r.quilometragem ?? '',
+      Km: r.quilometragem ?? '',
       Valor: r.valor ?? 0,
-      Motorista: r.motorista ?? '',
       'Centro de Custo': r.centro_custo ?? '',
       Segmento: r.segmento ?? '',
-      'Tipo de Veículo': r.tipo_veiculo ?? '',
+      'Tipo Veículo': r.tipo_veiculo ?? '',
+      Categoria: CATEGORIA_LABEL[r.categoria] ?? r.categoria,
+      Motorista: r.motorista ?? '',
     }));
 
   const exportCSV = () => {
