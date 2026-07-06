@@ -3,13 +3,14 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fetchMenuRh } from "@/lib/rh/api";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
-import { Users, FileText, Calendar, Briefcase, Wallet, FileCheck } from "lucide-react";
+import { Users, FileText, Calendar, Briefcase, Wallet, FileCheck, TrendingUp } from "lucide-react";
 
 const FALLBACK = [
   { codigo: "01", titulo: "Resumo Folha", rota: "/rh/resumo-folha", icon: Wallet },
   { codigo: "02", titulo: "Quadro Colaboradores", rota: "/rh/quadro-colaboradores", icon: Users },
   { codigo: "03", titulo: "Contrato Experiência", rota: "/rh/contrato-experiencia", icon: Briefcase },
   { codigo: "04", titulo: "Programação de Férias", rota: "/rh/programacao-ferias", icon: Calendar },
+  { codigo: "05", titulo: "Rotatividade / Turnover", rota: "/rh/turnover", icon: TrendingUp },
   { codigo: "99", titulo: "Formulários", rota: "/rh/formularios", icon: FileText },
 ];
 
@@ -18,8 +19,10 @@ const ROTA_POR_CODIGO: Record<string, string> = {
   "02": "/rh/quadro-colaboradores",
   "03": "/rh/contrato-experiencia",
   "04": "/rh/programacao-ferias",
+  "05": "/rh/turnover",
   "99": "/rh/formularios",
 };
+
 
 export default function RhIndexPage() {
   const navigate = useNavigate();
