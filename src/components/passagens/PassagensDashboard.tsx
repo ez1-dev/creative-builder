@@ -2084,9 +2084,9 @@ function PassagemMobileCard({ p, onEdit, onDelete }: PassagemMobileCardProps) {
         <div className="shrink-0 text-right font-semibold">{formatCurrency(p.valor)}</div>
       </div>
       <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
+        {p.produto && <Badge variant="default" className="font-normal">{p.produto}</Badge>}
         {p.centro_custo && <Badge variant="outline" className="font-normal">{p.centro_custo}</Badge>}
         <Badge variant="secondary" className="font-normal">{p.tipo_despesa}</Badge>
-        {p.cia_aerea && <Badge variant="outline" className="font-normal">{p.cia_aerea}</Badge>}
       </div>
       {(p.origem || p.destino) && (
         <div className="mt-2 text-xs text-muted-foreground">
