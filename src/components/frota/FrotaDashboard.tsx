@@ -500,7 +500,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     'chart-top-veiculos': (
       <VisualGate visualKey="frota.chart-top-veiculos">
         <RankingChartCard
-          title="Top Veículos por Valor"
+          title="Placa — Ranking"
           subtitle="Placa — descrição. Clique para filtrar pelo veículo"
           data={topVeiculos} topN={10} loading={loading}
           onItemClick={(d) => {
@@ -513,7 +513,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     'chart-top-fornecedores': (
       <VisualGate visualKey="frota.chart-top-fornecedores">
         <RankingChartCard
-          title="Top Fornecedores"
+          title="Fornecedor — Ranking"
           subtitle="Clique para filtrar pelo fornecedor"
           data={topFornecedores} topN={10} loading={loading}
           onItemClick={(d) => setSelFornecedor((prev) => toggleItem(prev, d.label))}
@@ -523,7 +523,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     'chart-top-cc': (
       <VisualGate visualKey="frota.chart-top-cc">
         <RankingChartCard
-          title="Top Centros de Custo"
+          title="Centro de Custo — Ranking"
           subtitle="Clique para filtrar pelo C.Custo"
           data={topCC} topN={10} loading={loading}
           onItemClick={(d) => setSelCC((prev) => toggleItem(prev, d.label))}
@@ -533,7 +533,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     'chart-top-motoristas': (
       <VisualGate visualKey="frota.chart-top-motoristas">
         <RankingChartCard
-          title="Top Motoristas"
+          title="Motorista — Ranking"
           subtitle="Clique para filtrar pelo motorista"
           data={topMotoristas} topN={10} loading={loading}
           onItemClick={(d) => setSelMotorista((prev) => toggleItem(prev, d.label))}
@@ -543,9 +543,9 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     'chart-tipo-veiculo': (
       <VisualGate visualKey="frota.chart-tipo-veiculo">
         <PieChartCard
-          title="Manutenções por Tipo de Veículo"
-          subtitle="Clique numa fatia para filtrar pelo tipo"
-          data={porTipo} loading={loading} donut
+          title="Por Tipo de Veículo"
+          subtitle="% e valor por tipo. Clique numa fatia para filtrar"
+          data={porTipo} loading={loading} donut height={420}
           onItemClick={(d) => setSelTipo((prev) => toggleItem(prev, d.label))}
         />
       </VisualGate>
