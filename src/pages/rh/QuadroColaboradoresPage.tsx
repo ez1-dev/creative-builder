@@ -29,7 +29,8 @@ import { cn } from "@/lib/utils";
 
 import {
   fetchQuadroDashboard,
-  fetchQuadroHistorico,
+  fetchQuadroHistoricoCached,
+  invalidateHistoricoCache,
   exportQuadroDashboard,
   ExportQuadroIndisponivelError,
   type QuadroBreakdown,
