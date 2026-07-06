@@ -32,6 +32,7 @@ export interface PageDataSchema {
  * com as mesmas chaves declaradas aqui.
  */
 export const FROTA_DIMENSOES = [
+  { key: 'categoria',    label: 'Categoria' },
   { key: 'placa',        label: 'Placa' },
   { key: 'fornecedor',   label: 'Fornecedor' },
   { key: 'descricao',    label: 'Descrição' },
