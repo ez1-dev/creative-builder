@@ -3,7 +3,7 @@ import {
   Home, FileBarChart, Star, StarOff, Search as SearchIcon,
   Package, GitBranch, ShoppingCart, BarChart3,
   Factory, FileCheck, FileSearch, LayoutDashboard, FileInput, Hash, Settings,
-  Hammer, Truck, Warehouse, PackageX, Clock, GitCompare, ChevronDown, Landmark, HandCoins, Gauge, Sparkles, ClipboardCheck, Receipt, Plane, CalendarRange, CalendarClock, Users, ShieldCheck, Palette, Database, ShieldAlert, FileText, History, Cog, Printer, Activity, Boxes, PackageSearch,
+  Hammer, Truck, Warehouse, PackageX, Clock, GitCompare, ChevronDown, Landmark, HandCoins, Gauge, Sparkles, ClipboardCheck, Receipt, Plane, CalendarRange, CalendarClock, Users, ShieldCheck, Palette, Database, ShieldAlert, FileText, History, Cog, Printer, Activity, Boxes, PackageSearch, TrendingUp,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
@@ -209,6 +209,7 @@ const GROUPS: Group[] = [
       { title: 'Quadro Colaboradores', url: '/rh/quadro-colaboradores', icon: Users },
       { title: 'Contratos de Experiência', url: '/rh/contrato-experiencia', icon: FileCheck },
       { title: 'Férias', url: '/rh/programacao-ferias', icon: CalendarRange },
+      { title: 'Turnover', url: '/rh/turnover', icon: TrendingUp },
       { title: 'Formulários', url: '/rh/formularios', icon: FileText },
     ],
   },
