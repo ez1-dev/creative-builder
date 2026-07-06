@@ -1,13 +1,14 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { FileText, UserMinus, Clock, CalendarClock } from "lucide-react";
+import { FileText, UserMinus, Clock, CalendarClock, FileSpreadsheet, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
-import { fetchContratoExperienciaDashboard } from "@/lib/rh/api";
+import { fetchContratoExperienciaDashboard, exportarContratoExperienciaExcel } from "@/lib/rh/api";
 import type { ContratoExperienciaVencimento } from "@/lib/rh/types";
 import { cn } from "@/lib/utils";
 
