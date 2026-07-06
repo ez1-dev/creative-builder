@@ -81,7 +81,9 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
 
   // Fora do modo de edição (visualização normal e link compartilhado),
   // o layout vindo do banco é a fonte da verdade — sempre que ele mudar,
-  // refletimos na renderização.
+  // refletimos na renderização. Enquanto `editing===true`, o localLayout
+  // é a fonte da verdade e NÃO deve ser sobrescrito por reloads/optimistic
+  // do hook (evita "voltar ao original" durante drag/resize).
   const prevEditing = useRef(editing);
   useEffect(() => {
     const justExitedEditing = prevEditing.current && !editing;
@@ -106,6 +108,7 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
   );
 
   const lastEmitted = useRef<string>('');
+  const emitTimer = useRef<number | null>(null);
 
   const emit = (next: Layout) => {
     if (!editing || !onLayoutChange) return;
@@ -113,8 +116,16 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
     const key = JSON.stringify(mapped);
     if (key === lastEmitted.current) return;
     lastEmitted.current = key;
-    onLayoutChange(mapped);
+    // Debounce: coalesca commits rápidos consecutivos (drag/resize/mover).
+    if (emitTimer.current) window.clearTimeout(emitTimer.current);
+    emitTimer.current = window.setTimeout(() => {
+      onLayoutChange(mapped);
+    }, 250);
   };
+
+  useEffect(() => () => {
+    if (emitTimer.current) window.clearTimeout(emitTimer.current);
+  }, []);
 
   if (isCompact) {
     return (
