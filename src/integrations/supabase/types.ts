@@ -2413,6 +2413,7 @@ export type Database = {
           numero_bilhete: string | null
           observacoes: string | null
           origem: string | null
+          produto: string | null
           projeto_obra: string | null
           tipo_despesa: string
           uf_destino: string | null
@@ -2436,6 +2437,7 @@ export type Database = {
           numero_bilhete?: string | null
           observacoes?: string | null
           origem?: string | null
+          produto?: string | null
           projeto_obra?: string | null
           tipo_despesa: string
           uf_destino?: string | null
@@ -2459,6 +2461,7 @@ export type Database = {
           numero_bilhete?: string | null
           observacoes?: string | null
           origem?: string | null
+          produto?: string | null
           projeto_obra?: string | null
           tipo_despesa?: string
           uf_destino?: string | null
@@ -4015,6 +4018,7 @@ export type Database = {
           numero_bilhete: string | null
           observacoes: string | null
           origem: string | null
+          produto: string | null
           projeto_obra: string | null
           tipo_despesa: string
           uf_destino: string | null

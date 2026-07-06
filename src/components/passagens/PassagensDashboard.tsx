@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/sheet';
 import { Plane, DollarSign, TrendingUp, Users, Pencil, Trash2, RotateCcw, X, Layers, Download, Check, ChevronsUpDown, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, ArrowUpDown, Filter, Plus } from 'lucide-react';
 import {
-  BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip as RTooltip,
+  BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip as RTooltip, LabelList,
 } from 'recharts';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { ColaboradorCombobox } from '@/components/passagens/ColaboradorCombobox';
@@ -47,6 +47,7 @@ export interface Passagem {
   colaborador: string;
   centro_custo: string | null;
   projeto_obra: string | null;
+  produto: string | null;
   fornecedor: string | null;
   cia_aerea: string | null;
   numero_bilhete: string | null;
@@ -68,14 +69,14 @@ export const TIPO_DESPESA_OPTIONS = [
   'Outros',
 ];
 
-type GroupBy = 'centro_custo' | 'projeto_obra' | 'colaborador' | 'motivo_viagem' | 'cia_aerea' | 'tipo_despesa' | 'cidade_destino' | 'uf_destino';
+type GroupBy = 'centro_custo' | 'projeto_obra' | 'colaborador' | 'motivo_viagem' | 'produto' | 'tipo_despesa' | 'cidade_destino' | 'uf_destino';
 
 const GROUP_OPTIONS: { value: GroupBy; label: string; empty: string }[] = [
   { value: 'centro_custo', label: 'Centro de Custo', empty: 'Sem CC' },
   { value: 'projeto_obra', label: 'Projeto/Obra', empty: 'Sem projeto' },
   { value: 'colaborador', label: 'Colaborador', empty: 'Sem colaborador' },
   { value: 'motivo_viagem', label: 'Motivo da Viagem', empty: 'Não informado' },
-  { value: 'cia_aerea', label: 'Cia Aérea', empty: 'Não informada' },
+  { value: 'produto', label: 'Produto', empty: 'Sem produto' },
   { value: 'tipo_despesa', label: 'Tipo de Despesa', empty: 'Não informado' },
   { value: 'cidade_destino', label: 'Cidade de Destino', empty: 'Sem cidade' },
   { value: 'uf_destino', label: 'Estado (UF)', empty: 'Sem UF' },
@@ -312,8 +313,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     const filteredRows = q
       ? crossFiltered.filter((r) => {
           const hay = [
-            r.colaborador, r.centro_custo, r.projeto_obra, r.fornecedor,
-            r.cia_aerea, r.numero_bilhete, r.localizador,
+            r.colaborador, r.centro_custo, r.projeto_obra, r.produto,
             r.origem, r.destino, r.motivo_viagem, r.tipo_despesa,
           ].map((v) => (v ?? '').toString().toLowerCase()).join(' | ');
           return hay.includes(q);
@@ -590,6 +590,21 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const dimOpacity = 0.3;
 
   // ===== Séries para a Biblioteca BI / configurador de gráficos =====
+  // Por produto (com valor e % do total)
+  const porProduto = useMemo(() => {
+    const base = applyCross(filtered, { mes: true, motivo: true, cc: true, destino: true, uf: true });
+    const map = new Map<string, number>();
+    base.forEach((r) => {
+      const k = (r.produto ?? '').trim() || 'Sem produto';
+      map.set(k, (map.get(k) ?? 0) + Number(r.valor || 0));
+    });
+    const total = Array.from(map.values()).reduce((s, v) => s + v, 0);
+    return Array.from(map.entries())
+      .map(([name, value]) => ({ name, value, pct: total > 0 ? (value / total) * 100 : 0 }))
+      .sort((a, b) => b.value - a.value);
+  }, [filtered, selectedMes, selectedMotivo, selectedCC, selectedDestino, selectedUF]);
+  const totalProduto = useMemo(() => porProduto.reduce((s, p) => s + p.value, 0), [porProduto]);
+
   const seriesPayload = useMemo(() => {
     // Top destinos por valor
     const topDestinosValor = porCidade
@@ -604,15 +619,6 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       tipoMap.set(k, (tipoMap.get(k) ?? 0) + Number(r.valor || 0));
     });
     const porTipoDespesa = Array.from(tipoMap.entries()).map(([name, value]) => ({ name, value }));
-    // Por cia aérea
-    const ciaMap = new Map<string, number>();
-    crossFiltered.forEach((r) => {
-      const k = (r.cia_aerea ?? '').trim() || 'Não informada';
-      ciaMap.set(k, (ciaMap.get(k) ?? 0) + Number(r.valor || 0));
-    });
-    const porCiaAerea = Array.from(ciaMap.entries())
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
     // Top colaboradores
     const colabMap = new Map<string, number>();
     crossFiltered.forEach((r) => {
@@ -634,10 +640,10 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       top_uf_valor: porUF.map((u) => ({ name: u.name, value: u.valor })),
       top_destinos_valor: topDestinosValor,
       por_tipo_despesa: porTipoDespesa,
-      por_cia_aerea: porCiaAerea,
+      por_produto: porProduto.map((p) => ({ name: p.name, value: p.value })),
       top_colaboradores: topColaboradores,
     };
-  }, [porMes, porMotivo, porCentroCusto, porCidade, porUF, crossFiltered]);
+  }, [porMes, porMotivo, porCentroCusto, porCidade, porUF, porProduto, crossFiltered]);
 
   const kpiPayload = useMemo(() => ({
     total_geral: totalGeral,
@@ -1249,6 +1255,65 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         </Card>
           ),
           } : {}),
+          ...((canSeeVisual('passagens.chart-por-produto') || canSeeVisual('passagens.kpis-charts')) ? {
+          'chart-por-produto': (
+        <Card className="h-full">
+          <CardHeader>
+            <CardTitle className="text-sm flex items-center justify-between gap-2">
+              <span>Por Produto</span>
+              <span className="text-xs font-normal text-muted-foreground">Total: {formatCurrency(totalProduto)}</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-3 sm:p-6">
+            {porProduto.length === 0 ? (
+              <div className="flex h-[220px] items-center justify-center text-xs text-muted-foreground">
+                Sem produto informado nos registros filtrados.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={Math.max(180, porProduto.length * (isCompact ? 36 : 44))}>
+                <BarChart data={porProduto} layout="vertical" margin={{ top: 4, right: 96, bottom: 4, left: 8 }}>
+                  <XAxis type="number" hide />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    fontSize={12}
+                    width={isMobile ? 90 : 140}
+                    tickFormatter={(v: string) => (v.length > (isMobile ? 12 : 22) ? `${v.slice(0, isMobile ? 12 : 22)}…` : v)}
+                  />
+                  <RTooltip formatter={(v: number, _n, p: any) => [`${formatCurrency(v)} (${(p?.payload?.pct ?? 0).toFixed(1).replace('.', ',')}%)`, 'Valor']} />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                    {porProduto.map((entry, i) => (
+                      <Cell key={entry.name} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                    <LabelList
+                      dataKey="value"
+                      position="right"
+                      content={(props: any) => {
+                        const { x, y, width, height, index } = props;
+                        const item = porProduto[index];
+                        if (!item) return null;
+                        const pct = (item.pct ?? 0).toFixed(1).replace('.', ',');
+                        return (
+                          <text
+                            x={Number(x) + Number(width) + 6}
+                            y={Number(y) + Number(height) / 2}
+                            dy={4}
+                            fontSize={12}
+                            fill="hsl(var(--foreground))"
+                          >
+                            {formatCurrency(item.value)} ({pct}%)
+                          </text>
+                        );
+                      }}
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+          ),
+          } : {}),
           ...((canSeeVisual('passagens.chart-top-cc') || canSeeVisual('passagens.kpis-charts')) ? {
           'chart-top-cc': (
         <Card className="h-full">
@@ -1523,9 +1588,8 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             )
           ) : (() => {
             const hasActions = !readOnly && (onEdit || onDelete);
-            // Colunas: Data, [Colab?], C.Custo, Cia,
-            // Origem, Destino, UF, Data Ida, Motivo, Valor
-            const baseCols = agruparColab ? 9 : 10;
+            // Colunas: Data, [Colab?], Produto, C.Custo, Origem, Destino, UF, Motivo, Valor
+            const baseCols = agruparColab ? 8 : 9;
             const totalCols = baseCols + (hasActions ? 1 : 0);
             const cellCls = "whitespace-nowrap text-xs px-2 py-1.5";
             const headCls = "whitespace-nowrap text-xs px-2";
@@ -1536,14 +1600,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                 <TableRow>
                   <TableHead className={headCls}>Data</TableHead>
                   {!agruparColab && <TableHead className={headCls}>Colaborador</TableHead>}
+                  <TableHead className={headCls}>Produto</TableHead>
                   <TableHead className={headCls}>C. Custo</TableHead>
-                  
-                  
-                  <TableHead className={headCls}>Cia Aérea</TableHead>
                   <TableHead className={headCls}>Origem</TableHead>
                   <TableHead className={headCls}>Destino</TableHead>
                   <TableHead className={headCls}>UF</TableHead>
-                  <TableHead className={headCls}>Data Ida</TableHead>
                   <TableHead className={headCls}>Motivo da Viagem</TableHead>
                   <TableHead className={`${headCls} text-right`}>Valor</TableHead>
                   {hasActions && <TableHead className="w-24">Ações</TableHead>}
@@ -1576,12 +1637,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                         {aberto && g.registros.map((r) => (
                           <TableRow key={r.id} className="bg-background border-l-2 border-l-muted">
                             <TableCell className={cellCls}>{formatDate(r.data_registro)}</TableCell>
+                            <TableCell className={cellCls}>{r.produto ?? '-'}</TableCell>
                             <TableCell className={cellCls}>{r.centro_custo ?? '-'}</TableCell>
-                            <TableCell className={cellCls}>{r.cia_aerea ?? '-'}</TableCell>
                             <TableCell className={cellCls}>{r.origem ?? '-'}</TableCell>
                             <TableCell className={cellCls}>{r.destino ?? '-'}</TableCell>
                             <TableCell className={cellCls}>{r.uf_destino ?? '-'}</TableCell>
-                            <TableCell className={cellCls}>{formatDate(r.data_ida)}</TableCell>
                             <TableCell className={cellCls}>{r.motivo_viagem ?? '-'}</TableCell>
                             <TableCell className={`${cellCls} text-right`}>{formatCurrency(r.valor)}</TableCell>
                             {hasActions && (
@@ -1601,14 +1661,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                   <TableRow key={r.id}>
                     <TableCell className={cellCls}>{formatDate(r.data_registro)}</TableCell>
                     <TableCell className={`${cellCls} font-medium`}>{r.colaborador}</TableCell>
+                    <TableCell className={cellCls}>{r.produto ?? '-'}</TableCell>
                     <TableCell className={cellCls}>{r.centro_custo ?? '-'}</TableCell>
-                    
-                    
-                    <TableCell className={cellCls}>{r.cia_aerea ?? '-'}</TableCell>
                     <TableCell className={cellCls}>{r.origem ?? '-'}</TableCell>
                     <TableCell className={cellCls}>{r.destino ?? '-'}</TableCell>
                     <TableCell className={cellCls}>{r.uf_destino ?? '-'}</TableCell>
-                    <TableCell className={cellCls}>{formatDate(r.data_ida)}</TableCell>
                     <TableCell className={cellCls}>{r.motivo_viagem ?? '-'}</TableCell>
                     <TableCell className={`${cellCls} text-right font-medium`}>{formatCurrency(r.valor)}</TableCell>
                     {!readOnly && (onEdit || onDelete) && (
@@ -1921,11 +1978,10 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
 }
 
 export function exportPassagensCsv(rows: Passagem[]) {
-  const headers = ['Data', 'Colaborador', 'Centro Custo', 'Projeto/Obra', 'Motivo da Viagem', 'Origem', 'Destino', 'Tipo', 'Bilhete', 'Valor'];
+  const headers = ['Data Registro', 'Produto', 'Colaborador', 'Centro Custo', 'Origem', 'Destino', 'Motivo da Viagem', 'Valor'];
   const data = rows.map((r) => [
-    r.data_registro, r.colaborador, r.centro_custo ?? '', r.projeto_obra ?? '',
-    r.tipo_despesa, r.origem ?? '', r.destino ?? '', r.cia_aerea ?? '',
-    r.numero_bilhete ?? '', r.valor,
+    r.data_registro, r.produto ?? '', r.colaborador, r.centro_custo ?? '',
+    r.origem ?? '', r.destino ?? '', r.motivo_viagem ?? '', r.valor,
   ]);
   const csv = [headers, ...data].map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n');
   const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
@@ -1948,23 +2004,18 @@ function parseDateOrNull(value: string | null | undefined): Date | null {
 
 export function exportPassagensXlsx(rows: Passagem[]) {
   const headers = [
-    'Data Registro', 'Colaborador', 'Centro Custo', 'Projeto/Obra', 'Fornecedor',
-    'Cia Aérea', 'Nº Bilhete', 'Localizador', 'Origem', 'Destino',
-    'Data Ida', 'Data Volta', 'Motivo Viagem', 'Tipo Despesa', 'Valor (R$)', 'Observações',
+    'Data Registro', 'Produto', 'Colaborador', 'Centro Custo', 'Projeto/Obra',
+    'Origem', 'Destino', 'UF', 'Motivo Viagem', 'Tipo Despesa', 'Valor (R$)', 'Observações',
   ];
   const body = rows.map((r) => [
     parseDateOrNull(r.data_registro),
+    r.produto ?? '',
     r.colaborador,
     r.centro_custo ?? '',
     r.projeto_obra ?? '',
-    r.fornecedor ?? '',
-    r.cia_aerea ?? '',
-    r.numero_bilhete ?? '',
-    r.localizador ?? '',
     r.origem ?? '',
     r.destino ?? '',
-    parseDateOrNull(r.data_ida),
-    parseDateOrNull(r.data_volta),
+    r.uf_destino ?? '',
     r.motivo_viagem ?? '',
     r.tipo_despesa,
     Number(r.valor || 0),
@@ -1974,16 +2025,16 @@ export function exportPassagensXlsx(rows: Passagem[]) {
   const ws = XLSX.utils.aoa_to_sheet([headers, ...body], { cellDates: true });
 
   // Total no final
-  const totalRow = body.length + 1; // 0-based row index of total
+  const totalRow = body.length + 1;
   const total = rows.reduce((s, r) => s + Number(r.valor || 0), 0);
   XLSX.utils.sheet_add_aoa(ws, [[
-    '', '', '', '', '', '', '', '', '', '', '', '', '', 'Total', total, '',
+    '', '', '', '', '', '', '', '', '', 'Total', total, '',
   ]], { origin: { r: totalRow, c: 0 } });
 
   // Aplica formatos por coluna
   const range = XLSX.utils.decode_range(ws['!ref'] as string);
-  const dateCols = [0, 10, 11]; // Data Registro, Data Ida, Data Volta
-  const valorCol = 14; // Valor (R$)
+  const dateCols = [0]; // Data Registro
+  const valorCol = 10; // Valor (R$)
   for (let R = 1; R <= range.e.r; R++) {
     for (const c of dateCols) {
       const cell = ws[XLSX.utils.encode_cell({ r: R, c })];
@@ -2000,9 +2051,8 @@ export function exportPassagensXlsx(rows: Passagem[]) {
   }
 
   ws['!cols'] = [
-    { wch: 12 }, { wch: 28 }, { wch: 16 }, { wch: 18 }, { wch: 20 },
-    { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 12 },
-    { wch: 12 }, { wch: 12 }, { wch: 28 }, { wch: 22 }, { wch: 14 }, { wch: 32 },
+    { wch: 12 }, { wch: 14 }, { wch: 28 }, { wch: 16 }, { wch: 18 },
+    { wch: 14 }, { wch: 14 }, { wch: 6 }, { wch: 28 }, { wch: 14 }, { wch: 14 }, { wch: 32 },
   ];
 
   const wb = XLSX.utils.book_new();
@@ -2027,9 +2077,9 @@ function PassagemMobileCard({ p, onEdit, onDelete }: PassagemMobileCardProps) {
         <div className="shrink-0 text-right font-semibold">{formatCurrency(p.valor)}</div>
       </div>
       <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
+        {p.produto && <Badge variant="default" className="font-normal">{p.produto}</Badge>}
         {p.centro_custo && <Badge variant="outline" className="font-normal">{p.centro_custo}</Badge>}
         <Badge variant="secondary" className="font-normal">{p.tipo_despesa}</Badge>
-        {p.cia_aerea && <Badge variant="outline" className="font-normal">{p.cia_aerea}</Badge>}
       </div>
       {(p.origem || p.destino) && (
         <div className="mt-2 text-xs text-muted-foreground">

@@ -105,7 +105,7 @@ export default function RelatorioExecutivoPassagensPage() {
       mensal,
       topColab: aggBy('colaborador'),
       topDest: aggBy('destino'),
-      topCia: aggBy('cia_aerea'),
+      topProduto: aggBy('produto' as keyof Passagem),
       topCC: aggBy('centro_custo'),
     };
   }, [dados, de, ate]);
@@ -117,7 +117,7 @@ export default function RelatorioExecutivoPassagensPage() {
     rankings: {
       colaboradores: calc.topColab.slice(0, 10),
       destinos: calc.topDest.slice(0, 10),
-      cias: calc.topCia.slice(0, 10),
+      produtos: calc.topProduto.slice(0, 10),
     },
   }), [calc, de, ate]);
 
@@ -137,15 +137,15 @@ export default function RelatorioExecutivoPassagensPage() {
         rankings: [
           { titulo: 'Top Colaboradores', chartId: 'pa-rk-colab' },
           { titulo: 'Top Destinos', chartId: 'pa-rk-dest' },
-          { titulo: 'Top Companhias', chartId: 'pa-rk-cia' },
+          { titulo: 'Top Produtos', chartId: 'pa-rk-produto' },
           { titulo: 'Top Centros de Custo', chartId: 'pa-rk-cc' },
         ],
         comentariosIa: ia.data,
         tabela: {
           titulo: 'Últimas Passagens (top 25)',
-          head: ['Data', 'Colaborador', 'Destino', 'Cia', 'Centro de Custo', 'Valor'],
+          head: ['Data', 'Produto', 'Colaborador', 'Destino', 'Centro de Custo', 'Motivo', 'Valor'],
           rows: dados.slice(0, 25).map((r) => [
-            r.data_registro, r.colaborador, r.destino ?? '—', r.cia_aerea ?? '—', r.centro_custo ?? '—', BRL(Number(r.valor || 0)),
+            r.data_registro, (r as any).produto ?? '—', r.colaborador, r.destino ?? '—', r.centro_custo ?? '—', r.motivo_viagem ?? '—', BRL(Number(r.valor || 0)),
           ]),
         },
       });
@@ -232,7 +232,7 @@ export default function RelatorioExecutivoPassagensPage() {
               rankings={[
                 { titulo: 'Top Colaboradores', rows: calc.topColab, chartId: 'pa-rk-colab' },
                 { titulo: 'Top Destinos', rows: calc.topDest, chartId: 'pa-rk-dest' },
-                { titulo: 'Top Companhias', rows: calc.topCia, chartId: 'pa-rk-cia' },
+                { titulo: 'Top Produtos', rows: calc.topProduto, chartId: 'pa-rk-produto' },
                 { titulo: 'Top Centros de Custo', rows: calc.topCC, chartId: 'pa-rk-cc' },
               ]}
             />
@@ -242,11 +242,12 @@ export default function RelatorioExecutivoPassagensPage() {
               rows={dados}
               colunas={[
                 { header: 'Data', cell: (r) => r.data_registro },
+                { header: 'Produto', cell: (r) => (r as any).produto ?? '—' },
                 { header: 'Colaborador', cell: (r) => r.colaborador },
-                { header: 'Destino', cell: (r) => r.destino ?? '—' },
-                { header: 'Cia', cell: (r) => r.cia_aerea ?? '—' },
                 { header: 'Centro de Custo', cell: (r) => r.centro_custo ?? '—' },
-                { header: 'Projeto/Obra', cell: (r) => r.projeto_obra ?? '—' },
+                { header: 'Origem', cell: (r) => r.origem ?? '—' },
+                { header: 'Destino', cell: (r) => r.destino ?? '—' },
+                { header: 'Motivo', cell: (r) => r.motivo_viagem ?? '—' },
                 { header: 'Valor', cell: (r) => BRL(Number(r.valor || 0)), align: 'right' },
               ]}
             />

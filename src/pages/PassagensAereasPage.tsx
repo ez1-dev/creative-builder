@@ -32,7 +32,7 @@ const PATH = '/passagens-aereas';
 
 const emptyForm = (): Partial<Passagem> => ({
   data_registro: new Date().toISOString().slice(0, 10),
-  colaborador: '', centro_custo: '', projeto_obra: '', fornecedor: '',
+  colaborador: '', centro_custo: '', projeto_obra: '', produto: '', fornecedor: '',
   cia_aerea: '', numero_bilhete: '', localizador: '', origem: '', destino: '',
   data_ida: '', data_volta: '', motivo_viagem: '',
   tipo_despesa: TIPO_DESPESA_OPTIONS[0], valor: 0, observacoes: '',
@@ -108,6 +108,7 @@ export default function PassagensAereasPage() {
       colaborador: (form.colaborador || '').trim().toUpperCase(),
       centro_custo: form.centro_custo || null,
       projeto_obra: form.projeto_obra || null,
+      produto: form.produto || null,
       fornecedor: form.fornecedor || null,
       cia_aerea: form.cia_aerea || null,
       numero_bilhete: form.numero_bilhete || null,
@@ -240,6 +241,7 @@ export default function PassagensAereasPage() {
             </div>
             <div><Label>Centro de Custo</Label><Input value={form.centro_custo ?? ''} onChange={(e) => setForm({ ...form, centro_custo: e.target.value })} /></div>
             <div><Label>Projeto / Obra</Label><Input value={form.projeto_obra ?? ''} onChange={(e) => setForm({ ...form, projeto_obra: e.target.value })} /></div>
+            <div><Label>Produto</Label><Input value={form.produto ?? ''} onChange={(e) => setForm({ ...form, produto: e.target.value })} placeholder="Ex.: AÉREO" /></div>
             <div><Label>Fornecedor</Label><Input value={form.fornecedor ?? ''} onChange={(e) => setForm({ ...form, fornecedor: e.target.value })} /></div>
             <div><Label>Cia Aérea</Label><Input value={form.cia_aerea ?? ''} onChange={(e) => setForm({ ...form, cia_aerea: e.target.value })} /></div>
             <div><Label>Nº Bilhete</Label><Input value={form.numero_bilhete ?? ''} onChange={(e) => setForm({ ...form, numero_bilhete: e.target.value })} /></div>

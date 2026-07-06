@@ -43,6 +43,7 @@ export const VISUAL_CATALOG: VisualGroup[] = [
     module: 'Passagens Aéreas',
     items: [
       { key: 'passagens.kpis-charts', label: 'Gráficos (todos — chave de retrocompatibilidade)' },
+      { key: 'passagens.chart-por-produto',     label: 'Gráfico: Por Produto (valor + %)' },
       { key: 'passagens.chart-evolucao-mensal', label: 'Gráfico: Evolução Mensal' },
       { key: 'passagens.chart-motivo-viagem',   label: 'Gráfico: Por Motivo de Viagem' },
       { key: 'passagens.chart-top-cc',          label: 'Gráfico: Top Centros de Custo' },
