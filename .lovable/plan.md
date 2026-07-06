@@ -1,32 +1,78 @@
-## Objetivo
+# Centro de Custo nos módulos RH + séries dinâmicas
 
-Exibir os novos campos `kpis.salario_base` e `kpis.salario_bruto` já entregues pela API `GET /api/rh/resumo-folha/dashboard` na tela `/rh/resumo-folha`, sem qualquer cálculo no front.
+Renderizar o campo `centro_custo` que a API RH agora entrega e garantir que as novas séries `por_centro_custo` apareçam automaticamente no dropdown da Biblioteca BI. Sem cálculo no front, sem Supabase direto, sem hardcode de séries.
 
-## Alterações
+## 1. Tipos (`src/lib/rh/types.ts`)
 
-### 1. `src/lib/rh/types.ts` — interface `ResumoFolhaKpis`
-Adicionar os dois campos opcionais (opcional para tolerar respostas antigas):
-```ts
-salario_base?: number;
-salario_bruto?: number;
-```
+Garantir `centro_custo?: string` em todos os tipos de detalhe que ainda não tenham:
+- `ContratoExperienciaVencimentoItem`
+- `ProgramacaoFeriasDetalheItem`
+- `DeFeriasDetalheItem`
+- `TurnoverAdmitidoDetalhe` / `TurnoverDemitidoDetalhe`
+- `AbsenteismoDetalheItem`
 
-### 2. `src/pages/rh/ResumoFolhaPage.tsx` — bloco `"kpis-resumo"`
-Adicionar dois novos cards KPI usando o mesmo componente `KpiOrMissing` já existente, lendo direto de `kpis?.salario_base` e `kpis?.salario_bruto` (mesmo padrão dos demais — nenhuma soma/cálculo local):
+(`ColaboradorDetalhe` já tem.)
 
-- **"Salário Base"** → `value={kpis?.salario_base}` / `field="salario_base"`
-- **"Salário Bruto"** → `value={kpis?.salario_bruto}` / `field="salario_bruto"` (variant `primary` para diferenciar visualmente do base)
+## 2. Coluna "Centro de Custo" nos modais de drill
 
-Serão inseridos logo após o card "Líquido" e antes de "Custo Total", mantendo o grid responsivo atual (`lg:grid-cols-5`). Nenhuma outra alteração de layout.
+Adicionar a coluna (título: **Centro de Custo**, campo `centro_custo`, fallback `"-"`) nos modais RH. Posição sugerida: logo após "Filial".
 
-### 3. `src/lib/rh/api.ts` — normalização de KPIs
-Incluir `salario_base` e `salario_bruto` na lista de chaves reconhecidas para o cálculo de `_missing_kpis` (mesma lógica dos demais campos), de modo que a UI mostre "Campo não retornado pela API" se a API omitir. Nenhum fallback/cálculo — apenas passthrough do payload.
+Arquivos:
+- `src/components/rh/QuadroDrillModal.tsx` — já lista `centro_custo`; validar apenas.
+- `src/components/rh/TurnoverDrillModal.tsx`
+- `src/components/rh/TurnoverEmpresaDrillModal.tsx` (abas admitidos + demitidos)
+- `src/components/rh/AbsenteismoDrillModal.tsx`
+- `src/components/rh/ProgramacaoFeriasDrillModal.tsx` (modo `periodo` e `de_ferias`)
+- Modais do Contrato de Experiência em `src/components/rh/` (vencimentos, vencidos, por status — mapear no início da build)
 
-### 4. `docs/backend-rh-resumo-folha-dashboard.md`
-Documentar os dois campos novos em `response.kpis` e a regra de origem (eventos 1, 2, 4, 26, 28, 56, 62, 126, 254, 278, 295 via R046FFR/R044CAL por `CAL.PERREF`). Registrar explicitamente que **não** usar R046INF.SALEMP, evento 393, evento 30 nem qualquer cálculo manual no front.
+## 3. Tabelas principais das páginas
 
-## Fora de escopo
+Nas páginas listadas abaixo, adicionar a coluna Centro de Custo à tabela principal (mesma regra de posição e fallback):
+- **RH-03** Contrato de Experiência — grid de vencimentos.
+- **RH-04** Programação de Férias — grid de detalhe.
+- Turnover/Absenteísmo já são renderizados via modais (item 2).
 
-- Não alterar `filiais[].salario_base` (grid por filial já existe e continua igual).
-- Não mexer em relatórios PDF / IA insights nesta rodada — se o usuário quiser incluir nos relatórios, faço em passo separado.
-- Nenhuma migration/RLS/edge function; o dado vem 100% da API FastAPI externa.
+## 4. Séries dinâmicas "Por Centro de Custo" (Biblioteca BI)
+
+O adapter `rhSeriesToOptions` / `rhSeriesToRecord` (`src/lib/rh/seriesAdapter.ts`) já expõe qualquer série vinda de `dashboard.series` de forma dinâmica. Passos:
+
+- Auditar cada página RH (`ResumoFolhaPage`, `QuadroColaboradoresPage`, `ContratoExperienciaPage`, `ProgramacaoFeriasPage`, `TurnoverPage`, `AbsenteismoPage`) e garantir que:
+  - O dropdown "Série" é montado a partir de `rhSeriesToOptions(dashboard.series)`.
+  - Os dados do gráfico saem de `rhSeriesToRecord(dashboard.series)[chaveSelecionada]`.
+  - Nada de listas fixas / `switch` por chave conhecida.
+- Remover qualquer whitelist antiga que impeça `por_centro_custo`, `admissoes_por_centro_custo`, `demissoes_por_centro_custo`, `dias_por_centro_custo`, `folha_por_centro_custo` de aparecer.
+- Mapear pontos como `{ label: p.label, valor: Number(p.valor ?? 0) }` para os gráficos (bar/donut/line já usam esse shape).
+
+## 5. Drill por Centro de Custo (quando o gráfico for clicável)
+
+Onde a página já tem drill ao clicar numa fatia/barra, adicionar o predicado `centro_custo === valorClicado`:
+- RH-03: `vencimentos.filter(x => x.centro_custo === cc)`
+- RH-04: `detalhe.filter(x => x.centro_custo === cc)`
+- RH-05: `detalhe_admitidos` / `detalhe_demitidos`
+- RH-06: `detalhe`
+
+Não criar drill novo onde ainda não existe — apenas incluir CC no roteador de predicados já usado pela página.
+
+## 6. RH-01 Resumo Folha — série "Folha por Centro de Custo"
+
+- Aparece automaticamente pelo adapter.
+- Se `pontos` vier vazio, exibir mensagem "Sem dados para esta série." (padrão já usado). Nenhum erro, nenhum toast.
+
+## 7. Fora do escopo
+
+- Nenhuma mudança em backend, Supabase, edge functions, migrations, RLS.
+- Nenhum recálculo/agrupamento no front.
+- Botões "Exportar Excel" permanecem inalterados (backend já inclui CC nas planilhas).
+- Datas continuam com `formatDateBR` (parse manual `YYYY-MM-DD`).
+
+## Notas técnicas
+
+- Coluna renderizada como `<TableCell>{row.centro_custo || "-"}</TableCell>`.
+- Ordem das colunas nos modais: Colaborador → Matrícula → Cargo → Empresa → Filial → **Centro de Custo** → demais campos específicos.
+- A tela `/rh/resumo-folha` já mostra "Campo pendente na API" quando `filiais[].salario_base` não vem — comportamento mantido, sem alteração nesta task.
+
+## Pré-condições de validação (usuário)
+
+1. Rodar a view `rh_drill_eventos_view.sql` no backend (para o RH-01).
+2. Reiniciar a API `8070`.
+3. Abrir RH-01 a RH-06 e conferir coluna CC + série "Por Centro de Custo" no dropdown.
