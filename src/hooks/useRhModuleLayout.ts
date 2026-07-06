@@ -14,6 +14,14 @@ import { ensureDefaultBlockId } from '@/lib/bi/ensureDefaultBlock';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isUuid = (id: unknown): id is string => typeof id === 'string' && UUID_RE.test(id);
 
+const clampLayout = (layout: RhWidgetLayout): RhWidgetLayout => {
+  const w = Math.max(1, Math.min(12, Math.round(Number(layout?.w) || 6)));
+  const h = Math.max(1, Math.round(Number(layout?.h) || 4));
+  const x = Math.max(0, Math.min(12 - w, Math.round(Number(layout?.x) || 0)));
+  const y = Math.max(0, Math.round(Number(layout?.y) || 0));
+  return { x, y, w, h };
+};
+
 export interface RhWidgetLayout { x: number; y: number; w: number; h: number }
 
 export interface RhWidget {
@@ -54,6 +62,25 @@ function mergeWithDefaults(rows: RhWidget[], defaults: RhWidget[]): RhWidget[] {
     .map((w, i) => ({ w, i }))
     .sort((a, b) => a.w.position - b.w.position || a.i - b.i)
     .map((x) => x.w);
+}
+
+function mergeSaveItem(prev: RhSaveLayoutItem | undefined, item: RhSaveLayoutItem): RhSaveLayoutItem {
+  if (!prev) return { ...item, layout: clampLayout(item.layout) };
+  const merged: RhSaveLayoutItem = { ...prev };
+  (Object.keys(item) as (keyof RhSaveLayoutItem)[]).forEach((key) => {
+    const value = item[key];
+    if (value !== undefined) {
+      (merged as any)[key] = key === 'layout' ? clampLayout(value as RhWidgetLayout) : value;
+    }
+  });
+  return merged;
+}
+
+function mergeSaveBatches(prev: RhSaveLayoutItem[] | null, next: RhSaveLayoutItem[]): RhSaveLayoutItem[] {
+  const byType = new Map<string, RhSaveLayoutItem>();
+  (prev ?? []).forEach((item) => byType.set(item.type, mergeSaveItem(undefined, item)));
+  next.forEach((item) => byType.set(item.type, mergeSaveItem(byType.get(item.type), item)));
+  return Array.from(byType.values());
 }
 
 export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabled: boolean = true) {
