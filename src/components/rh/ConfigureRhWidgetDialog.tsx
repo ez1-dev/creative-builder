@@ -10,9 +10,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { COMPONENT_REGISTRY } from '@/lib/bi/componentRegistry';
+import { COMPONENT_REGISTRY, getComponent } from '@/lib/bi/componentRegistry';
 import { getPage } from '@/lib/bi/pageRegistry';
+import { usePageData } from '@/lib/bi/PageDataContext';
+import { WidgetErrorBoundary } from '@/components/bi/runtime/WidgetErrorBoundary';
 import type { RhWidget } from '@/hooks/useRhModuleLayout';
 import { Trash2 } from 'lucide-react';
 
