@@ -73,10 +73,10 @@ export function PieChartCard({
   const fontFamily = fontFamilyCss(vc.dataLabels.fontFamily);
   const fs = vc.dataLabels.fontSize;
 
-  // Layout estático (sempre seguro para modo compacto). Layer externo respeita os 20px de margem.
-  const outerRadius: number | string = rich ? '58%' : 90;
-  const innerRadius: number | string = donut ? (rich ? '35%' : 55) : 0;
-  const cy = '45%';
+  // Layout responsivo (percentuais) para não cortar em cards pequenos.
+  const outerRadius: number | string = rich ? '58%' : '78%';
+  const innerRadius: number | string = donut ? (rich ? '35%' : '55%') : 0;
+  const cy = '46%';
 
   const PieLabelsLayer = (props: any) => {
     const { width: cw, height: ch } = props;
@@ -86,10 +86,11 @@ export function PieChartCard({
     const allowExternal = rich && !isCompact && data.length <= MAX_DATA_FOR_EXTERNAL;
 
     const cx = cw / 2;
-    // cy = 45% precisa bater com o Pie cy="45%"
-    const cyPx = ch * 0.45;
+    const cyPx = ch * 0.46;
     const RADIAN = Math.PI / 180;
-    const rPx = Math.min(cw, ch) * 0.29;
+    const rPx = Math.min(cw, ch) * 0.34;
+
+
 
     // Geometria das fatias.
     let startAngle = 90;
@@ -237,7 +238,7 @@ export function PieChartCard({
     <ChartCardShell {...shell} height={height} isEmpty={!data?.length} visualConfig={visualConfig}>
       <div className="relative">
         <ResponsiveContainer width="100%" height={height}>
-          <PieChart margin={{ top: 10, right: 20, bottom: 70, left: 20 }}>
+          <PieChart margin={{ top: 16, right: 20, bottom: 56, left: 20 }}>
             <Pie data={data} dataKey="valor" nameKey="label" cx="50%" cy={cy}
               innerRadius={innerRadius} outerRadius={outerRadius} paddingAngle={donut ? 2 : 0}
               cursor={onItemClick ? 'pointer' : undefined}
@@ -281,10 +282,14 @@ export function PieChartCard({
           const value = centerValue ?? (total ? new Intl.NumberFormat('pt-BR').format(total) : undefined);
           if (!label && !value) return null;
           return (
-            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center pb-16">
+            <div
+              className="pointer-events-none absolute inset-x-0 flex flex-col items-center"
+              style={{ top: '46%', transform: 'translateY(-50%)' }}
+            >
               {label && <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>}
               {value && <span className="text-lg font-bold tabular-nums">{value}</span>}
             </div>
+
           );
         })()}
 
