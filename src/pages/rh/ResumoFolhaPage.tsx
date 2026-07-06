@@ -480,6 +480,8 @@ export default function ResumoFolhaPage() {
               onReset={layout.resetLayout}
               widgets={layout.widgets}
               onShow={layout.showWidget}
+              pageKey="rh-resumo-folha"
+              onAdd={layout.addWidget}
             />
             <Button
               size="sm"
