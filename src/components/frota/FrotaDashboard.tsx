@@ -543,15 +543,10 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     ),
     'chart-tipo-veiculo': (
       <VisualGate visualKey="frota.chart-tipo-veiculo">
-        <PieChartCard
+        <DonutSideLegendCard
           title="Por Tipo de Veículo"
-          subtitle="% e valor por tipo. Clique numa fatia para filtrar"
-          data={porTipo} loading={loading} height={460}
-          visualConfig={{
-            dataLabels: { visible: true, richLabel: true, position: 'outside', fontSize: 11 },
-            tooltip: { visible: true },
-            legend: { visible: true },
-          } as any}
+          subtitle="% e valor por tipo. Clique num item para filtrar"
+          data={porTipo} loading={loading} height={380}
           onItemClick={(d) => setSelTipo((prev) => toggleItem(prev, d.label))}
         />
       </VisualGate>
