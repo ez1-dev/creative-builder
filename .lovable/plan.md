@@ -1,78 +1,47 @@
-# Centro de Custo nos módulos RH + séries dinâmicas
+# RH-01 · Confirmar coluna "Salário Base" por filial
 
-Renderizar o campo `centro_custo` que a API RH agora entrega e garantir que as novas séries `por_centro_custo` apareçam automaticamente no dropdown da Biblioteca BI. Sem cálculo no front, sem Supabase direto, sem hardcode de séries.
+O front já está correto — o grid lê `filiais[].salario_base` diretamente, sem aliases, sem cálculo, sem Supabase. Apenas um pequeno ajuste é necessário para diferenciar `null`/`undefined` (mostrar `-`) de `0` (mostrar `R$ 0,00`).
 
-## 1. Tipos (`src/lib/rh/types.ts`)
+## Estado atual (confirmado)
 
-Garantir `centro_custo?: string` em todos os tipos de detalhe que ainda não tenham:
-- `ContratoExperienciaVencimentoItem`
-- `ProgramacaoFeriasDetalheItem`
-- `DeFeriasDetalheItem`
-- `TurnoverAdmitidoDetalhe` / `TurnoverDemitidoDetalhe`
-- `AbsenteismoDetalheItem`
+`src/pages/rh/ResumoFolhaPage.tsx`:
+- `FILIAL_COLS[0] = { key: "salario_base", label: "Salário Base", format: "currency" }` — primeira coluna após "Cód. Filial" e "Filial".
+- Renderização: `<ValueOrMissing value={(f as any)["salario_base"]} missing={!("salario_base" in f)} field="salario_base" format="currency" />`.
+  - Se a chave `salario_base` não vier no payload → "Campo pendente na API" (comportamento correto — indica payload antigo, resolvido reiniciando a API 8070).
+  - Se vier `0` → `R$ 0,00` (já funciona).
+  - Se vier `null`/`undefined` (chave presente mas sem valor) → hoje mostra `R$ 0,00` ❌ — precisa mostrar `-`.
 
-(`ColaboradorDetalhe` já tem.)
+Nenhum alias (`vl_salario_base`, `salario_bruto`, etc.) é usado. Nenhuma soma/agregação no front.
 
-## 2. Coluna "Centro de Custo" nos modais de drill
+## Único ajuste
 
-Adicionar a coluna (título: **Centro de Custo**, campo `centro_custo`, fallback `"-"`) nos modais RH. Posição sugerida: logo após "Filial".
+**`src/components/rh/KpiOrMissing.tsx`** — no `ValueOrMissing`, quando `!missing` e `value == null` (null ou undefined), renderizar `"-"` em vez de formatar `0`. Zero continua sendo formatado como `R$ 0,00`.
 
-Arquivos:
-- `src/components/rh/QuadroDrillModal.tsx` — já lista `centro_custo`; validar apenas.
-- `src/components/rh/TurnoverDrillModal.tsx`
-- `src/components/rh/TurnoverEmpresaDrillModal.tsx` (abas admitidos + demitidos)
-- `src/components/rh/AbsenteismoDrillModal.tsx`
-- `src/components/rh/ProgramacaoFeriasDrillModal.tsx` (modo `periodo` e `de_ferias`)
-- Modais do Contrato de Experiência em `src/components/rh/` (vencimentos, vencidos, por status — mapear no início da build)
+```tsx
+if (format === "horas") return <>{fmtHoras(value as any)}</>;
+if (value === null || value === undefined) return <>-</>;
+return <>{formatCurrency(Number(value))}</>;
+```
 
-## 3. Tabelas principais das páginas
+Efeito colateral: qualquer célula usando `ValueOrMissing` (todas as colunas da grid de filiais) passa a mostrar `-` quando o valor vier explicitamente `null`/`undefined`. Comportamento correto e mais informativo.
 
-Nas páginas listadas abaixo, adicionar a coluna Centro de Custo à tabela principal (mesma regra de posição e fallback):
-- **RH-03** Contrato de Experiência — grid de vencimentos.
-- **RH-04** Programação de Férias — grid de detalhe.
-- Turnover/Absenteísmo já são renderizados via modais (item 2).
+## Fora de escopo
 
-## 4. Séries dinâmicas "Por Centro de Custo" (Biblioteca BI)
+- Não alterar regra de Salário Base / Salário Bruto.
+- Não mexer em Benefícios, Hora Extra, Custo Férias, Provisões, Custo Total, Rescisões, FGTS, INSS.
+- Não criar aliases nem `_missing_kpis` extra.
+- Não alterar o KPI global `kpis.salario_base` (já OK).
+- Se a coluna continuar exibindo "Campo pendente na API" após o deploy, é payload antigo — reiniciar API `8070` e recarregar.
 
-O adapter `rhSeriesToOptions` / `rhSeriesToRecord` (`src/lib/rh/seriesAdapter.ts`) já expõe qualquer série vinda de `dashboard.series` de forma dinâmica. Passos:
+## Validação (Jun/2026)
 
-- Auditar cada página RH (`ResumoFolhaPage`, `QuadroColaboradoresPage`, `ContratoExperienciaPage`, `ProgramacaoFeriasPage`, `TurnoverPage`, `AbsenteismoPage`) e garantir que:
-  - O dropdown "Série" é montado a partir de `rhSeriesToOptions(dashboard.series)`.
-  - Os dados do gráfico saem de `rhSeriesToRecord(dashboard.series)[chaveSelecionada]`.
-  - Nada de listas fixas / `switch` por chave conhecida.
-- Remover qualquer whitelist antiga que impeça `por_centro_custo`, `admissoes_por_centro_custo`, `demissoes_por_centro_custo`, `dias_por_centro_custo`, `folha_por_centro_custo` de aparecer.
-- Mapear pontos como `{ label: p.label, valor: Number(p.valor ?? 0) }` para os gráficos (bar/donut/line já usam esse shape).
-
-## 5. Drill por Centro de Custo (quando o gráfico for clicável)
-
-Onde a página já tem drill ao clicar numa fatia/barra, adicionar o predicado `centro_custo === valorClicado`:
-- RH-03: `vencimentos.filter(x => x.centro_custo === cc)`
-- RH-04: `detalhe.filter(x => x.centro_custo === cc)`
-- RH-05: `detalhe_admitidos` / `detalhe_demitidos`
-- RH-06: `detalhe`
-
-Não criar drill novo onde ainda não existe — apenas incluir CC no roteador de predicados já usado pela página.
-
-## 6. RH-01 Resumo Folha — série "Folha por Centro de Custo"
-
-- Aparece automaticamente pelo adapter.
-- Se `pontos` vier vazio, exibir mensagem "Sem dados para esta série." (padrão já usado). Nenhum erro, nenhum toast.
-
-## 7. Fora do escopo
-
-- Nenhuma mudança em backend, Supabase, edge functions, migrations, RLS.
-- Nenhum recálculo/agrupamento no front.
-- Botões "Exportar Excel" permanecem inalterados (backend já inclui CC nas planilhas).
-- Datas continuam com `formatDateBR` (parse manual `YYYY-MM-DD`).
-
-## Notas técnicas
-
-- Coluna renderizada como `<TableCell>{row.centro_custo || "-"}</TableCell>`.
-- Ordem das colunas nos modais: Colaborador → Matrícula → Cargo → Empresa → Filial → **Centro de Custo** → demais campos específicos.
-- A tela `/rh/resumo-folha` já mostra "Campo pendente na API" quando `filiais[].salario_base` não vem — comportamento mantido, sem alteração nesta task.
-
-## Pré-condições de validação (usuário)
-
-1. Rodar a view `rh_drill_eventos_view.sql` no backend (para o RH-01).
-2. Reiniciar a API `8070`.
-3. Abrir RH-01 a RH-06 e conferir coluna CC + série "Por Centro de Custo" no dropdown.
+Após reiniciar a API e recarregar `/rh/resumo-folha` com filtro `202606..202606`:
+- KPI "Salário Base" ≈ `R$ 1.711.444,89`.
+- Grid Filiais:
+  - Matriz → `R$ 1.076.641,56`
+  - 663 Via Maris → `R$ 166.935,93`
+  - 669 TESC → `R$ 105.257,97`
+  - 664 Bunge → `R$ 78.035,35`
+  - Soma da coluna = `R$ 1.711.444,89`.
+- Filiais com `salario_base = 0` → `R$ 0,00`.
+- Filiais com `salario_base = null` → `-`.
