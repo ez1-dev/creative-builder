@@ -6,7 +6,7 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell,
 } from "recharts";
 import {
-  Activity, AlertOctagon, Users, CalendarDays, Clock, TrendingDown, FileSpreadsheet, RefreshCw,
+  Activity, AlertOctagon, Users, CalendarDays, Clock, TrendingDown, FileSpreadsheet,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,8 +17,8 @@ import {
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { BotaoRelatorioModuloPdf } from "@/components/rh/BotaoRelatorioModuloPdf";
+import { RhFiltrosBar } from "@/components/rh/RhFiltrosBar";
 import { addMonths } from "@/lib/rh/relatorio";
-import { AnomesSelect } from "@/components/bi/comercial/AnomesSelect";
 import { AbsenteismoDrillModal } from "@/components/rh/AbsenteismoDrillModal";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import {
@@ -27,8 +27,6 @@ import {
 } from "@/lib/rh/api";
 import type { AbsenteismoDetalheItem } from "@/lib/rh/types";
 import { cn } from "@/lib/utils";
-
-const codemp = 1;
 
 const PIE_COLORS = [
   "hsl(var(--primary))",
@@ -69,12 +67,11 @@ function currentYearRange() {
 
 export default function AbsenteismoPage() {
   const initRange = currentYearRange();
-  const [iniDraft, setIniDraft] = useState(initRange.ini);
-  const [fimDraft, setFimDraft] = useState(initRange.fim);
   const [ini, setIni] = useState(initRange.ini);
   const [fim, setFim] = useState(initRange.fim);
+  const [codemp, setCodemp] = useState<number>(1);
 
-  const { data, isLoading, isFetching, error, refetch } = useQuery({
+  const { data, isLoading, isFetching, error } = useQuery({
     queryKey: ["rh", "absenteismo", ini, fim, codemp],
     queryFn: () =>
       fetchAbsenteismoDashboard({ anomes_ini: ini, anomes_fim: fim, codemp }),
@@ -114,12 +111,6 @@ export default function AbsenteismoPage() {
   const openDrill = (titulo: string, itens: AbsenteismoDetalheItem[]) =>
     setDrill({ titulo, itens });
 
-  const atualizar = () => {
-    setIni(iniDraft);
-    setFim(fimDraft);
-    refetch();
-  };
-
   const exportar = () => {
     const url = getAbsenteismoExportUrl({ anomes_ini: ini, anomes_fim: fim, codemp });
     const a = document.createElement("a");
@@ -139,9 +130,6 @@ export default function AbsenteismoPage() {
             <Button variant="outline" size="sm" onClick={exportar} disabled={isLoading}>
               <FileSpreadsheet className="h-4 w-4 mr-2" /> Exportar Excel
             </Button>
-            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
-              <RefreshCw className={cn("h-4 w-4 mr-2", isFetching && "animate-spin")} /> Atualizar
-            </Button>
             <BotaoRelatorioModuloPdf
               modulo="absenteismo"
               titulo="Absenteísmo / Afastamentos"
@@ -158,13 +146,16 @@ export default function AbsenteismoPage() {
         }
       />
 
-      <Card>
-        <CardContent className="pt-4 flex flex-wrap items-end gap-3">
-          <AnomesSelect label="Mês inicial" value={iniDraft} onChange={setIniDraft} className="w-52" />
-          <AnomesSelect label="Mês final" value={fimDraft} onChange={setFimDraft} className="w-52" />
-          <Button onClick={atualizar} disabled={isFetching}>Atualizar</Button>
-        </CardContent>
-      </Card>
+      <RhFiltrosBar
+        anomesIni={ini}
+        onAnomesIniChange={setIni}
+        anomesFim={fim}
+        onAnomesFimChange={setFim}
+        codemp={codemp}
+        onCodempChange={setCodemp}
+        disabled={isFetching}
+      />
+
 
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         <KpiCard

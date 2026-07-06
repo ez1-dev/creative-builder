@@ -9,10 +9,19 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { BotaoRelatorioModuloPdf } from "@/components/rh/BotaoRelatorioModuloPdf";
+import { RhFiltrosBar } from "@/components/rh/RhFiltrosBar";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import { fetchContratoExperienciaDashboard, exportarContratoExperienciaExcel } from "@/lib/rh/api";
+import { filtrarContratosPorPeriodo } from "@/lib/rh/filtros";
 import type { ContratoExperienciaVencimento } from "@/lib/rh/types";
 import { cn } from "@/lib/utils";
+
+function currentYearRange() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  return { ini: `${y}01`, fim: `${y}${m}` };
+}
 
 function formatDatePt(v?: string): string {
   if (!v) return "-";
@@ -40,11 +49,21 @@ function statusBadgeCls(status?: string): string {
 }
 
 export default function ContratoExperienciaPage() {
-  const codemp = 1;
-  const { data, isLoading, error } = useQuery({
+  const initRange = currentYearRange();
+  const [ini, setIni] = useState(initRange.ini);
+  const [fim, setFim] = useState(initRange.fim);
+  const [codemp, setCodemp] = useState<number>(1);
+
+  const { data: dataRaw, isLoading, isFetching, error } = useQuery({
     queryKey: ["rh", "contrato-experiencia", "dashboard", codemp],
     queryFn: () => fetchContratoExperienciaDashboard(codemp),
   });
+
+  // Filtra vencimentos por período (client-side)
+  const data = useMemo(
+    () => filtrarContratosPorPeriodo(dataRaw ?? null, ini, fim),
+    [dataRaw, ini, fim],
+  );
 
   useEffect(() => {
     if (!error) return;
@@ -85,7 +104,7 @@ export default function ContratoExperienciaPage() {
   }
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto py-6 space-y-4">
       <RhPageHeader
         title="03 — Contrato Experiência"
         actions={
@@ -103,12 +122,23 @@ export default function ContratoExperienciaPage() {
               titulo="Contratos de Experiência"
               disabled={isLoading}
               dados={data ? { tipo: "contratos-experiencia", atual: data } : null}
-              filtros={{ codemp }}
-              iaPayload={{ kpis: data?.kpis, vencimentos_amostra: data?.vencimentos?.slice(0, 15) }}
+              filtros={{ anomes_ini: ini, anomes_fim: fim, codemp }}
+              iaPayload={{ periodo: { anomes_ini: ini, anomes_fim: fim }, kpis: data?.kpis, vencimentos_amostra: data?.vencimentos?.slice(0, 15) }}
             />
           </>
         }
       />
+
+      <RhFiltrosBar
+        anomesIni={ini}
+        onAnomesIniChange={setIni}
+        anomesFim={fim}
+        onAnomesFimChange={setFim}
+        codemp={codemp}
+        onCodempChange={setCodemp}
+        disabled={isFetching}
+      />
+
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <KpiCard

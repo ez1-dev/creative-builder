@@ -6,15 +6,14 @@ import {
 } from "recharts";
 import { UserPlus, UserMinus, TrendingUp, Percent, Users, Activity } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import { BotaoRelatorioModuloPdf } from "@/components/rh/BotaoRelatorioModuloPdf";
+import { RhFiltrosBar } from "@/components/rh/RhFiltrosBar";
 import { addMonths } from "@/lib/rh/relatorio";
-import { AnomesSelect } from "@/components/bi/comercial/AnomesSelect";
 import { TurnoverDrillModal } from "@/components/rh/TurnoverDrillModal";
 import { TurnoverEmpresaDrillModal } from "@/components/rh/TurnoverEmpresaDrillModal";
 import { fetchTurnoverDashboard } from "@/lib/rh/api";
@@ -22,8 +21,6 @@ import type {
   TurnoverAdmitidoDetalhe, TurnoverDemitidoDetalhe,
 } from "@/lib/rh/types";
 import { cn } from "@/lib/utils";
-
-const codemp = 1;
 
 function formatAnoMes(anomes?: string | number | null) {
   if (!anomes) return "-";
@@ -52,12 +49,11 @@ function currentYearRange() {
 
 export default function TurnoverPage() {
   const initRange = currentYearRange();
-  const [iniDraft, setIniDraft] = useState(initRange.ini);
-  const [fimDraft, setFimDraft] = useState(initRange.fim);
   const [ini, setIni] = useState(initRange.ini);
   const [fim, setFim] = useState(initRange.fim);
+  const [codemp, setCodemp] = useState<number>(1);
 
-  const { data, isLoading, error, refetch, isFetching } = useQuery({
+  const { data, isLoading, error, isFetching } = useQuery({
     queryKey: ["rh", "turnover", ini, fim, codemp],
     queryFn: () => fetchTurnoverDashboard({ anomes_ini: ini, anomes_fim: fim, codemp }),
   });
@@ -107,8 +103,6 @@ export default function TurnoverPage() {
 
   const saldoNeg = (kpis?.saldo ?? 0) < 0;
 
-  const atualizar = () => { setIni(iniDraft); setFim(fimDraft); refetch(); };
-
   return (
     <div className="container mx-auto py-6 space-y-4">
       <RhPageHeader
@@ -129,13 +123,16 @@ export default function TurnoverPage() {
         }
       />
 
-      <Card>
-        <CardContent className="pt-4 flex flex-wrap items-end gap-3">
-          <AnomesSelect label="Mês inicial" value={iniDraft} onChange={setIniDraft} className="w-52" />
-          <AnomesSelect label="Mês final" value={fimDraft} onChange={setFimDraft} className="w-52" />
-          <Button onClick={atualizar} disabled={isFetching}>Atualizar</Button>
-        </CardContent>
-      </Card>
+      <RhFiltrosBar
+        anomesIni={ini}
+        onAnomesIniChange={setIni}
+        anomesFim={fim}
+        onAnomesFimChange={setFim}
+        codemp={codemp}
+        onCodempChange={setCodemp}
+        disabled={isFetching}
+      />
+
 
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         <KpiCard

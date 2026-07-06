@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AlertOctagon, AlarmClock, Clock, CalendarClock, Users, Palmtree, RefreshCw, Download, Loader2 } from "lucide-react";
+import { AlertOctagon, AlarmClock, Clock, CalendarClock, Users, Palmtree, Download, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,10 +9,18 @@ import { Button } from "@/components/ui/button";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { BotaoRelatorioModuloPdf } from "@/components/rh/BotaoRelatorioModuloPdf";
+import { RhFiltrosBar } from "@/components/rh/RhFiltrosBar";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import { ProgramacaoFeriasDrillModal, DrillMode } from "@/components/rh/ProgramacaoFeriasDrillModal";
 import { fetchProgramacaoFeriasDashboard, exportarProgramacaoFeriasExcel } from "@/lib/rh/api";
+import { filtrarFeriasPorPeriodo } from "@/lib/rh/filtros";
 import type { ProgramacaoFeriasDetalheItem, DeFeriasDetalheItem } from "@/lib/rh/types";
+
+function currentYearRange() {
+  const now = new Date();
+  const y = now.getFullYear();
+  return { ini: `${y}01`, fim: `${y + 1}12` };
+}
 
 const formatDateBR = (s?: string | null) => {
   if (!s) return "-";
@@ -43,11 +51,21 @@ interface DrillState {
 }
 
 export default function ProgramacaoFeriasPage() {
-  const codemp = 1;
-  const { data, isLoading, isFetching, error, refetch } = useQuery({
+  const initRange = currentYearRange();
+  const [ini, setIni] = useState(initRange.ini);
+  const [fim, setFim] = useState(initRange.fim);
+  const [codemp, setCodemp] = useState<number>(1);
+
+  const { data: dataRaw, isLoading, isFetching, error } = useQuery({
     queryKey: ["rh", "programacao-ferias", "dashboard", codemp],
     queryFn: () => fetchProgramacaoFeriasDashboard(codemp),
   });
+
+  // Filtra por período (client-side)
+  const data = useMemo(
+    () => filtrarFeriasPorPeriodo(dataRaw ?? null, ini, fim),
+    [dataRaw, ini, fim],
+  );
 
   const [drill, setDrill] = useState<DrillState | null>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -198,21 +216,28 @@ export default function ProgramacaoFeriasPage() {
               )}
               Exportar Excel
             </Button>
-            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
-              Atualizar
-            </Button>
             <BotaoRelatorioModuloPdf
               modulo="ferias"
               titulo="Programação de Férias"
               disabled={isLoading}
               dados={data ? { tipo: "ferias", atual: data } : null}
-              filtros={{ codemp }}
-              iaPayload={{ kpis: data?.kpis, limite_ferias_pivot: data?.limite_ferias_pivot, sem_programacao_amostra: data?.primeiro_vencimento_sem_programacao?.slice(0, 15) }}
+              filtros={{ anomes_ini: ini, anomes_fim: fim, codemp }}
+              iaPayload={{ periodo: { anomes_ini: ini, anomes_fim: fim }, kpis: data?.kpis, limite_ferias_pivot: data?.limite_ferias_pivot, sem_programacao_amostra: data?.primeiro_vencimento_sem_programacao?.slice(0, 15) }}
             />
           </div>
         }
       />
+
+      <RhFiltrosBar
+        anomesIni={ini}
+        onAnomesIniChange={setIni}
+        anomesFim={fim}
+        onAnomesFimChange={setFim}
+        codemp={codemp}
+        onCodempChange={setCodemp}
+        disabled={isFetching}
+      />
+
 
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         <div className="cursor-pointer" onClick={() => openByStatus("VENCIDA", "Férias Vencidas")}>
