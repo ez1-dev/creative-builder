@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -20,13 +20,37 @@ const MicrosoftLogo = forwardRef<SVGSVGElement, { className?: string }>(
 );
 MicrosoftLogo.displayName = 'MicrosoftLogo';
 
+// Aceita apenas caminhos relativos internos (evita open redirect).
+function sanitizeNext(next: string | null): string | null {
+  if (!next) return null;
+  if (!next.startsWith('/') || next.startsWith('//')) return null;
+  return next;
+}
+
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const next = sanitizeNext(params.get('next'));
 
   useEffect(() => {
-    if (isAuthenticated) navigate('/', { replace: true });
+    // Persiste destino pós-login (o fluxo Azure não propaga query string).
+    if (next) {
+      try { sessionStorage.setItem('post_login_next', next); } catch { /* ignore */ }
+    }
+  }, [next]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      let target = '/';
+      try {
+        const saved = sessionStorage.getItem('post_login_next');
+        if (saved && saved.startsWith('/') && !saved.startsWith('//')) target = saved;
+        sessionStorage.removeItem('post_login_next');
+      } catch { /* ignore */ }
+      navigate(target, { replace: true });
+    }
   }, [isAuthenticated, navigate]);
 
   const handleMicrosoftLogin = async () => {
@@ -43,6 +67,7 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[hsl(215,70%,22%)] to-[hsl(215,60%,35%)]">
