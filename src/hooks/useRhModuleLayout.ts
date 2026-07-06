@@ -177,7 +177,7 @@ export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabl
 
   const mergeConfig = (prev: any, item: RhSaveLayoutItem): Record<string, any> => {
     const cfg: Record<string, any> = { ...(prev ?? {}) };
-    cfg.hidden = Boolean(item.hidden);
+    if (item.hidden !== undefined) cfg.hidden = Boolean(item.hidden);
     const setOrDel = (k: keyof RhSaveLayoutItem, cfgKey: string) => {
       const v = item[k];
       if (v === undefined) return;
@@ -194,23 +194,35 @@ export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabl
 
   const runSave = useCallback(async (next: RhSaveLayoutItem[]) => {
     const id = await ensureDashboard();
+    const sanitizedNext = next.map((item) => ({ ...item, layout: clampLayout(item.layout) }));
+
+    const { data: existingRows, error: existingError } = await supabase
+      .from('dashboard_widgets')
+      .select('id, type, title, position, layout, config')
+      .eq('dashboard_id', id);
+    if (existingError) throw existingError;
+
+    const existingByType = new Map<string, any>(
+      (Array.isArray(existingRows) ? existingRows : []).map((row: any) => [row.type, row]),
+    );
 
     // Optimistic: aplica no estado local imediatamente.
     let optimisticNextConfigByType: Map<string, Record<string, any>> | null = null;
     setWidgets((prev) => {
       const byType = new Map(prev.map((w) => [w.type, w]));
       const configMap = new Map<string, Record<string, any>>();
-      next.forEach((item) => {
+      sanitizedNext.forEach((item) => {
         const cur = byType.get(item.type);
-        const nextConfig = mergeConfig(cur?._config, item);
+        const existing = existingByType.get(item.type);
+        const nextConfig = mergeConfig(existing?.config ?? cur?._config, item);
         configMap.set(item.type, nextConfig);
         byType.set(item.type, {
-          id: cur?.id ?? `tmp-${item.type}`,
+          id: existing?.id ?? cur?.id ?? `tmp-${item.type}`,
           type: item.type,
-          title: item.title ?? cur?.title ?? item.type,
-          position: typeof item.position === 'number' ? item.position : cur?.position ?? 99,
+          title: item.title ?? existing?.title ?? cur?.title ?? item.type,
+          position: typeof item.position === 'number' ? item.position : (typeof existing?.position === 'number' ? existing.position : cur?.position ?? 99),
           layout: item.layout,
-          hidden: Boolean(item.hidden),
+          hidden: item.hidden !== undefined ? Boolean(item.hidden) : Boolean(nextConfig.hidden ?? cur?.hidden),
           componentId: nextConfig.componentId,
           mapping: nextConfig.mapping,
           options: nextConfig.options,
@@ -230,15 +242,16 @@ export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabl
 
     const toUpdate: any[] = [];
     const toInsert: RhSaveLayoutItem[] = [];
-    for (const item of next) {
+    for (const item of sanitizedNext) {
       const cur = byType.get(item.type);
+      const existing = existingByType.get(item.type);
       const nextConfig = optimisticNextConfigByType?.get(item.type)
-        ?? mergeConfig(cur?._config, item);
-      if (cur?.id && isUuid(cur.id)) {
+        ?? mergeConfig(existing?.config ?? cur?._config, item);
+      if (existing?.id || (cur?.id && isUuid(cur.id))) {
         const payload: any = { layout: item.layout, config: nextConfig };
         if (typeof item.position === 'number') payload.position = item.position;
         if (typeof item.title === 'string' && item.title) payload.title = item.title;
-        toUpdate.push({ id: cur.id, payload });
+        toUpdate.push({ id: existing?.id ?? cur!.id, payload });
       } else {
         toInsert.push(item);
       }
@@ -298,8 +311,8 @@ export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabl
 
   const saveLayout = useCallback(async (next: RhSaveLayoutItem[]) => {
     if (savingRef.current) {
-      // Coalesca: guarda o mais recente pedido.
-      pendingRef.current = next;
+      // Coalesça sem perder campos: geometria, título e config podem chegar em eventos distintos.
+      pendingRef.current = mergeSaveBatches(pendingRef.current, next);
       return;
     }
     savingRef.current = true;
