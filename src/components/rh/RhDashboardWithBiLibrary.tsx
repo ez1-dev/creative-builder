@@ -7,6 +7,7 @@ import { RhDashboardGrid } from './RhDashboardGrid';
 import { ConfigureRhWidgetDialog } from './ConfigureRhWidgetDialog';
 import { AddRhBiWidgetDialog } from './AddRhBiWidgetDialog';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
+import { UserWidgetsSlot } from '@/components/bi';
 import type { RhWidget } from '@/hooks/useRhModuleLayout';
 import type { RhWidgetDef } from '@/lib/rh/widgetCatalogs';
 import { rhSeriesToOptions, rhSeriesToRecord, type RhSerie } from '@/lib/rh/seriesAdapter';
@@ -81,6 +82,14 @@ export function RhDashboardWithBiLibrary({
           onConfigure={(type) => setConfigTarget(layout.widgets.find((w) => w.type === type) ?? null)}
           onDelete={layout.deleteWidget}
         />
+
+        {/* Widgets aplicados pelo usuário via /biblioteca-bi (persistidos em bi_user_widgets) */}
+        <div className="mt-4 space-y-4">
+          <UserWidgetsSlot section="kpis" cols={4} emptyHint={false} />
+          <UserWidgetsSlot section="charts" cols={3} emptyHint={false} />
+          <UserWidgetsSlot section="tables" cols={2} emptyHint={false} />
+        </div>
+
 
         <ConfigureRhWidgetDialog
           open={!!configTarget}
