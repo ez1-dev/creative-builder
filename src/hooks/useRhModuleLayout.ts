@@ -338,8 +338,38 @@ export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabl
     await load({ silent: true });
   }, [dashboardId, load]);
 
+  const addWidget = useCallback(async (payload: {
+    componentId: string;
+    title: string;
+    mapping?: Record<string, string>;
+    options?: Record<string, any>;
+  }) => {
+    const type = `custom-${Date.now()}`;
+    const maxY = widgetsRef.current.reduce((acc, w) => Math.max(acc, (w.layout?.y ?? 0) + (w.layout?.h ?? 0)), 0);
+    await saveLayout([{
+      type,
+      title: payload.title,
+      layout: { x: 0, y: maxY, w: 6, h: 6 },
+      hidden: false,
+      position: widgetsRef.current.length,
+      componentId: payload.componentId,
+      mapping: payload.mapping ?? {},
+      options: payload.options ?? {},
+    }]);
+  }, [saveLayout]);
+
+  const deleteWidget = useCallback(async (type: string) => {
+    const cur = widgetsRef.current.find((w) => w.type === type);
+    if (!cur || !cur.id || String(cur.id).startsWith('tmp-')) return;
+    const { error } = await supabase.from('dashboard_widgets').delete().eq('id', cur.id);
+    if (error) throw error;
+    setWidgets((prev) => prev.filter((w) => w.type !== type));
+  }, []);
+
   return {
     widgets, loading, layoutReady, editing, setEditing,
-    saveLayout, saveGeometries, hideWidget, showWidget, configureWidget, resetLayout, reload: load,
+    saveLayout, saveGeometries, hideWidget, showWidget, configureWidget,
+    addWidget, deleteWidget, resetLayout, reload: load,
   };
 }
+
