@@ -11,7 +11,8 @@ export type RhAiModulo =
   | "quadro-colaboradores"
   | "contratos-experiencia"
   | "ferias"
-  | "turnover";
+  | "turnover"
+  | "absenteismo";
 
 interface Insights {
   diagnostico: string[];

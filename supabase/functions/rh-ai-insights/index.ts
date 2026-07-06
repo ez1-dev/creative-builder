@@ -11,7 +11,8 @@ type Modulo =
   | "quadro-colaboradores"
   | "contratos-experiencia"
   | "ferias"
-  | "turnover";
+  | "turnover"
+  | "absenteismo";
 
 const TITULOS: Record<Modulo, string> = {
   "resumo-folha": "Resumo de Folha de Pagamento",
@@ -19,6 +20,7 @@ const TITULOS: Record<Modulo, string> = {
   "contratos-experiencia": "Contratos de Experiência",
   "ferias": "Programação de Férias",
   "turnover": "Rotatividade / Turnover",
+  "absenteismo": "Absenteísmo / Afastamentos",
 };
 
 const FOCO: Record<Modulo, string> = {
@@ -32,6 +34,8 @@ const FOCO: Record<Modulo, string> = {
     "Analise saldo de férias vencidas, a vencer (30/60/90 dias), colaboradores de férias no momento e limite por ano/mês. Foque em risco jurídico (dobra) e planejamento.",
   "turnover":
     "Analise taxa de rotatividade, admissões vs demissões, saldo, motivos de desligamento e empresas com maior movimentação. Identifique tendências de alta/queda e causas dominantes.",
+  "absenteismo":
+    "Analise taxa de absenteísmo, tendência mensal (afastamentos e dias), categorias e motivos dominantes, empresas mais afetadas e duração média. Foque em riscos de saúde ocupacional, acidentes, atestados recorrentes e impacto operacional.",
 };
 
 const SYSTEM_BASE = `Você é um analista sênior de RH que gera insights executivos em PT-BR.
