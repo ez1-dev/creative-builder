@@ -90,8 +90,7 @@ export function PieChartCard({
     const RADIAN = Math.PI / 180;
     const rPx = Math.min(cw, ch) * 0.34;
 
-    const RADIAN = Math.PI / 180;
-    const rPx = Math.min(cw, ch) * 0.29;
+
 
     // Geometria das fatias.
     let startAngle = 90;
