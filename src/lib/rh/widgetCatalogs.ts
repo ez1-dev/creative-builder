@@ -47,21 +47,33 @@ export const RESUMO_FOLHA_CATALOG: Record<string, RhWidgetDef> = {
 
 // ============ QUADRO COLABORADORES ============
 export const QUADRO_DEFAULTS: RhWidget[] = [
-  { id: 'kpis-quadro',   type: 'kpis-quadro',   title: 'KPIs — Quadro',        position: 0, layout: { x: 0, y: 0,  w: 12, h: 6 } },
-  { id: 'por-cargo',     type: 'por-cargo',     title: 'Distribuição — Cargo',  position: 1, layout: { x: 0, y: 6,  w: 6,  h: 8 } },
-  { id: 'por-setor',     type: 'por-setor',     title: 'Distribuição — Setor',  position: 2, layout: { x: 6, y: 6,  w: 6,  h: 8 } },
-  { id: 'por-filial',    type: 'por-filial',    title: 'Distribuição — Filial', position: 3, layout: { x: 0, y: 14, w: 6,  h: 8 } },
-  { id: 'por-genero',    type: 'por-genero',    title: 'Gênero',                position: 4, layout: { x: 6, y: 14, w: 6,  h: 8 } },
-  { id: 'tabela-quadro', type: 'tabela-quadro', title: 'Colaboradores',         position: 5, layout: { x: 0, y: 22, w: 12, h: 10 } },
+  { id: 'kpis-quadro',    type: 'kpis-quadro',    title: 'KPIs — Quadro',      position: 0, layout: { x: 0, y: 0,  w: 12, h: 6 } },
+  { id: 'historico',      type: 'historico',      title: 'Histórico Nº Colaboradores', position: 1, layout: { x: 0, y: 6,  w: 12, h: 8 } },
+  { id: 'breakdown-sex',  type: 'breakdown-sex',  title: 'Sexo',               position: 2, layout: { x: 0, y: 14, w: 4,  h: 8 } },
+  { id: 'breakdown-sit',  type: 'breakdown-sit',  title: 'Situação',           position: 3, layout: { x: 4, y: 14, w: 4,  h: 8 } },
+  { id: 'breakdown-vin',  type: 'breakdown-vin',  title: 'Vínculo',            position: 4, layout: { x: 8, y: 14, w: 4,  h: 8 } },
+  { id: 'breakdown-esc',  type: 'breakdown-esc',  title: 'Escolaridade',       position: 5, layout: { x: 0, y: 22, w: 6,  h: 8 } },
+  { id: 'breakdown-fx',   type: 'breakdown-fx',   title: 'Faixa etária',       position: 6, layout: { x: 6, y: 22, w: 6,  h: 8 } },
+  { id: 'faixa-sexo',     type: 'faixa-sexo',     title: 'Faixa Etária × Sexo', position: 7, layout: { x: 0, y: 30, w: 12, h: 8 } },
+  { id: 'tempo-sexo',     type: 'tempo-sexo',     title: 'Tempo de Casa × Sexo', position: 8, layout: { x: 0, y: 38, w: 12, h: 8 } },
+  { id: 'tempo-filial',   type: 'tempo-filial',   title: 'Tempo casa + Filial', position: 9, layout: { x: 0, y: 46, w: 12, h: 10 } },
+  { id: 'empresa-grid',   type: 'empresa-grid',   title: 'Empresa',            position: 10, layout: { x: 0, y: 56, w: 12, h: 10 } },
+  { id: 'drill-card',     type: 'drill-card',     title: 'Drill dimensões',    position: 11, layout: { x: 0, y: 66, w: 12, h: 10 } },
 ];
 
 export const QUADRO_CATALOG: Record<string, RhWidgetDef> = {
-  'kpis-quadro':   { type: 'kpis-quadro',   title: 'KPIs — Quadro',        kind: 'compound' },
-  'por-cargo':     { type: 'por-cargo',     title: 'Distribuição — Cargo', kind: 'chart', libraryComponentIds: LIB_CHART_IDS },
-  'por-setor':     { type: 'por-setor',     title: 'Distribuição — Setor', kind: 'chart', libraryComponentIds: LIB_CHART_IDS },
-  'por-filial':    { type: 'por-filial',    title: 'Distribuição — Filial',kind: 'chart', libraryComponentIds: LIB_CHART_IDS },
-  'por-genero':    { type: 'por-genero',    title: 'Gênero',               kind: 'chart', libraryComponentIds: LIB_CHART_IDS },
-  'tabela-quadro': { type: 'tabela-quadro', title: 'Colaboradores',        kind: 'table', libraryComponentIds: LIB_TABLE_IDS },
+  'kpis-quadro':   { type: 'kpis-quadro',   title: 'KPIs — Quadro',      kind: 'compound' },
+  'historico':     { type: 'historico',     title: 'Histórico',          kind: 'chart', libraryComponentIds: LIB_CHART_IDS },
+  'breakdown-sex': { type: 'breakdown-sex', title: 'Sexo',               kind: 'chart', libraryComponentIds: LIB_CHART_IDS },
+  'breakdown-sit': { type: 'breakdown-sit', title: 'Situação',           kind: 'chart', libraryComponentIds: LIB_CHART_IDS },
+  'breakdown-vin': { type: 'breakdown-vin', title: 'Vínculo',            kind: 'chart', libraryComponentIds: LIB_CHART_IDS },
+  'breakdown-esc': { type: 'breakdown-esc', title: 'Escolaridade',       kind: 'chart', libraryComponentIds: LIB_CHART_IDS },
+  'breakdown-fx':  { type: 'breakdown-fx',  title: 'Faixa etária',       kind: 'chart', libraryComponentIds: LIB_CHART_IDS },
+  'faixa-sexo':    { type: 'faixa-sexo',    title: 'Faixa Etária × Sexo', kind: 'chart', libraryComponentIds: LIB_CHART_IDS },
+  'tempo-sexo':    { type: 'tempo-sexo',    title: 'Tempo de Casa × Sexo', kind: 'chart', libraryComponentIds: LIB_CHART_IDS },
+  'tempo-filial':  { type: 'tempo-filial',  title: 'Tempo casa + Filial', kind: 'compound' },
+  'empresa-grid':  { type: 'empresa-grid',  title: 'Empresa',            kind: 'table', libraryComponentIds: LIB_TABLE_IDS },
+  'drill-card':    { type: 'drill-card',    title: 'Drill dimensões',    kind: 'compound' },
 };
 
 // ============ CONTRATOS EXPERIÊNCIA ============
