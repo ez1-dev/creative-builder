@@ -34,6 +34,32 @@ const MIN_W = 3;
 const MIN_H = 2;
 const MAX_W = 12;
 
+const clampGridItem = (item: LayoutItem): LayoutItem => {
+  const w = Math.max(MIN_W, Math.min(MAX_W, Math.round(Number(item.w) || MIN_W)));
+  const h = Math.max(MIN_H, Math.round(Number(item.h) || MIN_H));
+  const x = Math.max(0, Math.min(MAX_W - w, Math.round(Number(item.x) || 0)));
+  const y = Math.max(0, Math.round(Number(item.y) || 0));
+  return { ...item, x, y, w, h, minW: MIN_W, minH: MIN_H };
+};
+
+const collides = (a: LayoutItem, b: LayoutItem) =>
+  a.i !== b.i && a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+
+const normalizeGridItems = (items: LayoutItem[]): LayoutItem[] => {
+  const placed: LayoutItem[] = [];
+  items.forEach((raw) => {
+    let item = clampGridItem(raw);
+    let guard = 0;
+    while (placed.some((p) => collides(item, p)) && guard < 200) {
+      const bottom = placed.reduce((acc, p) => (collides(item, p) ? Math.max(acc, p.y + p.h) : acc), item.y + 1);
+      item = { ...item, y: bottom };
+      guard += 1;
+    }
+    placed.push(item);
+  });
+  return placed;
+};
+
 export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, onHide, onConfigure, configurableTypes, onDelete, moveTargets, onMoveToBlock, density = 'default' }: Props) {
   const gridMargin: [number, number] = density === 'compact' ? [12, 12] : [16, 16];
   const gridRowHeight = density === 'compact' ? 44 : 60;
@@ -104,10 +130,10 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
 
   const layoutItems: LayoutItem[] = useMemo(
     () =>
-      orderedWidgets.map((w) => {
+      normalizeGridItems(orderedWidgets.map((w) => {
         const cur = localLayout[w.type] ?? w.layout;
         return { i: w.type, x: cur.x, y: cur.y, w: cur.w, h: cur.h, minW: MIN_W, minH: MIN_H };
-      }),
+      })),
     [orderedWidgets, localLayout],
   );
 
