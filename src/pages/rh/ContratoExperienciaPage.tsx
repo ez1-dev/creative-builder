@@ -262,6 +262,7 @@ export default function ContratoExperienciaPage() {
       />
 
       <RhDashboardGrid
+            loading={!layout.layoutReady}
         widgets={layout.widgets}
         blocks={blocks}
         editing={layout.editing}
