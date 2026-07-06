@@ -1,34 +1,16 @@
-## Problema
+## Objetivo
+No dashboard `/frota`, quando o filtro **Categoria** estiver sem nenhuma opção marcada, o dashboard deve ficar vazio (sem KPIs, gráficos ou tabelas), em vez de exibir todas as categorias.
 
-O dashboard `/frota` está mostrando apenas maio e junho porque a query no `ManutencaoFrotaPage.load()` usa `supabase.from('manutencao_frota').select('*')` sem paginação. O PostgREST/Supabase retorna no máximo **1000 linhas** por padrão.
+## Mudanças
 
-Hoje existem **3.653 registros** na tabela (751 combustível + 246 manutenção + 2.656 pedágio). Como o `order('data', desc)` traz os mais recentes primeiro, apenas junho + maio cabem nas 1000 linhas — os meses anteriores são cortados. Isso não é bug de importação: os dados de dez/2025 a abr/2026 existem no banco.
+**Arquivo:** `src/components/frota/FrotaDashboard.tsx`
 
-## Correção
+1. Detectar estado "nenhuma categoria selecionada" no filtro de categoria.
+2. Quando esse estado ocorrer:
+   - Pular o processamento/filtragem dos dados (retornar dataset vazio).
+   - Renderizar um placeholder discreto no lugar do grid de gráficos/KPIs, ex.: texto centralizado "Selecione ao menos uma categoria para visualizar os dados."
+3. Demais filtros (Segmento, período, etc.) continuam funcionando normalmente; a barra de filtros permanece visível para o usuário voltar a selecionar.
 
-Em `src/pages/ManutencaoFrotaPage.tsx`, buscar todos os registros em páginas de 1000 usando `.range()` até esgotar, e só então setar `data`.
-
-```ts
-const load = async () => {
-  setLoading(true);
-  const PAGE = 1000;
-  let from = 0;
-  const acc: ManutencaoFrota[] = [];
-  while (true) {
-    const { data: rows, error } = await supabase
-      .from('manutencao_frota')
-      .select('*')
-      .order('data', { ascending: false })
-      .range(from, from + PAGE - 1);
-    if (error) { toast({ title: 'Erro ao carregar', description: error.message, variant: 'destructive' }); break; }
-    if (!rows?.length) break;
-    acc.push(...(rows as ManutencaoFrota[]));
-    if (rows.length < PAGE) break;
-    from += PAGE;
-  }
-  setData(acc);
-  setLoading(false);
-};
-```
-
-Sem mudanças em UI, filtros, importação ou schema.
+## Fora de escopo
+- Nenhuma alteração em lógica de negócio, importação, schema ou outras páginas.
+- Comportamento dos outros filtros permanece o mesmo (vazio = todos).
