@@ -912,6 +912,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
         rows={crossFiltered}
       >
         <PassagensLayoutGrid
+          density="compact"
           widgets={effectiveWidgets as any}
           editing={editingLayout}
           onLayoutChange={setPendingLayout}

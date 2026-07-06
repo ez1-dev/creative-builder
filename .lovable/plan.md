@@ -1,18 +1,8 @@
-Plano:
+## Reduzir espaçamento entre gráficos em /frota
 
-1. Ajustar o layout dos gráficos de rosca na página de Frota para que cada cartão ocupe uma linha inteira, em vez de ficarem lado a lado.
-2. Aplicar o mesmo padrão nos dashboards relacionados que usam esses cards de rosca, se estiverem compartilhando o mesmo grid visual.
-3. Manter o conteúdo atual do card: título, gráfico, legenda lateral, valores, percentuais e ações.
-4. Não alterar dados, filtros, regras de cálculo ou integrações — somente o posicionamento visual.
+Passar `density="compact"` para o `PassagensLayoutGrid` do `FrotaDashboard`, que já suporta essa prop (reduz `margin` de `[16,16]` para `[12,12]` e `rowHeight` de `60` para `44`).
 
-Resultado esperado:
+### Alteração
+- `src/components/frota/FrotaDashboard.tsx` (linha ~914): adicionar `density="compact"` no `<PassagensLayoutGrid ...>`.
 
-```text
-Por Segmento
-[ gráfico + legenda em um card largo ]
-
-Por Tipo de Veículo
-[ gráfico + legenda em um card largo ]
-```
-
-Em telas menores, o comportamento continuará empilhado naturalmente.
+Nenhuma mudança em dados, filtros ou lógica — apenas espaçamento visual do grid.
