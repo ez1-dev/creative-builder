@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { sincronizarRh } from "@/lib/rh/api";
+import { invalidateHistoricoCache } from "@/lib/rh/quadroDashboardApi";
 import { RefreshCw, Loader2 } from "lucide-react";
 
 function monthToAnomes(v: string) {
@@ -45,6 +46,7 @@ export function SincronizarRhDialog({ variant = "outline" }: { variant?: "outlin
     });
     try {
       await sincronizarRh({ anomes_ini, anomes_fim, codemp: Number(codemp) || 1 });
+      await invalidateHistoricoCache();
       toast.success("RH sincronizado com sucesso", {
         id: toastId,
         description: `${anomes_ini} → ${anomes_fim}`,

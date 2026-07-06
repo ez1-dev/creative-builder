@@ -1,4 +1,5 @@
 import { api, getApiUrl } from "@/lib/api";
+import { supabase } from "@/integrations/supabase/client";
 
 export type QuadroBreakdown = { label: string; valor: number }[];
 
@@ -439,6 +440,65 @@ export async function fetchQuadroHistorico(
   }));
   list.sort((a, b) => a.anomes.localeCompare(b.anomes));
   return list;
+}
+
+/**
+ * Wrapper com cache persistente em `dashboard_cache` (Lovable Cloud).
+ * Hit: retorno < 100 ms. Miss: busca no FastAPI e grava no cache (TTL 6h).
+ * O cache pode ser invalidado explicitamente via `invalidateHistoricoCache()`
+ * (chamado após "Sincronizar RH").
+ */
+const HISTORICO_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6h
+const HISTORICO_CACHE_PREFIX = "rh:quadro:historico:";
+
+export async function fetchQuadroHistoricoCached(
+  anomesIni: string,
+  anomesFim: string,
+): Promise<QuadroHistoricoItem[]> {
+  const cacheKey = `${HISTORICO_CACHE_PREFIX}${anomesIni}:${anomesFim}`;
+  try {
+    const { data: cached } = await supabase
+      .from("dashboard_cache")
+      .select("payload, valid_until")
+      .eq("cache_key", cacheKey)
+      .gt("valid_until", new Date().toISOString())
+      .maybeSingle();
+    if (cached?.payload && Array.isArray((cached.payload as any).items)) {
+      return (cached.payload as any).items as QuadroHistoricoItem[];
+    }
+  } catch {
+    // ignora erro de leitura de cache — segue direto para a API
+  }
+
+  const items = await fetchQuadroHistorico(anomesIni, anomesFim);
+
+  try {
+    const validUntil = new Date(Date.now() + HISTORICO_CACHE_TTL_MS).toISOString();
+    await supabase.from("dashboard_cache").upsert(
+      {
+        cache_key: cacheKey,
+        payload: { items } as any,
+        filtros_hash: `${anomesIni}:${anomesFim}`,
+        valid_until: validUntil,
+      },
+      { onConflict: "cache_key" },
+    );
+  } catch {
+    // cache é best-effort — não falhar a resposta se o write der erro
+  }
+
+  return items;
+}
+
+export async function invalidateHistoricoCache(): Promise<void> {
+  try {
+    await supabase
+      .from("dashboard_cache")
+      .delete()
+      .like("cache_key", `${HISTORICO_CACHE_PREFIX}%`);
+  } catch {
+    // best-effort
+  }
 }
 
 export class ExportQuadroIndisponivelError extends Error {

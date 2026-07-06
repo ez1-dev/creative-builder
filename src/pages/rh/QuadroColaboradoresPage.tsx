@@ -29,7 +29,8 @@ import { cn } from "@/lib/utils";
 
 import {
   fetchQuadroDashboard,
-  fetchQuadroHistorico,
+  fetchQuadroHistoricoCached,
+  invalidateHistoricoCache,
   exportQuadroDashboard,
   ExportQuadroIndisponivelError,
   type QuadroBreakdown,
@@ -200,8 +201,12 @@ export default function QuadroColaboradoresPage() {
   });
   const histQ = useQuery({
     queryKey: ["rh", "quadro-historico", anomesIni, anomesFim],
-    queryFn: () => fetchQuadroHistorico(anomesIni, anomesFim),
+    queryFn: () => fetchQuadroHistoricoCached(anomesIni, anomesFim),
     enabled: /^\d{6}$/.test(anomesIni) && /^\d{6}$/.test(anomesFim),
+    staleTime: 15 * 60_000,
+    gcTime: 60 * 60_000,
+    refetchOnWindowFocus: false,
+    placeholderData: (prev) => prev,
   });
   const listaQ = useQuery({
     queryKey: ["rh", "quadro-lista"],
