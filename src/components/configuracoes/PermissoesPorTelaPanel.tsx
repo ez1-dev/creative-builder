@@ -44,7 +44,7 @@ interface Props {
 type ModuleKey =
   | 'producao' | 'compras' | 'estoque' | 'financeiro'
   | 'faturamento' | 'bi' | 'cadastros' | 'regras_senior'
-  | 'relatorios' | 'operacional' | 'administracao' | 'outras';
+  | 'relatorios' | 'rh' | 'operacional' | 'administracao' | 'outras';
 
 const MODULE_LABEL: Record<ModuleKey, string> = {
   producao: 'Produção',
@@ -56,6 +56,7 @@ const MODULE_LABEL: Record<ModuleKey, string> = {
   cadastros: 'Cadastros',
   regras_senior: 'Regras Senior',
   relatorios: 'Relatórios',
+  rh: 'RH',
   operacional: 'Operacional',
   administracao: 'Administração',
   outras: 'Outras',
@@ -64,11 +65,12 @@ const MODULE_LABEL: Record<ModuleKey, string> = {
 const MODULE_ORDER: ModuleKey[] = [
   'producao', 'compras', 'estoque', 'financeiro',
   'faturamento', 'bi', 'cadastros', 'regras_senior',
-  'relatorios', 'operacional', 'administracao', 'outras',
+  'relatorios', 'rh', 'operacional', 'administracao', 'outras',
 ];
 
 function getModule(path: string): ModuleKey {
   if (path.startsWith('/producao')) return 'producao';
+  if (path.startsWith('/rh')) return 'rh';
   if (path.startsWith('/bi/') || path === '/etl') return 'bi';
   if (path.startsWith('/cadastros')) return 'cadastros';
   if (path.startsWith('/regras-senior')) return 'regras_senior';
