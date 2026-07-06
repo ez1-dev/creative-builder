@@ -69,14 +69,14 @@ export const TIPO_DESPESA_OPTIONS = [
   'Outros',
 ];
 
-type GroupBy = 'centro_custo' | 'projeto_obra' | 'colaborador' | 'motivo_viagem' | 'cia_aerea' | 'tipo_despesa' | 'cidade_destino' | 'uf_destino';
+type GroupBy = 'centro_custo' | 'projeto_obra' | 'colaborador' | 'motivo_viagem' | 'produto' | 'tipo_despesa' | 'cidade_destino' | 'uf_destino';
 
 const GROUP_OPTIONS: { value: GroupBy; label: string; empty: string }[] = [
   { value: 'centro_custo', label: 'Centro de Custo', empty: 'Sem CC' },
   { value: 'projeto_obra', label: 'Projeto/Obra', empty: 'Sem projeto' },
   { value: 'colaborador', label: 'Colaborador', empty: 'Sem colaborador' },
   { value: 'motivo_viagem', label: 'Motivo da Viagem', empty: 'Não informado' },
-  { value: 'cia_aerea', label: 'Cia Aérea', empty: 'Não informada' },
+  { value: 'produto', label: 'Produto', empty: 'Sem produto' },
   { value: 'tipo_despesa', label: 'Tipo de Despesa', empty: 'Não informado' },
   { value: 'cidade_destino', label: 'Cidade de Destino', empty: 'Sem cidade' },
   { value: 'uf_destino', label: 'Estado (UF)', empty: 'Sem UF' },
