@@ -20,6 +20,7 @@ import {
   BrazilMapCard,
   BrazilStateMapWidget,
 } from '@/components/bi';
+import { DonutSideLegendCard } from '@/components/bi/charts/DonutSideLegendCard';
 import { BrazilHeatMap } from '@/components/bi/maps/BrazilHeatMap';
 import { BrazilHeatMapWidget } from '@/components/bi/comercial/BrazilHeatMapWidget';
 import { FaturamentoRealizadoMetaCard } from '@/components/bi/kpis/FaturamentoRealizadoMetaCard';
