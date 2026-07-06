@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fetchMenuRh } from "@/lib/rh/api";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
-import { Users, FileText, Calendar, Briefcase, Wallet, FileCheck, TrendingUp, Activity } from "lucide-react";
+import { Users, FileText, Calendar, Briefcase, Wallet, FileCheck, TrendingUp, Activity, Sparkles } from "lucide-react";
 
 const FALLBACK = [
   { codigo: "01", titulo: "Resumo Folha", rota: "/rh/resumo-folha", icon: Wallet },
@@ -12,6 +12,7 @@ const FALLBACK = [
   { codigo: "04", titulo: "Programação de Férias", rota: "/rh/programacao-ferias", icon: Calendar },
   { codigo: "05", titulo: "Rotatividade / Turnover", rota: "/rh/turnover", icon: TrendingUp },
   { codigo: "06", titulo: "Absenteísmo / Afastamentos", rota: "/rh/absenteismo", icon: Activity },
+  { codigo: "97", titulo: "Relatório Gerencial (PDF + IA)", rota: "/rh/relatorio-gerencial", icon: Sparkles, descricao: "Consolida os 6 módulos em um PDF executivo com análise de IA e alertas priorizados." },
   { codigo: "99", titulo: "Formulários", rota: "/rh/formularios", icon: FileText },
 ];
 
@@ -22,6 +23,7 @@ const ROTA_POR_CODIGO: Record<string, string> = {
   "04": "/rh/programacao-ferias",
   "05": "/rh/turnover",
   "06": "/rh/absenteismo",
+  "97": "/rh/relatorio-gerencial",
   "99": "/rh/formularios",
 };
 
