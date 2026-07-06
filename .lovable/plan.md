@@ -1,48 +1,30 @@
-# Plano — Atualização Passagens Aéreas (pedido do César)
+## Problema
 
-## O que muda
+Ao clicar nos KPIs **"Admitidos no mês"** e **"Demitidos no mês"** em `/rh/quadro-colaboradores`, nada acontece — inclusive quando a data de referência é retroativa (meses anteriores).
 
-### 1. Novo campo: **Produto**
-A planilha nova traz a coluna `produto` (ex.: AÉREO). Hoje essa coluna não existe no cadastro. Vamos:
+**Causa raiz:** em `src/lib/rh/quadroDrillPredicates.ts`, a função `filterDetalheByKpi` não trata as chaves `admitidos_mes` nem `demitidos_mes`. Ela cai no `default: null`, e em `QuadroColaboradoresPage.onKpiClick` o retorno `null` interrompe a abertura do modal — resultado: card sem drill em qualquer data (atual ou retroativa).
 
-- Adicionar coluna `produto TEXT` na tabela `passagens_aereas` (backend/DB).
-- Incluir `produto` no formulário de cadastro manual e no importador de planilha (mapear coluna `produto`).
-- Incluir `produto` como filtro/dimensão disponível no dashboard.
+## Solução
 
-### 2. Novo gráfico "Por Produto" (valor + %)
-Card no dashboard, mesmo estilo do gráfico de referência que você mandou:
-- Barras horizontais ordenadas por valor decrescente.
-- Cada linha mostra **R$ valor** e **% do total** ao lado do rótulo.
-- Total geral no topo do card.
-- Já entra no layout padrão e pode ser mostrado/escondido pelo usuário.
+Adicionar suporte a esses dois KPIs, filtrando o `detalhe` da API pelo `anomes` da data de referência selecionada:
 
-### 3. Campos ocultados no dashboard e na tabela
-Deixar de exibir (permanecem no cadastro e importação, só somem da visualização):
-- Fornecedor
-- Cia aérea
-- Número do bilhete
-- Localizador
-- Data de ida
-- Data de volta
+- **Admitidos no mês** → colaboradores cujo `dt_admissao` cai no mês/ano de `data_ref`.
+- **Demitidos no mês** → colaboradores cujo `dt_demissao` (ou `dt_rescisao` / `data_demissao` — o que a API devolver) cai no mês/ano de `data_ref`.
 
-### 4. Campos que continuam sendo destaque
-Dashboard e tabela principal passam a mostrar apenas:
-`Data Registro · Produto · Colaborador · Centro de Custo · Origem · Destino · Motivo da viagem · Valor`
+### Alterações
 
-Filtros, rankings, gráficos e exportações (CSV/XLSX/PPTX/PDF) são realinhados a essa lista.
+1. **`src/lib/rh/quadroDrillPredicates.ts`**
+   - Estender `filterDetalheByKpi` para aceitar um parâmetro opcional `anomesRef: string` (formato `yyyyMM`).
+   - Novos `case "admitidos_mes"` e `case "demitidos_mes"`: filtram `detalhe` comparando o mês/ano das datas de admissão/demissão contra `anomesRef`.
+   - Aceitar variações de nome do campo demissão (`dt_demissao`, `dt_rescisao`, `data_demissao`) via acesso `x[key]` para tolerar o payload do backend.
+   - Helper `parseAnomes(dataStr)` que aceita ISO (`YYYY-MM-DD`), BR (`DD/MM/YYYY`) e devolve `yyyyMM`.
 
-## Detalhes técnicos (referência)
+2. **`src/pages/rh/QuadroColaboradoresPage.tsx`**
+   - Em `onKpiClick`, passar `toAnomes(dataRef)` (já existe helper equivalente para `dataRefIso`) para `filterDetalheByKpi`.
+   - Nenhuma outra alteração de layout/UI.
 
-- **DB (migration)**: `ALTER TABLE passagens_aereas ADD COLUMN produto TEXT;` + índice em `produto`. Sem mudança de RLS/GRANTs.
-- **Import**: `src/components/passagens/ImportarPassagensDialog.tsx` — mapear nova coluna, manter compatibilidade com planilhas antigas (produto opcional).
-- **Cadastro manual**: `src/pages/PassagensAereasPage.tsx` — adicionar input Produto (livre, com autocomplete dos valores já existentes).
-- **Dashboard**: `src/components/passagens/PassagensDashboard.tsx` e catálogo de séries `seriesSelectGroups.tsx` — nova série "Por Produto" (bar h + %), remover Fornecedor/Cia/Bilhete/Localizador/Datas ida-volta das opções visuais padrão.
-- **Tabela**: colunas visíveis reduzidas à lista aprovada; colunas ocultas continuam exportáveis se marcadas (mas removidas do preset default).
-- **Relatório executivo** (`RelatorioExecutivoPassagensPage.tsx`): trocar ranking "Top Cias" por "Top Produtos"; remover blocos que dependiam dos campos ocultos.
-- **Link compartilhado**: herda automaticamente o novo layout.
+### Observações
 
-## Fora do escopo
-- Não altero regras de permissão, compartilhamento ou importação de outros módulos.
-- Cadastros históricos ficam com `produto = NULL` até serem reimportados/editados (aparecem como "—" no gráfico).
-
-Confirma que posso seguir?
+- Se a API não entregar data de demissão dentro de `detalhe`, o filtro resultante ficará vazio; nesse caso o toast atual "Sem colaboradores para este recorte." já cobre o feedback (não é regressão, é reflexo do payload).
+- Datas retroativas já são recarregadas pelo `useQuery` a cada mudança de `data_ref`; nenhum ajuste de cache é necessário.
+- Escopo estritamente frontend/apresentação, sem tocar em backend, RLS ou tipos gerados.
