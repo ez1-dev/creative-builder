@@ -125,12 +125,21 @@ export default function AbsenteismoPage() {
     a.remove();
   };
 
+  const layout = useRhModuleLayout("rh-absenteismo", ABSENTEISMO_DEFAULTS);
+
   return (
     <div className="container mx-auto py-6 space-y-4">
       <RhPageHeader
         title="RH - 06 - Absenteísmo / Afastamentos"
         actions={
           <div className="flex items-center gap-2">
+            <RhLayoutToolbar
+              editing={layout.editing}
+              onToggle={layout.setEditing}
+              onReset={layout.resetLayout}
+              widgets={layout.widgets}
+              onShow={layout.showWidget}
+            />
             <Button variant="outline" size="sm" onClick={exportar} disabled={isLoading}>
               <FileSpreadsheet className="h-4 w-4 mr-2" /> Exportar Excel
             </Button>
