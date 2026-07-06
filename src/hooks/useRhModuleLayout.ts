@@ -57,6 +57,7 @@ export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabl
   const [widgets, setWidgets] = useState<RhWidget[]>(defaults);
   const [dashboardId, setDashboardId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [layoutReady, setLayoutReady] = useState(false);
   const [editing, setEditing] = useState(false);
   const defaultsRef = useRef(defaults);
   defaultsRef.current = defaults;
