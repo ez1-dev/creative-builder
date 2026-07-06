@@ -447,7 +447,7 @@ export class ExportQuadroIndisponivelError extends Error {
 
 export async function exportQuadroDashboard(dataRef: string): Promise<Blob> {
   const qs = new URLSearchParams({ data_ref: dataRef }).toString();
-  const url = `${getApiUrl()}/api/rh/quadro-colaboradores/export?${qs}`;
+  const url = `${getApiUrl()}/api/rh/quadro-colaboradores/exportar?${qs}`;
   const headers: Record<string, string> = { "ngrok-skip-browser-warning": "true" };
   const token = api.getToken();
   if (token) headers["Authorization"] = `Bearer ${token}`;
