@@ -1,30 +1,32 @@
-## Problema
+## Objetivo
 
-Ao clicar nos KPIs **"Admitidos no mês"** e **"Demitidos no mês"** em `/rh/quadro-colaboradores`, nada acontece — inclusive quando a data de referência é retroativa (meses anteriores).
+Exibir os novos campos `kpis.salario_base` e `kpis.salario_bruto` já entregues pela API `GET /api/rh/resumo-folha/dashboard` na tela `/rh/resumo-folha`, sem qualquer cálculo no front.
 
-**Causa raiz:** em `src/lib/rh/quadroDrillPredicates.ts`, a função `filterDetalheByKpi` não trata as chaves `admitidos_mes` nem `demitidos_mes`. Ela cai no `default: null`, e em `QuadroColaboradoresPage.onKpiClick` o retorno `null` interrompe a abertura do modal — resultado: card sem drill em qualquer data (atual ou retroativa).
+## Alterações
 
-## Solução
+### 1. `src/lib/rh/types.ts` — interface `ResumoFolhaKpis`
+Adicionar os dois campos opcionais (opcional para tolerar respostas antigas):
+```ts
+salario_base?: number;
+salario_bruto?: number;
+```
 
-Adicionar suporte a esses dois KPIs, filtrando o `detalhe` da API pelo `anomes` da data de referência selecionada:
+### 2. `src/pages/rh/ResumoFolhaPage.tsx` — bloco `"kpis-resumo"`
+Adicionar dois novos cards KPI usando o mesmo componente `KpiOrMissing` já existente, lendo direto de `kpis?.salario_base` e `kpis?.salario_bruto` (mesmo padrão dos demais — nenhuma soma/cálculo local):
 
-- **Admitidos no mês** → colaboradores cujo `dt_admissao` cai no mês/ano de `data_ref`.
-- **Demitidos no mês** → colaboradores cujo `dt_demissao` (ou `dt_rescisao` / `data_demissao` — o que a API devolver) cai no mês/ano de `data_ref`.
+- **"Salário Base"** → `value={kpis?.salario_base}` / `field="salario_base"`
+- **"Salário Bruto"** → `value={kpis?.salario_bruto}` / `field="salario_bruto"` (variant `primary` para diferenciar visualmente do base)
 
-### Alterações
+Serão inseridos logo após o card "Líquido" e antes de "Custo Total", mantendo o grid responsivo atual (`lg:grid-cols-5`). Nenhuma outra alteração de layout.
 
-1. **`src/lib/rh/quadroDrillPredicates.ts`**
-   - Estender `filterDetalheByKpi` para aceitar um parâmetro opcional `anomesRef: string` (formato `yyyyMM`).
-   - Novos `case "admitidos_mes"` e `case "demitidos_mes"`: filtram `detalhe` comparando o mês/ano das datas de admissão/demissão contra `anomesRef`.
-   - Aceitar variações de nome do campo demissão (`dt_demissao`, `dt_rescisao`, `data_demissao`) via acesso `x[key]` para tolerar o payload do backend.
-   - Helper `parseAnomes(dataStr)` que aceita ISO (`YYYY-MM-DD`), BR (`DD/MM/YYYY`) e devolve `yyyyMM`.
+### 3. `src/lib/rh/api.ts` — normalização de KPIs
+Incluir `salario_base` e `salario_bruto` na lista de chaves reconhecidas para o cálculo de `_missing_kpis` (mesma lógica dos demais campos), de modo que a UI mostre "Campo não retornado pela API" se a API omitir. Nenhum fallback/cálculo — apenas passthrough do payload.
 
-2. **`src/pages/rh/QuadroColaboradoresPage.tsx`**
-   - Em `onKpiClick`, passar `toAnomes(dataRef)` (já existe helper equivalente para `dataRefIso`) para `filterDetalheByKpi`.
-   - Nenhuma outra alteração de layout/UI.
+### 4. `docs/backend-rh-resumo-folha-dashboard.md`
+Documentar os dois campos novos em `response.kpis` e a regra de origem (eventos 1, 2, 4, 26, 28, 56, 62, 126, 254, 278, 295 via R046FFR/R044CAL por `CAL.PERREF`). Registrar explicitamente que **não** usar R046INF.SALEMP, evento 393, evento 30 nem qualquer cálculo manual no front.
 
-### Observações
+## Fora de escopo
 
-- Se a API não entregar data de demissão dentro de `detalhe`, o filtro resultante ficará vazio; nesse caso o toast atual "Sem colaboradores para este recorte." já cobre o feedback (não é regressão, é reflexo do payload).
-- Datas retroativas já são recarregadas pelo `useQuery` a cada mudança de `data_ref`; nenhum ajuste de cache é necessário.
-- Escopo estritamente frontend/apresentação, sem tocar em backend, RLS ou tipos gerados.
+- Não alterar `filiais[].salario_base` (grid por filial já existe e continua igual).
+- Não mexer em relatórios PDF / IA insights nesta rodada — se o usuário quiser incluir nos relatórios, faço em passo separado.
+- Nenhuma migration/RLS/edge function; o dado vem 100% da API FastAPI externa.
