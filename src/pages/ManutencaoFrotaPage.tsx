@@ -55,12 +55,25 @@ export default function ManutencaoFrotaPage() {
 
   const load = async () => {
     setLoading(true);
-    const { data: rows, error } = await supabase
-      .from('manutencao_frota')
-      .select('*')
-      .order('data', { ascending: false });
-    if (error) toast({ title: 'Erro ao carregar', description: error.message, variant: 'destructive' });
-    else setData((rows as ManutencaoFrota[]) ?? []);
+    const PAGE = 1000;
+    let from = 0;
+    const acc: ManutencaoFrota[] = [];
+    while (true) {
+      const { data: rows, error } = await supabase
+        .from('manutencao_frota')
+        .select('*')
+        .order('data', { ascending: false })
+        .range(from, from + PAGE - 1);
+      if (error) {
+        toast({ title: 'Erro ao carregar', description: error.message, variant: 'destructive' });
+        break;
+      }
+      if (!rows?.length) break;
+      acc.push(...(rows as ManutencaoFrota[]));
+      if (rows.length < PAGE) break;
+      from += PAGE;
+    }
+    setData(acc);
     setLoading(false);
   };
 
