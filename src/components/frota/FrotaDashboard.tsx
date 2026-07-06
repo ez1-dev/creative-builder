@@ -911,36 +911,44 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
         series={seriesPayload}
         rows={crossFiltered}
       >
-        <PassagensLayoutGrid
-          density="compact"
-          widgets={effectiveWidgets as any}
-          editing={editingLayout}
-          onLayoutChange={setPendingLayout}
-          onHide={editingLayout ? (type) => {
-            setPendingHidden((prev) => {
-              const next = new Set(prev ?? []);
-              next.add(type);
-              return next;
-            });
-          } : undefined}
-          configurableTypes={CONFIGURABLE_CANONICAL}
-          onConfigure={editingLayout ? (type) => setConfigureType(type) : undefined}
-          onDelete={editingLayout ? (type) => {
-            if (type.startsWith('custom-')) {
-              const isNew = pendingNewWidgets.some((nw) => nw.type === type);
-              if (isNew) {
-                setPendingNewWidgets((prev) => prev.filter((nw) => nw.type !== type));
-              } else {
-                setPendingDeletes((prev) => {
-                  const next = new Set(prev);
-                  next.add(type);
-                  return next;
-                });
+        {categoria.length === 0 ? (
+          <div className="flex min-h-[320px] items-center justify-center rounded-md border border-dashed border-border/60 bg-muted/20 p-8 text-center">
+            <p className="text-sm text-muted-foreground">
+              Selecione ao menos uma categoria para visualizar os dados.
+            </p>
+          </div>
+        ) : (
+          <PassagensLayoutGrid
+            density="compact"
+            widgets={effectiveWidgets as any}
+            editing={editingLayout}
+            onLayoutChange={setPendingLayout}
+            onHide={editingLayout ? (type) => {
+              setPendingHidden((prev) => {
+                const next = new Set(prev ?? []);
+                next.add(type);
+                return next;
+              });
+            } : undefined}
+            configurableTypes={CONFIGURABLE_CANONICAL}
+            onConfigure={editingLayout ? (type) => setConfigureType(type) : undefined}
+            onDelete={editingLayout ? (type) => {
+              if (type.startsWith('custom-')) {
+                const isNew = pendingNewWidgets.some((nw) => nw.type === type);
+                if (isNew) {
+                  setPendingNewWidgets((prev) => prev.filter((nw) => nw.type !== type));
+                } else {
+                  setPendingDeletes((prev) => {
+                    const next = new Set(prev);
+                    next.add(type);
+                    return next;
+                  });
+                }
               }
-            }
-          } : undefined}
-          blocks={blocks}
-        />
+            } : undefined}
+            blocks={blocks}
+          />
+        )}
 
         {configureTarget && (
           <ConfigureChartDialog
