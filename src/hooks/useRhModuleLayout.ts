@@ -363,7 +363,7 @@ export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabl
 
   const deleteWidget = useCallback(async (type: string) => {
     const cur = widgetsRef.current.find((w) => w.type === type);
-    if (!cur || !cur.id || String(cur.id).startsWith('tmp-')) return;
+    if (!cur || !cur.id || !isUuid(cur.id)) return;
     const { error } = await supabase.from('dashboard_widgets').delete().eq('id', cur.id);
     if (error) throw error;
     setWidgets((prev) => prev.filter((w) => w.type !== type));
