@@ -9,10 +9,19 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { BotaoRelatorioModuloPdf } from "@/components/rh/BotaoRelatorioModuloPdf";
+import { RhFiltrosBar } from "@/components/rh/RhFiltrosBar";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import { fetchContratoExperienciaDashboard, exportarContratoExperienciaExcel } from "@/lib/rh/api";
+import { filtrarContratosPorPeriodo } from "@/lib/rh/filtros";
 import type { ContratoExperienciaVencimento } from "@/lib/rh/types";
 import { cn } from "@/lib/utils";
+
+function currentYearRange() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  return { ini: `${y}01`, fim: `${y}${m}` };
+}
 
 function formatDatePt(v?: string): string {
   if (!v) return "-";
