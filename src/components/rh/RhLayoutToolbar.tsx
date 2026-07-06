@@ -13,7 +13,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Pencil, Check, RotateCcw, EyeOff, Eye, Plus } from 'lucide-react';
 import type { RhWidget } from '@/hooks/useRhModuleLayout';
-import { AddRhBiWidgetDialog } from './AddRhBiWidgetDialog';
 
 interface Props {
   editing: boolean;
@@ -28,23 +27,18 @@ interface Props {
 
 export function RhLayoutToolbar({ editing, onToggle, onReset, widgets, onShow, pageKey, onAdd }: Props) {
   const [resetting, setResetting] = useState(false);
-  const [addOpen, setAddOpen] = useState(false);
   const hidden = widgets.filter((w) => w.hidden);
+  const openAddDialog = () => {
+    if (!pageKey) return;
+    window.dispatchEvent(new CustomEvent('rh:add-bi-widget', { detail: { pageKey } }));
+  };
   return (
     <div className="flex items-center gap-2">
       {editing && pageKey && onAdd && (
-        <>
-          <Button size="sm" variant="outline" className="h-8" onClick={() => setAddOpen(true)}>
-            <Plus className="mr-1.5 h-3.5 w-3.5" />
-            Adicionar da Biblioteca BI
-          </Button>
-          <AddRhBiWidgetDialog
-            open={addOpen}
-            onOpenChange={setAddOpen}
-            pageKey={pageKey}
-            onAdd={onAdd}
-          />
-        </>
+        <Button size="sm" variant="outline" className="h-8" onClick={openAddDialog}>
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          Adicionar da Biblioteca BI
+        </Button>
       )}
 
       {hidden.length > 0 && (
