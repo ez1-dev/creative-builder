@@ -1,36 +1,22 @@
-## Adicionar gráfico "Faixa Etária × Sexo" (empilhado)
+## Faltou expor RH-05 no menu lateral e no catálogo
 
-Novo card ao lado dos breakdowns existentes na página Quadro Colaboradores. Dados derivados no front a partir de `dashQ.data?.detalhe[]` — sem alteração de API.
+A página, rota e index `/rh` já estão prontos, mas o item não aparece no menu lateral (que é o caminho normal de navegação) porque o `AppSidebar` e o `screenCatalog` não conhecem a rota.
 
-## Arquivo
+## Alterações
 
-### `src/pages/rh/QuadroColaboradoresPage.tsx`
+### `src/components/AppSidebar.tsx` (linha 211, seção RH)
+Adicionar item logo abaixo de "Férias":
+```
+{ title: 'Turnover', url: '/rh/turnover', icon: TrendingUp },
+```
+Importar `TrendingUp` de `lucide-react` se ainda não estiver importado nesse arquivo.
 
-1. Novo `useMemo` `faixaSexoData` que:
-   - Percorre `detalhe ?? []`.
-   - Normaliza `sexo` para `"HOMENS" | "MULHERES" | "OUTROS"` (M/MASC → Homens, F/FEM → Mulheres).
-   - Agrupa por `faixa_etaria` (usa `"—"` quando vazio).
-   - Retorna `[{ faixa, homens, mulheres, outros }]` ordenado pela ordem de idade quando reconhecível (`Até 20 Anos`, `Até 25 Anos`, …, `Mais de 60 Anos`); fallback ordem alfabética.
+### `src/lib/screenCatalog.ts` (após linha 42)
+Registrar a tela para logs de navegação e permissões:
+```
+'/rh/turnover': { codigo: 'RH_TURNOVER', nome: 'RH — Rotatividade / Turnover' },
+```
 
-2. Novo componente inline / bloco na página (mesmo grid dos outros breakdowns):
-   - Título: **Faixa Etária × Sexo**.
-   - `ResponsiveContainer` + `BarChart` do Recharts (já usado em outros lugares do projeto).
-   - Duas `<Bar>` empilhadas (`stackId="s"`):
-     - `homens` → `hsl(var(--muted-foreground))` com opacidade ~0.7
-     - `mulheres` → `hsl(var(--warning))` (ou `--primary` se contrast melhor no tema atual)
-   - `<XAxis dataKey="faixa" />`, `<YAxis />`, `<Tooltip />`, `<Legend />`.
-   - `<LabelList position="center">` em cada barra para o número dentro do segmento; `<LabelList dataKey="total" position="top">` para o total (calculado no `useMemo`).
-   - `cursor: pointer` na barra; onClick abre o drill existente (`openDrill`) filtrando `detalhe` por `faixa_etaria === faixa && sexoMatches(sexoSerie)`.
-   - Estado de loading: `Skeleton h-72` quando `dashQ.isLoading`.
-   - Empty state: "Sem dados" quando array vazio.
-
-3. Ajuste de grid: encaixar o novo card no mesmo `<div>` grid dos breakdowns (Sexo, Escolaridade, Faixa etária, Tempo de casa…). Manter responsivo (mesmas classes atuais).
-
-## Fora do escopo
-- Repaginar visual do Histórico (usuário optou por manter).
-- Alterar API / tipos.
-- Novos endpoints ou pedidos ao backend.
-- Modais/drill novos (reaproveita `openDrill`).
-
-## Verificação
-Após aplicar: abrir `/rh/quadro-colaboradores`, conferir que os totais somam com o card "Faixa etária" existente e que clicar em um segmento abre o drill filtrado por faixa+sexo.
+## Observações
+- Usuário atual é admin (`isAdmin: true`), então `ProtectedRoute` já libera acesso mesmo sem entrada em `profile_screens`. Para usuários não-admin, será preciso conceder permissão na tela Configurações.
+- Nada muda na página `TurnoverPage`, rotas ou API — só exposição no menu e catálogo.
