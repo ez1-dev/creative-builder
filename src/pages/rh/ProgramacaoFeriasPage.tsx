@@ -408,13 +408,13 @@ export default function ProgramacaoFeriasPage() {
         disabled={isFetching}
       />
 
-      <RhDashboardGrid
-            loading={!layout.layoutReady}
-        widgets={layout.widgets}
+      <RhDashboardWithBiLibrary
+        pageKey="rh-ferias"
+        layout={layout}
         blocks={blocks}
-        editing={layout.editing}
-        onLayoutChange={layout.saveGeometries}
-        onHide={layout.hideWidget}
+        catalog={FERIAS_CATALOG}
+        kpis={kpis as any}
+        filtros={{ codemp, anomes_ini: ini, anomes_fim: fim }}
       />
 
 
