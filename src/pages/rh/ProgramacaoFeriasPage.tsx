@@ -20,12 +20,6 @@ import { fetchProgramacaoFeriasDashboard, exportarProgramacaoFeriasExcel } from 
 import { filtrarFeriasPorPeriodo } from "@/lib/rh/filtros";
 import type { ProgramacaoFeriasDetalheItem, DeFeriasDetalheItem } from "@/lib/rh/types";
 
-function currentYearRange() {
-  const now = new Date();
-  const y = now.getFullYear();
-  return { ini: `${y}01`, fim: `${y + 1}12` };
-}
-
 const formatDateBR = (s?: string | null) => {
   if (!s) return "-";
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
