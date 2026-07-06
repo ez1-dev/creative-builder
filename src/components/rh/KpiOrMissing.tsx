@@ -28,7 +28,8 @@ export function ValueOrMissing({
     );
   }
   if (format === "horas") return <>{fmtHoras(value as any)}</>;
-  return <>{formatCurrency(Number(value ?? 0))}</>;
+  if (value === null || value === undefined) return <>-</>;
+  return <>{formatCurrency(Number(value))}</>;
 }
 
 export function KpiOrMissing({
