@@ -2187,6 +2187,7 @@ export type Database = {
       }
       manutencao_frota: {
         Row: {
+          categoria: string
           centro_custo: string | null
           created_at: string
           created_by: string | null
@@ -2206,6 +2207,7 @@ export type Database = {
           veiculo_descricao: string | null
         }
         Insert: {
+          categoria?: string
           centro_custo?: string | null
           created_at?: string
           created_by?: string | null
@@ -2225,6 +2227,7 @@ export type Database = {
           veiculo_descricao?: string | null
         }
         Update: {
+          categoria?: string
           centro_custo?: string | null
           created_at?: string
           created_by?: string | null
@@ -3881,6 +3884,7 @@ export type Database = {
       get_frota_via_token: {
         Args: { _password?: string; _token: string }
         Returns: {
+          categoria: string
           centro_custo: string | null
           created_at: string
           created_by: string | null
