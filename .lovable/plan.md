@@ -1,20 +1,18 @@
-## Objetivo
-Adicionar preview ao vivo (com dados reais da página) no diálogo "Adicionar componente da Biblioteca BI" das páginas RH, igual ao que já existe no ConfigureRhWidgetDialog.
+## Plano
 
-## Alterações
+1. **Mover o diálogo para dentro do contexto de dados da página**
+   - Ajustar `RhDashboardWithBiLibrary` para renderizar o `ConfigureRhWidgetDialog` dentro do `PageDataProvider`.
+   - Incluir também o diálogo de adicionar componente da Biblioteca BI dentro desse mesmo provider, para que `usePageData()` tenha acesso a KPIs, séries, linhas e filtros reais.
 
-**Arquivo:** `src/components/rh/AddRhBiWidgetDialog.tsx`
+2. **Centralizar o botão “Adicionar da Biblioteca BI” no helper RH**
+   - Remover a renderização direta do `AddRhBiWidgetDialog` de `RhLayoutToolbar`, pois hoje ele fica no header fora do `PageDataProvider`, gerando “Preview indisponível fora da página”.
+   - Passar para a toolbar apenas uma ação `onAddClick`, mantendo o botão no mesmo lugar visual.
 
-1. Importar `usePageData` de `@/lib/bi/PageDataContext` e `WidgetErrorBoundary` (mesmo usado no Configure dialog) para renderização segura.
-2. Debounce (~150ms) de `componentId`, `mapping` e `title` para evitar re-render a cada tecla.
-3. `previewDef` via `useMemo` a partir do `debounced.componentId`; validar se todos os inputs obrigatórios estão preenchidos (`previewMappingReady`).
-4. Nova seção "Pré-visualização" entre o campo Título e o Footer:
-   - Se não houver componente: mensagem "Selecione um componente".
-   - Se mapping incompleto: "Preencha os campos obrigatórios para ver o preview".
-   - Caso ok: renderizar `<WidgetErrorBoundary>{previewDef.render({ id: 'preview', title, mapping, options: {}, pageData })}</WidgetErrorBoundary>` dentro de um container com altura fixa (ex.: `min-h-[280px]`).
-5. Aumentar o dialog para `max-w-2xl max-h-[90vh] overflow-y-auto` para acomodar o preview.
-6. Manter comportamento atual: automap ao trocar componente, botão Adicionar continua salvando o mesmo payload.
+3. **Preservar o comportamento atual**
+   - O botão continua aparecendo somente em modo edição.
+   - `onAdd={layout.addWidget}` continua salvando o componente escolhido.
+   - O preview passa a usar os dados já enviados para `RhDashboardWithBiLibrary` em cada página RH.
 
-## Validação
-- Rodar `tsgo` para checar tipos.
-- Verificar no preview (rota `/rh/programacao-ferias`) abrindo "Adicionar componente" — preview deve refletir a escolha e o mapping em ~150ms.
+4. **Validar nas páginas RH afetadas**
+   - Verificar especialmente `/rh/quadro-colaboradores`, onde o problema foi mostrado.
+   - Confirmar que o texto “Preview indisponível fora da página” não aparece mais quando a página fornece dados, e que o componente selecionado renderiza o preview.
