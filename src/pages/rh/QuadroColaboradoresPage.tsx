@@ -347,14 +347,23 @@ export default function QuadroColaboradoresPage() {
       <RhPageHeader
         title="02 — Quadro de Colaboradores"
         actions={
-          <BotaoRelatorioModuloPdf
-            modulo="quadro-colaboradores"
-            titulo="Quadro de Colaboradores"
-            disabled={listaQ.isLoading}
-            dados={listaQ.data ? { tipo: "quadro-colaboradores", itens: listaQ.data } : null}
-            filtros={{ outros: { "Data de referência": dataRef ? format(dataRef, "dd/MM/yyyy") : "-" } }}
-            iaPayload={{ data_referencia: dataRefIso, kpis: dashQ.data?.kpis, total: listaQ.data?.length ?? 0, historico: histQ.data?.slice(-12) }}
-          />
+          <>
+            <RhLayoutToolbar
+              editing={layout.editing}
+              onToggle={layout.setEditing}
+              onReset={layout.resetLayout}
+              widgets={layout.widgets}
+              onShow={layout.showWidget}
+            />
+            <BotaoRelatorioModuloPdf
+              modulo="quadro-colaboradores"
+              titulo="Quadro de Colaboradores"
+              disabled={listaQ.isLoading}
+              dados={listaQ.data ? { tipo: "quadro-colaboradores", itens: listaQ.data } : null}
+              filtros={{ outros: { "Data de referência": dataRef ? format(dataRef, "dd/MM/yyyy") : "-" } }}
+              iaPayload={{ data_referencia: dataRefIso, kpis: dashQ.data?.kpis, total: listaQ.data?.length ?? 0, historico: histQ.data?.slice(-12) }}
+            />
+          </>
         }
       />
 
