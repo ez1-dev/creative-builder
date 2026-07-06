@@ -47,6 +47,10 @@ Além dos campos já documentados, o front consome e mostra no bloco "Diagnósti
 | `custo_ferias`   | `SUM(CALC_VL_CUSTO_FERIAS)` |
 | `rescisoes`      | `SUM(CALC_CUSTO_TOTAL_RESCISAO)` |
 | `fgts`           | `SUM(VL_FGTS)` |
+| `salario_base`   | `SUM` dos eventos oficiais **1, 2, 4, 26, 28, 56, 62, 126, 254, 278, 295** em R046FFR/R044CAL por competência `CAL.PERREF` |
+| `salario_bruto`  | mesma regra de `salario_base` (eventos 1, 2, 4, 26, 28, 56, 62, 126, 254, 278, 295 via R046FFR/R044CAL por `CAL.PERREF`) |
+
+**Proibido para `salario_base`/`salario_bruto`:** não usar `R046INF.SALEMP`, evento 393, evento 30 nem qualquer cálculo manual no front — o front apenas exibe o valor entregue pela API.
 
 ## Mapeamento oficial — grid por filial (`response.filiais[]`)
 
