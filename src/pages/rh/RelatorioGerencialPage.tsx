@@ -62,8 +62,9 @@ export default function RelatorioGerencialPage() {
       setDados(d);
 
       setStep("Gerando análise IA (diagnóstico, riscos, recomendações, alertas)...");
+      let analise: RelatorioIa | null = null;
       try {
-        const analise = await gerarAnaliseIa(d);
+        analise = await gerarAnaliseIa(d);
         setIa(analise);
       } catch (e: any) {
         console.error(e);
@@ -72,7 +73,7 @@ export default function RelatorioGerencialPage() {
       }
 
       setStep("Renderizando PDF...");
-      const blob = await pdf(<RelatorioPdf dados={d} ia={ia ?? (await tryAfter(d))} />).toBlob();
+      const blob = await pdf(<RelatorioPdf dados={d} ia={analise} />).toBlob();
       const fn = `rh_relatorio_gerencial_${anomesIni}_${anomesFim}.pdf`;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -90,9 +91,6 @@ export default function RelatorioGerencialPage() {
       setLoading(false);
       setStep("");
     }
-
-    // helper closure — evita race condition entre setIa e render do PDF acima
-    async function tryAfter(_d: DadosConsolidados) { return null; }
   }
 
   async function regenerarIa() {
