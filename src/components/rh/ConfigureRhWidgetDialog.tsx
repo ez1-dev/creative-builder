@@ -139,6 +139,40 @@ export function ConfigureRhWidgetDialog({ open, onOpenChange, pageKey, widget, a
             <Label>Título</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={widget?.title} />
           </div>
+
+          <div className="space-y-1 pt-2">
+            <Label>Pré-visualização</Label>
+            <Card className="h-[260px] overflow-hidden bg-muted/30">
+              {!ctx ? (
+                <div className="h-full flex items-center justify-center text-xs text-muted-foreground px-4 text-center">
+                  Preview indisponível fora da página.
+                </div>
+              ) : !previewDef ? (
+                <div className="h-full flex items-center justify-center text-xs text-muted-foreground px-4 text-center">
+                  Escolha um componente para ver o preview com dados reais.
+                </div>
+              ) : !previewMappingReady ? (
+                <div className="h-full flex items-center justify-center text-xs text-muted-foreground px-4 text-center">
+                  Selecione os campos obrigatórios para ver o preview.
+                </div>
+              ) : (
+                <div className="h-full p-3 overflow-hidden">
+                  <WidgetErrorBoundary>
+                    {previewDef.render({
+                      title: debounced.title || widget?.customTitle || widget?.title || previewDef.label,
+                      mapping: debounced.mapping,
+                      options: { filtros: ctx.filtros ?? {} },
+                      ctx: {
+                        kpis: ctx.kpis ?? {},
+                        series: ctx.series ?? {},
+                        rows: Array.isArray(ctx.rows) ? ctx.rows : [],
+                      },
+                    })}
+                  </WidgetErrorBoundary>
+                </div>
+              )}
+            </Card>
+          </div>
         </div>
 
         <DialogFooter className="flex items-center justify-between gap-2">
