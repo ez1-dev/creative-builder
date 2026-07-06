@@ -1256,6 +1256,65 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         </Card>
           ),
           } : {}),
+          ...((canSeeVisual('passagens.chart-por-produto') || canSeeVisual('passagens.kpis-charts')) ? {
+          'chart-por-produto': (
+        <Card className="h-full">
+          <CardHeader>
+            <CardTitle className="text-sm flex items-center justify-between gap-2">
+              <span>Por Produto</span>
+              <span className="text-xs font-normal text-muted-foreground">Total: {formatCurrency(totalProduto)}</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-3 sm:p-6">
+            {porProduto.length === 0 ? (
+              <div className="flex h-[220px] items-center justify-center text-xs text-muted-foreground">
+                Sem produto informado nos registros filtrados.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={Math.max(180, porProduto.length * (isCompact ? 36 : 44))}>
+                <BarChart data={porProduto} layout="vertical" margin={{ top: 4, right: 96, bottom: 4, left: 8 }}>
+                  <XAxis type="number" hide />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    fontSize={12}
+                    width={isMobile ? 90 : 140}
+                    tickFormatter={(v: string) => (v.length > (isMobile ? 12 : 22) ? `${v.slice(0, isMobile ? 12 : 22)}…` : v)}
+                  />
+                  <RTooltip formatter={(v: number, _n, p: any) => [`${formatCurrency(v)} (${(p?.payload?.pct ?? 0).toFixed(1).replace('.', ',')}%)`, 'Valor']} />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                    {porProduto.map((entry, i) => (
+                      <Cell key={entry.name} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                    <LabelList
+                      dataKey="value"
+                      position="right"
+                      content={(props: any) => {
+                        const { x, y, width, height, index } = props;
+                        const item = porProduto[index];
+                        if (!item) return null;
+                        const pct = (item.pct ?? 0).toFixed(1).replace('.', ',');
+                        return (
+                          <text
+                            x={Number(x) + Number(width) + 6}
+                            y={Number(y) + Number(height) / 2}
+                            dy={4}
+                            fontSize={12}
+                            fill="hsl(var(--foreground))"
+                          >
+                            {formatCurrency(item.value)} ({pct}%)
+                          </text>
+                        );
+                      }}
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+          ),
+          } : {}),
           ...((canSeeVisual('passagens.chart-top-cc') || canSeeVisual('passagens.kpis-charts')) ? {
           'chart-top-cc': (
         <Card className="h-full">
