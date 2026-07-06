@@ -375,6 +375,8 @@ export default function ProgramacaoFeriasPage() {
               onReset={layout.resetLayout}
               widgets={layout.widgets}
               onShow={layout.showWidget}
+              pageKey="rh-ferias"
+              onAdd={layout.addWidget}
             />
             <Button variant="outline" size="sm" onClick={handleExport} disabled={isExporting}>
               {isExporting ? (
