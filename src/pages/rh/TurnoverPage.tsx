@@ -6,15 +6,14 @@ import {
 } from "recharts";
 import { UserPlus, UserMinus, TrendingUp, Percent, Users, Activity } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import { BotaoRelatorioModuloPdf } from "@/components/rh/BotaoRelatorioModuloPdf";
+import { RhFiltrosBar } from "@/components/rh/RhFiltrosBar";
 import { addMonths } from "@/lib/rh/relatorio";
-import { AnomesSelect } from "@/components/bi/comercial/AnomesSelect";
 import { TurnoverDrillModal } from "@/components/rh/TurnoverDrillModal";
 import { TurnoverEmpresaDrillModal } from "@/components/rh/TurnoverEmpresaDrillModal";
 import { fetchTurnoverDashboard } from "@/lib/rh/api";
@@ -22,8 +21,6 @@ import type {
   TurnoverAdmitidoDetalhe, TurnoverDemitidoDetalhe,
 } from "@/lib/rh/types";
 import { cn } from "@/lib/utils";
-
-const codemp = 1;
 
 function formatAnoMes(anomes?: string | number | null) {
   if (!anomes) return "-";
