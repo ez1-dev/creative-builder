@@ -357,20 +357,38 @@ export async function fetchContratoExperiencia(p?: ContratoExperienciaParams): P
 
 export async function fetchContratoExperienciaDashboard(
   codemp: number = 1,
+  diasVencidoMax: number = 90,
 ): Promise<import("./types").ContratoExperienciaDashboard> {
   const resp = await api.get<any>(
     "/api/rh/contrato-experiencia/dashboard",
-    cleanParams({ codemp }),
+    cleanParams({ codemp, dias_vencido_max: diasVencidoMax }),
   );
   const k = resp?.kpis ?? {};
+  const numOrNull = (v: any): number | null =>
+    v === null || v === undefined || v === "" ? null : Number(v);
+  const venc = Array.isArray(resp?.vencimentos) ? resp.vencimentos : [];
   return {
     kpis: {
       qtde_contratos: num(k.qtde_contratos),
+      vencidos_pendentes: num(k.vencidos_pendentes),
       demitidos_30_apos_exp: num(k.demitidos_30_apos_exp),
       a_vencer_5_dias: num(k.a_vencer_5_dias),
       a_vencer_10_dias: num(k.a_vencer_10_dias),
     },
-    vencimentos: Array.isArray(resp?.vencimentos) ? resp.vencimentos : [],
+    vencimentos: venc.map((v: any) => ({
+      empresa: v.empresa ?? "",
+      filial: v.filial ?? "",
+      cargo: v.cargo ?? "",
+      matricula: String(v.matricula ?? ""),
+      colaborador: v.colaborador ?? "",
+      dt_admissao: v.dt_admissao ?? "",
+      dt_primeiro_vencimento: v.dt_primeiro_vencimento ?? v.dt_vencimento ?? "",
+      dt_segundo_vencimento: v.dt_segundo_vencimento ?? v.dt_vencimento ?? "",
+      dt_vencimento: v.dt_vencimento ?? v.dt_primeiro_vencimento ?? "",
+      dias_restantes: numOrNull(v.dias_restantes),
+      dias_vencido: numOrNull(v.dias_vencido),
+      status: v.status ?? "",
+    })),
   };
 }
 
