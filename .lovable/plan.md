@@ -1,47 +1,45 @@
-## Problema
-
-Nas telas do RH (ex.: /rh/quadro-colaboradores no screenshot enviado) os cards aparecem "flutuando" com grandes espaços verticais vazios entre eles — o donut "Sexo" tem uma faixa vazia enorme à direita e outra faixa vazia até "Escolaridade" / "Faixa etária" logo abaixo. Isso acontece porque:
-
-1. Os layouts salvos têm `y` fixos com folgas grandes entre widgets.
-2. O `react-grid-layout` só compacta cada coluna até bater em outro widget — se um widget largo ocupa a linha acima, os cards abaixo não conseguem "subir" para preencher o espaço.
-3. As margens/altura de linha (`margin=[16,16]`, `rowHeight=60`) foram herdadas do módulo de Passagens e ficam largas para os dashboards do RH, que têm muitos cards médios.
-
 ## Objetivo
 
-Deixar todas as telas do RH com espaçamento uniforme e denso — como um dashboard "colado" — sem alterar o layout do módulo de Passagens.
+Refatorar `/rh/contrato-experiencia` para consumir o novo payload da API (com `vencidos_pendentes`, `dt_primeiro_vencimento`, `dt_segundo_vencimento`, `dias_vencido`) e adicionar o filtro "Janela de vencidos" (`dias_vencido_max`, padrão 90).
 
-## Estratégia
+## Alterações
 
-### 1. Densidade dedicada para o grid do RH (`src/components/passagens/PassagensLayoutGrid.tsx`)
+### 1. `src/lib/rh/types.ts`
+- `ContratoExperienciaKpis`: adicionar `vencidos_pendentes: number`.
+- `ContratoExperienciaVencimento`: substituir `dt_vencimento` por `dt_primeiro_vencimento` + `dt_segundo_vencimento`; adicionar `dias_vencido: number | null`. Manter `dias_restantes` como `number | null`.
 
-- Adicionar prop opcional `density?: "default" | "compact"`.
-- `default` mantém `margin=[16,16]` + `rowHeight=60` (Passagens continua igual).
-- `compact` usa `margin=[12,12]` + `rowHeight=44` — dá mais granularidade para o RH e diminui os "vãos" residuais.
+### 2. `src/lib/rh/api.ts`
+- `fetchContratoExperienciaDashboard(codemp, diasVencidoMax=90)`: aceitar segundo parâmetro, enviar `dias_vencido_max` na querystring, normalizar `vencidos_pendentes` no `kpis` e mapear os novos campos dos vencimentos (`dt_primeiro_vencimento`, `dt_segundo_vencimento`, `dias_vencido`).
+- `fetchContratoExperienciaDashboardCached`: repassar `diasVencidoMax` e incluí-lo na cache key (`rh:contratos-exp:${codemp}:${diasVencidoMax}`).
+- `exportarContratoExperienciaExcel(codemp, diasVencidoMax=90)`: adicionar `dias_vencido_max` na URL e `access_token` na querystring (em vez de header) — usar `api.getToken()` e navegar via `window.location.href = url` (ou `<a download>` direto) já que o token vai na URL. Manter fallback de filename `rh_03_contrato_experiencia.xlsx`.
 
-### 2. Compactação vertical em modo visualização (`src/components/rh/RhDashboardGrid.tsx`)
+### 3. `src/lib/rh/filtros.ts`
+- Remover / desativar `filtrarContratosPorPeriodo` para esta página (a janela por AAAAMM não faz mais sentido junto com `dias_vencido_max`). Se ainda for referenciada por relatório PDF, manter função mas não usá-la na página.
 
-Adicionar utilitário local `compactVerticalLayout(widgets)`:
+### 4. `src/lib/rh/widgetCatalogs.ts`
+- Adicionar widget `kpi-vencidos-pendentes` em `CONTRATOS_EXP_DEFAULTS` e `CONTRATOS_EXP_CATALOG`, reorganizar layout dos KPIs (5 cards em `w: 2` cada ou 3+2) e reposicionar `vencimentos` abaixo.
 
-- Ordena por `(y, x)`.
-- Faz varredura coluna-a-coluna calculando, para cada widget, o menor `y` possível respeitando colisões com widgets já posicionados.
-- Retorna cópias dos widgets com `y` recalculado.
+### 5. `src/pages/rh/ContratoExperienciaPage.tsx`
+- Remover filtros `ini/fim` (AAAAMM) e o `RhFiltrosBar` de período; manter apenas `codemp`. Adicionar `diasVencidoMax` (state, padrão 90) via `<Select>` com opções 0/30/60/90/120 + help text.
+- Adicionar `<Select>` filtro de status (Todos / VENCIDO / A VENCER 5 DIAS / A VENCER 10 DIAS / A VENCER) client-side.
+- `useQuery` passa a depender de `[codemp, diasVencidoMax]`.
+- Adicionar bloco `kpi-vencidos-pendentes` (variante `danger`, clicável → seta filtro de status para `VENCIDO`).
+- Ajustar bloco `vencimentos`:
+  - Novas colunas: Matrícula, 1º Vencimento, 2º Vencimento, Dias Restantes, Dias Vencido.
+  - Sort client-side: `VENCIDO` primeiro (por `dias_vencido` desc), depois demais por `dias_restantes` asc.
+  - Destaque de linha vermelho claro para `status === "VENCIDO"`.
+  - Badge de status com cores conforme spec.
+  - `formatDateBR` regex `YYYY-MM-DD` → `DD/MM/YYYY` para as três datas.
+  - Renderizar `dias_vencido`/`dias_restantes` com `-` quando `null`.
+  - Mensagem "Sem contratos para exibir." quando vazio.
+- Título `RH - 03 - Contrato de Experiência`.
+- Botão Exportar Excel usa o novo `exportarContratoExperienciaExcel(codemp, diasVencidoMax)`.
+- Mensagens de erro: 401 → "Sessão expirada. Faça login novamente."; demais → "Não foi possível carregar Contrato de Experiência."
 
-Aplicar essa função no `RhDashboardGrid` **somente quando `editing === false`** — em edição a posição bruta continua sendo a fonte da verdade (para não brigar com o drag do usuário). O resultado é passado para o grid, então o "vão" some visualmente. Os `y` reescritos são apenas para render — não sobrescrevem o que está salvo até o usuário editar/salvar de fato.
-
-### 3. Repasse do `density="compact"`
-
-- `RhDashboardGrid` passa `density="compact"` para `PassagensLayoutGrid`.
-- Todas as 6 páginas do RH herdam automaticamente (não precisam mudar).
+### 6. `src/components/rh/pdf/ModuloPdf.tsx` e `src/lib/rh/relatorio.ts`
+- Ajuste mínimo para compilar com o novo shape (renomear referências a `dt_vencimento` → `dt_primeiro_vencimento` no PDF, se existirem). Sem mudança funcional.
 
 ## Fora de escopo
-
-- Não alterar layouts salvos no banco (não fazer migração de `y`). A compactação é só no render.
-- Não mexer no módulo Passagens/Frota/Máquinas — o `density` deles fica no `"default"`.
-- Não mudar chrome de edição (drag handle, botões +/-, setas).
-
-## Validação
-
-- `/rh/quadro-colaboradores`: o gap enorme entre "Sexo" e "Escolaridade/Faixa etária" fecha; os cards ficam colados verticalmente.
-- Outras telas do RH (Turnover, Absenteísmo, Contrato Experiência, Programação Férias, Resumo Folha): mesma sensação de densidade.
-- `/passagens-aereas` continua com o espaçamento atual.
-- Ao entrar em modo edição, o layout volta ao formato salvo (sem compactação forçada) para o usuário arrastar livremente.
+- Não alterar endpoints ou lógica no backend.
+- Não recalcular status/efetivação no front.
+- Não mexer nas outras páginas RH.

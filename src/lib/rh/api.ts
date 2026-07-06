@@ -357,20 +357,38 @@ export async function fetchContratoExperiencia(p?: ContratoExperienciaParams): P
 
 export async function fetchContratoExperienciaDashboard(
   codemp: number = 1,
+  diasVencidoMax: number = 90,
 ): Promise<import("./types").ContratoExperienciaDashboard> {
   const resp = await api.get<any>(
     "/api/rh/contrato-experiencia/dashboard",
-    cleanParams({ codemp }),
+    cleanParams({ codemp, dias_vencido_max: diasVencidoMax }),
   );
   const k = resp?.kpis ?? {};
+  const numOrNull = (v: any): number | null =>
+    v === null || v === undefined || v === "" ? null : Number(v);
+  const venc = Array.isArray(resp?.vencimentos) ? resp.vencimentos : [];
   return {
     kpis: {
       qtde_contratos: num(k.qtde_contratos),
+      vencidos_pendentes: num(k.vencidos_pendentes),
       demitidos_30_apos_exp: num(k.demitidos_30_apos_exp),
       a_vencer_5_dias: num(k.a_vencer_5_dias),
       a_vencer_10_dias: num(k.a_vencer_10_dias),
     },
-    vencimentos: Array.isArray(resp?.vencimentos) ? resp.vencimentos : [],
+    vencimentos: venc.map((v: any) => ({
+      empresa: v.empresa ?? "",
+      filial: v.filial ?? "",
+      cargo: v.cargo ?? "",
+      matricula: String(v.matricula ?? ""),
+      colaborador: v.colaborador ?? "",
+      dt_admissao: v.dt_admissao ?? "",
+      dt_primeiro_vencimento: v.dt_primeiro_vencimento ?? v.dt_vencimento ?? "",
+      dt_segundo_vencimento: v.dt_segundo_vencimento ?? v.dt_vencimento ?? "",
+      dt_vencimento: v.dt_vencimento ?? v.dt_primeiro_vencimento ?? "",
+      dias_restantes: numOrNull(v.dias_restantes),
+      dias_vencido: numOrNull(v.dias_vencido),
+      status: v.status ?? "",
+    })),
   };
 }
 
@@ -526,13 +544,17 @@ export interface StatusSincronizacaoRh {
  */
 export async function exportarContratoExperienciaExcel(
   codemp: number | string = 1,
+  diasVencidoMax: number = 90,
 ): Promise<{ blob: Blob; filename: string }> {
   const codempStr = String(codemp ?? 1);
-  const qs = new URLSearchParams({ codemp: codempStr });
+  const qs = new URLSearchParams({
+    codemp: codempStr,
+    dias_vencido_max: String(diasVencidoMax),
+  });
+  const token = api.getToken();
+  if (token) qs.set("access_token", token);
   const url = `${getApiUrl()}/api/rh/contrato-experiencia/exportar?${qs.toString()}`;
   const headers: Record<string, string> = { "ngrok-skip-browser-warning": "true" };
-  const token = api.getToken();
-  if (token) headers["Authorization"] = `Bearer ${token}`;
 
   let resp: Response;
   try {
@@ -560,7 +582,7 @@ export async function exportarContratoExperienciaExcel(
 
   const blob = await resp.blob();
   const disposition = resp.headers.get("Content-Disposition");
-  let filename = `rh03_contrato_experiencia_${codempStr}.xlsx`;
+  let filename = `rh_03_contrato_experiencia.xlsx`;
   if (disposition) {
     const m = disposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)"?/i);
     if (m?.[1]) filename = decodeURIComponent(m[1].replace(/"/g, ""));
@@ -825,9 +847,12 @@ export async function fetchAbsenteismoDashboardCached(
 
 export async function fetchContratoExperienciaDashboardCached(
   codemp: number = 1,
+  diasVencidoMax: number = 90,
 ): Promise<import("./types").ContratoExperienciaDashboard> {
-  const key = `rh:contrato-exp:${codemp}`;
-  return withRhCache(key, RH_CACHE_DEFAULT_TTL_MS, () => fetchContratoExperienciaDashboard(codemp));
+  const key = `rh:contrato-exp:${codemp}:${diasVencidoMax}`;
+  return withRhCache(key, RH_CACHE_DEFAULT_TTL_MS, () =>
+    fetchContratoExperienciaDashboard(codemp, diasVencidoMax),
+  );
 }
 
 export async function fetchProgramacaoFeriasDashboardCached(

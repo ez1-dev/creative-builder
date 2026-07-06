@@ -68,6 +68,7 @@ export interface ContratoExperienciaItem {
 
 export interface ContratoExperienciaKpis {
   qtde_contratos: number;
+  vencidos_pendentes: number;
   demitidos_30_apos_exp: number;
   a_vencer_5_dias: number;
   a_vencer_10_dias: number;
@@ -80,8 +81,12 @@ export interface ContratoExperienciaVencimento {
   matricula: string;
   colaborador: string;
   dt_admissao: string;
-  dt_vencimento: string;
-  dias_restantes: number;
+  dt_primeiro_vencimento: string;
+  dt_segundo_vencimento: string;
+  /** @deprecated Mantido para compat com relatórios antigos. */
+  dt_vencimento?: string;
+  dias_restantes: number | null;
+  dias_vencido: number | null;
   status: string;
 }
 
