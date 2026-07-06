@@ -247,6 +247,15 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
       .map(([label, valor]) => ({ label, valor }));
   }, [crossFiltered]);
 
+  const porCategoria = useMemo(() => {
+    const m = new Map<string, number>();
+    crossFiltered.forEach((r) => {
+      const k = CATEGORIA_LABEL[r.categoria] ?? r.categoria ?? 'NÃO INFORMADO';
+      m.set(k, (m.get(k) ?? 0) + (r.valor || 0));
+    });
+    return Array.from(m.entries()).map(([label, valor]) => ({ label, valor }));
+  }, [crossFiltered]);
+
   const porSegmento = useMemo(() => {
     const m = new Map<string, number>();
     crossFiltered.forEach((r) => {
