@@ -1,57 +1,43 @@
-## Objetivo
+## Problema
 
-Nas páginas RH em modo "Editar layout":
-- botão **Adicionar da Biblioteca BI** no toolbar (novo card custom),
-- botão **Configurar** (engrenagem) em cada card, permitindo trocá-lo por um componente da Biblioteca BI.
+Em "Editar layout" das páginas RH, aumentar/diminuir a altura (e largura) dos cards não fica salvo — ao recarregar, o layout volta ao original.
 
-Aplicar em todas as páginas RH: Resumo Folha, Quadro Colaboradores, Absenteísmo, Contrato Experiência, Turnover, Programação Férias.
+## Causa
 
-## Alterações
+Os widgets default (ex.: `RESUMO_FOLHA_DEFAULTS`, `QUADRO_DEFAULTS`, etc.) têm `id` sintético em string (ex.: `'kpis-resumo'`, `'kpi-qtde'`). Quando o usuário ainda não tem linhas gravadas em `dashboard_widgets`, o estado inicial usa esses ids.
 
-### 1. `src/hooks/useRhModuleLayout.ts`
-- Novo `addWidget({ componentId, mapping, options, title })`: gera `type = "custom-<Date.now()>"`, layout default `{ x:0, y:9999, w:6, h:4 }`, chama `saveLayout` — react-grid compacta ao renderizar.
-- Expor no retorno.
+Em `useRhModuleLayout.ts` → `runSave`, a decisão entre UPDATE e INSERT é:
 
-### 2. `src/components/rh/AddRhBiWidgetDialog.tsx` (novo)
-Diálogo simples baseado na aba "library" de `AddBiWidgetDialog`:
-- Selecionar componente do `COMPONENT_REGISTRY`.
-- Selects para `series` e `valueKey` lidos do `usePageData()` da página (kpis/series disponíveis).
-- Input de título.
-- Botão "Adicionar" → chama `onAdd({ componentId, mapping, title })`.
+```ts
+if (cur?.id && !String(cur.id).startsWith('tmp-')) {
+  // UPDATE .eq('id', cur.id)
+} else {
+  // INSERT
+}
+```
 
-### 3. `src/components/rh/ConfigureRhWidgetDialog.tsx` (novo)
-Versão enxuta de `ConfigureBiWidgetDialog` (modo "Biblioteca BI"):
-- Se widget custom: obrigatório escolher componente.
-- Se widget canônico: aba "Padrão" (limpar substituição) + aba "Biblioteca BI" (definir componentId/mapping).
-- Selects de series/valueKey a partir de `usePageData()`.
-- Título custom opcional.
-- Botão "Salvar" → `onSave({ componentId, mapping, customTitle })`.
-- Botão "Excluir" (apenas custom) → chama `onDelete(type)` que remove o registro em `dashboard_widgets`.
+Como `'kpis-resumo'` não começa com `tmp-`, o código tenta um UPDATE em `dashboard_widgets` com `id = 'kpis-resumo'`. A coluna é `uuid`, então PostgREST responde erro "invalid input syntax for type uuid". O `runSave` cai no `anyError` → dispara `load({ silent: true })` que recarrega os widgets do banco (vazio) e volta aos defaults — visualmente parece que "não salvou".
 
-### 4. `src/components/rh/RhLayoutToolbar.tsx`
-- Nova prop `onAdd(payload)` (opcional).
-- Botão "Adicionar da Biblioteca BI" (ícone `Plus`), visível apenas quando `editing`.
-- Abre `AddRhBiWidgetDialog`.
+Isso afeta todas as páginas RH na primeira edição, e continua afetando widgets que ainda não foram persistidos após saves parciais.
 
-### 5. `src/components/rh/RhDashboardGrid.tsx`
-- Nova prop `pageDataAware?: boolean` (default false p/ compat).
-- Se `w.componentId` estiver setado: renderizar `getComponent(componentId).render({ title, mapping, options: { ...options, filtros: ctx.filtros }, ctx: { kpis, series, rows } })` via `usePageData()`, dentro de `WidgetErrorBoundary`.
-- Caso contrário, cair no `blocks[w.type]` existente.
-- Passar `onConfigure`, `configurableTypes` para `PassagensLayoutGrid` sem alteração (já suportado). `configurableTypes` = todos os `w.type` não-custom (default catalog) + todos os `custom-*`.
+## Correção
 
-### 6. Cada página RH (`src/pages/rh/*.tsx`)
-- Envolver a área do grid com `PageDataProvider` com `pageKey` por módulo (`rh-resumo-folha`, `rh-quadro`, `rh-absenteismo`, `rh-contrato-experiencia`, `rh-turnover`, `rh-programacao-ferias`), fornecendo `kpis`, `series`, `rows`, `filtros` já disponíveis na página.
-- Manter estado local `configTarget: RhWidget | null`; passar `onConfigure={(type) => setConfigTarget(byType[type])}` para `RhDashboardGrid` e renderizar `<ConfigureRhWidgetDialog>` controlado.
-- Passar `onAdd` ao `RhLayoutToolbar` que chama `layout.addWidget(payload)`.
-- Passar `onDelete={(type) => layout.deleteWidget(type)}` para o grid (já suportado no PassagensLayoutGrid via `onDelete`); adicionar `deleteWidget` em `useRhModuleLayout` (delete direto em `dashboard_widgets` por id).
+Trocar o critério de "existe no banco" por uma detecção real de UUID em `useRhModuleLayout.ts`:
 
-### 7. `src/lib/bi/pageRegistry.ts`
-- Registrar as 6 páginas RH com `schema.kpis` e `schema.series` mínimos (nomes das chaves que cada página expõe em seu `PageDataProvider`). Sem isso, os selects do dialog ficam vazios.
+1. Adicionar helper local `isUuid(id)` (regex padrão v4/geral).
+2. Em `runSave`, usar `if (cur?.id && isUuid(cur.id))` para decidir UPDATE; caso contrário, cai no INSERT (o caminho que já resolve `block_id` e insere corretamente).
+3. Após o INSERT, o `setWidgets` já atualiza os ids reais retornados por `insert().select('id, type')`, então saves subsequentes passam a fazer UPDATE normalmente.
 
-## Fora de escopo
-- Não mexer no backend/API RH.
-- Não portar toda a UI de `ConfigureBiWidgetDialog` (cores, séries múltiplas, HeatMap, etc.). Somente troca por componente da Biblioteca BI + mapping básico.
-- Não alterar `PassagensLayoutGrid`.
+Nenhuma outra mudança é necessária:
+- `saveGeometries`, `handleStop`/`stepResize` e o debounce continuam iguais.
+- Defaults permanecem com seus ids atuais; a rota de save é que passa a tratá-los corretamente.
 
-## Riscos
-- Cada página precisa expor kpis/series de forma estável — se um componente esperar chave inexistente, mostra warning em DEV e renderiza vazio (comportamento já implementado em `UserWidgetsSlot`).
+## Arquivos alterados
+
+- `src/hooks/useRhModuleLayout.ts` — adicionar `isUuid` e ajustar a condição no `runSave`.
+
+## Validação
+
+- Abrir `/rh/resumo-folha`, entrar em "Editar layout", aumentar a altura de um card com o botão `+`, sair do modo edição e recarregar a página — a nova altura permanece.
+- Repetir em outra página RH (ex.: `/rh/quadro-colaboradores`) que também parte de defaults.
+- Conferir no console/network que o UPDATE (para widgets já persistidos) e o INSERT (para os que ainda não existiam) ocorrem sem erro `invalid input syntax for type uuid`.

@@ -11,6 +11,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ensureDefaultBlockId } from '@/lib/bi/ensureDefaultBlock';
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isUuid = (id: unknown): id is string => typeof id === 'string' && UUID_RE.test(id);
+
 export interface RhWidgetLayout { x: number; y: number; w: number; h: number }
 
 export interface RhWidget {
@@ -204,7 +207,7 @@ export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabl
       const cur = byType.get(item.type);
       const nextConfig = optimisticNextConfigByType?.get(item.type)
         ?? mergeConfig(cur?._config, item);
-      if (cur?.id && !String(cur.id).startsWith('tmp-')) {
+      if (cur?.id && isUuid(cur.id)) {
         const payload: any = { layout: item.layout, config: nextConfig };
         if (typeof item.position === 'number') payload.position = item.position;
         if (typeof item.title === 'string' && item.title) payload.title = item.title;
