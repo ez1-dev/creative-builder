@@ -46,6 +46,7 @@ export function SincronizarRhDialog({ variant = "outline" }: { variant?: "outlin
     });
     try {
       await sincronizarRh({ anomes_ini, anomes_fim, codemp: Number(codemp) || 1 });
+      await invalidateHistoricoCache();
       toast.success("RH sincronizado com sucesso", {
         id: toastId,
         description: `${anomes_ini} → ${anomes_fim}`,
