@@ -56,12 +56,17 @@ export function RhDashboardWithBiLibrary({
     return () => window.removeEventListener('rh:add-bi-widget', handleOpenAdd);
   }, [pageKey]);
 
+  const isSeriesArray = Array.isArray(series);
+  const seriesRecord = isSeriesArray ? rhSeriesToRecord(series as RhSerie[]) : (series as any) ?? {};
+  const seriesCatalog = isSeriesArray ? rhSeriesToOptions(series as RhSerie[]) : undefined;
+
   return (
     <>
       <PageDataProvider
         pageKey={pageKey}
         kpis={kpis as any}
-        series={series as any}
+        series={seriesRecord}
+        seriesCatalog={seriesCatalog}
         rows={rows as any}
         filtros={filtros as any}
       >
