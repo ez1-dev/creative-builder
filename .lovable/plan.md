@@ -1,62 +1,42 @@
-# Botão "Relatório Gerencial (PDF + IA)" em cada página RH
 
-Adicionar em cada uma das 6 páginas de RH um botão que gera um PDF gerencial focado no módulo daquela página, usando os filtros já selecionados na tela e a análise IA do módulo.
+## Padronização de filtros nas páginas de RH
 
-## Fluxo
+Uniformizar as 6 páginas (`Resumo Folha`, `Quadro Colaboradores`, `Contratos de Experiência`, `Programação de Férias`, `Turnover`, `Absenteísmo`) para que os filtros sejam **aplicados automaticamente ao mudar** e para que **período** e **empresa (codemp)** existam em todas.
 
-1. Usuário está em qualquer página RH (ex.: `/rh/turnover`) com filtros/período já aplicados.
-2. Clica em **Relatório PDF (IA)** no header da página.
-3. O sistema:
-   - Reusa o dashboard já carregado (evita nova chamada).
-   - Para módulos com anomes (Folha, Turnover, Absenteísmo), busca o período anterior equivalente para comparativo.
-   - Chama a edge function existente `rh-ai-insights` (`modulo` = `resumo-folha` | `quadro-colaboradores` | `contratos-experiencia` | `ferias` | `turnover` | `absenteismo`).
-   - Renderiza PDF com `@react-pdf/renderer` e dispara download.
-4. Nome do arquivo: `rh_<modulo>_${anomesIni}_${anomesFim}.pdf` (ou `${data}.pdf` para módulos sem período).
+### 1. Componente compartilhado de filtros
+Criar `src/components/rh/RhFiltrosBar.tsx`:
+- Campos: **Mês inicial**, **Mês final** (`AnomesSelect`) e **Empresa** (`Input` numérico, padrão `1` — mesmo padrão hoje usado no Resumo Folha).
+- Props opcionais: `mostrarPeriodo`, `mostrarEmpresa`, `mostrarDataRef` (para Quadro Colaboradores), `extras` (slot p/ campos específicos).
+- Sem botão "Atualizar" — cada mudança dispara `onChange` que atualiza o estado da página e refaz as queries via React Query.
+- Debounce leve (≈400 ms) apenas no campo `codemp` (texto livre) para evitar chamadas a cada tecla.
 
-## Estrutura do PDF (por módulo)
+### 2. Comportamento por página
 
-```text
-Capa compacta
-  Título do módulo, período (se houver), filtros aplicados, data de geração
+| Página | Filtros expostos | Mudança na página |
+|---|---|---|
+| Resumo Folha | período + empresa | Substituir bloco de filtros atual pelo `RhFiltrosBar`; comportamento continua automático |
+| Quadro Colaboradores | data ref + período histórico + empresa | Adicionar seletor de empresa; usar `RhFiltrosBar` com `mostrarDataRef` |
+| **Contratos de Experiência** | período + empresa | **NOVO**: adicionar filtros; aplicar `anomes_ini/fim` **client-side** sobre `vencimentos[]` (filtra por `dt_fim_experiencia`) e recalcula os KPIs derivados a partir da lista filtrada. `codemp` passa como parâmetro real da API |
+| **Programação de Férias** | período + empresa | **NOVO**: adicionar filtros; aplicar `anomes_ini/fim` **client-side** sobre `limite_ferias_pivot` e sobre a lista de programação (filtra por período de gozo/limite) e recalcula KPIs. `codemp` vai à API |
+| Turnover | período + empresa | Remover `iniDraft/fimDraft` e o botão **Atualizar**; ligar `AnomesSelect` direto ao estado `ini/fim`. Trocar `const codemp = 1` por estado |
+| Absenteísmo | período + empresa | Mesma mudança do Turnover |
 
-Página 1+  KPIs em cards (com delta vs período anterior quando aplicável)
-           Tabelas principais do módulo (top proventos/descontos, top motivos, pivot férias etc.)
-           Análise IA: diagnóstico, riscos, recomendações
-Rodapé em todas as páginas
-```
+Observação sobre backend: os endpoints `/api/rh/contrato-experiencia/dashboard` e `/api/rh/programacao-ferias/dashboard` hoje só aceitam `codemp`. Como o backend FastAPI é externo e fora do escopo desta iteração, o filtro de período nessas duas páginas será feito **no frontend** (após receber o dataset completo). Fica registrado como melhoria futura passar `anomes_ini/fim` também para a API para reduzir payload.
 
-Conteúdo específico:
-- **Resumo Folha**: KPIs (custo, líquido, HE, benef., INSS, FGTS) + Δ; top 10 proventos, top 10 descontos; série mensal.
-- **Quadro Colaboradores**: total, distribuição por situação/filial/CC/cargo/sexo/faixa etária.
-- **Contratos Experiência**: KPIs (ativos, a vencer 5/10, demitidos pós-exp) + lista de vencimentos críticos.
-- **Programação Férias**: KPIs (vencidas, 30/60/90, em férias) + pivot ano×mês + amostra sem programação.
-- **Turnover**: KPIs (taxa, admitidos, demitidos, saldo, headcount) + Δ; por mês; top motivos; por empresa.
-- **Absenteísmo**: KPIs (taxa, dias, afastamentos, duração média) + Δ; por categoria; top motivos; por mês.
+### 3. Reatividade a todos os blocos da página
+Garantir que, ao mudar qualquer filtro:
+- A `queryKey` do React Query inclui todos os filtros (já é o caso em quase todas — só falta em Contratos/Férias após a adição de período).
+- Todos os KPIs, tabelas, gráficos, drills e o payload enviado ao **Relatório PDF (IA)** (`filtros`, `iaPayload`, `carregarAnterior`) usam os mesmos estados de filtro.
+- O botão "Relatório PDF (IA)" e o export Excel passam a receber `codemp` do estado (não mais chumbado).
 
-## Arquivos
+### 4. Detalhes técnicos
+- Não altera schema do backend nem tabelas do Lovable Cloud.
+- Não altera `pdfStyles`, `ModuloPdf`, nem `BotaoRelatorioModuloPdf` — só as props `filtros` continuam vindo do estado.
+- Reaproveita `AnomesSelect` de `@/components/bi/comercial/AnomesSelect`.
+- Para Contratos/Férias: criar helpers `filtrarContratosPorPeriodo(dashboard, ini, fim)` e `filtrarFeriasPorPeriodo(dashboard, ini, fim)` em `src/lib/rh/filtros.ts` para manter as páginas enxutas e evitar duplicação com a lógica de PDF.
 
-**Novos**
-- `src/components/rh/pdf/ModuloPdf.tsx` — documento react-pdf único que renderiza qualquer módulo via `switch(modulo)`; reusa `pdfStyles.ts` já criado.
-- `src/components/rh/BotaoRelatorioModuloPdf.tsx` — botão reutilizável que:
-  - Recebe props: `modulo`, `titulo`, `filtros` (opcional), `dadosAtuais` (já carregados), `carregarAnterior?()` opcional.
-  - Faz `supabase.functions.invoke("rh-ai-insights", { modulo, payload })`.
-  - Se `carregarAnterior` existir, chama em paralelo para obter dashboard anterior.
-  - Renderiza `<ModuloPdf .../>` via `pdf(...).toBlob()` e dispara download.
-  - Estados: loading, erro (toast); fallback: PDF sem seção IA se IA falhar.
+### 5. Arquivos afetados
+- Novos: `src/components/rh/RhFiltrosBar.tsx`, `src/lib/rh/filtros.ts`
+- Editados: as 6 páginas em `src/pages/rh/`
 
-**Editados** (adicionar o botão no header/toolbar de cada página)
-- `src/pages/rh/ResumoFolhaPage.tsx`
-- `src/pages/rh/QuadroColaboradoresPage.tsx`
-- `src/pages/rh/ContratoExperienciaPage.tsx`
-- `src/pages/rh/ProgramacaoFeriasPage.tsx`
-- `src/pages/rh/TurnoverPage.tsx`
-- `src/pages/rh/AbsenteismoPage.tsx`
-
-## Detalhes técnicos
-
-- Reusa `pdfStyles.ts`, `PDF_COLORS`, formatters e helpers já criados em `src/components/rh/pdf/`.
-- Reusa `fetchers` existentes em `src/lib/rh/api.ts` para buscar período anterior (nenhum fetch novo ao ERP).
-- Reusa a edge function existente `rh-ai-insights` (não cria nova função).
-- Nada de consulta direta ao Supabase de negócio; tudo via `api` helper + gateway IA já configurado.
-- Botão desabilitado enquanto o dashboard da página ainda não carregou.
-- Regras de design tokens respeitadas (cores mapeadas para hex apenas dentro do PDF por limitação do renderer).
+Nenhuma migração de banco é necessária.
