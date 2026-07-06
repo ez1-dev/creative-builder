@@ -34,6 +34,11 @@ interface Props {
    * ou o formato antigo `Record<chave, pontos>` para retrocompatibilidade.
    */
   series?: RhSerie[] | Record<string, any> | null;
+  /**
+   * Séries derivadas pelo frontend (fallback). São mescladas depois das do
+   * backend — só preenchem chaves que ainda não existirem no catálogo.
+   */
+  derivedSeries?: RhSerie[] | null;
   rows?: any[] | null;
   filtros?: Record<string, any> | null;
 }
