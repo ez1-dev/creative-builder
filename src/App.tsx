@@ -86,7 +86,9 @@ import ResumoFolhaPage from "@/pages/rh/ResumoFolhaPage";
 import QuadroColaboradoresPage from "@/pages/rh/QuadroColaboradoresPage";
 import ContratoExperienciaPage from "@/pages/rh/ContratoExperienciaPage";
 import ProgramacaoFeriasPage from "@/pages/rh/ProgramacaoFeriasPage";
+import TurnoverPage from "@/pages/rh/TurnoverPage";
 import FormulariosPage from "@/pages/rh/FormulariosPage";
+
 import NotFound from "@/pages/NotFound";
 import { ProtectedRoute, PostLoginRedirect } from "@/components/ProtectedRoute";
 import { UserTrackingProvider } from "@/components/UserTrackingProvider";
@@ -202,6 +204,8 @@ const App = () => (
               <Route path="/rh/quadro-colaboradores" element={<ProtectedRoute path="/rh/quadro-colaboradores"><QuadroColaboradoresPage /></ProtectedRoute>} />
               <Route path="/rh/contrato-experiencia" element={<ProtectedRoute path="/rh/contrato-experiencia"><ContratoExperienciaPage /></ProtectedRoute>} />
               <Route path="/rh/programacao-ferias" element={<ProtectedRoute path="/rh/programacao-ferias"><ProgramacaoFeriasPage /></ProtectedRoute>} />
+              <Route path="/rh/turnover" element={<ProtectedRoute path="/rh/turnover"><TurnoverPage /></ProtectedRoute>} />
+
               <Route path="/rh/formularios" element={<ProtectedRoute path="/rh/formularios"><FormulariosPage /></ProtectedRoute>} />
               {/* Redirect old route */}
               <Route path="/engenharia-producao" element={<Navigate to="/producao/engenharia" replace />} />
