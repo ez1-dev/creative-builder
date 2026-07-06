@@ -292,7 +292,7 @@ export default function ResumoFolhaPage() {
           </CardContent>
         </Card>
         <KpiOrMissing title="Salário Base" value={kpis?.salario_base} missing={isMissing("salario_base")} field="salario_base" loading={isLoading} />
-        <KpiOrMissing title="Salário Bruto" value={kpis?.salario_bruto} missing={isMissing("salario_bruto")} field="salario_bruto" variant="primary" loading={isLoading} />
+        <KpiOrMissing title="Salário Bruto" value={kpis?.salario_bruto} missing={isMissing("salario_bruto")} field="salario_bruto" loading={isLoading} />
         <KpiOrMissing title="Custo Total" value={kpis?.custo_total} missing={isMissing("custo_total")} field="custo_total" variant="danger" loading={isLoading} />
         <KpiOrMissing title="Benefícios" value={kpis?.beneficios} missing={isMissing("beneficios")} field="beneficios" loading={isLoading} />
         <KpiOrMissing title="INSS Total" value={kpis?.inss_total} missing={isMissing("inss_total")} field="inss_total" loading={isLoading} />
