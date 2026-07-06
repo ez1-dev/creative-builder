@@ -125,6 +125,8 @@ export default function TurnoverPage() {
               onReset={layout.resetLayout}
               widgets={layout.widgets}
               onShow={layout.showWidget}
+              pageKey="rh-turnover"
+              onAdd={layout.addWidget}
             />
             <BotaoRelatorioModuloPdf
               modulo="turnover"
