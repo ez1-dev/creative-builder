@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/select';
 import { Plus, Share2, Upload, RefreshCw, Trash2, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { FrotaDashboard, type ManutencaoFrota } from '@/components/frota/FrotaDashboard';
+import { FrotaDashboard, type ManutencaoFrota, CATEGORIA_OPTIONS } from '@/components/frota/FrotaDashboard';
 import { FrotaShareLinksDialog } from '@/components/frota/FrotaShareLinksDialog';
 import { ImportarFrotaDialog } from '@/components/frota/ImportarFrotaDialog';
 
@@ -32,6 +32,7 @@ const emptyForm = (): Partial<ManutencaoFrota> => ({
   placa: '', veiculo_descricao: '', fornecedor: '', descricao: '',
   quilometragem: null, valor: 0, motorista: '', centro_custo: '',
   segmento: 'FROTA', tipo_veiculo: 'LEVE', observacoes: '',
+  categoria: 'MANUTENCAO',
 });
 
 export default function ManutencaoFrotaPage() {
