@@ -137,7 +137,7 @@ export default function RelatorioExecutivoPassagensPage() {
         rankings: [
           { titulo: 'Top Colaboradores', chartId: 'pa-rk-colab' },
           { titulo: 'Top Destinos', chartId: 'pa-rk-dest' },
-          { titulo: 'Top Companhias', chartId: 'pa-rk-cia' },
+          { titulo: 'Top Produtos', chartId: 'pa-rk-produto' },
           { titulo: 'Top Centros de Custo', chartId: 'pa-rk-cc' },
         ],
         comentariosIa: ia.data,
