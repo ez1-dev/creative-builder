@@ -1,16 +1,20 @@
-## Plano
+## Objetivo
+Adicionar preview ao vivo (com dados reais da página) no diálogo "Adicionar componente da Biblioteca BI" das páginas RH, igual ao que já existe no ConfigureRhWidgetDialog.
 
-1. Corrigir o salvamento do layout RH para preservar toda a configuração do widget ao mover, redimensionar ou alterar altura/largura.
-   - Hoje o salvamento de geometria monta um payload incompleto; isso pode apagar configuração de gráfico/substituição e fazer parecer que a edição não salvou.
+## Alterações
 
-2. Ajustar a fila de salvamento para não perder alterações rápidas.
-   - Ao clicar várias vezes em aumentar/diminuir ou arrastar/redimensionar, combinar as mudanças pendentes por widget em vez de sobrescrever tudo com apenas o último evento.
+**Arquivo:** `src/components/rh/AddRhBiWidgetDialog.tsx`
 
-3. Tratar layouts inválidos antes de enviar para o `react-grid-layout`.
-   - Normalizar `x`, `y`, `w`, `h`, limites de largura/altura e evitar colisões que causam o erro `Maximum call stack size exceeded`.
+1. Importar `usePageData` de `@/lib/bi/PageDataContext` e `WidgetErrorBoundary` (mesmo usado no Configure dialog) para renderização segura.
+2. Debounce (~150ms) de `componentId`, `mapping` e `title` para evitar re-render a cada tecla.
+3. `previewDef` via `useMemo` a partir do `debounced.componentId`; validar se todos os inputs obrigatórios estão preenchidos (`previewMappingReady`).
+4. Nova seção "Pré-visualização" entre o campo Título e o Footer:
+   - Se não houver componente: mensagem "Selecione um componente".
+   - Se mapping incompleto: "Preencha os campos obrigatórios para ver o preview".
+   - Caso ok: renderizar `<WidgetErrorBoundary>{previewDef.render({ id: 'preview', title, mapping, options: {}, pageData })}</WidgetErrorBoundary>` dentro de um container com altura fixa (ex.: `min-h-[280px]`).
+5. Aumentar o dialog para `max-w-2xl max-h-[90vh] overflow-y-auto` para acomodar o preview.
+6. Manter comportamento atual: automap ao trocar componente, botão Adicionar continua salvando o mesmo payload.
 
-4. Garantir que alterações feitas em “Configurar gráfico” continuem salvas junto com título, componente e mapeamento.
-   - Salvar mantendo `componentId`, `mapping`, `options`, `customTitle`, `variant` e `hidden` já existentes.
-
-5. Validar no navegador em uma página RH.
-   - Entrar em “Editar layout”, alterar altura/largura/disposição, configurar um gráfico, concluir, recarregar a página e confirmar que tudo permanece salvo sem erro no console.
+## Validação
+- Rodar `tsgo` para checar tipos.
+- Verificar no preview (rota `/rh/programacao-ferias`) abrindo "Adicionar componente" — preview deve refletir a escolha e o mapping em ~150ms.
