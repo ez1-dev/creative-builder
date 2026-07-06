@@ -87,7 +87,7 @@ export function RhDashboardWithBiLibrary({
         pageKey={pageKey}
         kpis={kpis as any}
         series={seriesRecord}
-        seriesCatalog={seriesCatalog}
+        seriesCatalog={finalCatalog}
         rows={rows as any}
         filtros={filtros as any}
       >
