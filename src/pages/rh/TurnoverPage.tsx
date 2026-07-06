@@ -116,7 +116,8 @@ export default function TurnoverPage() {
   return (
     <div className="container mx-auto py-6 space-y-4">
       <RhPageHeader
-        title="RH-05 — Rotatividade / Turnover"
+        title="05 — Turnover"
+        subtitle="Admissões, demissões e taxa de rotatividade"
         actions={
           <>
             <RhLayoutToolbar
@@ -223,7 +224,7 @@ export default function TurnoverPage() {
             <Card className="h-full">
               <CardContent className="pt-6 h-full flex flex-col">
                 <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
-                  Admissões x Demissões por Mês
+                  Admissões vs. Demissões por Mês
                 </h2>
                 <div className="flex-1 min-h-0">
                   {isLoading ? (
@@ -303,7 +304,7 @@ export default function TurnoverPage() {
             <Card className="h-full">
               <CardContent className="pt-6">
                 <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
-                  Por Empresa
+                  Turnover por Empresa
                 </h2>
                 <div className="max-h-[calc(100%-2rem)] overflow-auto">
                   <Table>

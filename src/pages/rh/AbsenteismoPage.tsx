@@ -134,7 +134,8 @@ export default function AbsenteismoPage() {
   return (
     <div className="container mx-auto py-6 space-y-4">
       <RhPageHeader
-        title="RH - 06 - Absenteísmo / Afastamentos"
+        title="06 — Absenteísmo"
+        subtitle="Afastamentos, dias perdidos e taxa de absenteísmo"
         actions={
           <div className="flex items-center gap-2">
             <RhLayoutToolbar
@@ -191,7 +192,7 @@ export default function AbsenteismoPage() {
           "serie-abs": (
             <Card className="h-full">
               <CardContent className="pt-6 h-full flex flex-col">
-                <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Por Mês</h2>
+                <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Evolução Mensal</h2>
                 <div className="flex-1 min-h-0">
                   {isLoading ? (
                     <Skeleton className="h-full min-h-[200px]" />
@@ -301,7 +302,7 @@ export default function AbsenteismoPage() {
           "motivo-abs": (
             <Card className="h-full">
               <CardContent className="pt-6">
-                <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Por Motivo</h2>
+                <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Principais Motivos</h2>
                 <div className="max-h-[calc(100%-2rem)] overflow-auto">
                   <Table>
                     <TableHeader className="sticky top-0 bg-background z-10">

@@ -203,7 +203,7 @@ export default function ContratoExperienciaPage() {
         <CardContent className="pt-6 h-full flex flex-col">
           <div className="flex items-center justify-between gap-3 mb-3">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              Vencimentos
+              Vencimentos de Contrato
             </h2>
             <div className="flex items-center gap-2">
               <Label className="text-xs text-muted-foreground">Status</Label>
@@ -302,7 +302,8 @@ export default function ContratoExperienciaPage() {
   return (
     <div className="container mx-auto py-6 space-y-4">
       <RhPageHeader
-        title="RH - 03 - Contrato de Experiência"
+        title="03 — Contrato de Experiência"
+        subtitle="Vencimentos, renovações e demissões pós-experiência"
         actions={
           <>
             <RhLayoutToolbar

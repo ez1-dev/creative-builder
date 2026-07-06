@@ -366,7 +366,8 @@ export default function ProgramacaoFeriasPage() {
   return (
     <div className="container mx-auto py-6 space-y-4">
       <RhPageHeader
-        title="RH - 04 - Programação de Férias"
+        title="04 — Programação de Férias"
+        subtitle="Limites, vencimentos e programações dos próximos 90 dias"
         actions={
           <div className="flex items-center gap-2">
             <RhLayoutToolbar

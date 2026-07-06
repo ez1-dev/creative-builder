@@ -354,6 +354,7 @@ export default function QuadroColaboradoresPage() {
     <div className="container mx-auto py-6">
       <RhPageHeader
         title="02 — Quadro de Colaboradores"
+        subtitle="Headcount, perfil demográfico e distribuição por empresa"
         actions={
           <>
             <RhLayoutToolbar
