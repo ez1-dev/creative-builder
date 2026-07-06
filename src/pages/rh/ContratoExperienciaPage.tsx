@@ -49,11 +49,21 @@ function statusBadgeCls(status?: string): string {
 }
 
 export default function ContratoExperienciaPage() {
-  const codemp = 1;
-  const { data, isLoading, error } = useQuery({
+  const initRange = currentYearRange();
+  const [ini, setIni] = useState(initRange.ini);
+  const [fim, setFim] = useState(initRange.fim);
+  const [codemp, setCodemp] = useState<number>(1);
+
+  const { data: dataRaw, isLoading, isFetching, error } = useQuery({
     queryKey: ["rh", "contrato-experiencia", "dashboard", codemp],
     queryFn: () => fetchContratoExperienciaDashboard(codemp),
   });
+
+  // Filtra vencimentos por período (client-side)
+  const data = useMemo(
+    () => filtrarContratosPorPeriodo(dataRaw ?? null, ini, fim),
+    [dataRaw, ini, fim],
+  );
 
   useEffect(() => {
     if (!error) return;
@@ -94,7 +104,7 @@ export default function ContratoExperienciaPage() {
   }
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto py-6 space-y-4">
       <RhPageHeader
         title="03 — Contrato Experiência"
         actions={
@@ -112,12 +122,23 @@ export default function ContratoExperienciaPage() {
               titulo="Contratos de Experiência"
               disabled={isLoading}
               dados={data ? { tipo: "contratos-experiencia", atual: data } : null}
-              filtros={{ codemp }}
-              iaPayload={{ kpis: data?.kpis, vencimentos_amostra: data?.vencimentos?.slice(0, 15) }}
+              filtros={{ anomes_ini: ini, anomes_fim: fim, codemp }}
+              iaPayload={{ periodo: { anomes_ini: ini, anomes_fim: fim }, kpis: data?.kpis, vencimentos_amostra: data?.vencimentos?.slice(0, 15) }}
             />
           </>
         }
       />
+
+      <RhFiltrosBar
+        anomesIni={ini}
+        onAnomesIniChange={setIni}
+        anomesFim={fim}
+        onAnomesFimChange={setFim}
+        codemp={codemp}
+        onCodempChange={setCodemp}
+        disabled={isFetching}
+      />
+
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <KpiCard
