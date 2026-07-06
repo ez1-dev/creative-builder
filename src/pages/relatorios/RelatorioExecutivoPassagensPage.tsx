@@ -143,9 +143,9 @@ export default function RelatorioExecutivoPassagensPage() {
         comentariosIa: ia.data,
         tabela: {
           titulo: 'Últimas Passagens (top 25)',
-          head: ['Data', 'Colaborador', 'Destino', 'Cia', 'Centro de Custo', 'Valor'],
+          head: ['Data', 'Produto', 'Colaborador', 'Destino', 'Centro de Custo', 'Motivo', 'Valor'],
           rows: dados.slice(0, 25).map((r) => [
-            r.data_registro, r.colaborador, r.destino ?? '—', r.cia_aerea ?? '—', r.centro_custo ?? '—', BRL(Number(r.valor || 0)),
+            r.data_registro, (r as any).produto ?? '—', r.colaborador, r.destino ?? '—', r.centro_custo ?? '—', r.motivo_viagem ?? '—', BRL(Number(r.valor || 0)),
           ]),
         },
       });
