@@ -78,19 +78,21 @@ export const QUADRO_CATALOG: Record<string, RhWidgetDef> = {
 
 // ============ CONTRATOS EXPERIÊNCIA ============
 export const CONTRATOS_EXP_DEFAULTS: RhWidget[] = [
-  { id: 'kpi-qtde',       type: 'kpi-qtde',       title: 'Qtde Contratos',       position: 0, layout: { x: 0, y: 0, w: 3, h: 3 } },
-  { id: 'kpi-demitidos',  type: 'kpi-demitidos',  title: 'Demitidos 30d Após',   position: 1, layout: { x: 3, y: 0, w: 3, h: 3 } },
-  { id: 'kpi-5dias',      type: 'kpi-5dias',      title: 'A Vencer 5 Dias',      position: 2, layout: { x: 6, y: 0, w: 3, h: 3 } },
-  { id: 'kpi-10dias',     type: 'kpi-10dias',     title: 'A Vencer 10 Dias',     position: 3, layout: { x: 9, y: 0, w: 3, h: 3 } },
-  { id: 'vencimentos',    type: 'vencimentos',    title: 'Vencimentos',          position: 4, layout: { x: 0, y: 3, w: 12, h: 12 } },
+  { id: 'kpi-qtde',              type: 'kpi-qtde',              title: 'Qtde Contratos',       position: 0, layout: { x: 0,  y: 0, w: 3, h: 3 } },
+  { id: 'kpi-vencidos-pendentes',type: 'kpi-vencidos-pendentes',title: 'Vencidos Pendentes',   position: 1, layout: { x: 3,  y: 0, w: 3, h: 3 } },
+  { id: 'kpi-demitidos',         type: 'kpi-demitidos',         title: 'Demitidos 30d Após',   position: 2, layout: { x: 6,  y: 0, w: 2, h: 3 } },
+  { id: 'kpi-5dias',             type: 'kpi-5dias',             title: 'A Vencer 5 Dias',      position: 3, layout: { x: 8,  y: 0, w: 2, h: 3 } },
+  { id: 'kpi-10dias',            type: 'kpi-10dias',            title: 'A Vencer 10 Dias',     position: 4, layout: { x: 10, y: 0, w: 2, h: 3 } },
+  { id: 'vencimentos',           type: 'vencimentos',           title: 'Vencimentos',          position: 5, layout: { x: 0,  y: 3, w: 12, h: 12 } },
 ];
 
 export const CONTRATOS_EXP_CATALOG: Record<string, RhWidgetDef> = {
-  'kpi-qtde':      { type: 'kpi-qtde',      title: 'Qtde Contratos',     kind: 'kpi', libraryComponentIds: LIB_KPI_IDS },
-  'kpi-demitidos': { type: 'kpi-demitidos', title: 'Demitidos 30d Após', kind: 'kpi', libraryComponentIds: LIB_KPI_IDS },
-  'kpi-5dias':     { type: 'kpi-5dias',     title: 'A Vencer 5 Dias',    kind: 'kpi', libraryComponentIds: LIB_KPI_IDS },
-  'kpi-10dias':    { type: 'kpi-10dias',    title: 'A Vencer 10 Dias',   kind: 'kpi', libraryComponentIds: LIB_KPI_IDS },
-  'vencimentos':   { type: 'vencimentos',   title: 'Vencimentos',        kind: 'table', libraryComponentIds: LIB_TABLE_IDS },
+  'kpi-qtde':               { type: 'kpi-qtde',               title: 'Qtde Contratos',     kind: 'kpi', libraryComponentIds: LIB_KPI_IDS },
+  'kpi-vencidos-pendentes': { type: 'kpi-vencidos-pendentes', title: 'Vencidos Pendentes', kind: 'kpi', libraryComponentIds: LIB_KPI_IDS },
+  'kpi-demitidos':          { type: 'kpi-demitidos',          title: 'Demitidos 30d Após', kind: 'kpi', libraryComponentIds: LIB_KPI_IDS },
+  'kpi-5dias':              { type: 'kpi-5dias',              title: 'A Vencer 5 Dias',    kind: 'kpi', libraryComponentIds: LIB_KPI_IDS },
+  'kpi-10dias':             { type: 'kpi-10dias',             title: 'A Vencer 10 Dias',   kind: 'kpi', libraryComponentIds: LIB_KPI_IDS },
+  'vencimentos':            { type: 'vencimentos',            title: 'Vencimentos',        kind: 'table', libraryComponentIds: LIB_TABLE_IDS },
 };
 
 // ============ FÉRIAS ============
