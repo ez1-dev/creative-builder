@@ -13,14 +13,13 @@ export type { WidgetLayout, SaveLayoutItem } from '@/hooks/usePassagensLayout';
 /** Lista canônica dos blocos do dashboard de Manutenção de Frota. */
 export const FROTA_DEFAULT_WIDGETS: FrotaWidget[] = [
   { id: 'kpis-row',                type: 'kpis-row',                title: 'KPIs',                  position: 0, layout: { x: 0, y: 0,  w: 12, h: 3  } },
-  { id: 'chart-evolucao-mensal',   type: 'chart-evolucao-mensal',   title: 'Evolução Mensal',       position: 1, layout: { x: 0, y: 3,  w: 6,  h: 8  } },
-  { id: 'chart-segmento',          type: 'chart-segmento',          title: 'Por Segmento',          position: 2, layout: { x: 6, y: 3,  w: 6,  h: 8  } },
-  { id: 'chart-top-veiculos',      type: 'chart-top-veiculos',      title: 'Top Veículos',          position: 3, layout: { x: 0, y: 11, w: 6,  h: 8  } },
-  { id: 'chart-top-fornecedores',  type: 'chart-top-fornecedores',  title: 'Top Fornecedores',      position: 4, layout: { x: 6, y: 11, w: 6,  h: 8  } },
-  { id: 'chart-top-cc',            type: 'chart-top-cc',            title: 'Top Centros de Custo',  position: 5, layout: { x: 0, y: 19, w: 6,  h: 8  } },
-  { id: 'chart-top-motoristas',    type: 'chart-top-motoristas',    title: 'Top Motoristas',        position: 6, layout: { x: 6, y: 19, w: 6,  h: 8  } },
-  { id: 'chart-tipo-veiculo',      type: 'chart-tipo-veiculo',      title: 'Por Tipo de Veículo',   position: 7, layout: { x: 0, y: 27, w: 12, h: 8  } },
-  { id: 'tabela-registros',        type: 'tabela-registros',        title: 'Registros',             position: 8, layout: { x: 0, y: 35, w: 12, h: 10 } },
+  { id: 'chart-evolucao-mensal',   type: 'chart-evolucao-mensal',   title: 'Evolução Mensal',       position: 1, layout: { x: 0, y: 3,  w: 12, h: 8  } },
+  { id: 'chart-categoria',         type: 'chart-categoria',         title: 'Por Categoria',         position: 2, layout: { x: 0, y: 11, w: 12, h: 9  } },
+  { id: 'chart-tipo-veiculo',      type: 'chart-tipo-veiculo',      title: 'Por Tipo de Veículo',   position: 3, layout: { x: 0, y: 20, w: 12, h: 9  } },
+  { id: 'chart-top-veiculos',      type: 'chart-top-veiculos',      title: 'Placa — Ranking',       position: 4, layout: { x: 0, y: 29, w: 6,  h: 8  } },
+  { id: 'chart-top-fornecedores',  type: 'chart-top-fornecedores',  title: 'Top Fornecedores',      position: 5, layout: { x: 6, y: 29, w: 6,  h: 8  } },
+  { id: 'chart-top-cc',            type: 'chart-top-cc',            title: 'Top Centros de Custo',  position: 6, layout: { x: 0, y: 37, w: 12, h: 8  } },
+  { id: 'tabela-registros',        type: 'tabela-registros',        title: 'Registros',             position: 7, layout: { x: 0, y: 45, w: 12, h: 10 } },
 ];
 
 interface Options { shareToken?: string | null; enabled?: boolean; }

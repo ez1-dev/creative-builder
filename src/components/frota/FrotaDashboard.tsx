@@ -32,6 +32,17 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+export type FrotaCategoria = 'MANUTENCAO' | 'COMBUSTIVEL' | 'PEDAGIO';
+
+export const CATEGORIA_OPTIONS: { value: FrotaCategoria; label: string }[] = [
+  { value: 'MANUTENCAO',  label: 'Manutenção veículo' },
+  { value: 'COMBUSTIVEL', label: 'Combustível' },
+  { value: 'PEDAGIO',     label: 'Pedágio' },
+];
+export const CATEGORIA_LABEL: Record<string, string> = Object.fromEntries(
+  CATEGORIA_OPTIONS.map((o) => [o.value, o.label]),
+);
+
 export interface ManutencaoFrota {
   id: string;
   data: string;
@@ -47,6 +58,7 @@ export interface ManutencaoFrota {
   segmento: string | null;
   tipo_veiculo: string | null;
   observacoes: string | null;
+  categoria: FrotaCategoria;
 }
 
 export const TIPO_VEICULO_OPTIONS = ['LEVE', 'CAMINHÃO', 'CARRETA', 'GUINDASTE', 'CAÇAMBA', 'MUCK', 'OUTRO'] as const;
@@ -65,6 +77,7 @@ interface Props {
 const MESES_ORDER = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
 const ALL_DRILL_LEVELS: { key: keyof ManutencaoFrota; label: string }[] = [
+  { key: 'categoria', label: 'Categoria' },
   { key: 'segmento', label: 'Segmento' },
   { key: 'tipo_veiculo', label: 'Tipo de Veículo' },
   { key: 'centro_custo', label: 'Centro de Custo' },
@@ -76,6 +89,7 @@ const ALL_DRILL_LEVELS: { key: keyof ManutencaoFrota; label: string }[] = [
 
 const CONFIGURABLE_CANONICAL = [
   'chart-evolucao-mensal',
+  'chart-categoria',
   'chart-segmento',
   'chart-top-veiculos',
   'chart-top-fornecedores',
@@ -136,6 +150,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
   const hiddenList = useMemo(() => effectiveWidgets.filter((w) => w.hidden), [effectiveWidgets]);
 
   // ===== Filtros da FilterBar =====
+  const [categoria, setCategoria] = useState<string[]>([]);
   const [segmento, setSegmento] = useState<string[]>([]);
   const [tipoVeiculo, setTipoVeiculo] = useState<string[]>([]);
   const [centroCusto, setCentroCusto] = useState<string[]>([]);
@@ -148,6 +163,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
 
   // ===== Cross-filter =====
   const [selMes, setSelMes] = useState<string[]>([]);
+  const [selCategoria, setSelCategoria] = useState<string[]>([]);
   const [selSegmento, setSelSegmento] = useState<string[]>([]);
   const [selPlaca, setSelPlaca] = useState<string[]>([]);
   const [selFornecedor, setSelFornecedor] = useState<string[]>([]);
@@ -157,12 +173,18 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
 
   // ===== Drill-down =====
   const [drillLevels, setDrillLevels] = useState<string[]>([
-    'segmento', 'centro_custo', 'placa', 'fornecedor',
+    'categoria', 'segmento', 'centro_custo', 'placa',
   ]);
   const toggleDrillLevel = (key: string) => {
     setDrillLevels((prev) => prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]);
   };
 
+  const optsCategoria = useMemo(
+    () => CATEGORIA_OPTIONS
+      .filter((o) => data.some((r) => r.categoria === o.value))
+      .map((o) => ({ value: o.value, label: o.label })),
+    [data],
+  );
   const optsSeg = useMemo(() => uniqueOpts(data.map((r) => r.segmento)), [data]);
   const optsTipo = useMemo(() => uniqueOpts(data.map((r) => r.tipo_veiculo)), [data]);
   const optsCC = useMemo(() => uniqueOpts(data.map((r) => r.centro_custo)), [data]);
@@ -172,6 +194,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
   const filtered = useMemo(() => {
     const q = busca.trim().toLowerCase();
     return data.filter((r) => {
+      if (categoria.length && !categoria.includes(r.categoria)) return false;
       if (segmento.length && !segmento.includes(r.segmento ?? '')) return false;
       if (tipoVeiculo.length && !tipoVeiculo.includes(r.tipo_veiculo ?? '')) return false;
       if (centroCusto.length && !centroCusto.includes(r.centro_custo ?? '')) return false;
@@ -184,10 +207,11 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
       }
       return true;
     });
-  }, [data, segmento, tipoVeiculo, centroCusto, placa, motorista, busca]);
+  }, [data, categoria, segmento, tipoVeiculo, centroCusto, placa, motorista, busca]);
 
   const crossFiltered = useMemo(() => filtered.filter((r) => {
     if (selMes.length && !selMes.includes(r.mes ?? '?')) return false;
+    if (selCategoria.length && !selCategoria.includes(CATEGORIA_LABEL[r.categoria] ?? r.categoria)) return false;
     if (selSegmento.length && !selSegmento.includes(r.segmento ?? 'NÃO INFORMADO')) return false;
     if (selPlaca.length && !selPlaca.includes(r.placa ?? '—')) return false;
     if (selFornecedor.length && !selFornecedor.includes(r.fornecedor ?? '—')) return false;
@@ -195,16 +219,16 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     if (selMotorista.length && !selMotorista.includes(r.motorista ?? '—')) return false;
     if (selTipo.length && !selTipo.includes(r.tipo_veiculo ?? 'NÃO INFORMADO')) return false;
     return true;
-  }), [filtered, selMes, selSegmento, selPlaca, selFornecedor, selCC, selMotorista, selTipo]);
+  }), [filtered, selMes, selCategoria, selSegmento, selPlaca, selFornecedor, selCC, selMotorista, selTipo]);
 
   const totalAtivos =
-    selMes.length + selSegmento.length + selPlaca.length +
+    selMes.length + selCategoria.length + selSegmento.length + selPlaca.length +
     selFornecedor.length + selCC.length + selMotorista.length + selTipo.length;
 
   const limparTudo = () => {
-    setSelMes([]); setSelSegmento([]); setSelPlaca([]);
+    setSelMes([]); setSelCategoria([]); setSelSegmento([]); setSelPlaca([]);
     setSelFornecedor([]); setSelCC([]); setSelMotorista([]); setSelTipo([]);
-    setSegmento([]); setTipoVeiculo([]); setCentroCusto([]); setPlaca([]); setMotorista([]);
+    setCategoria([]); setSegmento([]); setTipoVeiculo([]); setCentroCusto([]); setPlaca([]); setMotorista([]);
     setBusca('');
   };
 
@@ -221,6 +245,15 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     return Array.from(m.entries())
       .sort((a, b) => MESES_ORDER.indexOf(a[0]) - MESES_ORDER.indexOf(b[0]))
       .map(([label, valor]) => ({ label, valor }));
+  }, [crossFiltered]);
+
+  const porCategoria = useMemo(() => {
+    const m = new Map<string, number>();
+    crossFiltered.forEach((r) => {
+      const k = CATEGORIA_LABEL[r.categoria] ?? r.categoria ?? 'NÃO INFORMADO';
+      m.set(k, (m.get(k) ?? 0) + (r.valor || 0));
+    });
+    return Array.from(m.entries()).map(([label, valor]) => ({ label, valor }));
   }, [crossFiltered]);
 
   const porSegmento = useMemo(() => {
@@ -315,13 +348,15 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     { key: 'descricao', header: 'Descrição', render: (_v, r) => (
       <span className="block max-w-[300px] truncate" title={r.descricao ?? ''}>{r.descricao}</span>
     ) },
-    { key: 'quilometragem', header: 'KM', align: 'right', sortable: true,
+    { key: 'quilometragem', header: 'Km', align: 'right', sortable: true,
       render: (_v, r) => r.quilometragem != null ? r.quilometragem.toLocaleString('pt-BR') : '—' },
     { key: 'valor', header: 'Valor', align: 'right', sortable: true, render: (_v, r) => formatCurrency(r.valor) },
-    { key: 'motorista', header: 'Motorista', sortable: true },
     { key: 'centro_custo', header: 'C.Custo' },
     { key: 'segmento', header: 'Segmento' },
-    { key: 'tipo_veiculo', header: 'Tipo' },
+    { key: 'tipo_veiculo', header: 'Tipo Veículo' },
+    { key: 'categoria', header: 'Categoria', render: (_v, r) => (
+      <Badge variant="outline" className="text-[10px]">{CATEGORIA_LABEL[r.categoria] ?? r.categoria}</Badge>
+    ) },
     ...((onEdit || onDelete) ? [{
       key: '__acoes' as any, header: 'Ações', align: 'right' as const,
       render: (_v: any, r: ManutencaoFrota) => (
@@ -389,12 +424,13 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
       Veículo: r.veiculo_descricao ?? '',
       Fornecedor: r.fornecedor ?? '',
       Descrição: r.descricao ?? '',
-      KM: r.quilometragem ?? '',
+      Km: r.quilometragem ?? '',
       Valor: r.valor ?? 0,
-      Motorista: r.motorista ?? '',
       'Centro de Custo': r.centro_custo ?? '',
       Segmento: r.segmento ?? '',
-      'Tipo de Veículo': r.tipo_veiculo ?? '',
+      'Tipo Veículo': r.tipo_veiculo ?? '',
+      Categoria: CATEGORIA_LABEL[r.categoria] ?? r.categoria,
+      Motorista: r.motorista ?? '',
     }));
 
   const exportCSV = () => {
@@ -441,10 +477,20 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
         />
       </VisualGate>
     ),
+    'chart-categoria': (
+      <VisualGate visualKey="frota.chart-categoria">
+        <PieChartCard
+          title="Por Segmento (Categoria)"
+          subtitle="Manutenção veículo / Combustível / Pedágio — % e valor"
+          data={porCategoria} loading={loading} donut height={420}
+          onItemClick={(d) => setSelCategoria((prev) => toggleItem(prev, d.label))}
+        />
+      </VisualGate>
+    ),
     'chart-segmento': (
       <VisualGate visualKey="frota.chart-segmento">
         <PieChartCard
-          title="Distribuição por Segmento"
+          title="Distribuição por Segmento (FROTA/GENIUS/OBRA)"
           subtitle="Clique numa fatia para filtrar"
           data={porSegmento} loading={loading} donut
           onItemClick={(d) => setSelSegmento((prev) => toggleItem(prev, d.label))}
@@ -454,7 +500,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     'chart-top-veiculos': (
       <VisualGate visualKey="frota.chart-top-veiculos">
         <RankingChartCard
-          title="Top Veículos por Valor"
+          title="Placa — Ranking"
           subtitle="Placa — descrição. Clique para filtrar pelo veículo"
           data={topVeiculos} topN={10} loading={loading}
           onItemClick={(d) => {
@@ -467,7 +513,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     'chart-top-fornecedores': (
       <VisualGate visualKey="frota.chart-top-fornecedores">
         <RankingChartCard
-          title="Top Fornecedores"
+          title="Fornecedor — Ranking"
           subtitle="Clique para filtrar pelo fornecedor"
           data={topFornecedores} topN={10} loading={loading}
           onItemClick={(d) => setSelFornecedor((prev) => toggleItem(prev, d.label))}
@@ -477,7 +523,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     'chart-top-cc': (
       <VisualGate visualKey="frota.chart-top-cc">
         <RankingChartCard
-          title="Top Centros de Custo"
+          title="Centro de Custo — Ranking"
           subtitle="Clique para filtrar pelo C.Custo"
           data={topCC} topN={10} loading={loading}
           onItemClick={(d) => setSelCC((prev) => toggleItem(prev, d.label))}
@@ -487,7 +533,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     'chart-top-motoristas': (
       <VisualGate visualKey="frota.chart-top-motoristas">
         <RankingChartCard
-          title="Top Motoristas"
+          title="Motorista — Ranking"
           subtitle="Clique para filtrar pelo motorista"
           data={topMotoristas} topN={10} loading={loading}
           onItemClick={(d) => setSelMotorista((prev) => toggleItem(prev, d.label))}
@@ -497,9 +543,9 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     'chart-tipo-veiculo': (
       <VisualGate visualKey="frota.chart-tipo-veiculo">
         <PieChartCard
-          title="Manutenções por Tipo de Veículo"
-          subtitle="Clique numa fatia para filtrar pelo tipo"
-          data={porTipo} loading={loading} donut
+          title="Por Tipo de Veículo"
+          subtitle="% e valor por tipo. Clique numa fatia para filtrar"
+          data={porTipo} loading={loading} donut height={420}
           onItemClick={(d) => setSelTipo((prev) => toggleItem(prev, d.label))}
         />
       </VisualGate>
@@ -635,6 +681,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
                   descricao:    (p) => p, // sem cross-filter para descrição
                 };
                 switch (dim) {
+                  case 'categoria':    setSelCategoria(dispatch.segmento); return;
                   case 'segmento':     setSelSegmento(dispatch.segmento); return;
                   case 'tipo_veiculo': setSelTipo(dispatch.tipo_veiculo); return;
                   case 'placa':        setSelPlaca(dispatch.placa); return;
@@ -665,6 +712,8 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     <div className="space-y-4">
       {/* FilterBar */}
       <FilterBar>
+        <MultiSelectFilter label="Categoria" values={categoria} onChange={setCategoria}
+          options={optsCategoria} placeholder="Todas" />
         <MultiSelectFilter label="Segmento" values={segmento} onChange={setSegmento}
           options={optsSeg} placeholder="Todos" />
         <MultiSelectFilter label="Tipo de Veículo" values={tipoVeiculo} onChange={setTipoVeiculo}
@@ -675,14 +724,14 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
           options={optsCC} placeholder="Todos" />
         <MultiSelectFilter label="Motorista" values={motorista} onChange={setMotorista}
           options={optsMot} placeholder="Todos" />
-        
+
         <div className="flex items-end">
           <Button
             size="sm"
             variant="outline"
             className="h-8 gap-1 text-xs"
             onClick={limparTudo}
-            disabled={segmento.length + tipoVeiculo.length + placa.length + centroCusto.length + motorista.length + busca.length + totalAtivos === 0}
+            disabled={categoria.length + segmento.length + tipoVeiculo.length + placa.length + centroCusto.length + motorista.length + busca.length + totalAtivos === 0}
           >
             <X className="h-3 w-3" /> Limpar filtros
           </Button>
@@ -694,6 +743,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
         <div className="flex flex-wrap items-center gap-1.5 rounded-md border bg-muted/40 px-2 py-1.5 text-xs">
           <span className="font-semibold text-muted-foreground">Filtros ativos:</span>
           {renderChips('Mês', selMes, (v) => setSelMes((p) => p.filter((x) => x !== v)))}
+          {renderChips('Categoria', selCategoria, (v) => setSelCategoria((p) => p.filter((x) => x !== v)))}
           {renderChips('Segmento', selSegmento, (v) => setSelSegmento((p) => p.filter((x) => x !== v)))}
           {renderChips('Placa', selPlaca, (v) => setSelPlaca((p) => p.filter((x) => x !== v)))}
           {renderChips('Fornecedor', selFornecedor, (v) => setSelFornecedor((p) => p.filter((x) => x !== v)))}
@@ -967,6 +1017,7 @@ type FrotaMetricKey = typeof FROTA_METRICAS[number]['key'];
 
 function dimValue(r: ManutencaoFrota, key: FrotaDimKey): string {
   switch (key) {
+    case 'categoria':    return CATEGORIA_LABEL[r.categoria] ?? r.categoria ?? 'NÃO INFORMADO';
     case 'placa':        return r.placa || '—';
     case 'fornecedor':   return r.fornecedor || '—';
     case 'descricao':    return (r.descricao || '—').trim() || '—';

@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/select';
 import { Plus, Share2, Upload, RefreshCw, Trash2, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { FrotaDashboard, type ManutencaoFrota } from '@/components/frota/FrotaDashboard';
+import { FrotaDashboard, type ManutencaoFrota, CATEGORIA_OPTIONS } from '@/components/frota/FrotaDashboard';
 import { FrotaShareLinksDialog } from '@/components/frota/FrotaShareLinksDialog';
 import { ImportarFrotaDialog } from '@/components/frota/ImportarFrotaDialog';
 
@@ -32,6 +32,7 @@ const emptyForm = (): Partial<ManutencaoFrota> => ({
   placa: '', veiculo_descricao: '', fornecedor: '', descricao: '',
   quilometragem: null, valor: 0, motorista: '', centro_custo: '',
   segmento: 'FROTA', tipo_veiculo: 'LEVE', observacoes: '',
+  categoria: 'MANUTENCAO',
 });
 
 export default function ManutencaoFrotaPage() {
@@ -94,6 +95,7 @@ export default function ManutencaoFrotaPage() {
       segmento: form.segmento || null,
       tipo_veiculo: form.tipo_veiculo || null,
       observacoes: form.observacoes || null,
+      categoria: form.categoria || 'MANUTENCAO',
     };
     if (editing) {
       const { error } = await supabase.from('manutencao_frota').update(payload).eq('id', editing.id);
@@ -192,6 +194,15 @@ export default function ManutencaoFrotaPage() {
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editing ? 'Editar' : 'Novo'} registro de manutenção</DialogTitle></DialogHeader>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div>
+              <Label>Categoria *</Label>
+              <Select value={form.categoria ?? 'MANUTENCAO'} onValueChange={(v) => setForm({ ...form, categoria: v as any })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CATEGORIA_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div><Label>Data *</Label><Input type="date" value={form.data ?? ''} onChange={(e) => setForm({ ...form, data: e.target.value })} /></div>
             <div><Label>Placa *</Label><Input value={form.placa ?? ''} onChange={(e) => setForm({ ...form, placa: e.target.value })} placeholder="ABC1D23" /></div>
             <div>
