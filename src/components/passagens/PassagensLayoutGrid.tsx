@@ -81,7 +81,9 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
 
   // Fora do modo de edição (visualização normal e link compartilhado),
   // o layout vindo do banco é a fonte da verdade — sempre que ele mudar,
-  // refletimos na renderização.
+  // refletimos na renderização. Enquanto `editing===true`, o localLayout
+  // é a fonte da verdade e NÃO deve ser sobrescrito por reloads/optimistic
+  // do hook (evita "voltar ao original" durante drag/resize).
   const prevEditing = useRef(editing);
   useEffect(() => {
     const justExitedEditing = prevEditing.current && !editing;
