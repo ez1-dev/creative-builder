@@ -681,6 +681,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
                   descricao:    (p) => p, // sem cross-filter para descrição
                 };
                 switch (dim) {
+                  case 'categoria':    setSelCategoria(dispatch.segmento); return;
                   case 'segmento':     setSelSegmento(dispatch.segmento); return;
                   case 'tipo_veiculo': setSelTipo(dispatch.tipo_veiculo); return;
                   case 'placa':        setSelPlaca(dispatch.placa); return;
