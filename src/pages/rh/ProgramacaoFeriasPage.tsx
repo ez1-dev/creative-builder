@@ -206,12 +206,179 @@ export default function ProgramacaoFeriasPage() {
     });
   };
 
+  const layout = useRhModuleLayout("rh-ferias", FERIAS_DEFAULTS);
+
+  const blocks: Record<string, React.ReactNode> = useMemo(() => ({
+    "kpis-ferias": (
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 h-full">
+        <div className="cursor-pointer" onClick={() => openByStatus("VENCIDA", "Férias Vencidas")}>
+          <KpiCard title="Férias Vencidas" value={kpis?.ferias_vencidas ?? 0} format="number" variant="danger" icon={<AlertOctagon className="h-4 w-4" />} loading={isLoading} />
+        </div>
+        <div className="cursor-pointer" onClick={() => openByStatus("A VENCER 30 DIAS", "A Vencer 30 Dias")}>
+          <KpiCard title="A Vencer 30 Dias" value={kpis?.a_vencer_30 ?? 0} format="number" variant="warning" icon={<AlarmClock className="h-4 w-4" />} loading={isLoading} />
+        </div>
+        <div className="cursor-pointer" onClick={() => openByStatus("A VENCER 60 DIAS", "A Vencer 60 Dias")}>
+          <KpiCard title="A Vencer 60 Dias" value={kpis?.a_vencer_60 ?? 0} format="number" icon={<Clock className="h-4 w-4" />} loading={isLoading} className="border-l-4 border-l-lime-500" />
+        </div>
+        <div className="cursor-pointer" onClick={() => openByStatus("A VENCER 90 DIAS", "A Vencer 90 Dias")}>
+          <KpiCard title="A Vencer 90 Dias" value={kpis?.a_vencer_90 ?? 0} format="number" icon={<CalendarClock className="h-4 w-4" />} loading={isLoading} className="border-l-4 border-l-green-700" />
+        </div>
+        <div className="cursor-pointer" onClick={openFeriasTotal}>
+          <KpiCard title="Férias Total" value={kpis?.ferias_total ?? 0} format="number" variant="info" icon={<Users className="h-4 w-4" />} loading={isLoading} />
+        </div>
+        <div className="cursor-pointer" onClick={openDeFerias}>
+          <KpiCard title="De Férias" value={kpis?.de_ferias ?? 0} format="number" icon={<Palmtree className="h-4 w-4" />} loading={isLoading} className="border-l-4 border-l-blue-900" />
+        </div>
+      </div>
+    ),
+    "pivot-ferias": (
+      <Card className="h-full">
+        <CardContent className="pt-6">
+          <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Limite Férias</h2>
+          <div className="max-h-[calc(100%-2rem)] overflow-auto">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background z-10">
+                <TableRow>
+                  <TableHead>Ano</TableHead>
+                  {MESES.map((m) => <TableHead key={m} className="text-right">{m}</TableHead>)}
+                  <TableHead className="text-right">TOTAL</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading && Array.from({ length: 3 }).map((_, i) => (
+                  <TableRow key={i}><TableCell colSpan={14}><Skeleton className="h-6" /></TableCell></TableRow>
+                ))}
+                {!isLoading && pivot.length === 0 && (
+                  <TableRow><TableCell colSpan={14} className="text-center text-muted-foreground py-6">Sem dados</TableCell></TableRow>
+                )}
+                {pivot.map((r) => (
+                  <TableRow key={r.ano}>
+                    <TableCell className="font-medium">{r.ano}</TableCell>
+                    {M_KEYS.map((k, idx) => {
+                      const v = (r as any)[k] as number;
+                      const clickable = Number(v) > 0;
+                      return (
+                        <TableCell key={k}
+                          className={`text-right tabular-nums ${clickable ? "cursor-pointer hover:underline text-primary" : ""}`}
+                          onClick={clickable ? () => openPivotCell(r.ano, idx + 1) : undefined}>
+                          {fmtPivot(v)}
+                        </TableCell>
+                      );
+                    })}
+                    <TableCell
+                      className={`text-right tabular-nums font-semibold ${Number(r.total) > 0 ? "cursor-pointer hover:underline text-primary" : ""}`}
+                      onClick={Number(r.total) > 0 ? () => openPivotTotal(r.ano) : undefined}>
+                      {fmtPivot(r.total)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    ),
+    "prox90-ferias": (
+      <Card className="h-full">
+        <CardContent className="pt-6">
+          <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Programação Próximos 90 Dias</h2>
+          <div className="max-h-[calc(100%-2rem)] overflow-auto">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background z-10">
+                <TableRow>
+                  <TableHead>Colaborador</TableHead>
+                  <TableHead>Data Início Período</TableHead>
+                  <TableHead>Data Fim Período</TableHead>
+                  <TableHead>Data Limite Saída</TableHead>
+                  <TableHead>Data Programação</TableHead>
+                  <TableHead className="text-right">Q. Dias Direito</TableHead>
+                  <TableHead className="text-right">Q. Dias Programado</TableHead>
+                  <TableHead className="text-right">Q. Dias Abono</TableHead>
+                  <TableHead className="text-right">Q. Dias Saldo</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading && Array.from({ length: 6 }).map((_, i) => (
+                  <TableRow key={i}><TableCell colSpan={9}><Skeleton className="h-6" /></TableCell></TableRow>
+                ))}
+                {!isLoading && prox90.length === 0 && (
+                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-6">Sem dados</TableCell></TableRow>
+                )}
+                {prox90.map((r, i) => (
+                  <TableRow key={i}>
+                    <TableCell>{r.colaborador}</TableCell>
+                    <TableCell>{formatDateBR(r.dt_inicio_periodo)}</TableCell>
+                    <TableCell>{formatDateBR(r.dt_fim_periodo)}</TableCell>
+                    <TableCell>{formatDateBR(r.dt_limite_saida)}</TableCell>
+                    <TableCell>{formatDateBR(r.dt_programacao)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{fmtQtd(r.qtd_dias_direito)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{fmtQtd(r.qtd_dias_programado)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{fmtQtd(r.qtd_dias_abono)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{fmtQtd(r.qtd_dias_saldo)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    ),
+    "sem-prog-ferias": (
+      <Card className="h-full">
+        <CardContent className="pt-6">
+          <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">1º Vencimento e Sem Programação</h2>
+          <div className="max-h-[calc(100%-2rem)] overflow-auto">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background z-10">
+                <TableRow>
+                  <TableHead>Empresa</TableHead>
+                  <TableHead>Filial</TableHead>
+                  <TableHead>Colaborador</TableHead>
+                  <TableHead>Data Limite Saída</TableHead>
+                  <TableHead className="text-right">Q. Dias Direito</TableHead>
+                  <TableHead className="text-right">Q. Dias Saldo</TableHead>
+                  <TableHead className="text-right">Q. Dias Programado</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading && Array.from({ length: 6 }).map((_, i) => (
+                  <TableRow key={i}><TableCell colSpan={7}><Skeleton className="h-6" /></TableCell></TableRow>
+                ))}
+                {!isLoading && sem.length === 0 && (
+                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Sem dados</TableCell></TableRow>
+                )}
+                {sem.map((r, i) => (
+                  <TableRow key={i} className="cursor-pointer hover:bg-muted/50" onClick={() => openSemProgLinha(r)}>
+                    <TableCell>{r.empresa}</TableCell>
+                    <TableCell>{r.filial}</TableCell>
+                    <TableCell>{r.colaborador}</TableCell>
+                    <TableCell>{formatDateBR(r.dt_limite_saida)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{fmtQtd(r.qtd_dias_direito)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{fmtQtd(r.qtd_dias_saldo)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{fmtQtd(r.qtd_dias_programado)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    ),
+  }), [kpis, isLoading, pivot, prox90, sem]);
+
   return (
     <div className="container mx-auto py-6 space-y-4">
       <RhPageHeader
         title="RH - 04 - Programação de Férias"
         actions={
           <div className="flex items-center gap-2">
+            <RhLayoutToolbar
+              editing={layout.editing}
+              onToggle={layout.setEditing}
+              onReset={layout.resetLayout}
+              widgets={layout.widgets}
+              onShow={layout.showWidget}
+            />
             <Button variant="outline" size="sm" onClick={handleExport} disabled={isExporting}>
               {isExporting ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -242,228 +409,14 @@ export default function ProgramacaoFeriasPage() {
         disabled={isFetching}
       />
 
+      <RhDashboardGrid
+        widgets={layout.widgets}
+        blocks={blocks}
+        editing={layout.editing}
+        onLayoutChange={layout.saveGeometries}
+        onHide={layout.hideWidget}
+      />
 
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-        <div className="cursor-pointer" onClick={() => openByStatus("VENCIDA", "Férias Vencidas")}>
-          <KpiCard
-            title="Férias Vencidas"
-            value={kpis?.ferias_vencidas ?? 0}
-            format="number"
-            variant="danger"
-            icon={<AlertOctagon className="h-4 w-4" />}
-            loading={isLoading}
-          />
-        </div>
-        <div className="cursor-pointer" onClick={() => openByStatus("A VENCER 30 DIAS", "A Vencer 30 Dias")}>
-          <KpiCard
-            title="A Vencer 30 Dias"
-            value={kpis?.a_vencer_30 ?? 0}
-            format="number"
-            variant="warning"
-            icon={<AlarmClock className="h-4 w-4" />}
-            loading={isLoading}
-          />
-        </div>
-        <div className="cursor-pointer" onClick={() => openByStatus("A VENCER 60 DIAS", "A Vencer 60 Dias")}>
-          <KpiCard
-            title="A Vencer 60 Dias"
-            value={kpis?.a_vencer_60 ?? 0}
-            format="number"
-            icon={<Clock className="h-4 w-4" />}
-            loading={isLoading}
-            className="border-l-4 border-l-lime-500"
-          />
-        </div>
-        <div className="cursor-pointer" onClick={() => openByStatus("A VENCER 90 DIAS", "A Vencer 90 Dias")}>
-          <KpiCard
-            title="A Vencer 90 Dias"
-            value={kpis?.a_vencer_90 ?? 0}
-            format="number"
-            icon={<CalendarClock className="h-4 w-4" />}
-            loading={isLoading}
-            className="border-l-4 border-l-green-700"
-          />
-        </div>
-        <div className="cursor-pointer" onClick={openFeriasTotal}>
-          <KpiCard
-            title="Férias Total"
-            value={kpis?.ferias_total ?? 0}
-            format="number"
-            variant="info"
-            icon={<Users className="h-4 w-4" />}
-            loading={isLoading}
-          />
-        </div>
-        <div className="cursor-pointer" onClick={openDeFerias}>
-          <KpiCard
-            title="De Férias"
-            value={kpis?.de_ferias ?? 0}
-            format="number"
-            icon={<Palmtree className="h-4 w-4" />}
-            loading={isLoading}
-            className="border-l-4 border-l-blue-900"
-          />
-        </div>
-      </div>
-
-      <Card>
-        <CardContent className="pt-6">
-          <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
-            Limite Férias
-          </h2>
-          <div className="max-h-[40vh] overflow-auto">
-            <Table>
-              <TableHeader className="sticky top-0 bg-background z-10">
-                <TableRow>
-                  <TableHead>Ano</TableHead>
-                  {MESES.map((m) => (
-                    <TableHead key={m} className="text-right">{m}</TableHead>
-                  ))}
-                  <TableHead className="text-right">TOTAL</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading && Array.from({ length: 3 }).map((_, i) => (
-                  <TableRow key={i}><TableCell colSpan={14}><Skeleton className="h-6" /></TableCell></TableRow>
-                ))}
-                {!isLoading && pivot.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={14} className="text-center text-muted-foreground py-6">
-                      Sem dados
-                    </TableCell>
-                  </TableRow>
-                )}
-                {pivot.map((r) => (
-                  <TableRow key={r.ano}>
-                    <TableCell className="font-medium">{r.ano}</TableCell>
-                    {M_KEYS.map((k, idx) => {
-                      const v = (r as any)[k] as number;
-                      const clickable = Number(v) > 0;
-                      return (
-                        <TableCell
-                          key={k}
-                          className={`text-right tabular-nums ${clickable ? "cursor-pointer hover:underline text-primary" : ""}`}
-                          onClick={clickable ? () => openPivotCell(r.ano, idx + 1) : undefined}
-                        >
-                          {fmtPivot(v)}
-                        </TableCell>
-                      );
-                    })}
-                    <TableCell
-                      className={`text-right tabular-nums font-semibold ${Number(r.total) > 0 ? "cursor-pointer hover:underline text-primary" : ""}`}
-                      onClick={Number(r.total) > 0 ? () => openPivotTotal(r.ano) : undefined}
-                    >
-                      {fmtPivot(r.total)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
-              Programação Próximos 90 Dias
-            </h2>
-            <div className="max-h-[55vh] overflow-auto">
-              <Table>
-                <TableHeader className="sticky top-0 bg-background z-10">
-                  <TableRow>
-                    <TableHead>Colaborador</TableHead>
-                    <TableHead>Data Início Período</TableHead>
-                    <TableHead>Data Fim Período</TableHead>
-                    <TableHead>Data Limite Saída</TableHead>
-                    <TableHead>Data Programação</TableHead>
-                    <TableHead className="text-right">Q. Dias Direito</TableHead>
-                    <TableHead className="text-right">Q. Dias Programado</TableHead>
-                    <TableHead className="text-right">Q. Dias Abono</TableHead>
-                    <TableHead className="text-right">Q. Dias Saldo</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading && Array.from({ length: 6 }).map((_, i) => (
-                    <TableRow key={i}><TableCell colSpan={9}><Skeleton className="h-6" /></TableCell></TableRow>
-                  ))}
-                  {!isLoading && prox90.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={9} className="text-center text-muted-foreground py-6">
-                        Sem dados
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {prox90.map((r, i) => (
-                    <TableRow key={i}>
-                      <TableCell>{r.colaborador}</TableCell>
-                      <TableCell>{formatDateBR(r.dt_inicio_periodo)}</TableCell>
-                      <TableCell>{formatDateBR(r.dt_fim_periodo)}</TableCell>
-                      <TableCell>{formatDateBR(r.dt_limite_saida)}</TableCell>
-                      <TableCell>{formatDateBR(r.dt_programacao)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{fmtQtd(r.qtd_dias_direito)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{fmtQtd(r.qtd_dias_programado)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{fmtQtd(r.qtd_dias_abono)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{fmtQtd(r.qtd_dias_saldo)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
-              1º Vencimento e Sem Programação
-            </h2>
-            <div className="max-h-[55vh] overflow-auto">
-              <Table>
-                <TableHeader className="sticky top-0 bg-background z-10">
-                  <TableRow>
-                    <TableHead>Empresa</TableHead>
-                    <TableHead>Filial</TableHead>
-                    <TableHead>Colaborador</TableHead>
-                    <TableHead>Data Limite Saída</TableHead>
-                    <TableHead className="text-right">Q. Dias Direito</TableHead>
-                    <TableHead className="text-right">Q. Dias Saldo</TableHead>
-                    <TableHead className="text-right">Q. Dias Programado</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading && Array.from({ length: 6 }).map((_, i) => (
-                    <TableRow key={i}><TableCell colSpan={7}><Skeleton className="h-6" /></TableCell></TableRow>
-                  ))}
-                  {!isLoading && sem.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground py-6">
-                        Sem dados
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {sem.map((r, i) => (
-                    <TableRow
-                      key={i}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => openSemProgLinha(r)}
-                    >
-                      <TableCell>{r.empresa}</TableCell>
-                      <TableCell>{r.filial}</TableCell>
-                      <TableCell>{r.colaborador}</TableCell>
-                      <TableCell>{formatDateBR(r.dt_limite_saida)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{fmtQtd(r.qtd_dias_direito)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{fmtQtd(r.qtd_dias_saldo)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{fmtQtd(r.qtd_dias_programado)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
       <ProgramacaoFeriasDrillModal
         open={!!drill}
