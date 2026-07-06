@@ -847,9 +847,12 @@ export async function fetchAbsenteismoDashboardCached(
 
 export async function fetchContratoExperienciaDashboardCached(
   codemp: number = 1,
+  diasVencidoMax: number = 90,
 ): Promise<import("./types").ContratoExperienciaDashboard> {
-  const key = `rh:contrato-exp:${codemp}`;
-  return withRhCache(key, RH_CACHE_DEFAULT_TTL_MS, () => fetchContratoExperienciaDashboard(codemp));
+  const key = `rh:contrato-exp:${codemp}:${diasVencidoMax}`;
+  return withRhCache(key, RH_CACHE_DEFAULT_TTL_MS, () =>
+    fetchContratoExperienciaDashboard(codemp, diasVencidoMax),
+  );
 }
 
 export async function fetchProgramacaoFeriasDashboardCached(
