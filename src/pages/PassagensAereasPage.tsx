@@ -32,7 +32,7 @@ const PATH = '/passagens-aereas';
 
 const emptyForm = (): Partial<Passagem> => ({
   data_registro: new Date().toISOString().slice(0, 10),
-  colaborador: '', centro_custo: '', projeto_obra: '', fornecedor: '',
+  colaborador: '', centro_custo: '', projeto_obra: '', produto: '', fornecedor: '',
   cia_aerea: '', numero_bilhete: '', localizador: '', origem: '', destino: '',
   data_ida: '', data_volta: '', motivo_viagem: '',
   tipo_despesa: TIPO_DESPESA_OPTIONS[0], valor: 0, observacoes: '',
