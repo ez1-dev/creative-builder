@@ -131,7 +131,7 @@ export default function RelatorioGerencialPage() {
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="container mx-auto px-3 md:px-6 py-4 md:py-6 space-y-4 md:space-y-6">
       <RhPageHeader title="Relatório Gerencial de RH" subtitle="Consolidado dos 6 módulos com análise IA e alertas priorizados" />
 
       <Card>
@@ -142,7 +142,7 @@ export default function RelatorioGerencialPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
             <div>
               <Label htmlFor="ini">Período inicial (AAAAMM)</Label>
               <Input id="ini" value={anomesIni} onChange={(e) => setAnomesIni(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="202601" />
@@ -186,7 +186,7 @@ export default function RelatorioGerencialPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-3 text-xs">
               <StatMini label="Custo Folha" value={dados.resumo_folha.atual?.kpis?.custo_total ?? 0} money />
               <StatMini label="Headcount" value={dados.quadro.atual.total} />
               <StatMini label="Contratos Exp." value={dados.contratos_experiencia.atual?.kpis?.qtde_contratos ?? 0} />
@@ -221,7 +221,7 @@ export default function RelatorioGerencialPage() {
               </div>
             )}
 
-            <div className="flex gap-2 pt-2">
+            <div className="flex flex-wrap gap-2 pt-2">
               <Button variant="outline" onClick={regenerarIa} disabled={loading}>
                 <Sparkles className="h-4 w-4 mr-2" />
                 Regenerar análise IA

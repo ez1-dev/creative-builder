@@ -300,7 +300,7 @@ export default function ContratoExperienciaPage() {
   }), [kpis, isLoading, rows, statusFiltro]);
 
   return (
-    <div className="container mx-auto py-6 space-y-4">
+    <div className="container mx-auto px-3 md:px-6 py-4 md:py-6 space-y-3 md:space-y-4">
       <RhPageHeader
         title="03 — Contrato de Experiência"
         subtitle="Vencimentos, renovações e demissões pós-experiência"

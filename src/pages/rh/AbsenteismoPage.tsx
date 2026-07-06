@@ -133,7 +133,7 @@ export default function AbsenteismoPage() {
   const layout = useRhModuleLayout("rh-absenteismo", ABSENTEISMO_DEFAULTS);
 
   return (
-    <div className="container mx-auto py-6 space-y-4">
+    <div className="container mx-auto px-3 md:px-6 py-4 md:py-6 space-y-3 md:space-y-4">
       <RhPageHeader
         title="06 — Absenteísmo"
         subtitle="Afastamentos, dias perdidos e taxa de absenteísmo"
@@ -181,7 +181,7 @@ export default function AbsenteismoPage() {
       {(() => {
         const blocks: Record<string, React.ReactNode> = {
           "kpis-abs": (
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 h-full">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-3 h-full">
               <KpiCard title="Taxa de Absenteísmo" value={fmtPct2(kpis?.taxa_absenteismo_pct)} format="raw" variant="danger" icon={<TrendingDown className="h-4 w-4" />} loading={isLoading} />
               <KpiCard title="Afastamentos" value={kpis?.afastamentos ?? 0} format="number" variant="warning" icon={<AlertOctagon className="h-4 w-4" />} loading={isLoading} onClick={() => openDrill("Absenteísmo", detalhe)} />
               <KpiCard title="Colaboradores Afastados" value={kpis?.colaboradores_afastados ?? 0} format="number" variant="info" icon={<Users className="h-4 w-4" />} loading={isLoading} onClick={() => openDrill("Colaboradores Afastados", detalhe)} />

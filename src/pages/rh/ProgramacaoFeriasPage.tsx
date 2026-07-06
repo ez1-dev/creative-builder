@@ -208,7 +208,7 @@ export default function ProgramacaoFeriasPage() {
 
   const blocks: Record<string, React.ReactNode> = useMemo(() => ({
     "kpis-ferias": (
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 h-full">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-3 h-full">
         <div className="cursor-pointer" onClick={() => openByStatus("VENCIDA", "Férias Vencidas")}>
           <KpiCard title="Férias Vencidas" value={kpis?.ferias_vencidas ?? 0} format="number" variant="danger" icon={<AlertOctagon className="h-4 w-4" />} loading={isLoading} />
         </div>
@@ -365,7 +365,7 @@ export default function ProgramacaoFeriasPage() {
   }), [kpis, isLoading, pivot, prox90, sem]);
 
   return (
-    <div className="container mx-auto py-6 space-y-4">
+    <div className="container mx-auto px-3 md:px-6 py-4 md:py-6 space-y-3 md:space-y-4">
       <RhPageHeader
         title="04 — Programação de Férias"
         subtitle="Limites, vencimentos e programações dos próximos 90 dias"
