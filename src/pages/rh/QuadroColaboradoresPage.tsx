@@ -17,7 +17,11 @@ import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { AreaChartCard } from "@/components/bi/charts/AreaChartCard";
 import { BarChartCard } from "@/components/bi/charts/BarChartCard";
 import { DonutChartCard } from "@/components/bi/charts/DonutChartCard";
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid, LabelList, ResponsiveContainer,
+} from "recharts";
 import { cn } from "@/lib/utils";
+
 import {
   fetchQuadroDashboard,
   fetchQuadroHistorico,
