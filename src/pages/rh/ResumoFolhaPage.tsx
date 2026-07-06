@@ -594,15 +594,18 @@ export default function ResumoFolhaPage() {
 
       {/* Grid editável dos widgets */}
       {!indisponivel && !semDados && (
-        <RhDashboardGrid
-            loading={!layout.layoutReady}
-          widgets={layout.widgets}
+        <RhDashboardWithBiLibrary
+          pageKey="rh-resumo-folha"
+          layout={layout}
           blocks={blocks}
-          editing={layout.editing}
-          onLayoutChange={layout.saveGeometries}
-          onHide={layout.hideWidget}
+          catalog={RESUMO_FOLHA_CATALOG}
+          kpis={kpis as any}
+          filtros={{ codemp: baseParams.codemp, anomes_ini: baseParams.anomes_ini, anomes_fim: baseParams.anomes_fim }}
         />
       )}
+
+
+
 
 
       <AiInsightsPanel
