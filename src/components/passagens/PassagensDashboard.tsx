@@ -1978,11 +1978,10 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
 }
 
 export function exportPassagensCsv(rows: Passagem[]) {
-  const headers = ['Data', 'Colaborador', 'Centro Custo', 'Projeto/Obra', 'Motivo da Viagem', 'Origem', 'Destino', 'Tipo', 'Bilhete', 'Valor'];
+  const headers = ['Data Registro', 'Produto', 'Colaborador', 'Centro Custo', 'Origem', 'Destino', 'Motivo da Viagem', 'Valor'];
   const data = rows.map((r) => [
-    r.data_registro, r.colaborador, r.centro_custo ?? '', r.projeto_obra ?? '',
-    r.tipo_despesa, r.origem ?? '', r.destino ?? '', r.cia_aerea ?? '',
-    r.numero_bilhete ?? '', r.valor,
+    r.data_registro, r.produto ?? '', r.colaborador, r.centro_custo ?? '',
+    r.origem ?? '', r.destino ?? '', r.motivo_viagem ?? '', r.valor,
   ]);
   const csv = [headers, ...data].map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n');
   const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
@@ -2005,23 +2004,18 @@ function parseDateOrNull(value: string | null | undefined): Date | null {
 
 export function exportPassagensXlsx(rows: Passagem[]) {
   const headers = [
-    'Data Registro', 'Colaborador', 'Centro Custo', 'Projeto/Obra', 'Fornecedor',
-    'Cia Aérea', 'Nº Bilhete', 'Localizador', 'Origem', 'Destino',
-    'Data Ida', 'Data Volta', 'Motivo Viagem', 'Tipo Despesa', 'Valor (R$)', 'Observações',
+    'Data Registro', 'Produto', 'Colaborador', 'Centro Custo', 'Projeto/Obra',
+    'Origem', 'Destino', 'UF', 'Motivo Viagem', 'Tipo Despesa', 'Valor (R$)', 'Observações',
   ];
   const body = rows.map((r) => [
     parseDateOrNull(r.data_registro),
+    r.produto ?? '',
     r.colaborador,
     r.centro_custo ?? '',
     r.projeto_obra ?? '',
-    r.fornecedor ?? '',
-    r.cia_aerea ?? '',
-    r.numero_bilhete ?? '',
-    r.localizador ?? '',
     r.origem ?? '',
     r.destino ?? '',
-    parseDateOrNull(r.data_ida),
-    parseDateOrNull(r.data_volta),
+    r.uf_destino ?? '',
     r.motivo_viagem ?? '',
     r.tipo_despesa,
     Number(r.valor || 0),
@@ -2031,16 +2025,16 @@ export function exportPassagensXlsx(rows: Passagem[]) {
   const ws = XLSX.utils.aoa_to_sheet([headers, ...body], { cellDates: true });
 
   // Total no final
-  const totalRow = body.length + 1; // 0-based row index of total
+  const totalRow = body.length + 1;
   const total = rows.reduce((s, r) => s + Number(r.valor || 0), 0);
   XLSX.utils.sheet_add_aoa(ws, [[
-    '', '', '', '', '', '', '', '', '', '', '', '', '', 'Total', total, '',
+    '', '', '', '', '', '', '', '', '', 'Total', total, '',
   ]], { origin: { r: totalRow, c: 0 } });
 
   // Aplica formatos por coluna
   const range = XLSX.utils.decode_range(ws['!ref'] as string);
-  const dateCols = [0, 10, 11]; // Data Registro, Data Ida, Data Volta
-  const valorCol = 14; // Valor (R$)
+  const dateCols = [0]; // Data Registro
+  const valorCol = 10; // Valor (R$)
   for (let R = 1; R <= range.e.r; R++) {
     for (const c of dateCols) {
       const cell = ws[XLSX.utils.encode_cell({ r: R, c })];
@@ -2057,9 +2051,8 @@ export function exportPassagensXlsx(rows: Passagem[]) {
   }
 
   ws['!cols'] = [
-    { wch: 12 }, { wch: 28 }, { wch: 16 }, { wch: 18 }, { wch: 20 },
-    { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 12 },
-    { wch: 12 }, { wch: 12 }, { wch: 28 }, { wch: 22 }, { wch: 14 }, { wch: 32 },
+    { wch: 12 }, { wch: 14 }, { wch: 28 }, { wch: 16 }, { wch: 18 },
+    { wch: 14 }, { wch: 14 }, { wch: 6 }, { wch: 28 }, { wch: 14 }, { wch: 14 }, { wch: 32 },
   ];
 
   const wb = XLSX.utils.book_new();
