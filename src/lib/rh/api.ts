@@ -544,13 +544,17 @@ export interface StatusSincronizacaoRh {
  */
 export async function exportarContratoExperienciaExcel(
   codemp: number | string = 1,
+  diasVencidoMax: number = 90,
 ): Promise<{ blob: Blob; filename: string }> {
   const codempStr = String(codemp ?? 1);
-  const qs = new URLSearchParams({ codemp: codempStr });
+  const qs = new URLSearchParams({
+    codemp: codempStr,
+    dias_vencido_max: String(diasVencidoMax),
+  });
+  const token = api.getToken();
+  if (token) qs.set("access_token", token);
   const url = `${getApiUrl()}/api/rh/contrato-experiencia/exportar?${qs.toString()}`;
   const headers: Record<string, string> = { "ngrok-skip-browser-warning": "true" };
-  const token = api.getToken();
-  if (token) headers["Authorization"] = `Bearer ${token}`;
 
   let resp: Response;
   try {
@@ -578,7 +582,7 @@ export async function exportarContratoExperienciaExcel(
 
   const blob = await resp.blob();
   const disposition = resp.headers.get("Content-Disposition");
-  let filename = `rh03_contrato_experiencia_${codempStr}.xlsx`;
+  let filename = `rh_03_contrato_experiencia.xlsx`;
   if (disposition) {
     const m = disposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)"?/i);
     if (m?.[1]) filename = decodeURIComponent(m[1].replace(/"/g, ""));
