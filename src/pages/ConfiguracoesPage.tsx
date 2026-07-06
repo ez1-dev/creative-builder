@@ -83,6 +83,15 @@ const ALL_SCREENS = [
   { path: '/gestao-sgu-usuarios', name: 'Gestão SGU - Usuários ERP Senior' },
   { path: '/configuracoes', name: 'Configurações' },
   { path: '/biblioteca-bi', name: 'Biblioteca BI (Catálogo de Componentes)' },
+  { path: '/rh', name: 'RH' },
+  { path: '/rh/resumo-folha', name: 'RH — Resumo Folha' },
+  { path: '/rh/quadro-colaboradores', name: 'RH — Quadro de Colaboradores' },
+  { path: '/rh/contrato-experiencia', name: 'RH — Contrato Experiência' },
+  { path: '/rh/programacao-ferias', name: 'RH — Programação de Férias' },
+  { path: '/rh/turnover', name: 'RH — Rotatividade / Turnover' },
+  { path: '/rh/absenteismo', name: 'RH — Absenteísmo / Afastamentos' },
+  { path: '/rh/formularios', name: 'RH — Formulários' },
+  { path: '/rh/relatorio-gerencial', name: 'RH — Relatório Gerencial (PDF+IA)' },
 ];
 
 interface AccessProfile {
