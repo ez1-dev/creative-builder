@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
+import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import { ProgramacaoFeriasDrillModal, DrillMode } from "@/components/rh/ProgramacaoFeriasDrillModal";
 import { fetchProgramacaoFeriasDashboard, exportarProgramacaoFeriasExcel } from "@/lib/rh/api";
 import type { ProgramacaoFeriasDetalheItem, DeFeriasDetalheItem } from "@/lib/rh/types";
@@ -433,6 +434,33 @@ export default function ProgramacaoFeriasPage() {
         mode={drill?.mode ?? "periodo"}
         rows={drill?.rows ?? []}
         headerNote={drill?.headerNote}
+      />
+
+      <AiInsightsPanel
+        modulo="ferias"
+        ready={!isLoading && !!data}
+        payload={{
+          kpis,
+          ativos_total: ativosTotal,
+          total_periodos: detalhe.length,
+          de_ferias_agora: deFeriasDetalhe.length,
+          amostra_vencidas: vencidas.slice(0, 15).map((r) => ({
+            empresa: r.empresa,
+            filial: r.filial,
+            colaborador: r.colaborador,
+            dt_limite_saida: r.dt_limite_saida,
+            qtd_dias_direito: r.qtd_dias_direito,
+            qtd_dias_saldo: r.qtd_dias_saldo,
+          })),
+          amostra_sem_programacao: sem.slice(0, 10).map((r) => ({
+            empresa: r.empresa,
+            colaborador: r.colaborador,
+            dt_limite_saida: r.dt_limite_saida,
+            qtd_dias_saldo: r.qtd_dias_saldo,
+          })),
+          limite_ferias_por_ano: pivot,
+          proximos_90_dias_total: prox90.length,
+        }}
       />
     </div>
   );

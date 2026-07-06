@@ -17,6 +17,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChevronDown, Info, RefreshCw, Loader2, AlertTriangle, FileSpreadsheet } from "lucide-react";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
+import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import {
   fetchResumoFolhaDashboard,
@@ -673,6 +674,20 @@ export default function ResumoFolhaPage() {
           </div>
         </>
       )}
+
+      <AiInsightsPanel
+        modulo="resumo-folha"
+        ready={!isLoading && !!data && !indisponivel && !semDados}
+        payload={{
+          periodo: { anomes_ini: baseParams.anomes_ini, anomes_fim: baseParams.anomes_fim, codemp: baseParams.codemp },
+          kpis,
+          filiais: filiaisData.slice(0, 20),
+          top_proventos: [...proventos].sort((a: any, b: any) => (b.valor || 0) - (a.valor || 0)).slice(0, 10),
+          top_descontos: [...descontos].sort((a: any, b: any) => (b.valor || 0) - (a.valor || 0)).slice(0, 10),
+          tipos_evento: tipos,
+          serie_mensal: mensal,
+        }}
+      />
     </div>
   );
 }

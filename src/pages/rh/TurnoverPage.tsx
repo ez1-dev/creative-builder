@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
+import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import { AnomesSelect } from "@/components/bi/comercial/AnomesSelect";
 import { TurnoverDrillModal } from "@/components/rh/TurnoverDrillModal";
 import { TurnoverEmpresaDrillModal } from "@/components/rh/TurnoverEmpresaDrillModal";
@@ -322,6 +323,27 @@ export default function TurnoverPage() {
         empresa={empresaDrill ?? ""}
         admitidos={empresaAdm}
         demitidos={empresaDem}
+      />
+
+      <AiInsightsPanel
+        modulo="turnover"
+        ready={!isLoading && !!data}
+        payload={{
+          periodo: { anomes_ini: ini, anomes_fim: fim },
+          kpis,
+          serie_mensal: chartData.map((r: any) => ({
+            anomes: r.anomes,
+            admitidos: r.admitidos,
+            demitidos: r.demitidos,
+          })),
+          top_motivos: porMotivo.slice(0, 10),
+          por_empresa: porEmpresa.slice(0, 10).map((r) => ({
+            empresa: r.label,
+            admitidos: r.admitidos,
+            demitidos: r.demitidos,
+            saldo: (r.admitidos || 0) - (r.demitidos || 0),
+          })),
+        }}
       />
     </div>
   );
