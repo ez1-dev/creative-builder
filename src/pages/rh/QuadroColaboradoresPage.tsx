@@ -613,7 +613,7 @@ export default function QuadroColaboradoresPage() {
             blocks={blocks}
             catalog={QUADRO_CATALOG}
             kpis={dashQ.data?.kpis as any}
-            filtros={{ codemp }}
+            filtros={{}}
           />
         );
       })()}
