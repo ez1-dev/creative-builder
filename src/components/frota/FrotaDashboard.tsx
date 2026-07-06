@@ -348,13 +348,15 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     { key: 'descricao', header: 'Descrição', render: (_v, r) => (
       <span className="block max-w-[300px] truncate" title={r.descricao ?? ''}>{r.descricao}</span>
     ) },
-    { key: 'quilometragem', header: 'KM', align: 'right', sortable: true,
+    { key: 'quilometragem', header: 'Km', align: 'right', sortable: true,
       render: (_v, r) => r.quilometragem != null ? r.quilometragem.toLocaleString('pt-BR') : '—' },
     { key: 'valor', header: 'Valor', align: 'right', sortable: true, render: (_v, r) => formatCurrency(r.valor) },
-    { key: 'motorista', header: 'Motorista', sortable: true },
     { key: 'centro_custo', header: 'C.Custo' },
     { key: 'segmento', header: 'Segmento' },
-    { key: 'tipo_veiculo', header: 'Tipo' },
+    { key: 'tipo_veiculo', header: 'Tipo Veículo' },
+    { key: 'categoria', header: 'Categoria', render: (_v, r) => (
+      <Badge variant="outline" className="text-[10px]">{CATEGORIA_LABEL[r.categoria] ?? r.categoria}</Badge>
+    ) },
     ...((onEdit || onDelete) ? [{
       key: '__acoes' as any, header: 'Ações', align: 'right' as const,
       render: (_v: any, r: ManutencaoFrota) => (
