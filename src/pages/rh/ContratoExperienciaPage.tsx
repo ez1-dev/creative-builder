@@ -137,6 +137,7 @@ export default function ContratoExperienciaPage() {
   }
 
   const layout = useRhModuleLayout("rh-contratos-exp", CONTRATOS_EXP_DEFAULTS);
+  const [configTarget, setConfigTarget] = useState<RhWidget | null>(null);
 
   const blocks: Record<string, React.ReactNode> = useMemo(() => ({
     "kpi-qtde": (
