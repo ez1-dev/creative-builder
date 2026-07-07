@@ -96,6 +96,13 @@ function chaveCache(desenho: OpDesenho, pagina: OpDesenhoPaginaA4): string {
   return `${id}::${pagina.pagina}::${pagina.url}`;
 }
 
+export function mensagemAmigavelStatusDesenho(status: number | undefined): string {
+  if (status === 404) return 'Desenho não encontrado.';
+  if (status === 422) return 'Arquivo de desenho inválido ou corrompido.';
+  if (status && status >= 500) return 'Falha ao gerar visualização do desenho.';
+  return 'Não foi possível carregar o desenho.';
+}
+
 export async function carregarPaginaDesenhoA4(
   pagina: OpDesenhoPaginaA4,
   desenho: OpDesenho,
@@ -107,9 +114,11 @@ export async function carregarPaginaDesenhoA4(
   const response = await fetchComToken(pagina.url);
   if (!response.ok) {
     const text = await response.text().catch(() => '');
-    throw new Error(
+    const err = new Error(
       `Erro ao carregar página A4 do desenho: ${response.status} - ${text}`,
-    );
+    ) as Error & { status?: number };
+    err.status = response.status;
+    throw err;
   }
   const blob = await response.blob();
   const item = {
@@ -132,13 +141,16 @@ export async function prepararDesenhosParaImpressao(
       paginas = await carregarManifestDesenhoA4(desenho);
     } catch (e: any) {
       console.error('[OP A4] Falha ao preparar desenho', desenho?.nome_arquivo, e);
-      errors.push({ desenho, message: e?.message ?? 'Falha ao carregar manifest' });
+      errors.push({
+        desenho,
+        message: mensagemAmigavelStatusDesenho(e?.status),
+      });
       continue;
     }
     for (const pagina of paginas) {
       if (!pagina.url) {
         console.error('[OP A4] Página sem URL para', desenho?.nome_arquivo, pagina);
-        errors.push({ desenho, message: 'Página sem URL' });
+        errors.push({ desenho, message: 'Desenho não encontrado.' });
         continue;
       }
       try {
@@ -157,11 +169,15 @@ export async function prepararDesenhosParaImpressao(
           desenho?.nome_arquivo,
           e,
         );
-        errors.push({ desenho, message: e?.message ?? 'Falha ao baixar página' });
+        errors.push({
+          desenho,
+          message: mensagemAmigavelStatusDesenho(e?.status),
+        });
       }
     }
   }
 
   return { paginas: paginasFinais, errors };
 }
+
 

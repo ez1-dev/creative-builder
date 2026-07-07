@@ -3,7 +3,7 @@ import { Barcode } from "./Barcode";
 import { useAuthedBlobUrl } from "@/hooks/useAuthedBlobUrl";
 import type { BlobStateMap } from "@/hooks/useAuthedBlobUrls";
 import type { OpImpressao, OpOperacao, OpComponente, OpDesenho } from "@/lib/producao/opImpressao";
-import type { OpDesenhoPaginaA4Carregada } from "@/lib/producao/opDesenhosA4";
+import type { OpDesenhoPaginaA4Carregada, OpDesenhoErro } from "@/lib/producao/opDesenhosA4";
 import "./op-print.css";
 
 interface Props {
@@ -13,16 +13,18 @@ interface Props {
   quebrarPorOperacao?: boolean | null;
   blobStates?: BlobStateMap;
   paginasDesenhosA4?: OpDesenhoPaginaA4Carregada[];
+  errosDesenhosA4?: OpDesenhoErro[];
   imprimirDesenhos?: boolean | null;
 }
 
-function MissingDrawingPage() {
+function MissingDrawingPage({ message = "Desenho não encontrado para esta OP" }: { message?: string }) {
   return (
     <div className="op-print-unit op-missing-drawing-page">
-      <div className="op-missing-drawing-label">Desenho não encontrado para esta OP</div>
+      <div className="op-missing-drawing-label">{message}</div>
     </div>
   );
 }
+
 
 function fmtDate(s?: string) {
   if (!s) return "-";
@@ -50,7 +52,9 @@ export function OpPrintSheet({
   quebrarPorOperacao: propQuebrarPorOperacao,
   blobStates,
   paginasDesenhosA4,
+  errosDesenhosA4,
   imprimirDesenhos,
+
 }: Props) {
   const cab = data?.cabecalho ?? {};
   const componentes = data?.componentes ?? [];
@@ -403,29 +407,51 @@ export function OpPrintSheet({
 
   const desenhos = data?.desenhos ?? [];
 
+  const errosA4 = errosDesenhosA4 ?? [];
   const temAlgumDesenho =
-    (paginasDesenhosA4 && paginasDesenhosA4.length > 0) || desenhos.length > 0;
+    (paginasDesenhosA4 && paginasDesenhosA4.length > 0) || desenhos.length > 0 || errosA4.length > 0;
 
   const renderDesenhos = (keyPrefix = "drw") => {
+    const paginasNodes: ReactNode[] = [];
+
     if (paginasDesenhosA4 && paginasDesenhosA4.length > 0) {
-      return paginasDesenhosA4.map((pg, i) => (
-        <div
-          className="op-drawing-page op-print-unit"
-          key={`${keyPrefix}-a4-${i}-${pg.nome_arquivo ?? "desenho"}`}
-        >
-          <img className="op-drawing-image" src={pg.blobUrl} alt={pg.nome_arquivo ?? `Desenho ${i + 1}`} />
-        </div>
-      ));
+      paginasDesenhosA4.forEach((pg, i) => {
+        paginasNodes.push(
+          <div
+            className="op-drawing-page op-print-unit"
+            key={`${keyPrefix}-a4-${i}-${pg.nome_arquivo ?? "desenho"}`}
+          >
+            <img className="op-drawing-image" src={pg.blobUrl} alt={pg.nome_arquivo ?? `Desenho ${i + 1}`} />
+          </div>,
+        );
+      });
+    } else if (desenhos.length > 0) {
+      desenhos.forEach((d, i) => {
+        paginasNodes.push(
+          <DrawingPage
+            key={`${keyPrefix}-${i}-${d.nome_arquivo ?? d.url ?? "desenho"}`}
+            drawing={d}
+            index={i}
+            precomputed={blobStates ? blobStates[getDrawingPrintUrl(d)] : undefined}
+          />,
+        );
+      });
     }
 
-    return desenhos.map((d, i) => (
-      <DrawingPage
-        key={`${keyPrefix}-${i}-${d.nome_arquivo ?? d.url ?? "desenho"}`}
-        drawing={d}
-        index={i}
-        precomputed={blobStates ? blobStates[getDrawingPrintUrl(d)] : undefined}
-      />
-    ));
+    errosA4.forEach((err, i) => {
+      paginasNodes.push(
+        <MissingDrawingPage
+          key={`${keyPrefix}-err-${i}-${err.desenho?.nome_arquivo ?? "desenho"}`}
+          message={
+            err.desenho?.nome_arquivo
+              ? `${err.desenho.nome_arquivo}: ${err.message}`
+              : err.message
+          }
+        />,
+      );
+    });
+
+    return paginasNodes;
   };
 
   // Centraliza a regra: imprime desenho real ou reserva uma página branca técnica.
@@ -435,6 +461,8 @@ export function OpPrintSheet({
     if (temAlgumDesenho) return renderDesenhos(keyPrefix);
     return <MissingDrawingPage key={`${keyPrefix}-missing`} />;
   };
+
+
 
 
   const renderPreviewDesenhosResumo = () => {

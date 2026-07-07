@@ -1585,9 +1585,13 @@ export default function ImpressaoOrdemProducaoPage() {
       )}
 
       {desenhosA4Errors.length > 0 && (
-        <div className="print:hidden mb-2 text-xs text-muted-foreground">
-          Desenho não encontrado ou pasta de desenhos indisponível. Verifique o cadastro do produto ou o
-          acesso à pasta de desenhos.
+        <div className="print:hidden mb-2 text-xs text-muted-foreground space-y-1">
+          {desenhosA4Errors.map((err, i) => (
+            <div key={`a4-err-${i}`}>
+              {err.desenho?.nome_arquivo ? `${err.desenho.nome_arquivo}: ` : ""}
+              {err.message}
+            </div>
+          ))}
         </div>
       )}
 
@@ -1610,10 +1614,12 @@ export default function ImpressaoOrdemProducaoPage() {
             quebrarPorOperacao={filtros.quebrar_por_operacao === "S"}
             blobStates={blobStates}
             paginasDesenhosA4={paginasDesenhosA4}
+            errosDesenhosA4={desenhosA4Errors}
             imprimirDesenhos={filtros.incluir_desenhos === "S"}
           />
         )}
       </div>
+
 
       <Dialog open={diagOpen} onOpenChange={setDiagOpen}>
         <DialogContent className="max-w-2xl">
