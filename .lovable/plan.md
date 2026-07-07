@@ -1,83 +1,67 @@
 ## Objetivo
 
-Transformar a página existente `/monitor-telas` em uma tela com **duas abas** (Portal Web e ERP Nativo) que usam o **mesmo layout** e alternam apenas a base da API de telemetria, sem mock, sem inventar dados.
+Adicionar um bloco de **Análise IA** na página `/monitor-telas` que, sob demanda, lê os dados carregados da aba ativa (Portal Web ou ERP Nativo) e devolve **diagnóstico, riscos e recomendações de melhoria**, usando como referência a **documentação oficial do Senior (TDN / Central de Ajuda)**.
 
-## Estrutura de arquivos
+## UX
 
-**Novo / editado:**
+- Novo card **"Análise IA"** logo abaixo dos filtros, dentro de cada aba (`MonitorTelasTab`).
+- Estado inicial: card recolhido com botão **"Analisar com IA"** + descrição curta.
+- Ao clicar: chama a edge function, mostra skeleton, depois 3 seções:
+  - **Diagnóstico** — leitura factual do uso das telas no período.
+  - **Riscos** — telas críticas sem uso, concentração em poucos usuários, ausência de módulos esperados, quedas bruscas em `por-dia`, etc.
+  - **Recomendações** — ações concretas (treinamento, revisão de permissão, desativação, revisar regra `GER-000CONCX01` no caso do ERP Nativo, publicar tela nova no menu, revisar consultas SQL Senior, etc.).
+- Cada bullet ≤ 220 caracteres. Botão **"Gerar novamente"** e timestamp `Gerado em …`.
+- Erros tratados igual às tabelas (429 = limite, 402 = créditos, 500 = falha).
 
-- `src/lib/format.ts` — garantir `formatDateBR`, `formatDateTimeBR`, `formatNumberBR` (reutilizar se existirem; caso contrário criar helpers seguros a timezone via `Intl.DateTimeFormat('pt-BR')`).
-- `src/lib/navegacaoTelemetriaApi.ts` — generalizar: aceitar `basePath` (`/api/navegacao/telemetria` ou `/api/telemetria-nativa`) e endpoint de histórico configurável. Adicionar campos opcionais nos tipos: `sig_processo`, `telas_catalogo`, `fonte`, e para eventos nativos `nomusu`, `observacao`.
-- `src/components/monitor-telas/MonitorTelasTab.tsx` (novo) — componente que recebe `{ origem: 'web' | 'nativo', basePath, historicoConfig, dias, modulo, usuario }` e renderiza cards + gráfico + ranking + tabela "sem uso" + modal de drill. Extrai a lógica hoje em `MonitorTelasPage.tsx`.
-- `src/components/monitor-telas/HistoricoTelaModal.tsx` — aceitar `origem` para escolher endpoint e conjunto de colunas:
-  - Portal Web → `GET /api/navegacao/historico?cod_tela=&incluir_heartbeat=false&tamanho_pagina=200` (payload `dados[]`, colunas Data/Hora, Usuário, Ação, Módulo, Sistema).
-  - ERP Nativo → `GET /api/telemetria-nativa/eventos?cod_tela=&dias=&limit=200` (payload `dados[]`, colunas Data/Hora, Usuário `nomusu`, Ação, Módulo, Observação).
-- `src/pages/MonitorTelasPage.tsx` — vira shell: título/subtítulo, filtros globais (dias 7/30/60/90, modulo, usuario_filtro, botão Atualizar) e `Tabs` com `MonitorTelasTab` para cada origem. Os filtros aplicam à aba ativa; trocar de aba força reload.
+## Arquitetura
 
-## Comportamento por aba
+**Nova edge function:** `supabase/functions/monitor-telas-ia/index.ts`
 
-Cada aba faz em paralelo:
+- Baseada no padrão de `rh-ai-insights` (mesmo gateway Lovable AI, mesmo modelo `google/gemini-3-flash-preview`, mesmo esquema de `tool_call` com `diagnostico`, `riscos`, `recomendacoes`).
+- Entrada:
+  ```json
+  {
+    "origem": "web" | "nativo",
+    "filtros": { "dias": 30, "modulo": "", "usuario_filtro": "" },
+    "payload": {
+      "resumo": {...},
+      "por_dia": [...],   // enviado inteiro (curto)
+      "ranking_top": [...],   // top 25
+      "ranking_bottom": [...], // bottom 10 do ranking (ou mais frequentes com baixo uso)
+      "nao_utilizadas": [...]  // top 25 mais críticas
+    }
+  }
+  ```
+- Sistema prompt com **contexto Senior** curado (não faz fetch em runtime — evita latência e falha de rede):
+  - Fontes citáveis: **Central de Ajuda Senior (`https://centraldeajuda.senior.com.br`)**, **TDN Senior (`https://tdn.totvs.com/display/public/SENIOR`)**, documentação **Senior X Platform**, e regras nativas `GER-000CONCX01` (telemetria nativa).
+  - Instrução: "cite a fonte por nome (Central de Ajuda Senior / TDN Senior / Senior X Platform) quando fizer sentido; não fabrique URLs".
+- Foco por origem:
+  - **web** → adoção do Portal, telas mais/menos usadas, dispersão por usuário, oportunidade de treinamento, permissões, cobertura de módulos.
+  - **nativo** → dependência da regra `GER-000CONCX01`, cobertura de processos Senior, telas legado com alto uso que podem migrar para o Portal, monitoramento de processos críticos.
 
-- `GET {base}/resumo`
-- `GET {base}/ranking?limit=100`
-- `GET {base}/por-dia`
-- `GET {base}/nao-utilizadas`
+**Frontend:**
 
-Enviando sempre `dias`, `modulo`, `usuario_filtro` quando preenchidos. `Authorization: Bearer` já é injetado pelo `api.ts` atual (mantido).
+- `src/lib/monitorTelasIaApi.ts` (novo) — cliente que chama a function via `supabase.functions.invoke('monitor-telas-ia', { body })`; tipos `AnaliseIaResultado = { diagnostico, riscos, recomendacoes, gerado_em }`.
+- `src/components/monitor-telas/AnaliseIaCard.tsx` (novo) — card com botão gerar, estados loading/erro, três seções (usar `Badge`/ícones lucide `Lightbulb`, `AlertTriangle`, `Stethoscope`).
+- `src/components/monitor-telas/MonitorTelasTab.tsx` — injeta `<AnaliseIaCard>` recebendo `{ origem, filtros, resumo, porDia, ranking, naoUtilizadas }` (usa dados já carregados; não faz refetch).
 
-### Cards (resumo)
+## Regras de dados
 
-1. Total de Acessos — `total_acessos`.
-2. Telas Usadas — `telas_usadas / telas_catalogo` (se `telas_catalogo` vier nulo, mostra só `telas_usadas`).
-3. Telas Sem Uso — `telas_sem_uso`, laranja quando > 0.
-4. Usuários Ativos — `usuarios_ativos` com subtítulo "Último acesso: …" ou "Sem acesso no período." quando `ultimo_acesso` é nulo.
-
-### Gráfico "Acessos por Dia"
-
-`ComposedChart` mantido: barra `acessos`, linha `telas` (opcional). Formatar eixo X com `formatDateBR`.
-
-### Ranking
-
-Colunas conforme spec. Ordenação padrão `acessos desc`. Barra proporcional ao maior `acessos` da lista. Para **ERP Nativo**: se `cod_tela` vazio usar `sig_processo` como identificador; se `nome_tela` vazio, exibir `"Processo " + sig_processo`. Clique na linha abre `HistoricoTelaModal` passando `origem` e o identificador correto.
-
-### Telas Sem Uso
-
-Colunas conforme spec. Regras visuais:
-
-- `dias_sem_uso > 30` → badge vermelho.
-- `dias_sem_uso` entre 15 e 30 → badge laranja.
-- `ultimo_acesso` nulo → "Nunca acessada".
-- `total_historico === 0` → badge "Nunca usada".
-
-### Validação de `fonte`
-
-Ao receber payloads de resumo/ranking, se vier `fonte`:
-
-- Aba **Portal Web** aceita `ERP_WEB`, `PORTAL_WEB`, `NAVEGACAO_WEB`.
-- Aba **ERP Nativo** aceita apenas `ERP_SENIOR_NATIVO`. Se vier `ERP_WEB`, bloquear a renderização dos dados dessa aba e mostrar alerta: *"Fonte incorreta: estes dados são do Portal Web, não do ERP Senior Nativo."*
-
-### Estados
-
-- Loading: skeletons nos cards, gráfico e tabelas.
-- Erro genérico: "Não foi possível carregar a telemetria de telas."
-- 401 → "Sessão expirada. Faça login novamente."
-- 404 → "Endpoint de telemetria ainda não disponível. Verifique se a API 8070 foi reiniciada."
-- Vazio (todas as coleções sem itens e resumo zerado):
-  - Portal Web → "Sem dados no período selecionado."
-  - ERP Nativo → "A telemetria nativa depende da regra GER-000CONCX01 no Senior. Nenhum evento nativo foi registrado ainda."
-
-Detecção de status HTTP: usar `error.statusCode` já exposto pelo `api.ts`.
-
-## Filtros globais vs. por aba
-
-Os filtros ficam no shell da página. Alterar filtro **não** dispara reload automático (evita chamadas duplicadas ao digitar): reload ocorre no clique em **Atualizar** ou ao trocar de aba, replicando o comportamento atual.
+- Se todos os blocos da aba estiverem vazios, o botão fica desabilitado com tooltip "Sem dados no período".
+- Nunca enviar mais que ~15 KB de payload (trunca listas para top-N).
+- Nunca chamar a IA automaticamente — sempre sob clique do usuário (custo controlado).
 
 ## Fora de escopo
 
-- Nenhuma alteração em outras páginas, sidebar ou rotas (item já está no menu).
-- Sem mock, sem dados sintéticos, sem catálogo próprio de telas no front.
-- Sem mudanças em `UserTrackingProvider` ou `navegacaoLogger`.
+- Live fetch dos sites Senior (evita CORS/latência; o modelo cita as fontes por nome).
+- Persistência do resultado em banco. É gerado sob demanda.
+- Nenhuma mudança no shell da página, filtros ou nas outras tabelas.
 
 ## Critérios de aceite
 
-Cobrem os 12 itens listados: rota abre, duas abas, cada uma consome sua base, filtros propagados, cards/gráfico/ranking/sem-uso carregam de seus endpoints, drill correto por aba, sem mock, aba nativa suporta payload vazio, mensagens claras para 404/regra nativa ausente.
+1. Cada aba mostra o card "Análise IA".
+2. O clique chama `monitor-telas-ia` com o payload da aba ativa e os filtros aplicados.
+3. Resultado exibe diagnóstico, riscos e recomendações em bullets.
+4. Recomendações citam a documentação Senior (Central de Ajuda / TDN / regra `GER-000CONCX01`) quando aplicável.
+5. Erros 401/402/429/500 exibem mensagem amigável.
+6. Nenhum refetch das APIs de telemetria é disparado pela análise.
