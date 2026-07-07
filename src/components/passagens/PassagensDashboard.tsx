@@ -485,14 +485,14 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
 
   // Gráfico Evolução Mensal: ignora apenas selectedMes (próprio eixo)
   const porMes = useMemo(() => {
-    const base = applyCross(filtered, { motivo: true, cc: true, destino: true, uf: true });
+    const base = applyCross(filtered, { motivo: true, cc: true, destino: true, uf: true, produto: true });
     const map = new Map<string, number>();
     base.forEach((r) => {
       const mes = r.data_registro.slice(0, 7);
       map.set(mes, (map.get(mes) ?? 0) + Number(r.valor || 0));
     });
     return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([mes, valor]) => ({ mes, valor }));
-  }, [filtered, selectedMotivo, selectedCC, selectedDestino, selectedUF]);
+  }, [filtered, selectedMotivo, selectedCC, selectedDestino, selectedUF, selectedProduto]);
 
   // Gráfico Motivo: ignora apenas selectedMotivo (próprio eixo).
   // Agrupa fatias <5% do total numa fatia "Outros" com drill-down.
