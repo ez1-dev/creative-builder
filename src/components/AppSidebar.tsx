@@ -244,6 +244,7 @@ const GROUPS: Group[] = [
     items: [
       { title: 'Passagens Aéreas', url: '/passagens-aereas', icon: Plane },
       { title: 'Monitor Usuários Senior', url: '/monitor-usuarios-senior', icon: Users },
+      { title: 'Monitor de Telas', url: '/monitor-telas', icon: Activity },
       { title: 'Gestão SGU', url: '/gestao-sgu-usuarios', icon: ShieldCheck },
       { title: 'Configurações', url: '/configuracoes', icon: Settings },
     ],
