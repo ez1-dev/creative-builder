@@ -1,22 +1,13 @@
-## Cross-filter no gráfico "Por Produto" em `/passagens-aereas`
+## Rótulo de valor no topo de cada barra — "Evolução Mensal"
 
-Hoje o gráfico "Por Produto" só reage aos demais filtros; clicar nas barras não faz nada. Adicionar cross-filter por produto no mesmo padrão de CC/Destino/UF.
+Adicionar `<LabelList>` acima das barras do gráfico `chart-evolucao-mensal` em `src/components/passagens/PassagensDashboard.tsx` (dentro do `<Bar>` das linhas 1167–1179), exibindo o valor formatado em `R$` compacto (ex.: "R$ 231k") acima de cada barra.
 
-### Alterações em `src/components/passagens/PassagensDashboard.tsx`
+Detalhes:
+- `position="top"`, `fontSize={11}`, `fill="hsl(var(--foreground))"`.
+- Formatter: `(v) => v >= 1000 ? \`R$ ${(v/1000).toFixed(0)}k\` : formatCurrency(v)`.
+- Aumentar o `height` do `ResponsiveContainer` levemente (ex.: 240/280) para o rótulo não cortar; ou adicionar `margin={{ top: 16 }}` ao `<BarChart>`.
 
-1. Novo estado: `const [selectedProduto, setSelectedProduto] = useState<string[]>([]);` junto aos demais `selected*`.
-2. Estender `applyCross` com opção `produto?: boolean`; quando ativa e `selectedProduto.length > 0`, filtrar linhas por `((r.produto ?? '').trim() || 'Sem produto')`.
-3. Ativar `produto: true` em todos os `applyCross` dos demais gráficos/KPIs (mes, motivo, cc, destino, uf, tipo_despesa e `crossFiltered` para tabela/export), **exceto** no próprio `porProduto` (que continua ignorando seu próprio eixo). Adicionar `selectedProduto` aos arrays de dependências dos `useMemo` correspondentes.
-4. Incluir `selectedProduto` em `hasCrossFilter` e no `limparTudo` (reset para `[]`).
-5. Renderizar chips ativos de produto na barra de filtros ativos (padrão dos outros: "Produto: X" com botão X para remover).
-6. No card `chart-por-produto`:
-   - Título ganha "(clique para adicionar/remover)" quando `selectedProduto.length > 0`.
-   - `<Bar>` recebe `cursor="pointer"` e `onClick={(d) => setSelectedProduto((prev) => toggleItem(prev, d.name))}`.
-   - Cada `<Cell>` ganha `fillOpacity={selectedProduto.length > 0 && !selectedProduto.includes(entry.name) ? dimOpacity : 1}`.
-
-### Fora de escopo
-- Nenhuma outra tela, API ou lógica.
-- Não mexer em cores, layout, filtros de topo.
+Sem outras alterações. Nenhum outro gráfico afetado.
 
 ### Validação
-- Clicar em uma barra em "Por Produto": barra fica destacada, chip aparece, demais gráficos/KPIs/tabela recalculam. Clicar de novo remove. Múltipla seleção funciona (OR). "Limpar tudo" zera.
+Abrir `/passagens-aereas`: cada barra mensal mostra o valor no topo, sem cortar e sem sobrepor o eixo Y.
