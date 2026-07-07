@@ -64,18 +64,16 @@ export function AddRhBiWidgetDialog({ open, onOpenChange, pageKey, onAdd }: Prop
 
   const canAdd = !!def && (def.inputs.every((i) => !i.required || !!mapping[i.key]));
 
-  // Debounce das seleções para não re-renderizar o preview a cada tecla.
-  const [debounced, setDebounced] = useState({ componentId: '', mapping: {} as Record<string, string>, title: '' });
+  // Preview usa direto os mesmos valores que serão salvos. Só o título
+  // (texto livre) é debounced para não re-renderizar a cada tecla.
+  const [debouncedTitle, setDebouncedTitle] = useState('');
   useEffect(() => {
-    const t = window.setTimeout(() => setDebounced({ componentId, mapping, title }), 150);
+    const t = window.setTimeout(() => setDebouncedTitle(title), 150);
     return () => window.clearTimeout(t);
-  }, [componentId, mapping, title]);
+  }, [title]);
 
-  const previewDef = useMemo(
-    () => (debounced.componentId ? getComponent(debounced.componentId) : undefined),
-    [debounced.componentId],
-  );
-  const previewMappingReady = !!previewDef && previewDef.inputs.every((i) => !i.required || !!debounced.mapping[i.key]);
+  const previewDef = def;
+  const previewMappingReady = !!previewDef && previewDef.inputs.every((i) => !i.required || !!mapping[i.key]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
