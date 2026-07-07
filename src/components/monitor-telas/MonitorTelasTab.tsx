@@ -13,9 +13,12 @@ import {
   type TelemetriaOrigem, type TelemetriaResumo, type TelemetriaRankingRow,
   type TelemetriaPorDiaRow, type TelemetriaNaoUtilizadaRow,
 } from '@/lib/navegacaoTelemetriaApi';
+import { Button } from '@/components/ui/button';
+import { Settings2 } from 'lucide-react';
 import { formatDateBR, formatDateTimeBR, formatNumberBR } from '@/lib/format';
 import { HistoricoTelaModal } from './HistoricoTelaModal';
 import { AnaliseIaCard } from './AnaliseIaCard';
+import { DeParaTelasModal } from './DeParaTelasModal';
 
 const FONTES_WEB = new Set(['ERP_WEB', 'PORTAL_WEB', 'NAVEGACAO_WEB']);
 const FONTE_NATIVO = 'ERP_SENIOR_NATIVO';
@@ -38,6 +41,7 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [drill, setDrill] = useState<{ cod: string | null; nome: string | null }>({ cod: null, nome: null });
+  const [deParaOpen, setDeParaOpen] = useState(false);
 
   const load = useCallback(() => {
     setResumo({ loading: true, data: null, error: null });
@@ -144,6 +148,16 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
         </Alert>
       )}
 
+      {origem === 'nativo' && (
+        <div className="flex justify-end">
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => setDeParaOpen(true)}>
+            <Settings2 className="h-4 w-4" />
+            De-Para de Telas
+          </Button>
+        </div>
+      )}
+
+
       <AnaliseIaCard
         origem={origem}
         filtros={filtros}
@@ -247,7 +261,7 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
                     <TableRow key={`${id}-${i}`} className={id ? 'cursor-pointer hover:bg-muted/50' : ''} onClick={() => id && openDrill(r)}>
                       <TableCell className="font-mono text-xs">{id ?? '-'}</TableCell>
                       <TableCell className="text-sm">{nomeTela(r)}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{r.modulo ?? '-'}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{r.modulo ?? (origem === 'nativo' ? 'Não mapeado' : '-')}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
                           <div className="hidden h-1.5 w-24 overflow-hidden rounded bg-muted sm:block">
@@ -295,7 +309,7 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
                   <TableRow key={`${identificador(r)}-${i}`}>
                     <TableCell className="font-mono text-xs">{identificador(r) ?? '-'}</TableCell>
                     <TableCell className="text-sm">{nomeTela(r)}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{r.modulo ?? '-'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{r.modulo ?? (origem === 'nativo' ? 'Não mapeado' : '-')}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {r.ultimo_acesso ? formatDateTimeBR(r.ultimo_acesso) : <span className="italic">Nunca acessada</span>}
                     </TableCell>
@@ -321,6 +335,14 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
         nomeTela={drill.nome}
         dias={filtros.dias}
       />
+
+      {origem === 'nativo' && (
+        <DeParaTelasModal
+          open={deParaOpen}
+          onOpenChange={setDeParaOpen}
+          onSaved={load}
+        />
+      )}
     </div>
   );
 }
