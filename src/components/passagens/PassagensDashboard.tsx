@@ -1176,13 +1176,15 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                       fillOpacity={selectedMes.length > 0 && !selectedMes.includes(entry.mes) ? dimOpacity : 1}
                     />
                   ))}
-                  <LabelList
-                    dataKey="valor"
-                    position="top"
-                    fontSize={11}
-                    fill="hsl(var(--foreground))"
-                    formatter={(v: number) => (v >= 1000 ? `R$ ${(v / 1000).toFixed(0)}k` : formatCurrency(v))}
-                  />
+                  {(effectiveWidgets.find((w) => w.type === 'chart-evolucao-mensal')?.options?.visual?.dataLabels?.visible !== false) && (
+                    <LabelList
+                      dataKey="valor"
+                      position="top"
+                      fontSize={11}
+                      fill="hsl(var(--foreground))"
+                      formatter={(v: number) => (v >= 1000 ? `R$ ${(v / 1000).toFixed(0)}k` : formatCurrency(v))}
+                    />
+                  )}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
