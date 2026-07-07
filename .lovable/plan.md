@@ -1,40 +1,33 @@
 ## Objetivo
 
-Correção foi feita no backend/API (nova pasta de desenhos `\\EZ-SRV-007\99-GENIUS-KPIs\01-Desenhos\02-JPG_OP` + restart da API 8070). O frontend **não muda regra**, apenas melhora a mensagem amigável quando a API retornar erro de pasta/desenho e reforça que a URL vem sempre da API.
+Tratar visualmente falhas do endpoint `GET /api/producao/ordem-producao/desenho/impressao-a4/pagina` sem quebrar a tela. Nada de mudar URL, montar caminho para o JPG, nem alterar layout/fluxo.
 
-## Escopo (mínimo)
+## Mudanças
 
-Alterar somente `src/pages/producao/ImpressaoOrdemProducaoPage.tsx` (e, se necessário, o `Alert` já existente para `desenhosA4Errors` e `pdfJob.avisos`) para:
+### 1) `src/lib/producao/opDesenhosA4.ts`
+- Em `carregarPaginaDesenhoA4`, ao receber resposta não-ok, lançar erro estruturado com o `status` HTTP (ex.: `const err = new Error(msg); (err as any).status = response.status; throw err;`) em vez de só string.
+- Em `prepararDesenhosParaImpressao`, capturar `e.status` e mapear para mensagem amigável antes de empurrar em `errors`:
+  - 404 → "Desenho não encontrado."
+  - 422 → "Arquivo de desenho inválido ou corrompido."
+  - 500/qualquer 5xx → "Falha ao gerar visualização do desenho."
+  - Outros → "Não foi possível carregar o desenho."
+- Continuar iterando os demais desenhos/páginas normalmente (já é o comportamento; só garantir que uma falha não aborte o lote).
 
-1. **Mensagem amigável única** ao usuário final quando a API/manifest de desenho falhar ou o job retornar aviso de pasta inacessível / produto sem desenho:
-   - Texto: *"Desenho não encontrado ou pasta de desenhos indisponível. Verifique o cadastro do produto ou o acesso à pasta de desenhos."*
-   - Não exibir o caminho de rede (`\\EZ-SRV-007\...` nem `/mnt/desenhos_op`) na UI de usuário final. Manter caminho técnico apenas no bloco de **Diagnóstico** já existente (`/api/producao/ordem-producao/desenhos/diagnostico`), que é a "tela técnica/admin".
+### 2) `src/components/producao/OpPrintSheet.tsx`
+- Renderizar página do desenho A4 mesmo quando o carregamento falhou: quando um desenho estiver em `errors` (nova prop `errosDesenhosA4?: OpDesenhoErro[]`), mostrar um card/preview individual com a mensagem amigável, sem quebrar as demais páginas nem a impressão.
+- Manter a página branca "Desenho não encontrado para esta OP" só para o caso atual (sem nenhum desenho retornado pela API).
 
-2. **Nenhuma URL fixa no front.** Manter o fluxo atual: `data.desenhos[].url_impressao|url` e `url_manifest_a4` vindos da API são a única fonte. Confirmar que `useAuthedBlobUrls` / `useDesenhosA4` continuam a ser os únicos consumidores.
+### 3) `src/pages/producao/ImpressaoOrdemProducaoPage.tsx`
+- Passar `errors` do `useDesenhosA4` para o `OpPrintSheet` via nova prop.
+- No banner/aviso da tela (já existente para desenhos A4), substituir a mensagem genérica atual pela mesma lógica de mapeamento por status quando houver `errors`, listando por desenho (nome_arquivo + mensagem amigável). Não trocar layout.
 
-3. **Preview/thumbnail/impressão** continuam sendo renderizados normalmente quando a API responde com desenho válido — sem alteração de layout nem fluxo.
+## Fora do escopo
+- URL do endpoint, headers, autenticação, montagem de caminho JPG.
+- `useAuthedBlobUrl`, fluxo de PDF, backend, `.env`, config de API.
+- Layout, filtros, opções de impressão.
 
-4. **Sem mocks.** Nenhum fallback local para JPG.
-
-## Validação (após restart da API 8070)
-
-Rodar manualmente pela própria tela `/producao/impressao-ordem-producao`:
-
-1. Consultar uma OP do produto `cod_pro = 110000002` com "Imprimir desenhos da OP" ligado.
-2. Confirmar que o preview mostra `110000002-1.jpg`.
-3. Rodar **Diagnóstico** e conferir na resposta:
-   - `pasta_existe = true`
-   - `arquivo_encontrado = true`
-   - `cod_pro = 110000002`
-   - `arquivo = 110000002-1.jpg`
-4. Rodar "Gerar PDF completo com desenhos" para 1 OP com desenho e confirmar `desenhos_resumo.ops_com_desenho ≥ 1` e ausência de aviso "Pasta de desenhos inacessível".
-5. Forçar erro (produto sem desenho) e confirmar que aparece a mensagem amigável, sem caminho de rede.
-
-## Fora de escopo
-
-- Não mexer em `useDesenhosA4`, `opDesenhosA4.ts`, `useAuthedBlobUrls`, backend, layout da página, filtros ou fluxo de job PDF.
-- Não alterar `.env`, config de API ou caminhos.
-
-## Detalhes técnicos
-
-- Ajustar apenas os textos dos `Alert`s existentes na página (`desenhosA4Errors` e o bloco de `pdfJob.avisos` quando contiver "Pasta de desenhos inacessível" ou "Nenhum desenho encontrado"). Sanitizar avisos removendo trechos de caminho antes de exibir ao usuário final; manter o array bruto no bloco de diagnóstico técnico.
+## Validação
+1. Forçar 404 em uma página → aparece "Desenho não encontrado." só no card daquele desenho; demais imprimem normalmente.
+2. Forçar 422 → "Arquivo de desenho inválido ou corrompido." no card.
+3. Forçar 500 → "Falha ao gerar visualização do desenho." no card.
+4. Fluxo feliz continua idêntico.
