@@ -495,7 +495,8 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     const base = applyCross(filtered, { mes: true, cc: true, destino: true, uf: true });
     const map = new Map<string, number>();
     base.forEach((r) => {
-      const m = (r.motivo_viagem && r.motivo_viagem.trim()) || 'Não informado';
+      const raw = (r.motivo_viagem && r.motivo_viagem.trim()) || 'TRANSFERENCIA DE OBRA';
+      const m = raw.toLocaleUpperCase('pt-BR');
       map.set(m, (map.get(m) ?? 0) + Number(r.valor || 0));
     });
     const all = Array.from(map.entries())
