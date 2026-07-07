@@ -1159,8 +1159,8 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         <Card className="h-full">
           <CardHeader><CardTitle className="text-sm">Evolução Mensal {selectedMes.length > 0 && <span className="text-xs font-normal text-muted-foreground">(clique para adicionar/remover)</span>}</CardTitle></CardHeader>
           <CardContent className="p-3 sm:p-6">
-            <ResponsiveContainer width="100%" height={isCompact ? 220 : 260}>
-              <BarChart data={porMes}>
+            <ResponsiveContainer width="100%" height={isCompact ? 240 : 280}>
+              <BarChart data={porMes} margin={{ top: 20, right: 12, left: 0, bottom: 0 }}>
                 <XAxis dataKey="mes" fontSize={11} />
                 <YAxis fontSize={11} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
                 <RTooltip formatter={(v: number) => formatCurrency(v)} />
@@ -1176,6 +1176,13 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                       fillOpacity={selectedMes.length > 0 && !selectedMes.includes(entry.mes) ? dimOpacity : 1}
                     />
                   ))}
+                  <LabelList
+                    dataKey="valor"
+                    position="top"
+                    fontSize={11}
+                    fill="hsl(var(--foreground))"
+                    formatter={(v: number) => (v >= 1000 ? `R$ ${(v / 1000).toFixed(0)}k` : formatCurrency(v))}
+                  />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
