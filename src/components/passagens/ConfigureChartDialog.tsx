@@ -83,6 +83,7 @@ export function ConfigureChartDialog({
     setSeriesKey(initial?.mapping?.series ?? seriesOptions[0]?.key ?? '');
     setCustomTitle(initial?.customTitle ?? '');
     setTopN(String(initial?.options?.topN ?? 10));
+    setShowPercent(Boolean(initial?.options?.showPercent));
     setColor(initial?.options?.color ?? DEFAULT_CHART_COLOR);
     setVisual(mergeVisualConfig(initial?.options?.visual));
     // eslint-disable-next-line react-hooks/exhaustive-deps
