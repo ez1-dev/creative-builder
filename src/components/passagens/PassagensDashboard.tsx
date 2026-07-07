@@ -865,6 +865,14 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
               </button>
             </Badge>
           ))}
+          {selectedProduto.map((p) => (
+            <Badge key={`prod-${p}`} variant="secondary" className="gap-1">
+              Produto: {p}
+              <button onClick={() => setSelectedProduto((prev) => prev.filter((x) => x !== p))} className="ml-1 hover:text-destructive">
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
         </div>
       )}
 
