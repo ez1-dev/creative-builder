@@ -1956,7 +1956,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       <Sheet open={outrosMotivoOpen} onOpenChange={setOutrosMotivoOpen}>
         <SheetContent side="right" className="w-full sm:max-w-md">
           <SheetHeader>
-            <SheetTitle>Detalhamento — Outros motivos</SheetTitle>
+            <SheetTitle>Detalhamento — OUTROS motivos</SheetTitle>
             <SheetDescription>
               Motivos com participação menor que 5% do total{porMotivoOutros.length > 0 && ` · ${porMotivoOutros.length} motivos`}
             </SheetDescription>
