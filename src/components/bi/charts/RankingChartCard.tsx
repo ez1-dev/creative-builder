@@ -12,6 +12,7 @@ export interface RankingChartCardProps extends Omit<ChartCardShellProps, 'childr
   step?: number;
   expandable?: boolean;
   showTotal?: boolean;
+  showPercent?: boolean;
   onItemClick?: (d: BarChartDatum) => void;
 }
 
