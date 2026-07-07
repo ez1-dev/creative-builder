@@ -316,6 +316,9 @@ export default function ContratoExperienciaPage() {
               onShow={layout.showWidget}
               pageKey="rh-contratos-exp"
               onAdd={layout.addWidget}
+              onCommit={layout.commitEdits}
+              onCancel={layout.cancelEdits}
+              hasPendingChanges={layout.hasPendingChanges}
             />
             <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
               {isFetching ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}
