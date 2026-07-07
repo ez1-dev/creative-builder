@@ -1590,7 +1590,8 @@ export default function ImpressaoOrdemProducaoPage() {
 
       {desenhosA4Errors.length > 0 && (
         <div className="print:hidden mb-2 text-xs text-muted-foreground">
-          Alguns desenhos não puderam ser normalizados. Foi usado fallback quando possível.
+          Desenho não encontrado ou pasta de desenhos indisponível. Verifique o cadastro do produto ou o
+          acesso à pasta de desenhos.
         </div>
       )}
 
