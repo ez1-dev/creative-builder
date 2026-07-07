@@ -67,6 +67,12 @@ export function RhDashboardWithBiLibrary({
     return () => window.removeEventListener('rh:add-bi-widget', handleOpenAdd);
   }, [pageKey]);
 
+  // Rótulos oficiais declarados no pageRegistry — usados quando a série
+  // vem do backend em formato record (sem label próprio).
+  const pageDef = getPage(pageKey);
+  const schemaLabel = (key: string) =>
+    pageDef?.schema.series?.find((s) => s.key === key)?.label ?? toLabel(key);
+
   // Backend `series` (formato uniforme ou legado) tem prioridade; derivadas
   // do frontend só preenchem chaves ausentes.
   const isSeriesArray = Array.isArray(series);
@@ -75,7 +81,7 @@ export function RhDashboardWithBiLibrary({
     : ((series as any) ?? {});
   const backendCatalog = isSeriesArray
     ? rhSeriesToOptions(series as RhSerie[])
-    : Object.keys(backendRecord).map((key) => ({ key, label: seriesKeyToLabel(key) }));
+    : Object.keys(backendRecord).map((key) => ({ key, label: schemaLabel(key) }));
 
   const derived = derivedSeries ?? [];
   const seriesRecord: Record<string, any> = { ...backendRecord };
@@ -83,7 +89,7 @@ export function RhDashboardWithBiLibrary({
   derived.forEach((s) => {
     if (s?.chave && !(s.chave in seriesRecord)) {
       seriesRecord[s.chave] = s.pontos ?? [];
-      seriesCatalog.push({ key: s.chave, label: s.label || s.chave });
+      seriesCatalog.push({ key: s.chave, label: s.label || schemaLabel(s.chave) });
     }
   });
   const finalCatalog = seriesCatalog.length ? seriesCatalog : undefined;
