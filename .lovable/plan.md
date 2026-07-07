@@ -1,75 +1,52 @@
-## Objetivo
+# Unificar configuração dos widgets do RH com a Biblioteca BI
 
-Nos 8 dashboards de RH (`ResumoFolha`, `QuadroColaboradores`, `ContratoExperiencia`, `Ferias`, `Turnover`, `Absenteismo`, `Formularios`, `RelatorioGerencial`), trocar o auto-save por um fluxo explícito **Editar layout → alterar → Salvar edição / Cancelar**. Toda alteração feita em modo edição (arrastar, redimensionar, ocultar/reexibir, configurar gráfico, adicionar widget da Biblioteca BI, excluir widget) só é persistida ao clicar em "Salvar edição". "Cancelar" descarta e volta ao estado do servidor.
+## Diagnóstico
 
-## Situação atual
+Hoje o RH usa `ConfigureRhWidgetDialog`, que só permite:
+- escolher componente da Biblioteca BI,
+- mapear campos (kpis/series),
+- renomear o título.
 
-- `useRhModuleLayout` grava direto no Cloud a cada mudança (`saveGeometries`, `hideWidget`, `showWidget`, `configureWidget`, `addWidget`, `deleteWidget`). O toggle "Editar layout / Concluir" só habilita/desabilita o drag no `RhDashboardGrid`.
-- Usuário relata que as edições não estão sendo respeitadas e pede um botão explícito para salvar.
+Enquanto isso, a Biblioteca BI (`ConfigureBiWidgetDialog` + `VisualConfigEditor`, usado em `/biblioteca-bi` e em Passagens) já expõe:
+- Trocar tipo de gráfico (variantes) e cores/paleta.
+- Formato de números (int / decimal / moeda / percentual / compacto).
+- Mostrar/ocultar % (data labels), legenda (posição), grade, rótulo dos eixos.
+- Densidade do card, alinhamento e fonte do título, descrição do resultado.
+- Variantes semânticas de KPI (`info/success/warning/danger`), sparkline e meta.
 
-## Mudanças
+O gap é só de UI: os cards do RH já leem `options.visual` via `ChartCardShell` (confirmado em `RhDashboardGrid.tsx` linhas 69-81 — `options` é passado para `def.render`). Ou seja, basta o diálogo do RH gravar `options.visual` que a renderização já respeita.
 
-### 1. `src/hooks/useRhModuleLayout.ts` — modo edição bufferizado
+## O que será feito (somente RH)
 
-Adicionar estado de rascunho ativo quando `editing === true`:
+### 1. `src/components/rh/ConfigureRhWidgetDialog.tsx`
+- Reorganizar em abas: **Componente**, **Dados** (mapping + título), **Aparência**.
+- Aba **Aparência**: embutir `<VisualConfigEditor>` (mesmo componente da Biblioteca BI) alimentando `options.visual`.
+- Aba **Componente**: quando o widget for do tipo KPI, adicionar seletor de **Variante** (`info/success/warning/danger/neutral`) e formato (`number/currency/percent/compact`) gravados em `options`.
+- Preview lateral (já existe) passa a receber `options` completo para refletir mudanças em tempo real.
+- `onSave` estendido para incluir `options` (o hook `useRhModuleLayout.configureWidget` já aceita `options` — linhas 449-464).
 
-- `pendingItems: Map<type, RhSaveLayoutItem>` — mudanças a persistir (layout/hidden/config/title/position).
-- `pendingDeletes: Set<string>` — widgets a excluir no commit (por `id` real).
-- `snapshotRef` — cópia de `widgets` + `dashboardId` no momento em que entrou em edição, para permitir cancelar.
-- `hasPendingChanges` — derivado, exposto para a toolbar habilitar/desabilitar botões.
+### 2. `src/components/rh/RhDashboardGrid.tsx`
+- Para blocos **padrão** (sem `componentId`), envolver o bloco em um wrapper que aplica `options.visual` mínimo (densidade + alinhamento do título + fonte). Gráficos padrão que já usam `ChartCardShell` recebem automaticamente; para os que não usam, deixar sem efeito e deixar claro no diálogo ("algumas opções só se aplicam a componentes da Biblioteca").
+- Widgets KPI padrão do RH: passar `variant` e `format` quando presentes em `options`.
 
-Comportamento novo das mutações:
+### 3. `src/hooks/useRhModuleLayout.ts`
+- Nenhuma mudança de schema: o campo `options` já existe e é persistido em `rh_module_layout` (linhas 35, 48, 164, 212, 253). Confirmar apenas que no fluxo staged (Salvar edição) `options` entra no diff.
 
-- Quando `editing === true`: `saveGeometries`, `hideWidget`, `showWidget`, `configureWidget`, `addWidget`, `deleteWidget` **apenas** atualizam o estado local (`setWidgets`) e registram intenção no `pendingItems` / `pendingDeletes`. Nenhuma chamada ao banco.
-- Quando `editing === false`: comportamento atual (auto-save) preservado, para não quebrar telas que ainda dependam disso.
+### 4. Sem mudanças em backend / migrations
+Persistência já é `options jsonb`; não requer alteração de tabelas nem GRANTs.
 
-Novas ações expostas:
-
-- `beginEdit()` (chamado por `setEditing(true)`): tira snapshot, limpa pendentes.
-- `commitEdits()`: promise. Executa `runSave(Array.from(pendingItems.values()))` seguido dos deletes (por id) em paralelo; em sucesso, `setEditing(false)`, limpa pendentes e recarrega silencioso; em erro, mantém `editing` verdadeiro e faz `toast.error`.
-- `cancelEdits()`: `setWidgets(snapshot.widgets)`, limpa pendentes, `setEditing(false)`, `await load({ silent: true })` para garantir sincronia.
-- `setEditing`: normalizado — `setEditing(true)` chama `beginEdit`; `setEditing(false)` sem passar pelos botões força `cancelEdits` (protege navegação/teste). A toolbar sempre usará `commitEdits`/`cancelEdits`.
-
-Retorno atualiza para incluir: `commitEdits, cancelEdits, hasPendingChanges`.
-
-### 2. `src/components/rh/RhLayoutToolbar.tsx` — botões Salvar/Cancelar
-
-- Novas props: `onCommit: () => Promise<void>`, `onCancel: () => Promise<void>`, `hasPendingChanges: boolean`, `saving: boolean` (opcional; toolbar gerencia com `useState`).
-- Quando `editing === true`, substituir o botão "Concluir" por:
-  - `Cancelar` (variant `outline`, ícone `X`) → chama `onCancel`.
-  - `Salvar edição` (variant `default`, ícone `Save`) → chama `onCommit`; desabilitado quando `!hasPendingChanges && !saving` (não trava se o usuário quer só sair sem mudar — nesse caso ele usa Cancelar; regra: habilitado sempre que houver pendências, ou permitir clicar sempre e fechar sem salvar? — habilitar sempre que houver pendências; caso contrário, mostrar tooltip "Nenhuma alteração para salvar" e o usuário sai por Cancelar).
-- Botão "Editar layout" (fora do modo edição) mantém-se igual.
-- "Resetar layout" e "Adicionar da Biblioteca BI" continuam disponíveis dentro do modo edição.
-- Se `hasPendingChanges && !saving`, ao clicar em "Cancelar" abrir `AlertDialog` de confirmação ("Descartar alterações não salvas?").
-
-### 3. Wiring nas 8 páginas RH
-
-Cada página precisa apenas repassar as novas props para a `RhLayoutToolbar`. Nenhuma outra mudança de layout / grid é necessária (drag/hide/configure já funcionam via `RhDashboardGrid`).
-
-Arquivos:
-
-- `src/pages/rh/ResumoFolhaPage.tsx`
-- `src/pages/rh/QuadroColaboradoresPage.tsx`
-- `src/pages/rh/ContratoExperienciaPage.tsx`
-- `src/pages/rh/ProgramacaoFeriasPage.tsx`
-- `src/pages/rh/TurnoverPage.tsx`
-- `src/pages/rh/AbsenteismoPage.tsx`
-- `src/pages/rh/FormulariosPage.tsx`
-- `src/pages/rh/RelatorioGerencialPage.tsx`
-
-Em cada `<RhLayoutToolbar ... />` acrescentar:
-
-```
-onCommit={layout.commitEdits}
-onCancel={layout.cancelEdits}
-hasPendingChanges={layout.hasPendingChanges}
-```
+## Escopo NÃO incluído
+- Passagens, Frota, Máquinas, Comercial ficam como estão (usuário pediu "Somente RH").
+- Formulários e Relatório Gerencial continuam sem editar layout.
 
 ## Validação
+1. Abrir qualquer página RH → Editar layout → engrenagem em um gráfico.
+2. Aba Aparência: alternar formato de número, esconder %, mover legenda, mudar paleta → preview atualiza.
+3. Aba Componente em um KPI: trocar variante para `success` → preview fica verde.
+4. Salvar edição → recarregar página → configurações persistem.
+5. Cancelar edição → mudanças de aparência são descartadas junto com layout (já suportado pelo staged edit).
 
-1. `/rh/quadro-colaboradores` → Editar layout → arrastar bloco, ocultar bloco, trocar componente pela engrenagem, adicionar widget da Biblioteca BI.
-2. Confirmar: recarregar a página **antes** de salvar → todas as mudanças descartadas.
-3. Repetir e clicar em "Salvar edição" → recarregar → mudanças permanecem.
-4. Repetir e clicar em "Cancelar" → tela volta ao estado do servidor imediatamente.
-5. Rodar mesmos passos nas outras 7 páginas RH.
-6. Verificar que fora do modo edição não é possível arrastar (comportamento atual do `RhDashboardGrid`).
+## Detalhes técnicos
+- Reaproveita 100% de `VisualConfigEditor` e `mergeVisualConfig` — nada novo em `src/lib/bi/visualConfig.ts`.
+- `ConfigureRhWidgetDialog` cresce ~120 linhas (abas + estado de `visual`).
+- Chart cards que não passam por `ChartCardShell` (raro no RH) ficam imunes; documentar no cabeçalho do diálogo.
