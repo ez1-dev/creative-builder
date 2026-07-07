@@ -1,101 +1,40 @@
 ## Objetivo
 
-Adicionar gestão de De-Para de siglas/processos do ERP Senior Nativo dentro da aba "ERP Nativo" da página `/monitor-telas`, consumindo `GET/POST {API_BASE}/api/telemetria-nativa/depara`.
+Correção foi feita no backend/API (nova pasta de desenhos `\\EZ-SRV-007\99-GENIUS-KPIs\01-Desenhos\02-JPG_OP` + restart da API 8070). O frontend **não muda regra**, apenas melhora a mensagem amigável quando a API retornar erro de pasta/desenho e reforça que a URL vem sempre da API.
 
-## Arquivos
+## Escopo (mínimo)
 
-**Novos**
-- `src/lib/telemetriaNativaDeparaApi.ts` — client tipado para `GET /api/telemetria-nativa/depara` e `POST /api/telemetria-nativa/depara`. Reaproveita o helper de fetch autenticado já usado em `navegacaoTelemetriaApi.ts` (Bearer token + tratamento de statusCode).
-- `src/components/monitor-telas/DeParaTelasModal.tsx` — Dialog (shadcn) grande com duas seções (Tabs internas: "A mapear" | "Mapeadas"), tabelas editáveis inline, badges, skeletons, toasts (sonner), tratamento de erros 401/geral e estados vazios.
+Alterar somente `src/pages/producao/ImpressaoOrdemProducaoPage.tsx` (e, se necessário, o `Alert` já existente para `desenhosA4Errors` e `pdfJob.avisos`) para:
 
-**Editados**
-- `src/components/monitor-telas/MonitorTelasTab.tsx` — quando `origem === 'nativo'`, renderizar botão "De-Para de Telas" no topo (canto superior direito, acima dos KPIs, próximo ao card de Análise IA). Botão abre `DeParaTelasModal`. Ao fechar após um salvamento bem-sucedido, incrementar um contador interno que dispara `load()` para atualizar resumo/ranking/por-dia/nao-utilizadas.
+1. **Mensagem amigável única** ao usuário final quando a API/manifest de desenho falhar ou o job retornar aviso de pasta inacessível / produto sem desenho:
+   - Texto: *"Desenho não encontrado ou pasta de desenhos indisponível. Verifique o cadastro do produto ou o acesso à pasta de desenhos."*
+   - Não exibir o caminho de rede (`\\EZ-SRV-007\...` nem `/mnt/desenhos_op`) na UI de usuário final. Manter caminho técnico apenas no bloco de **Diagnóstico** já existente (`/api/producao/ordem-producao/desenhos/diagnostico`), que é a "tela técnica/admin".
 
-Nada muda na aba Portal Web, nem nos filtros globais em `MonitorTelasPage.tsx`.
+2. **Nenhuma URL fixa no front.** Manter o fluxo atual: `data.desenhos[].url_impressao|url` e `url_manifest_a4` vindos da API são a única fonte. Confirmar que `useAuthedBlobUrls` / `useDesenhosA4` continuam a ser os únicos consumidores.
 
-## Detalhes técnicos
+3. **Preview/thumbnail/impressão** continuam sendo renderizados normalmente quando a API responde com desenho válido — sem alteração de layout nem fluxo.
 
-### Client (`telemetriaNativaDeparaApi.ts`)
+4. **Sem mocks.** Nenhum fallback local para JPG.
 
-```ts
-export interface DeParaMapeada {
-  sig_processo: string;
-  nome_tela: string | null;
-  modulo: string | null;
-  ativo: boolean;
-  obs: string | null;
-}
-export interface DeParaNaoMapeada {
-  sig_processo: string;
-  acessos: number | null;
-  ultimo_acesso: string | null;
-}
-export interface DeParaResponse {
-  mapeadas: DeParaMapeada[];
-  nao_mapeadas: DeParaNaoMapeada[];
-}
-export interface DeParaUpsertInput {
-  sig_processo: string;
-  nome_tela: string;
-  modulo: string;
-  ativo: boolean;
-  obs?: string;
-}
-export function fetchDeParaTelas(): Promise<DeParaResponse>;
-export function upsertDeParaTela(input: DeParaUpsertInput): Promise<void>;
-```
+## Validação (após restart da API 8070)
 
-Usa a mesma base `API_BASE` e mesmo cabeçalho `Authorization: Bearer <token>` do restante do módulo. Sem mocks.
+Rodar manualmente pela própria tela `/producao/impressao-ordem-producao`:
 
-### Modal (`DeParaTelasModal.tsx`)
-
-Props: `{ open, onOpenChange, onSaved }`. Ao abrir (open=true) chama `fetchDeParaTelas()`.
-
-Layout:
-- `<Dialog>` com `max-w-5xl`.
-- Título: "De-Para de Telas Senior". Subtítulo conforme spec.
-- `<Tabs>` internas: `a-mapear` (default) e `mapeadas`, com contadores nos labels.
-- Loading: `<Skeleton>` grid dentro do body.
-- Erros: `<Alert variant="destructive">` (401 → "Sessão expirada..."; outros → "Não foi possível carregar o de-para de telas.").
-
-Aba "A mapear":
-- Ordenar `nao_mapeadas` por `acessos` desc.
-- Tabela: Sigla (badge "Pendente" ao lado, destaque visual para os 3 primeiros por acessos), Acessos, Último Acesso (via `formatDateTimeBR`), Nome da Tela (`<Input>`), Módulo (`<Input>`), Obs (`<Input>` opcional), Ação (`<Button>` Salvar).
-- Botão Salvar `disabled` até que `nome_tela` e `modulo` estejam preenchidos (validação client-side).
-- Ao salvar: `POST` com `ativo: true`, `toast.success`, recarrega `GET /depara` e seta flag `savedAny=true`.
-- Vazio: "Não há novas siglas para mapear."
-
-Aba "Mapeadas":
-- Tabela com Sigla, Nome da Tela (editável), Módulo (editável), Ativo (`<Switch>`), Obs (editável), Ação (Salvar).
-- Badge "Mapeada" (verde) quando `ativo`, "Inativa" (cinza) quando `!ativo`.
-- Ao salvar: `POST` com os valores atuais, mesmo tratamento (toast + reload).
-- Vazio: "Nenhum de-para cadastrado ainda."
-
-Fechamento:
-- `onOpenChange(false)` chama `onSaved()` se `savedAny` for true, para o pai recarregar os blocos da aba.
-
-### Integração em `MonitorTelasTab.tsx`
-
-- Novo state `deParaOpen: boolean`.
-- Bloco condicional `{origem === 'nativo' && (...)}` renderiza uma barra fina acima dos KPIs com `<Button variant="outline">De-Para de Telas</Button>` alinhado à direita.
-- `<DeParaTelasModal open={deParaOpen} onOpenChange={setDeParaOpen} onSaved={load} />`.
-- Ranking e Não Utilizadas continuam usando o fallback já existente (`nomeTela` retorna `sig_processo` / "Processo XXX" quando `nome_tela` é nulo). Adicionar apenas fallback de módulo `"Não mapeado"` na renderização das duas tabelas quando `origem === 'nativo'` e `r.modulo` for null/vazio.
-- Modal de histórico (`HistoricoTelaModal`) já é o consumidor de `/eventos`; nenhuma mudança adicional necessária além de continuar exibindo `sig_processo` quando não houver `nome_tela` (já é o comportamento atual).
-
-## Critérios de aceite mapeados
-
-1. Botão só na aba ERP Nativo — condicional por `origem`.
-2. `GET /depara` chamado ao abrir o modal.
-3. Seção "A mapear" lista `nao_mapeadas` ordenadas por acessos.
-4. Seção "Mapeadas" lista `mapeadas` com badges Mapeada/Inativa.
-5. Salvar sigla pendente via `POST` com `ativo: true`.
-6. Editar mapeada via mesmo `POST`.
-7. `onSaved` recarrega resumo/ranking/por-dia/nao-utilizadas ao fechar o modal.
-8. Sem mocks — todos os dados vêm dos endpoints reais.
-9. Aba ERP Nativo sem logs continua funcionando; o botão abre o modal mesmo sem dados de telemetria.
+1. Consultar uma OP do produto `cod_pro = 110000002` com "Imprimir desenhos da OP" ligado.
+2. Confirmar que o preview mostra `110000002-1.jpg`.
+3. Rodar **Diagnóstico** e conferir na resposta:
+   - `pasta_existe = true`
+   - `arquivo_encontrado = true`
+   - `cod_pro = 110000002`
+   - `arquivo = 110000002-1.jpg`
+4. Rodar "Gerar PDF completo com desenhos" para 1 OP com desenho e confirmar `desenhos_resumo.ops_com_desenho ≥ 1` e ausência de aviso "Pasta de desenhos inacessível".
+5. Forçar erro (produto sem desenho) e confirmar que aparece a mensagem amigável, sem caminho de rede.
 
 ## Fora de escopo
 
-- Alterações na aba Portal Web.
-- Novos endpoints/tabelas no Lovable Cloud (o de-para vive na API 8070).
-- Exclusão de mapeamentos (não há endpoint DELETE listado; inativar via `ativo=false` cobre o caso).
+- Não mexer em `useDesenhosA4`, `opDesenhosA4.ts`, `useAuthedBlobUrls`, backend, layout da página, filtros ou fluxo de job PDF.
+- Não alterar `.env`, config de API ou caminhos.
+
+## Detalhes técnicos
+
+- Ajustar apenas os textos dos `Alert`s existentes na página (`desenhosA4Errors` e o bloco de `pdfJob.avisos` quando contiver "Pasta de desenhos inacessível" ou "Nenhum desenho encontrado"). Sanitizar avisos removendo trechos de caminho antes de exibir ao usuário final; manter o array bruto no bloco de diagnóstico técnico.
