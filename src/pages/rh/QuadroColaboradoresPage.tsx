@@ -366,6 +366,9 @@ export default function QuadroColaboradoresPage() {
               onShow={layout.showWidget}
               pageKey="rh-quadro"
               onAdd={layout.addWidget}
+              onCommit={layout.commitEdits}
+              onCancel={layout.cancelEdits}
+              hasPendingChanges={layout.hasPendingChanges}
             />
             <BotaoRelatorioModuloPdf
               modulo="quadro-colaboradores"
