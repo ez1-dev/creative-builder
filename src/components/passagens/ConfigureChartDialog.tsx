@@ -68,6 +68,7 @@ export function ConfigureChartDialog({
   const [seriesKey, setSeriesKey] = useState<string>(initial?.mapping?.series ?? '');
   const [customTitle, setCustomTitle] = useState<string>(initial?.customTitle ?? '');
   const [topN, setTopN] = useState<string>(String(initial?.options?.topN ?? 10));
+  const [showPercent, setShowPercent] = useState<boolean>(Boolean(initial?.options?.showPercent));
   const [color, setColor] = useState<string>(initial?.options?.color ?? DEFAULT_CHART_COLOR);
   const [visual, setVisual] = useState<VisualConfig>(mergeVisualConfig(initial?.options?.visual));
 
