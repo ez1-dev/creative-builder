@@ -211,6 +211,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const [selectedCC, setSelectedCC] = useState<string[]>([]);
   const [selectedDestino, setSelectedDestino] = useState<string[]>([]);
   const [selectedUF, setSelectedUF] = useState<string[]>([]);
+  const [selectedProduto, setSelectedProduto] = useState<string[]>([]);
   // Agrupamento do card Registros
   const [groupBy, setGroupBy] = useState<GroupBy>('centro_custo');
   const [groupSheetOpen, setGroupSheetOpen] = useState(false);
@@ -278,7 +279,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     arr.includes(item) ? arr.filter((x) => x !== item) : [...arr, item];
 
   // Helper: aplica subset dos cross-filters (OR dentro de cada filtro, AND entre filtros)
-  const applyCross = (rows: Passagem[], opts: { mes?: boolean; motivo?: boolean; cc?: boolean; destino?: boolean; uf?: boolean }) => {
+  const applyCross = (rows: Passagem[], opts: { mes?: boolean; motivo?: boolean; cc?: boolean; destino?: boolean; uf?: boolean; produto?: boolean }) => {
     return rows.filter((r) => {
       if (opts.mes && selectedMes.length && !selectedMes.includes((r.data_registro ?? '').slice(0, 7))) return false;
       if (opts.motivo && selectedMotivo.length) {
@@ -298,14 +299,18 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       if (opts.uf && selectedUF.length) {
         if (!selectedUF.includes((r.uf_destino ?? '').toUpperCase())) return false;
       }
+      if (opts.produto && selectedProduto.length) {
+        const p = (r.produto ?? '').trim() || 'Sem produto';
+        if (!selectedProduto.includes(p)) return false;
+      }
       return true;
     });
   };
 
   // Dados para KPIs e tabela: aplica TODOS os cross-filters
   const crossFiltered = useMemo(
-    () => applyCross(filtered, { mes: true, motivo: true, cc: true, destino: true, uf: true }),
-    [filtered, selectedMes, selectedMotivo, selectedCC, selectedDestino, selectedUF],
+    () => applyCross(filtered, { mes: true, motivo: true, cc: true, destino: true, uf: true, produto: true }),
+    [filtered, selectedMes, selectedMotivo, selectedCC, selectedDestino, selectedUF, selectedProduto],
   );
 
   // Linhas exibidas no card Registros: aplica busca + ordenação
@@ -480,19 +485,19 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
 
   // Gráfico Evolução Mensal: ignora apenas selectedMes (próprio eixo)
   const porMes = useMemo(() => {
-    const base = applyCross(filtered, { motivo: true, cc: true, destino: true, uf: true });
+    const base = applyCross(filtered, { motivo: true, cc: true, destino: true, uf: true, produto: true });
     const map = new Map<string, number>();
     base.forEach((r) => {
       const mes = r.data_registro.slice(0, 7);
       map.set(mes, (map.get(mes) ?? 0) + Number(r.valor || 0));
     });
     return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([mes, valor]) => ({ mes, valor }));
-  }, [filtered, selectedMotivo, selectedCC, selectedDestino, selectedUF]);
+  }, [filtered, selectedMotivo, selectedCC, selectedDestino, selectedUF, selectedProduto]);
 
   // Gráfico Motivo: ignora apenas selectedMotivo (próprio eixo).
   // Agrupa fatias <5% do total numa fatia "Outros" com drill-down.
   const { porMotivo, porMotivoOutros, totalMotivo } = useMemo(() => {
-    const base = applyCross(filtered, { mes: true, cc: true, destino: true, uf: true });
+    const base = applyCross(filtered, { mes: true, cc: true, destino: true, uf: true, produto: true });
     const map = new Map<string, number>();
     base.forEach((r) => {
       const raw = (r.motivo_viagem && r.motivo_viagem.trim()) || 'TRANSFERENCIA DE OBRA';
@@ -516,22 +521,22 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       return { porMotivo: principais, porMotivoOutros: outros, totalMotivo: total };
     }
     return { porMotivo: all, porMotivoOutros: [] as { name: string; value: number }[], totalMotivo: total };
-  }, [filtered, selectedMes, selectedCC, selectedDestino, selectedUF]);
+  }, [filtered, selectedMes, selectedCC, selectedDestino, selectedUF, selectedProduto]);
 
   // Gráfico CC: ignora apenas selectedCC (próprio eixo)
   const porCentroCusto = useMemo(() => {
-    const base = applyCross(filtered, { mes: true, motivo: true, destino: true, uf: true });
+    const base = applyCross(filtered, { mes: true, motivo: true, destino: true, uf: true, produto: true });
     const map = new Map<string, number>();
     base.forEach((r) => {
       const cc = r.centro_custo || 'Sem CC';
       map.set(cc, (map.get(cc) ?? 0) + Number(r.valor || 0));
     });
     return Array.from(map.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 15);
-  }, [filtered, selectedMes, selectedMotivo, selectedDestino, selectedUF]);
+  }, [filtered, selectedMes, selectedMotivo, selectedDestino, selectedUF, selectedProduto]);
 
   // Top 10 Cidades de Destino — ignora apenas selectedDestino (próprio eixo)
   const porCidade = useMemo(() => {
-    const base = applyCross(filtered, { mes: true, motivo: true, cc: true, uf: true });
+    const base = applyCross(filtered, { mes: true, motivo: true, cc: true, uf: true, produto: true });
     const map = new Map<string, { label: string; qtd: number; valor: number }>();
     base.forEach((r) => {
       if (!r.destino) return;
@@ -546,11 +551,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       .map(([, v]) => ({ name: v.label, qtd: v.qtd, valor: v.valor }))
       .sort((a, b) => b.qtd - a.qtd)
       .slice(0, 10);
-  }, [filtered, selectedMes, selectedMotivo, selectedCC, selectedUF]);
+  }, [filtered, selectedMes, selectedMotivo, selectedCC, selectedUF, selectedProduto]);
 
   // Top Estados (UF) de Destino — ignora apenas selectedUF (próprio eixo)
   const porUF = useMemo(() => {
-    const base = applyCross(filtered, { mes: true, motivo: true, cc: true, destino: true });
+    const base = applyCross(filtered, { mes: true, motivo: true, cc: true, destino: true, produto: true });
     const map = new Map<string, { qtd: number; valor: number }>();
     base.forEach((r) => {
       const uf = (r.uf_destino ?? '').toUpperCase();
@@ -563,10 +568,10 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     return Array.from(map.entries())
       .map(([name, v]) => ({ name, qtd: v.qtd, valor: v.valor }))
       .sort((a, b) => b.qtd - a.qtd);
-  }, [filtered, selectedMes, selectedMotivo, selectedCC, selectedDestino]);
+  }, [filtered, selectedMes, selectedMotivo, selectedCC, selectedDestino, selectedProduto]);
 
 
-  const hasCrossFilter = selectedMes.length > 0 || selectedMotivo.length > 0 || selectedCC.length > 0 || selectedDestino.length > 0 || selectedUF.length > 0;
+  const hasCrossFilter = selectedMes.length > 0 || selectedMotivo.length > 0 || selectedCC.length > 0 || selectedDestino.length > 0 || selectedUF.length > 0 || selectedProduto.length > 0;
   const hasTopFilter = !!filtroColaborador || !!filtroCC || filtroMotivo !== 'todos' || filtroTipo !== 'todos' || filtroMes !== 'todos' || !!dataInicio || !!dataFim;
   const countAtivos = (filtroColaborador ? 1 : 0) + (filtroCC ? 1 : 0) + (filtroMotivo !== 'todos' ? 1 : 0) + (filtroTipo !== 'todos' ? 1 : 0) + (filtroMes !== 'todos' ? 1 : 0) + (dataInicio ? 1 : 0) + (dataFim ? 1 : 0);
 
@@ -583,6 +588,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     setSelectedCC([]);
     setSelectedDestino([]);
     setSelectedUF([]);
+    setSelectedProduto([]);
   };
 
 
@@ -855,6 +861,14 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             <Badge key={`uf-${u}`} variant="secondary" className="gap-1">
               UF: {u}
               <button onClick={() => setSelectedUF((prev) => prev.filter((x) => x !== u))} className="ml-1 hover:text-destructive">
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+          {selectedProduto.map((p) => (
+            <Badge key={`prod-${p}`} variant="secondary" className="gap-1">
+              Produto: {p}
+              <button onClick={() => setSelectedProduto((prev) => prev.filter((x) => x !== p))} className="ml-1 hover:text-destructive">
                 <X className="h-3 w-3" />
               </button>
             </Badge>
@@ -1262,7 +1276,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         <Card className="h-full">
           <CardHeader>
             <CardTitle className="text-sm flex items-center justify-between gap-2">
-              <span>Por Produto</span>
+              <span>Por Produto {selectedProduto.length > 0 && <span className="text-xs font-normal text-muted-foreground">(clique para adicionar/remover)</span>}</span>
               <span className="text-xs font-normal text-muted-foreground">Total: {formatCurrency(totalProduto)}</span>
             </CardTitle>
           </CardHeader>
@@ -1283,9 +1297,18 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                     tickFormatter={(v: string) => (v.length > (isMobile ? 12 : 22) ? `${v.slice(0, isMobile ? 12 : 22)}…` : v)}
                   />
                   <RTooltip formatter={(v: number, _n, p: any) => [`${formatCurrency(v)} (${(p?.payload?.pct ?? 0).toFixed(1).replace('.', ',')}%)`, 'Valor']} />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                  <Bar
+                    dataKey="value"
+                    radius={[0, 4, 4, 0]}
+                    cursor="pointer"
+                    onClick={(d: any) => setSelectedProduto((prev) => toggleItem(prev, d.name))}
+                  >
                     {porProduto.map((entry, i) => (
-                      <Cell key={entry.name} fill={COLORS[i % COLORS.length]} />
+                      <Cell
+                        key={entry.name}
+                        fill={COLORS[i % COLORS.length]}
+                        fillOpacity={selectedProduto.length > 0 && !selectedProduto.includes(entry.name) ? dimOpacity : 1}
+                      />
                     ))}
                     <LabelList
                       dataKey="value"
