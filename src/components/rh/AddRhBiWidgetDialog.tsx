@@ -151,8 +151,8 @@ export function AddRhBiWidgetDialog({ open, onOpenChange, pageKey, onAdd }: Prop
                 <div className="h-full p-3 overflow-hidden">
                   <WidgetErrorBoundary>
                     {previewDef.render({
-                      title: debounced.title || previewDef.label,
-                      mapping: debounced.mapping,
+                      title: debouncedTitle || previewDef.label,
+                      mapping,
                       options: { filtros: ctx.filtros ?? {} },
                       ctx: {
                         kpis: ctx.kpis ?? {},
@@ -173,7 +173,8 @@ export function AddRhBiWidgetDialog({ open, onOpenChange, pageKey, onAdd }: Prop
             disabled={!canAdd}
             onClick={async () => {
               if (!def) return;
-              await onAdd({ componentId: def.id, title: title || def.label, mapping });
+              const finalMapping = sanitizeMapping(def, mapping, effectiveSchema).mapping;
+              await onAdd({ componentId: def.id, title: title || def.label, mapping: finalMapping });
               onOpenChange(false);
             }}
           >
