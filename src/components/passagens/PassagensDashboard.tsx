@@ -282,7 +282,8 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     return rows.filter((r) => {
       if (opts.mes && selectedMes.length && !selectedMes.includes((r.data_registro ?? '').slice(0, 7))) return false;
       if (opts.motivo && selectedMotivo.length) {
-        const m = (r.motivo_viagem && r.motivo_viagem.trim()) || 'Não informado';
+        const raw = (r.motivo_viagem && r.motivo_viagem.trim()) || 'TRANSFERENCIA DE OBRA';
+        const m = raw.toLocaleUpperCase('pt-BR');
         if (!selectedMotivo.includes(m)) return false;
       }
       if (opts.cc && selectedCC.length) {
