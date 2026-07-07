@@ -485,6 +485,9 @@ export default function ResumoFolhaPage() {
               onShow={layout.showWidget}
               pageKey="rh-resumo-folha"
               onAdd={layout.addWidget}
+              onCommit={layout.commitEdits}
+              onCancel={layout.cancelEdits}
+              hasPendingChanges={layout.hasPendingChanges}
             />
             <Button
               size="sm"
