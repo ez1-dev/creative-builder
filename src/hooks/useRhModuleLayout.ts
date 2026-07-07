@@ -1,11 +1,10 @@
 /**
  * Hook genérico de layout editável para módulos RH.
  *
- * Otimizações:
- *  - Optimistic UI: aplica mudanças no estado local antes do save.
- *  - Saves em paralelo por id (sem loop `await`).
- *  - Sem reload silencioso no caminho feliz.
- *  - Fila de 1 para coalescing de saves concorrentes.
+ * Modo edição bufferizado:
+ *  - Fora do modo edição: mutações persistem imediatamente (comportamento original).
+ *  - Dentro do modo edição: mutações ficam em memória (rascunho). Só são gravadas
+ *    ao chamar `commitEdits()`. `cancelEdits()` restaura o snapshot inicial.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -56,7 +55,6 @@ export interface RhSaveLayoutItem {
 function mergeWithDefaults(rows: RhWidget[], defaults: RhWidget[]): RhWidget[] {
   const savedTypes = new Set(rows.map((r) => r.type));
   const missing = defaults.filter((d) => !savedTypes.has(d.type));
-  // Sort: primeiro por position, com estabilidade preservando ordem de entrada.
   const merged = [...rows, ...missing];
   return merged
     .map((w, i) => ({ w, i }))
@@ -83,18 +81,43 @@ function mergeSaveBatches(prev: RhSaveLayoutItem[] | null, next: RhSaveLayoutIte
   return Array.from(byType.values());
 }
 
+function cloneWidgets(list: RhWidget[]): RhWidget[] {
+  return list.map((w) => ({
+    ...w,
+    layout: { ...w.layout },
+    mapping: w.mapping ? { ...w.mapping } : undefined,
+    options: w.options ? { ...w.options } : undefined,
+    _config: w._config ? { ...w._config } : undefined,
+  }));
+}
+
 export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabled: boolean = true) {
   const [widgets, setWidgets] = useState<RhWidget[]>(defaults);
   const [dashboardId, setDashboardId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [layoutReady, setLayoutReady] = useState(false);
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditingState] = useState(false);
+  const [hasPendingChanges, setHasPendingChanges] = useState(false);
   const defaultsRef = useRef(defaults);
   defaultsRef.current = defaults;
 
   // Fila de 1 para coalescing de saves concorrentes.
   const savingRef = useRef(false);
   const pendingRef = useRef<RhSaveLayoutItem[] | null>(null);
+
+  // Rascunho enquanto editing === true.
+  const editingRef = useRef(false);
+  const pendingItemsRef = useRef<Map<string, RhSaveLayoutItem>>(new Map());
+  const pendingDeletesRef = useRef<Set<string>>(new Set());
+  const snapshotRef = useRef<RhWidget[] | null>(null);
+
+  useEffect(() => { editingRef.current = editing; }, [editing]);
+
+  const markPending = useCallback((item: RhSaveLayoutItem) => {
+    const cur = pendingItemsRef.current.get(item.type);
+    pendingItemsRef.current.set(item.type, mergeSaveItem(cur, item));
+    setHasPendingChanges(true);
+  }, []);
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
@@ -192,6 +215,9 @@ export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabl
     return cfg;
   };
 
+  const widgetsRef = useRef(widgets);
+  useEffect(() => { widgetsRef.current = widgets; }, [widgets]);
+
   const runSave = useCallback(async (next: RhSaveLayoutItem[]) => {
     const id = await ensureDashboard();
     const sanitizedNext = next.map((item) => ({ ...item, layout: clampLayout(item.layout) }));
@@ -206,7 +232,6 @@ export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabl
       (Array.isArray(existingRows) ? existingRows : []).map((row: any) => [row.type, row]),
     );
 
-    // Optimistic: aplica no estado local imediatamente.
     let optimisticNextConfigByType: Map<string, Record<string, any>> | null = null;
     setWidgets((prev) => {
       const byType = new Map(prev.map((w) => [w.type, w]));
@@ -235,8 +260,6 @@ export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabl
       return mergeWithDefaults(Array.from(byType.values()), defaultsRef.current);
     });
 
-    // Separa updates (têm id real) e inserts (id tmp- ou inexistente).
-    // Precisamos ler o estado atualizado sincronamente — busca via widgets ref.
     const currentWidgets = widgetsRef.current;
     const byType = new Map(currentWidgets.map((w) => [w.type, w]));
 
@@ -257,14 +280,12 @@ export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabl
       }
     }
 
-    // Updates em paralelo.
     const updatesPromise = Promise.all(
       toUpdate.map((u) =>
         supabase.from('dashboard_widgets').update(u.payload).eq('id', u.id),
       ),
     );
 
-    // Inserts precisam de block_id — resolve uma única vez.
     let insertRes: any = null;
     if (toInsert.length > 0) {
       const blockId = await ensureDefaultBlockId(id);
@@ -289,7 +310,6 @@ export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabl
 
     const updateRes = await updatesPromise;
 
-    // Atualiza ids dos inseridos no estado.
     const inserted = insertRes?.data as { id: string; type: string }[] | undefined;
     if (inserted && inserted.length > 0) {
       setWidgets((prev) => prev.map((w) => {
@@ -298,7 +318,6 @@ export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabl
       }));
     }
 
-    // Verifica erros; em caso de falha, faz reload para reconciliar.
     const anyError = insertRes?.error || updateRes.find((r: any) => r?.error);
     if (anyError) {
       await load({ silent: true });
@@ -306,19 +325,14 @@ export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabl
     }
   }, [ensureDashboard, load]);
 
-  const widgetsRef = useRef(widgets);
-  useEffect(() => { widgetsRef.current = widgets; }, [widgets]);
-
   const saveLayout = useCallback(async (next: RhSaveLayoutItem[]) => {
     if (savingRef.current) {
-      // Coalesça sem perder campos: geometria, título e config podem chegar em eventos distintos.
       pendingRef.current = mergeSaveBatches(pendingRef.current, next);
       return;
     }
     savingRef.current = true;
     try {
       await runSave(next);
-      // Se houve pedido pendente durante o save, dispara em seguida.
       while (pendingRef.current) {
         const nextPending = pendingRef.current;
         pendingRef.current = null;
@@ -328,6 +342,57 @@ export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabl
       savingRef.current = false;
     }
   }, [runSave]);
+
+  // -------- Modo edição: rascunho + commit/cancel --------
+
+  const beginEdit = useCallback(() => {
+    snapshotRef.current = cloneWidgets(widgetsRef.current);
+    pendingItemsRef.current = new Map();
+    pendingDeletesRef.current = new Set();
+    setHasPendingChanges(false);
+    setEditingState(true);
+  }, []);
+
+  const cancelEdits = useCallback(async () => {
+    const snap = snapshotRef.current;
+    pendingItemsRef.current = new Map();
+    pendingDeletesRef.current = new Set();
+    setHasPendingChanges(false);
+    setEditingState(false);
+    if (snap) setWidgets(snap);
+    snapshotRef.current = null;
+    await load({ silent: true });
+  }, [load]);
+
+  const commitEdits = useCallback(async () => {
+    const items = Array.from(pendingItemsRef.current.values());
+    const deletes = Array.from(pendingDeletesRef.current);
+    try {
+      if (items.length) await saveLayout(items);
+      if (deletes.length) {
+        const results = await Promise.all(
+          deletes.map((id) => supabase.from('dashboard_widgets').delete().eq('id', id)),
+        );
+        const err = results.find((r: any) => r?.error);
+        if (err) throw new Error((err as any).error?.message || 'Falha ao excluir widget');
+      }
+      pendingItemsRef.current = new Map();
+      pendingDeletesRef.current = new Set();
+      snapshotRef.current = null;
+      setHasPendingChanges(false);
+      setEditingState(false);
+      await load({ silent: true });
+    } catch (e) {
+      throw e;
+    }
+  }, [saveLayout, load]);
+
+  const setEditing = useCallback((v: boolean) => {
+    if (v) beginEdit();
+    else void cancelEdits();
+  }, [beginEdit, cancelEdits]);
+
+  // -------- Mutações: buffer se editing, senão persistem --------
 
   const saveGeometries = useCallback(async (next: { type: string; layout: RhWidgetLayout }[]) => {
     const cur = widgetsRef.current;
@@ -341,20 +406,43 @@ export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabl
         title: w?.title,
       };
     });
+    if (editingRef.current) {
+      setWidgets((prev) => {
+        const map = new Map(prev.map((w) => [w.type, w]));
+        items.forEach((it) => {
+          const c = map.get(it.type);
+          if (!c) return;
+          map.set(it.type, { ...c, layout: clampLayout(it.layout), position: it.position ?? c.position });
+        });
+        return Array.from(map.values());
+      });
+      items.forEach(markPending);
+      return;
+    }
     await saveLayout(items);
-  }, [saveLayout]);
+  }, [saveLayout, markPending]);
 
   const hideWidget = useCallback(async (type: string) => {
     const cur = widgetsRef.current.find((w) => w.type === type);
     if (!cur) return;
+    if (editingRef.current) {
+      setWidgets((prev) => prev.map((w) => w.type === type ? { ...w, hidden: true } : w));
+      markPending({ type, layout: cur.layout, hidden: true, title: cur.title, position: cur.position });
+      return;
+    }
     await saveLayout([{ type, layout: cur.layout, hidden: true, title: cur.title, position: cur.position }]);
-  }, [saveLayout]);
+  }, [saveLayout, markPending]);
 
   const showWidget = useCallback(async (type: string) => {
     const cur = widgetsRef.current.find((w) => w.type === type);
     if (!cur) return;
+    if (editingRef.current) {
+      setWidgets((prev) => prev.map((w) => w.type === type ? { ...w, hidden: false } : w));
+      markPending({ type, layout: cur.layout, hidden: false, title: cur.title, position: cur.position });
+      return;
+    }
     await saveLayout([{ type, layout: cur.layout, hidden: false, title: cur.title, position: cur.position }]);
-  }, [saveLayout]);
+  }, [saveLayout, markPending]);
 
   const configureWidget = useCallback(async (
     type: string,
@@ -362,6 +450,40 @@ export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabl
   ) => {
     const cur = widgetsRef.current.find((w) => w.type === type);
     if (!cur) return;
+    if (editingRef.current) {
+      setWidgets((prev) => prev.map((w) => {
+        if (w.type !== type) return w;
+        const nextCfg: Record<string, any> = { ...(w._config ?? {}) };
+        const apply = (k: string, val: any) => {
+          if (val === undefined) return;
+          if (val === null || val === '') delete nextCfg[k];
+          else nextCfg[k] = val;
+        };
+        apply('componentId', patch.componentId);
+        apply('mapping', patch.mapping);
+        apply('options', patch.options);
+        apply('customTitle', patch.customTitle);
+        apply('variant', patch.variant);
+        return {
+          ...w,
+          componentId: nextCfg.componentId,
+          mapping: nextCfg.mapping,
+          options: nextCfg.options,
+          customTitle: nextCfg.customTitle,
+          variant: nextCfg.variant,
+          _config: nextCfg,
+        };
+      }));
+      markPending({
+        type,
+        layout: cur.layout,
+        hidden: cur.hidden ?? false,
+        title: cur.title,
+        position: cur.position,
+        ...patch,
+      });
+      return;
+    }
     await saveLayout([{
       type,
       layout: cur.layout,
@@ -370,7 +492,7 @@ export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabl
       position: cur.position,
       ...patch,
     }]);
-  }, [saveLayout]);
+  }, [saveLayout, markPending]);
 
   const resetLayout = useCallback(async () => {
     if (!dashboardId) return;
@@ -378,6 +500,11 @@ export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabl
     if (error) throw error;
     setDashboardId(null);
     setWidgets(defaultsRef.current);
+    pendingItemsRef.current = new Map();
+    pendingDeletesRef.current = new Set();
+    snapshotRef.current = null;
+    setHasPendingChanges(false);
+    setEditingState(false);
     await load({ silent: true });
   }, [dashboardId, load]);
 
@@ -389,21 +516,52 @@ export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabl
   }) => {
     const type = `custom-${Date.now()}`;
     const maxY = widgetsRef.current.reduce((acc, w) => Math.max(acc, (w.layout?.y ?? 0) + (w.layout?.h ?? 0)), 0);
-    await saveLayout([{
+    const layout = { x: 0, y: maxY, w: 6, h: 6 };
+    const position = widgetsRef.current.length;
+    const item: RhSaveLayoutItem = {
       type,
       title: payload.title,
-      layout: { x: 0, y: maxY, w: 6, h: 6 },
+      layout,
       hidden: false,
-      position: widgetsRef.current.length,
+      position,
       componentId: payload.componentId,
       mapping: payload.mapping ?? {},
       options: payload.options ?? {},
-    }]);
-  }, [saveLayout]);
+    };
+    if (editingRef.current) {
+      setWidgets((prev) => [...prev, {
+        id: `tmp-${type}`,
+        type,
+        title: payload.title,
+        position,
+        layout,
+        hidden: false,
+        componentId: payload.componentId,
+        mapping: payload.mapping ?? {},
+        options: payload.options ?? {},
+        _config: {
+          componentId: payload.componentId,
+          mapping: payload.mapping ?? {},
+          options: payload.options ?? {},
+        },
+      }]);
+      markPending(item);
+      return;
+    }
+    await saveLayout([item]);
+  }, [saveLayout, markPending]);
 
   const deleteWidget = useCallback(async (type: string) => {
     const cur = widgetsRef.current.find((w) => w.type === type);
-    if (!cur || !cur.id || !isUuid(cur.id)) return;
+    if (!cur) return;
+    if (editingRef.current) {
+      if (cur.id && isUuid(cur.id)) pendingDeletesRef.current.add(cur.id);
+      pendingItemsRef.current.delete(type);
+      setWidgets((prev) => prev.filter((w) => w.type !== type));
+      setHasPendingChanges(true);
+      return;
+    }
+    if (!cur.id || !isUuid(cur.id)) return;
     const { error } = await supabase.from('dashboard_widgets').delete().eq('id', cur.id);
     if (error) throw error;
     setWidgets((prev) => prev.filter((w) => w.type !== type));
@@ -413,6 +571,6 @@ export function useRhModuleLayout(moduleKey: string, defaults: RhWidget[], enabl
     widgets, loading, layoutReady, editing, setEditing,
     saveLayout, saveGeometries, hideWidget, showWidget, configureWidget,
     addWidget, deleteWidget, resetLayout, reload: load,
+    commitEdits, cancelEdits, hasPendingChanges,
   };
 }
-
