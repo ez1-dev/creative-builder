@@ -374,9 +374,12 @@ export function ConfigureRhWidgetDialog({ open, onOpenChange, pageKey, widget, a
             <Button
               disabled={!canSave}
               onClick={async () => {
+                const finalMapping = componentId && def
+                  ? sanitizeMapping(def, mapping, effectiveSchema).mapping
+                  : null;
                 await onSave({
                   componentId: componentId ? componentId : null,
-                  mapping: componentId ? mapping : null,
+                  mapping: finalMapping,
                   customTitle: title || null,
                   options: Object.keys(options).length ? options : null,
                 });
