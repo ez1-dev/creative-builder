@@ -330,9 +330,9 @@ export function ConfigureRhWidgetDialog({ open, onOpenChange, pageKey, widget, a
               <div className="h-full p-3 overflow-hidden">
                 <WidgetErrorBoundary>
                   {previewDef.render({
-                    title: debounced.title || widget?.customTitle || widget?.title || previewDef.label,
-                    mapping: debounced.mapping,
-                    options: { ...debounced.options, filtros: ctx.filtros ?? {} },
+                    title: debouncedTitle || widget?.customTitle || widget?.title || previewDef.label,
+                    mapping,
+                    options: { ...options, filtros: ctx.filtros ?? {} },
                     ctx: {
                       kpis: ctx.kpis ?? {},
                       series: ctx.series ?? {},
