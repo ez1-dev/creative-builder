@@ -11,8 +11,9 @@ import { UserWidgetsSlot } from '@/components/bi';
 import type { RhWidget } from '@/hooks/useRhModuleLayout';
 import type { RhWidgetDef } from '@/lib/rh/widgetCatalogs';
 import { rhSeriesToOptions, rhSeriesToRecord, type RhSerie } from '@/lib/rh/seriesAdapter';
+import { getPage } from '@/lib/bi/pageRegistry';
 
-const seriesKeyToLabel = (key: string) => key
+const toLabel = (key: string) => key
   .replace(/[_-]+/g, ' ')
   .replace(/\b\w/g, (c) => c.toUpperCase());
 
