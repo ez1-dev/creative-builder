@@ -148,6 +148,16 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
         </Alert>
       )}
 
+      {origem === 'nativo' && (
+        <div className="flex justify-end">
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => setDeParaOpen(true)}>
+            <Settings2 className="h-4 w-4" />
+            De-Para de Telas
+          </Button>
+        </div>
+      )}
+
+
       <AnaliseIaCard
         origem={origem}
         filtros={filtros}
