@@ -588,6 +588,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     setSelectedCC([]);
     setSelectedDestino([]);
     setSelectedUF([]);
+    setSelectedProduto([]);
   };
 
 
