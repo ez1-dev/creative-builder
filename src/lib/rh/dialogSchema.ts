@@ -89,3 +89,47 @@ export function mappingHasOrphans(
     return false;
   });
 }
+
+/**
+ * Sanitiza um mapping em relação ao schema efetivo:
+ *  - descarta entradas cujo valor não existe no bag correspondente,
+ *  - preenche inputs obrigatórios usando `def.autoMap(schema)`.
+ * Retorna `{ mapping, changed }` — `changed=true` se algo foi alterado.
+ */
+export function sanitizeMapping(
+  def: ComponentDef,
+  mapping: Record<string, string> | null | undefined,
+  schema: PageDataSchema,
+): { mapping: Record<string, string>; changed: boolean } {
+  const kpiKeys = new Set((schema.kpis ?? []).map((o) => o.key));
+  const seriesKeys = new Set((schema.series ?? []).map((o) => o.key));
+  const auto = def.autoMap(schema) ?? {};
+  const next: Record<string, string> = {};
+  let changed = false;
+  for (const inp of def.inputs) {
+    const current = mapping?.[inp.key];
+    const validCurrent = current && (
+      inp.source === 'kpis' ? kpiKeys.has(current) :
+      inp.source === 'series' ? seriesKeys.has(current) : true
+    );
+    if (validCurrent) {
+      next[inp.key] = current as string;
+    } else if (inp.required && auto[inp.key]) {
+      next[inp.key] = auto[inp.key];
+      changed = true;
+    } else if (current) {
+      // valor órfão descartado, input não obrigatório
+      changed = true;
+    }
+  }
+  // Preserva chaves extras do mapping antigo que não pertencem ao def
+  // (útil se outro componente já foi salvo antes com inputs diferentes).
+  if (mapping) {
+    for (const k of Object.keys(mapping)) {
+      if (!def.inputs.some((i) => i.key === k)) {
+        next[k] = mapping[k];
+      }
+    }
+  }
+  return { mapping: next, changed };
+}

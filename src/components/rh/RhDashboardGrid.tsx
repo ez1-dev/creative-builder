@@ -13,7 +13,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import type { RhWidget } from '@/hooks/useRhModuleLayout';
 import { usePageData } from '@/lib/bi/PageDataContext';
 import { getComponent } from '@/lib/bi/componentRegistry';
-import { buildEffectiveSchema, mappingHasOrphans } from '@/lib/rh/dialogSchema';
+import { buildEffectiveSchema, sanitizeMapping } from '@/lib/rh/dialogSchema';
 
 interface Props {
   widgets: RhWidget[];
@@ -75,19 +75,9 @@ export function RhDashboardGrid({ loading, skeletonHeight = 600, widgets, editin
         const def = getComponent(w.componentId);
         if (!def) continue;
         const title = w.customTitle ?? w.title;
-        // Se o mapping salvo aponta para chaves órfãs (ex.: layout antigo),
-        // remapeia com autoMap sobre o schema efetivo para evitar render vazio.
-        const savedMapping = w.mapping ?? {};
-        const mapping = mappingHasOrphans(def, savedMapping, effectiveSchema)
-          ? { ...def.autoMap(effectiveSchema), ...Object.fromEntries(
-              Object.entries(savedMapping).filter(([k, v]) => {
-                const inp = def.inputs.find((i) => i.key === k);
-                if (!inp || !v) return false;
-                const bag = inp.source === 'kpis' ? effectiveSchema.kpis : inp.source === 'series' ? effectiveSchema.series : null;
-                return !bag || bag.some((o) => o.key === v);
-              })
-            ) }
-          : savedMapping;
+        // Se o mapping salvo aponta para chaves órfãs (layouts antigos),
+        // sanitiza on-the-fly para evitar render vazio.
+        const { mapping } = sanitizeMapping(def, w.mapping ?? {}, effectiveSchema);
         const options = w.options ?? {};
         out[w.type] = (
           <Card className="h-full">
