@@ -1305,7 +1305,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                     width={isMobile ? 90 : 140}
                     tickFormatter={(v: string) => (v.length > (isMobile ? 12 : 22) ? `${v.slice(0, isMobile ? 12 : 22)}…` : v)}
                   />
-                  <RTooltip formatter={(v: number, _n, p: any) => [`${formatCurrency(v)} (${(p?.payload?.pct ?? 0).toFixed(1).replace('.', ',')}%)`, 'Valor']} />
+                  <RTooltip formatter={(v: number, _n, p: any) => [(effectiveWidgets.find((w) => w.type === 'chart-por-produto')?.options?.showPercent !== false) ? `${formatCurrency(v)} (${(p?.payload?.pct ?? 0).toFixed(1).replace('.', ',')}%)` : formatCurrency(v), 'Valor']} />
                   <Bar
                     dataKey="value"
                     radius={[0, 4, 4, 0]}
