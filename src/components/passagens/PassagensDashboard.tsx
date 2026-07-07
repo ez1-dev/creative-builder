@@ -1327,6 +1327,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                         const item = porProduto[index];
                         if (!item) return null;
                         const pct = (item.pct ?? 0).toFixed(1).replace('.', ',');
+                        const showPct = effectiveWidgets.find((w) => w.type === 'chart-por-produto')?.options?.showPercent !== false;
                         return (
                           <text
                             x={Number(x) + Number(width) + 6}
@@ -1335,7 +1336,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                             fontSize={12}
                             fill="hsl(var(--foreground))"
                           >
-                            {formatCurrency(item.value)} ({pct}%)
+                            {showPct ? `${formatCurrency(item.value)} (${pct}%)` : formatCurrency(item.value)}
                           </text>
                         );
                       }}
