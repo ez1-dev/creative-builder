@@ -224,7 +224,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const [pageSize, setPageSize] = useState<number>(25); // 0 = "Todos"
   const [pageIndex, setPageIndex] = useState(0);
   const [outrosMotivoOpen, setOutrosMotivoOpen] = useState(false);
-  const OUTROS_LABEL = 'Outros';
+  const OUTROS_LABEL = 'OUTROS';
 
   const mesesDisponiveis = useMemo(() => {
     const set = new Set<string>();
@@ -1271,7 +1271,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                 onClick={() => setOutrosMotivoOpen(true)}
                 className="mt-2 text-xs text-primary hover:underline"
               >
-                Ver detalhamento de "Outros" ({porMotivoOutros.length} motivos)
+                Ver detalhamento de "OUTROS" ({porMotivoOutros.length} motivos)
               </button>
             )}
           </CardContent>
@@ -1956,7 +1956,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       <Sheet open={outrosMotivoOpen} onOpenChange={setOutrosMotivoOpen}>
         <SheetContent side="right" className="w-full sm:max-w-md">
           <SheetHeader>
-            <SheetTitle>Detalhamento — Outros motivos</SheetTitle>
+            <SheetTitle>Detalhamento — OUTROS motivos</SheetTitle>
             <SheetDescription>
               Motivos com participação menor que 5% do total{porMotivoOutros.length > 0 && ` · ${porMotivoOutros.length} motivos`}
             </SheetDescription>

@@ -1,13 +1,12 @@
-## Rótulo de valor no topo de cada barra — "Evolução Mensal"
+## Rótulo "Outros" em caixa alta no gráfico "Por Motivo de Viagem"
 
-Adicionar `<LabelList>` acima das barras do gráfico `chart-evolucao-mensal` em `src/components/passagens/PassagensDashboard.tsx` (dentro do `<Bar>` das linhas 1167–1179), exibindo o valor formatado em `R$` compacto (ex.: "R$ 231k") acima de cada barra.
+Em `src/components/passagens/PassagensDashboard.tsx`, alterar a constante `OUTROS_LABEL` (linha ~227) de `'Outros'` para `'OUTROS'`, para ficar consistente com os demais motivos que agora aparecem em caixa alta (DEMISSÃO, FÉRIAS, CONTRATAÇÃO, etc.).
 
-Detalhes:
-- `position="top"`, `fontSize={11}`, `fill="hsl(var(--foreground))"`.
-- Formatter: `(v) => v >= 1000 ? \`R$ ${(v/1000).toFixed(0)}k\` : formatCurrency(v)`.
-- Aumentar o `height` do `ResponsiveContainer` levemente (ex.: 240/280) para o rótulo não cortar; ou adicionar `margin={{ top: 16 }}` ao `<BarChart>`.
+Também atualizar textos de UI que exibem literalmente `"Outros"`:
+- Título do modal "Detalhamento — Outros motivos" → "Detalhamento — OUTROS motivos".
+- Link "Ver detalhamento de \"Outros\" (N motivos)" → "Ver detalhamento de \"OUTROS\" (N motivos)".
 
-Sem outras alterações. Nenhum outro gráfico afetado.
+Sem outras mudanças (lógica de agrupamento, cores, cross-filter permanecem iguais — a comparação usa a mesma constante).
 
 ### Validação
-Abrir `/passagens-aereas`: cada barra mensal mostra o valor no topo, sem cortar e sem sobrepor o eixo Y.
+Abrir `/passagens-aereas`: fatia agrupada exibe "OUTROS", link e título do modal também.
