@@ -3834,6 +3834,10 @@ export type Database = {
         Args: { _block_id: string; _move_widgets_to?: string }
         Returns: undefined
       }
+      delete_dashboard_cache_prefix: {
+        Args: { _prefix: string }
+        Returns: undefined
+      }
       ensure_default_block: { Args: { _dashboard_id: string }; Returns: string }
       etl_agendamento_calcular_proxima: {
         Args: {
@@ -4099,6 +4103,15 @@ export type Database = {
         Returns: undefined
       }
       reset_bi_comercial_personal_dashboard: { Args: never; Returns: undefined }
+      set_dashboard_cache: {
+        Args: {
+          _cache_key: string
+          _filtros_hash?: string
+          _payload: Json
+          _valid_until: string
+        }
+        Returns: undefined
+      }
       update_dashboard_block: {
         Args: {
           _block_id: string

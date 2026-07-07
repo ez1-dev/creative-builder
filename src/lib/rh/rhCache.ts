@@ -34,15 +34,12 @@ export async function withRhCache<T>(
 
   try {
     const validUntil = new Date(Date.now() + ttlMs).toISOString();
-    await supabase.from("dashboard_cache").upsert(
-      {
-        cache_key: cacheKey,
-        payload: { __rh_cache__: true, value } as any,
-        filtros_hash: cacheKey,
-        valid_until: validUntil,
-      },
-      { onConflict: "cache_key" },
-    );
+    await supabase.rpc("set_dashboard_cache" as any, {
+      _cache_key: cacheKey,
+      _payload: { __rh_cache__: true, value } as any,
+      _valid_until: validUntil,
+      _filtros_hash: cacheKey,
+    });
   } catch {
     // best-effort
   }
@@ -59,7 +56,7 @@ export async function invalidateRhCache(scopes?: string[]): Promise<void> {
   const prefixes = scopes && scopes.length > 0 ? scopes : [RH_CACHE_PREFIX];
   for (const p of prefixes) {
     try {
-      await supabase.from("dashboard_cache").delete().like("cache_key", `${p}%`);
+      await supabase.rpc("delete_dashboard_cache_prefix" as any, { _prefix: p });
     } catch {
       // best-effort
     }
