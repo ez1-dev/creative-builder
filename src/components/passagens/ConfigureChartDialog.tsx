@@ -68,6 +68,7 @@ export function ConfigureChartDialog({
   const [seriesKey, setSeriesKey] = useState<string>(initial?.mapping?.series ?? '');
   const [customTitle, setCustomTitle] = useState<string>(initial?.customTitle ?? '');
   const [topN, setTopN] = useState<string>(String(initial?.options?.topN ?? 10));
+  const [showPercent, setShowPercent] = useState<boolean>(Boolean(initial?.options?.showPercent));
   const [color, setColor] = useState<string>(initial?.options?.color ?? DEFAULT_CHART_COLOR);
   const [visual, setVisual] = useState<VisualConfig>(mergeVisualConfig(initial?.options?.visual));
 
@@ -82,6 +83,7 @@ export function ConfigureChartDialog({
     setSeriesKey(initial?.mapping?.series ?? seriesOptions[0]?.key ?? '');
     setCustomTitle(initial?.customTitle ?? '');
     setTopN(String(initial?.options?.topN ?? 10));
+    setShowPercent(Boolean(initial?.options?.showPercent));
     setColor(initial?.options?.color ?? DEFAULT_CHART_COLOR);
     setVisual(mergeVisualConfig(initial?.options?.visual));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -94,11 +96,14 @@ export function ConfigureChartDialog({
 
   const buildOptions = useCallback(() => {
     const options: Record<string, any> = {};
-    if (def?.id === 'ranking-chart') options.topN = Number(topN) || 10;
+    if (def?.id === 'ranking-chart') {
+      options.topN = Number(topN) || 10;
+      if (showPercent) options.showPercent = true;
+    }
     if (supportsColor && color && color !== DEFAULT_CHART_COLOR) options.color = color;
     if (JSON.stringify(visual) !== JSON.stringify(DEFAULT_VISUAL_CONFIG)) options.visual = visual;
     return options;
-  }, [def, topN, supportsColor, color, visual]);
+  }, [def, topN, showPercent, supportsColor, color, visual]);
 
   // Preview
   const previewNode = useMemo(() => {
@@ -170,10 +175,19 @@ export function ConfigureChartDialog({
               />
             </div>
             {componentId === 'ranking-chart' && (
-              <div>
-                <Label className="text-xs">Top N</Label>
-                <Input type="number" min={1} max={50} value={topN} onChange={(e) => setTopN(e.target.value)} />
-              </div>
+              <>
+                <div>
+                  <Label className="text-xs">Top N</Label>
+                  <Input type="number" min={1} max={50} value={topN} onChange={(e) => setTopN(e.target.value)} />
+                </div>
+                <div className="flex items-center justify-between rounded-md border bg-muted/20 px-3 py-2">
+                  <div>
+                    <Label className="text-xs font-medium">Mostrar percentual (%)</Label>
+                    <p className="text-[11px] text-muted-foreground">Exibe a participação de cada item no total.</p>
+                  </div>
+                  <Switch checked={showPercent} onCheckedChange={setShowPercent} />
+                </div>
+              </>
             )}
             {supportsColor && (
               <ChartColorPicker value={color} onChange={setColor} />

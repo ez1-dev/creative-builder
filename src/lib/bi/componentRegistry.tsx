@@ -442,6 +442,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
           topN={Number(opts.topN ?? 10)}
           onItemClick={makeClickHandler(ctx, mapping.series)}
           valueFormatter={valueFormatter}
+          showPercent={Boolean((opts as any).showPercent)}
         />
       );
     },

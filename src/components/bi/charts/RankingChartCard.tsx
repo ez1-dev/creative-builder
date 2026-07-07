@@ -12,6 +12,7 @@ export interface RankingChartCardProps extends Omit<ChartCardShellProps, 'childr
   step?: number;
   expandable?: boolean;
   showTotal?: boolean;
+  showPercent?: boolean;
   onItemClick?: (d: BarChartDatum) => void;
 }
 
@@ -24,6 +25,7 @@ export function RankingChartCard({
   step,
   expandable = true,
   showTotal = true,
+  showPercent = false,
   onItemClick,
   height = 320,
   ...shell
@@ -45,12 +47,14 @@ export function RankingChartCard({
   const isExpanded = visibleCount >= total && total > initial;
   const showToggle = expandable && total > initial;
   const visibleSum = visible.reduce((s, d) => s + (d.valor || 0), 0);
+  const totalSum = sorted.reduce((s, d) => s + (d.valor || 0), 0);
 
   return (
     <ChartCardShell {...shell} height={height} isEmpty={!visible.length}>
       <ol className="space-y-1.5">
         {visible.map((d, i) => {
           const pct = max > 0 ? (d.valor / max) * 100 : 0;
+          const share = totalSum > 0 ? (d.valor / totalSum) * 100 : 0;
           return (
             <li
               key={d.label + i}
@@ -66,6 +70,11 @@ export function RankingChartCard({
               </div>
               <div className="relative z-10 flex-1 truncate font-medium">{d.label}</div>
               <div className="relative z-10 shrink-0 text-right font-semibold tabular-nums">{valueFormatter(d.valor)}</div>
+              {showPercent && (
+                <div className="relative z-10 shrink-0 w-12 text-right text-[11px] tabular-nums text-muted-foreground">
+                  {share.toFixed(1).replace('.', ',')}%
+                </div>
+              )}
             </li>
           );
         })}
