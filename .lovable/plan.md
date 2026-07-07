@@ -1,29 +1,28 @@
-## Objetivo
-Adicionar opção de exibir o **percentual** (participação sobre o total) ao lado do valor em cada item do ranking (ex.: "Top Cidades de Destino"), controlável pela tela "Configurar gráfico".
+## Problema
 
-## Escopo
-Somente frontend/apresentação. Sem mudança de dados nem de backend.
+O gráfico "Por Produto" no dashboard `/passagens-aereas` não mostra o botão de configuração (engrenagem) no modo de edição de layout porque seu tipo canônico não está listado como configurável.
 
-## Mudanças
+## Causa
 
-### 1. `src/components/bi/charts/RankingChartCard.tsx`
-- Adicionar nova prop opcional `showPercent?: boolean` (default: `false`).
-- Calcular `sumTotal` (soma de todos os itens ordenados, não só visíveis) para servir de base do %.
-- Em cada `<li>`, quando `showPercent` for `true`, renderizar um badge/texto pequeno ao lado do valor: `12,3%` (usar `toFixed(1)` + vírgula PT-BR), com classe `text-muted-foreground text-[11px] tabular-nums`.
-- Não alterar layout quando `showPercent=false` (comportamento atual preservado).
+Em `src/components/passagens/PassagensDashboard.tsx` (linha ~664), o array `CONFIGURABLE_CANONICAL` inclui:
 
-### 2. `src/lib/bi/componentRegistry.tsx` (render do `ranking-chart`)
-- Ler `options.showPercent` e repassar para `<RankingChartCard showPercent={...} />`.
+- `chart-evolucao-mensal`
+- `chart-motivo-viagem`
+- `chart-top-cc`
+- `chart-top-cidades`
+- `chart-top-uf`
+- `chart-top-destinos-valor`
 
-### 3. `src/components/passagens/ConfigureChartDialog.tsx`
-- Quando `componentId === 'ranking-chart'`, exibir um `Switch` "Mostrar percentual (%) ao lado do valor", ligado a um novo estado `showPercent`.
-- Inicializar com `initial?.options?.showPercent ?? false`.
-- Incluir em `buildOptions()`: se `def.id === 'ranking-chart'` e `showPercent` for `true`, adicionar `options.showPercent = true`.
+Mas **não inclui** `chart-por-produto`, então o `WidgetsGrid` não renderiza o botão "Configurar" para esse widget.
 
-## Fora de escopo
-- Não alterar `RankingTable` (já mostra % nativamente).
-- Não mexer em `BarChartCard` nem em outros tipos de gráfico.
-- Não mudar default global — precisa ser ligado explicitamente por bloco.
+## Mudança
+
+1. **`src/components/passagens/PassagensDashboard.tsx`** — adicionar `'chart-por-produto'` ao array `CONFIGURABLE_CANONICAL`.
+
+Isso libera o botão de configuração do "Por Produto" (permitindo trocar o componente por outro do catálogo BI, ajustar título/Top N, ativar/desativar labels e percentual quando o componente escolhido suportar).
 
 ## Validação
-- Abrir "Top Cidades de Destino" → Configurar → ativar "Mostrar percentual" → confirmar que cada linha passa a exibir `R$ 93.350,04 · 15,0%` (ou similar) e que desligar remove.
+
+1. Abrir `/passagens-aereas` → ativar "Editar layout" → passar o mouse no card "Por Produto".
+2. Confirmar que o botão de configuração aparece e abre o `ConfigureChartDialog`.
+3. Trocar por um `ranking-chart` e verificar que as opções (Top N, percentual, etc.) funcionam como nos demais gráficos.
