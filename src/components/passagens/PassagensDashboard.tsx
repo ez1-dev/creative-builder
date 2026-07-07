@@ -571,7 +571,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   }, [filtered, selectedMes, selectedMotivo, selectedCC, selectedDestino, selectedProduto]);
 
 
-  const hasCrossFilter = selectedMes.length > 0 || selectedMotivo.length > 0 || selectedCC.length > 0 || selectedDestino.length > 0 || selectedUF.length > 0;
+  const hasCrossFilter = selectedMes.length > 0 || selectedMotivo.length > 0 || selectedCC.length > 0 || selectedDestino.length > 0 || selectedUF.length > 0 || selectedProduto.length > 0;
   const hasTopFilter = !!filtroColaborador || !!filtroCC || filtroMotivo !== 'todos' || filtroTipo !== 'todos' || filtroMes !== 'todos' || !!dataInicio || !!dataFim;
   const countAtivos = (filtroColaborador ? 1 : 0) + (filtroCC ? 1 : 0) + (filtroMotivo !== 'todos' ? 1 : 0) + (filtroTipo !== 'todos' ? 1 : 0) + (filtroMes !== 'todos' ? 1 : 0) + (dataInicio ? 1 : 0) + (dataFim ? 1 : 0);
 
