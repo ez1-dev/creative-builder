@@ -1276,7 +1276,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         <Card className="h-full">
           <CardHeader>
             <CardTitle className="text-sm flex items-center justify-between gap-2">
-              <span>Por Produto</span>
+              <span>Por Produto {selectedProduto.length > 0 && <span className="text-xs font-normal text-muted-foreground">(clique para adicionar/remover)</span>}</span>
               <span className="text-xs font-normal text-muted-foreground">Total: {formatCurrency(totalProduto)}</span>
             </CardTitle>
           </CardHeader>
@@ -1297,9 +1297,18 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                     tickFormatter={(v: string) => (v.length > (isMobile ? 12 : 22) ? `${v.slice(0, isMobile ? 12 : 22)}…` : v)}
                   />
                   <RTooltip formatter={(v: number, _n, p: any) => [`${formatCurrency(v)} (${(p?.payload?.pct ?? 0).toFixed(1).replace('.', ',')}%)`, 'Valor']} />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                  <Bar
+                    dataKey="value"
+                    radius={[0, 4, 4, 0]}
+                    cursor="pointer"
+                    onClick={(d: any) => setSelectedProduto((prev) => toggleItem(prev, d.name))}
+                  >
                     {porProduto.map((entry, i) => (
-                      <Cell key={entry.name} fill={COLORS[i % COLORS.length]} />
+                      <Cell
+                        key={entry.name}
+                        fill={COLORS[i % COLORS.length]}
+                        fillOpacity={selectedProduto.length > 0 && !selectedProduto.includes(entry.name) ? dimOpacity : 1}
+                      />
                     ))}
                     <LabelList
                       dataKey="value"
