@@ -75,7 +75,7 @@ const GROUP_OPTIONS: { value: GroupBy; label: string; empty: string }[] = [
   { value: 'centro_custo', label: 'Centro de Custo', empty: 'Sem CC' },
   { value: 'projeto_obra', label: 'Projeto/Obra', empty: 'Sem projeto' },
   { value: 'colaborador', label: 'Colaborador', empty: 'Sem colaborador' },
-  { value: 'motivo_viagem', label: 'Motivo da Viagem', empty: 'Não informado' },
+  { value: 'motivo_viagem', label: 'Motivo da Viagem', empty: 'TRANSFERENCIA DE OBRA' },
   { value: 'produto', label: 'Produto', empty: 'Sem produto' },
   { value: 'tipo_despesa', label: 'Tipo de Despesa', empty: 'Não informado' },
   { value: 'cidade_destino', label: 'Cidade de Destino', empty: 'Sem cidade' },
@@ -282,7 +282,8 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     return rows.filter((r) => {
       if (opts.mes && selectedMes.length && !selectedMes.includes((r.data_registro ?? '').slice(0, 7))) return false;
       if (opts.motivo && selectedMotivo.length) {
-        const m = (r.motivo_viagem && r.motivo_viagem.trim()) || 'Não informado';
+        const raw = (r.motivo_viagem && r.motivo_viagem.trim()) || 'TRANSFERENCIA DE OBRA';
+        const m = raw.toLocaleUpperCase('pt-BR');
         if (!selectedMotivo.includes(m)) return false;
       }
       if (opts.cc && selectedCC.length) {
@@ -494,7 +495,8 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     const base = applyCross(filtered, { mes: true, cc: true, destino: true, uf: true });
     const map = new Map<string, number>();
     base.forEach((r) => {
-      const m = (r.motivo_viagem && r.motivo_viagem.trim()) || 'Não informado';
+      const raw = (r.motivo_viagem && r.motivo_viagem.trim()) || 'TRANSFERENCIA DE OBRA';
+      const m = raw.toLocaleUpperCase('pt-BR');
       map.set(m, (map.get(m) ?? 0) + Number(r.valor || 0));
     });
     const all = Array.from(map.entries())

@@ -1,33 +1,22 @@
-## Objetivo
+## Ajustes de rótulos em Passagens Aéreas
 
-Tratar visualmente falhas do endpoint `GET /api/producao/ordem-producao/desenho/impressao-a4/pagina` sem quebrar a tela. Nada de mudar URL, montar caminho para o JPG, nem alterar layout/fluxo.
+Escopo: apenas exibição do motivo da viagem no dashboard `/passagens-aereas`. Sem mudanças em dados, API, filtros, cross-filter ou lógica de agregação.
 
-## Mudanças
+### Alterações em `src/components/passagens/PassagensDashboard.tsx`
 
-### 1) `src/lib/producao/opDesenhosA4.ts`
-- Em `carregarPaginaDesenhoA4`, ao receber resposta não-ok, lançar erro estruturado com o `status` HTTP (ex.: `const err = new Error(msg); (err as any).status = response.status; throw err;`) em vez de só string.
-- Em `prepararDesenhosParaImpressao`, capturar `e.status` e mapear para mensagem amigável antes de empurrar em `errors`:
-  - 404 → "Desenho não encontrado."
-  - 422 → "Arquivo de desenho inválido ou corrompido."
-  - 500/qualquer 5xx → "Falha ao gerar visualização do desenho."
-  - Outros → "Não foi possível carregar o desenho."
-- Continuar iterando os demais desenhos/páginas normalmente (já é o comportamento; só garantir que uma falha não aborte o lote).
+1. Substituir o fallback `'Não informado'` usado para `motivo_viagem` por `'TRANSFERENCIA DE OBRA'` nos pontos onde a coluna `motivo_viagem` está vazia/nula:
+   - `applyCross` (linha ~285) — quando aplica selectedMotivo.
+   - Agrupamento do gráfico "Por Motivo de Viagem" (linha ~497) — chave usada em `porMotivo`, `porMotivoOutros`, tabela do modal "Detalhamento — Outros motivos" e legenda.
+   - Entrada `groupOptions` para `motivo_viagem` (linha 78): `empty: 'TRANSFERENCIA DE OBRA'`.
+   - Não alterar os demais campos que também usam "Não informado" (tipo_despesa etc.).
 
-### 2) `src/components/producao/OpPrintSheet.tsx`
-- Renderizar página do desenho A4 mesmo quando o carregamento falhou: quando um desenho estiver em `errors` (nova prop `errosDesenhosA4?: OpDesenhoErro[]`), mostrar um card/preview individual com a mensagem amigável, sem quebrar as demais páginas nem a impressão.
-- Manter a página branca "Desenho não encontrado para esta OP" só para o caso atual (sem nenhum desenho retornado pela API).
+2. Padronizar os nomes de motivo em CAIXA ALTA na exibição do gráfico e do modal "Detalhamento — Outros motivos", para que valores vindos do ERP em mixed-case (ex.: "Contratação") apareçam como "CONTRATAÇÃO", alinhados aos demais (DESISTÊNCIA, REMARCAÇÃO, VIAGEM OBRA, PARTICULAR). Aplicar `.toLocaleUpperCase('pt-BR')` apenas no `name` usado para render (gráfico Pie, legenda inline e linhas da tabela de outros motivos). Manter o valor original nas comparações do cross-filter (a chave de agrupamento já será o texto uppercased, então continua consistente).
 
-### 3) `src/pages/producao/ImpressaoOrdemProducaoPage.tsx`
-- Passar `errors` do `useDesenhosA4` para o `OpPrintSheet` via nova prop.
-- No banner/aviso da tela (já existente para desenhos A4), substituir a mensagem genérica atual pela mesma lógica de mapeamento por status quando houver `errors`, listando por desenho (nome_arquivo + mensagem amigável). Não trocar layout.
+### Fora de escopo
+- Filtro topo "Motivo da Viagem" (dropdown de seleção): mantém os valores originais do ERP.
+- Nenhuma outra tela, KPI, export, ou lógica de negócio.
 
-## Fora do escopo
-- URL do endpoint, headers, autenticação, montagem de caminho JPG.
-- `useAuthedBlobUrl`, fluxo de PDF, backend, `.env`, config de API.
-- Layout, filtros, opções de impressão.
-
-## Validação
-1. Forçar 404 em uma página → aparece "Desenho não encontrado." só no card daquele desenho; demais imprimem normalmente.
-2. Forçar 422 → "Arquivo de desenho inválido ou corrompido." no card.
-3. Forçar 500 → "Falha ao gerar visualização do desenho." no card.
-4. Fluxo feliz continua idêntico.
+### Validação
+- Abrir `/passagens-aereas`, conferir gráfico "Por Motivo de Viagem": registros sem motivo aparecem como TRANSFERENCIA DE OBRA; "Contratação" aparece como CONTRATAÇÃO.
+- Abrir modal "Detalhamento — Outros motivos": mesmas regras aplicadas.
+- Clicar em uma fatia continua filtrando o dashboard normalmente.
