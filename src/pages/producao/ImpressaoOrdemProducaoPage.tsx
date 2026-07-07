@@ -1318,12 +1318,8 @@ export default function ImpressaoOrdemProducaoPage() {
                               pdfJob.pastaDesenhos.eh_diretorio === false) && (
                               <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-500/40 bg-amber-100/60 px-2 py-1.5 dark:bg-amber-900/40">
                                 <span>
-                                  <strong>Pasta de desenhos inacessível</strong> no servidor:{" "}
-                                  <code className="text-xs">
-                                    {pdfJob.pastaDesenhos.configurada ?? "(não configurada)"}
-                                  </code>
-                                  . Verifique a variável <code>PASTA_DESENHOS_OP</code> no backend (ex.:{" "}
-                                  <code>/mnt/desenhos_op</code> se rodando em Linux/Docker).
+                                  Desenho não encontrado ou pasta de desenhos indisponível. Verifique o
+                                  cadastro do produto ou o acesso à pasta de desenhos.
                                 </span>
                                 <Button size="sm" variant="outline" onClick={rodarDiagnosticoDesenhos}>
                                   Abrir diagnóstico
@@ -1590,7 +1586,8 @@ export default function ImpressaoOrdemProducaoPage() {
 
       {desenhosA4Errors.length > 0 && (
         <div className="print:hidden mb-2 text-xs text-muted-foreground">
-          Alguns desenhos não puderam ser normalizados. Foi usado fallback quando possível.
+          Desenho não encontrado ou pasta de desenhos indisponível. Verifique o cadastro do produto ou o
+          acesso à pasta de desenhos.
         </div>
       )}
 
