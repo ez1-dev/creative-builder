@@ -31,7 +31,7 @@ import { VisualConfigEditor } from '@/components/bi/visual/VisualConfigEditor';
 import { DEFAULT_VISUAL_CONFIG, mergeVisualConfig, type VisualConfig } from '@/lib/bi/visualConfig';
 import type { RhWidget } from '@/hooks/useRhModuleLayout';
 import { Trash2 } from 'lucide-react';
-import type { PageDataSchema } from '@/lib/bi/pageRegistry';
+import { buildEffectiveSchema, buildKpisOpts, buildSeriesOpts, mappingHasOrphans } from '@/lib/rh/dialogSchema';
 
 interface Props {
   open: boolean;
