@@ -129,8 +129,19 @@ export function ConfigureRhWidgetDialog({ open, onOpenChange, pageKey, widget, a
 
   useEffect(() => {
     if (!def || !page) return;
-    if (!requiredMappingReady(def.id, mapping)) {
-      setMapping((cur) => ({ ...def.autoMap(effectiveSchema), ...cur }));
+    if (!requiredMappingReady(def.id, mapping) || mappingHasOrphans(def, mapping, effectiveSchema)) {
+      const auto = def.autoMap(effectiveSchema);
+      setMapping((cur) => {
+        const merged = { ...auto, ...cur };
+        // Descarta chaves órfãs herdadas
+        for (const inp of def.inputs) {
+          const val = merged[inp.key];
+          if (!val) continue;
+          const bag = inp.source === 'kpis' ? effectiveSchema.kpis : inp.source === 'series' ? effectiveSchema.series : null;
+          if (bag && !bag.some((o) => o.key === val)) merged[inp.key] = auto[inp.key] ?? '';
+        }
+        return merged;
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [def, effectiveSchema]);
