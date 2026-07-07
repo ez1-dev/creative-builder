@@ -100,9 +100,10 @@ export function ConfigureRhWidgetDialog({ open, onOpenChange, pageKey, widget, a
   }, [ctx?.kpis, page?.schema.kpis]);
 
   const seriesOpts = useMemo(() => {
-    const fromCtx = ctx?.seriesCatalog?.length ? ctx.seriesCatalog : [];
-    return mergeByKey(fromCtx, page?.schema.series ?? []);
-  }, [ctx?.seriesCatalog, page?.schema.series]);
+    const fromCatalog = ctx?.seriesCatalog?.length ? ctx.seriesCatalog : [];
+    const fromSeries = Object.keys(ctx?.series ?? {}).map((key) => ({ key, label: toLabel(key) }));
+    return mergeByKey(mergeByKey(fromCatalog, fromSeries), page?.schema.series ?? []);
+  }, [ctx?.series, ctx?.seriesCatalog, page?.schema.series]);
 
   const effectiveSchema = useMemo<PageDataSchema>(() => ({
     ...(page?.schema ?? {}),

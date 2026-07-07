@@ -17,6 +17,7 @@ import { COMPONENT_REGISTRY, getComponent } from '@/lib/bi/componentRegistry';
 import { getPage } from '@/lib/bi/pageRegistry';
 import { usePageData } from '@/lib/bi/PageDataContext';
 import { WidgetErrorBoundary } from '@/components/bi/runtime/WidgetErrorBoundary';
+import type { PageDataSchema } from '@/lib/bi/pageRegistry';
 
 interface Props {
   open: boolean;
@@ -25,11 +26,42 @@ interface Props {
   onAdd: (v: { componentId: string; title: string; mapping: Record<string, string> }) => void | Promise<void>;
 }
 
+const toLabel = (key: string) => key
+  .replace(/[_-]+/g, ' ')
+  .replace(/\b\w/g, (c) => c.toUpperCase());
+
+function mergeByKey<T extends { key: string }>(primary: T[], secondary: T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  [...primary, ...secondary].forEach((item) => {
+    if (!item?.key || seen.has(item.key)) return;
+    seen.add(item.key);
+    out.push(item);
+  });
+  return out;
+}
+
 export function AddRhBiWidgetDialog({ open, onOpenChange, pageKey, onAdd }: Props) {
   const page = getPage(pageKey);
   const ctx = usePageData();
-  const kpisOpts = page?.schema.kpis ?? [];
-  const seriesOpts = ctx?.seriesCatalog?.length ? ctx.seriesCatalog : (page?.schema.series ?? []);
+  const kpisOpts = useMemo(() => {
+    const fromPage = page?.schema.kpis ?? [];
+    const fromCtx = Object.keys(ctx?.kpis ?? {}).map((key) => ({ key, label: toLabel(key) }));
+    return mergeByKey(fromPage, fromCtx);
+  }, [ctx?.kpis, page?.schema.kpis]);
+  const seriesOpts = useMemo(() => {
+    const fromCatalog = ctx?.seriesCatalog?.length ? ctx.seriesCatalog : [];
+    const fromSeries = Object.keys(ctx?.series ?? {}).map((key) => ({ key, label: toLabel(key) }));
+    return mergeByKey(mergeByKey(fromCatalog, fromSeries), page?.schema.series ?? []);
+  }, [ctx?.series, ctx?.seriesCatalog, page?.schema.series]);
+  const effectiveSchema = useMemo<PageDataSchema>(() => ({
+    ...(page?.schema ?? {}),
+    kpis: kpisOpts,
+    series: seriesOpts,
+    rows: page?.schema.rows ?? (Array.isArray(ctx?.rows) && ctx.rows.length
+      ? { key: 'dados', label: 'Dados da página', fields: Object.keys(ctx.rows[0] ?? {}) }
+      : undefined),
+  }), [ctx?.rows, kpisOpts, page?.schema, seriesOpts]);
 
   const [componentId, setComponentId] = useState<string>('kpi-card');
   const [title, setTitle] = useState<string>('');
@@ -47,9 +79,9 @@ export function AddRhBiWidgetDialog({ open, onOpenChange, pageKey, onAdd }: Prop
   useEffect(() => {
     if (!open) return;
     if (!def || !page) { setMapping({}); return; }
-    const auto = def.autoMap(page.schema);
+    const auto = def.autoMap(effectiveSchema);
     setMapping(auto);
-  }, [open, def, page]);
+  }, [open, def, page, effectiveSchema]);
 
   const canAdd = !!def && (def.inputs.every((i) => !i.required || !!mapping[i.key]));
 
