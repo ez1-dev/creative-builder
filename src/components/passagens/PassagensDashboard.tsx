@@ -211,6 +211,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const [selectedCC, setSelectedCC] = useState<string[]>([]);
   const [selectedDestino, setSelectedDestino] = useState<string[]>([]);
   const [selectedUF, setSelectedUF] = useState<string[]>([]);
+  const [selectedProduto, setSelectedProduto] = useState<string[]>([]);
   // Agrupamento do card Registros
   const [groupBy, setGroupBy] = useState<GroupBy>('centro_custo');
   const [groupSheetOpen, setGroupSheetOpen] = useState(false);
