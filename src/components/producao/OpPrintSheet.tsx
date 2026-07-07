@@ -407,29 +407,51 @@ export function OpPrintSheet({
 
   const desenhos = data?.desenhos ?? [];
 
+  const errosA4 = errosDesenhosA4 ?? [];
   const temAlgumDesenho =
-    (paginasDesenhosA4 && paginasDesenhosA4.length > 0) || desenhos.length > 0;
+    (paginasDesenhosA4 && paginasDesenhosA4.length > 0) || desenhos.length > 0 || errosA4.length > 0;
 
   const renderDesenhos = (keyPrefix = "drw") => {
+    const paginasNodes: ReactNode[] = [];
+
     if (paginasDesenhosA4 && paginasDesenhosA4.length > 0) {
-      return paginasDesenhosA4.map((pg, i) => (
-        <div
-          className="op-drawing-page op-print-unit"
-          key={`${keyPrefix}-a4-${i}-${pg.nome_arquivo ?? "desenho"}`}
-        >
-          <img className="op-drawing-image" src={pg.blobUrl} alt={pg.nome_arquivo ?? `Desenho ${i + 1}`} />
-        </div>
-      ));
+      paginasDesenhosA4.forEach((pg, i) => {
+        paginasNodes.push(
+          <div
+            className="op-drawing-page op-print-unit"
+            key={`${keyPrefix}-a4-${i}-${pg.nome_arquivo ?? "desenho"}`}
+          >
+            <img className="op-drawing-image" src={pg.blobUrl} alt={pg.nome_arquivo ?? `Desenho ${i + 1}`} />
+          </div>,
+        );
+      });
+    } else if (desenhos.length > 0) {
+      desenhos.forEach((d, i) => {
+        paginasNodes.push(
+          <DrawingPage
+            key={`${keyPrefix}-${i}-${d.nome_arquivo ?? d.url ?? "desenho"}`}
+            drawing={d}
+            index={i}
+            precomputed={blobStates ? blobStates[getDrawingPrintUrl(d)] : undefined}
+          />,
+        );
+      });
     }
 
-    return desenhos.map((d, i) => (
-      <DrawingPage
-        key={`${keyPrefix}-${i}-${d.nome_arquivo ?? d.url ?? "desenho"}`}
-        drawing={d}
-        index={i}
-        precomputed={blobStates ? blobStates[getDrawingPrintUrl(d)] : undefined}
-      />
-    ));
+    errosA4.forEach((err, i) => {
+      paginasNodes.push(
+        <MissingDrawingPage
+          key={`${keyPrefix}-err-${i}-${err.desenho?.nome_arquivo ?? "desenho"}`}
+          message={
+            err.desenho?.nome_arquivo
+              ? `${err.desenho.nome_arquivo}: ${err.message}`
+              : err.message
+          }
+        />,
+      );
+    });
+
+    return paginasNodes;
   };
 
   // Centraliza a regra: imprime desenho real ou reserva uma página branca técnica.
@@ -439,6 +461,8 @@ export function OpPrintSheet({
     if (temAlgumDesenho) return renderDesenhos(keyPrefix);
     return <MissingDrawingPage key={`${keyPrefix}-missing`} />;
   };
+
+
 
 
   const renderPreviewDesenhosResumo = () => {
