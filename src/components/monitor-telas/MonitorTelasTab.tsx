@@ -13,9 +13,12 @@ import {
   type TelemetriaOrigem, type TelemetriaResumo, type TelemetriaRankingRow,
   type TelemetriaPorDiaRow, type TelemetriaNaoUtilizadaRow,
 } from '@/lib/navegacaoTelemetriaApi';
+import { Button } from '@/components/ui/button';
+import { Settings2 } from 'lucide-react';
 import { formatDateBR, formatDateTimeBR, formatNumberBR } from '@/lib/format';
 import { HistoricoTelaModal } from './HistoricoTelaModal';
 import { AnaliseIaCard } from './AnaliseIaCard';
+import { DeParaTelasModal } from './DeParaTelasModal';
 
 const FONTES_WEB = new Set(['ERP_WEB', 'PORTAL_WEB', 'NAVEGACAO_WEB']);
 const FONTE_NATIVO = 'ERP_SENIOR_NATIVO';
