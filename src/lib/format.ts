@@ -28,6 +28,27 @@ export function formatDate(value: string | null | undefined): string {
   }
 }
 
+/** Formata data ISO/UTC em pt-BR sem depender do timezone do browser quando o valor é `YYYY-MM-DD`. */
+export function formatDateBR(value: string | null | undefined): string {
+  if (!value) return '-';
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  try { return new Date(value).toLocaleDateString('pt-BR'); } catch { return value; }
+}
+
+/** Formata data+hora ISO em pt-BR. */
+export function formatDateTimeBR(value: string | null | undefined): string {
+  if (!value) return '-';
+  try { return new Date(value).toLocaleString('pt-BR'); } catch { return value; }
+}
+
+/** Formata número inteiro/decimal em pt-BR. */
+export function formatNumberBR(value: number | null | undefined, decimals = 0): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return '-';
+  return Number(value).toLocaleString('pt-BR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
+
 export function formatPercent(value: number | null | undefined): string {
   if (value === null || value === undefined) return '-';
   return `${formatNumber(value, 1)}%`;
