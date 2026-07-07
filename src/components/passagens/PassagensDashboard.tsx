@@ -279,7 +279,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     arr.includes(item) ? arr.filter((x) => x !== item) : [...arr, item];
 
   // Helper: aplica subset dos cross-filters (OR dentro de cada filtro, AND entre filtros)
-  const applyCross = (rows: Passagem[], opts: { mes?: boolean; motivo?: boolean; cc?: boolean; destino?: boolean; uf?: boolean }) => {
+  const applyCross = (rows: Passagem[], opts: { mes?: boolean; motivo?: boolean; cc?: boolean; destino?: boolean; uf?: boolean; produto?: boolean }) => {
     return rows.filter((r) => {
       if (opts.mes && selectedMes.length && !selectedMes.includes((r.data_registro ?? '').slice(0, 7))) return false;
       if (opts.motivo && selectedMotivo.length) {
@@ -298,6 +298,10 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       }
       if (opts.uf && selectedUF.length) {
         if (!selectedUF.includes((r.uf_destino ?? '').toUpperCase())) return false;
+      }
+      if (opts.produto && selectedProduto.length) {
+        const p = (r.produto ?? '').trim() || 'Sem produto';
+        if (!selectedProduto.includes(p)) return false;
       }
       return true;
     });
