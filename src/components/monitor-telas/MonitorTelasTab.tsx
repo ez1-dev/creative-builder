@@ -41,6 +41,7 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [drill, setDrill] = useState<{ cod: string | null; nome: string | null }>({ cod: null, nome: null });
+  const [deParaOpen, setDeParaOpen] = useState(false);
 
   const load = useCallback(() => {
     setResumo({ loading: true, data: null, error: null });
