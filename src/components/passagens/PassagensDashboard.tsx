@@ -309,8 +309,8 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
 
   // Dados para KPIs e tabela: aplica TODOS os cross-filters
   const crossFiltered = useMemo(
-    () => applyCross(filtered, { mes: true, motivo: true, cc: true, destino: true, uf: true }),
-    [filtered, selectedMes, selectedMotivo, selectedCC, selectedDestino, selectedUF],
+    () => applyCross(filtered, { mes: true, motivo: true, cc: true, destino: true, uf: true, produto: true }),
+    [filtered, selectedMes, selectedMotivo, selectedCC, selectedDestino, selectedUF, selectedProduto],
   );
 
   // Linhas exibidas no card Registros: aplica busca + ordenação
