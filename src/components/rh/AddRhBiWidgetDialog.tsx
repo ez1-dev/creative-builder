@@ -17,7 +17,7 @@ import { COMPONENT_REGISTRY, getComponent } from '@/lib/bi/componentRegistry';
 import { getPage } from '@/lib/bi/pageRegistry';
 import { usePageData } from '@/lib/bi/PageDataContext';
 import { WidgetErrorBoundary } from '@/components/bi/runtime/WidgetErrorBoundary';
-import { buildEffectiveSchema, buildKpisOpts, buildSeriesOpts } from '@/lib/rh/dialogSchema';
+import { buildEffectiveSchema, buildKpisOpts, buildSeriesOpts, sanitizeMapping } from '@/lib/rh/dialogSchema';
 
 interface Props {
   open: boolean;
