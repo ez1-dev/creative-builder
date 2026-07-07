@@ -525,14 +525,14 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
 
   // Gráfico CC: ignora apenas selectedCC (próprio eixo)
   const porCentroCusto = useMemo(() => {
-    const base = applyCross(filtered, { mes: true, motivo: true, destino: true, uf: true });
+    const base = applyCross(filtered, { mes: true, motivo: true, destino: true, uf: true, produto: true });
     const map = new Map<string, number>();
     base.forEach((r) => {
       const cc = r.centro_custo || 'Sem CC';
       map.set(cc, (map.get(cc) ?? 0) + Number(r.valor || 0));
     });
     return Array.from(map.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 15);
-  }, [filtered, selectedMes, selectedMotivo, selectedDestino, selectedUF]);
+  }, [filtered, selectedMes, selectedMotivo, selectedDestino, selectedUF, selectedProduto]);
 
   // Top 10 Cidades de Destino — ignora apenas selectedDestino (próprio eixo)
   const porCidade = useMemo(() => {
