@@ -1,67 +1,101 @@
 ## Objetivo
 
-Adicionar um bloco de **Análise IA** na página `/monitor-telas` que, sob demanda, lê os dados carregados da aba ativa (Portal Web ou ERP Nativo) e devolve **diagnóstico, riscos e recomendações de melhoria**, usando como referência a **documentação oficial do Senior (TDN / Central de Ajuda)**.
+Adicionar gestão de De-Para de siglas/processos do ERP Senior Nativo dentro da aba "ERP Nativo" da página `/monitor-telas`, consumindo `GET/POST {API_BASE}/api/telemetria-nativa/depara`.
 
-## UX
+## Arquivos
 
-- Novo card **"Análise IA"** logo abaixo dos filtros, dentro de cada aba (`MonitorTelasTab`).
-- Estado inicial: card recolhido com botão **"Analisar com IA"** + descrição curta.
-- Ao clicar: chama a edge function, mostra skeleton, depois 3 seções:
-  - **Diagnóstico** — leitura factual do uso das telas no período.
-  - **Riscos** — telas críticas sem uso, concentração em poucos usuários, ausência de módulos esperados, quedas bruscas em `por-dia`, etc.
-  - **Recomendações** — ações concretas (treinamento, revisão de permissão, desativação, revisar regra `GER-000CONCX01` no caso do ERP Nativo, publicar tela nova no menu, revisar consultas SQL Senior, etc.).
-- Cada bullet ≤ 220 caracteres. Botão **"Gerar novamente"** e timestamp `Gerado em …`.
-- Erros tratados igual às tabelas (429 = limite, 402 = créditos, 500 = falha).
+**Novos**
+- `src/lib/telemetriaNativaDeparaApi.ts` — client tipado para `GET /api/telemetria-nativa/depara` e `POST /api/telemetria-nativa/depara`. Reaproveita o helper de fetch autenticado já usado em `navegacaoTelemetriaApi.ts` (Bearer token + tratamento de statusCode).
+- `src/components/monitor-telas/DeParaTelasModal.tsx` — Dialog (shadcn) grande com duas seções (Tabs internas: "A mapear" | "Mapeadas"), tabelas editáveis inline, badges, skeletons, toasts (sonner), tratamento de erros 401/geral e estados vazios.
 
-## Arquitetura
+**Editados**
+- `src/components/monitor-telas/MonitorTelasTab.tsx` — quando `origem === 'nativo'`, renderizar botão "De-Para de Telas" no topo (canto superior direito, acima dos KPIs, próximo ao card de Análise IA). Botão abre `DeParaTelasModal`. Ao fechar após um salvamento bem-sucedido, incrementar um contador interno que dispara `load()` para atualizar resumo/ranking/por-dia/nao-utilizadas.
 
-**Nova edge function:** `supabase/functions/monitor-telas-ia/index.ts`
+Nada muda na aba Portal Web, nem nos filtros globais em `MonitorTelasPage.tsx`.
 
-- Baseada no padrão de `rh-ai-insights` (mesmo gateway Lovable AI, mesmo modelo `google/gemini-3-flash-preview`, mesmo esquema de `tool_call` com `diagnostico`, `riscos`, `recomendacoes`).
-- Entrada:
-  ```json
-  {
-    "origem": "web" | "nativo",
-    "filtros": { "dias": 30, "modulo": "", "usuario_filtro": "" },
-    "payload": {
-      "resumo": {...},
-      "por_dia": [...],   // enviado inteiro (curto)
-      "ranking_top": [...],   // top 25
-      "ranking_bottom": [...], // bottom 10 do ranking (ou mais frequentes com baixo uso)
-      "nao_utilizadas": [...]  // top 25 mais críticas
-    }
-  }
-  ```
-- Sistema prompt com **contexto Senior** curado (não faz fetch em runtime — evita latência e falha de rede):
-  - Fontes citáveis: **Central de Ajuda Senior (`https://centraldeajuda.senior.com.br`)**, **TDN Senior (`https://tdn.totvs.com/display/public/SENIOR`)**, documentação **Senior X Platform**, e regras nativas `GER-000CONCX01` (telemetria nativa).
-  - Instrução: "cite a fonte por nome (Central de Ajuda Senior / TDN Senior / Senior X Platform) quando fizer sentido; não fabrique URLs".
-- Foco por origem:
-  - **web** → adoção do Portal, telas mais/menos usadas, dispersão por usuário, oportunidade de treinamento, permissões, cobertura de módulos.
-  - **nativo** → dependência da regra `GER-000CONCX01`, cobertura de processos Senior, telas legado com alto uso que podem migrar para o Portal, monitoramento de processos críticos.
+## Detalhes técnicos
 
-**Frontend:**
+### Client (`telemetriaNativaDeparaApi.ts`)
 
-- `src/lib/monitorTelasIaApi.ts` (novo) — cliente que chama a function via `supabase.functions.invoke('monitor-telas-ia', { body })`; tipos `AnaliseIaResultado = { diagnostico, riscos, recomendacoes, gerado_em }`.
-- `src/components/monitor-telas/AnaliseIaCard.tsx` (novo) — card com botão gerar, estados loading/erro, três seções (usar `Badge`/ícones lucide `Lightbulb`, `AlertTriangle`, `Stethoscope`).
-- `src/components/monitor-telas/MonitorTelasTab.tsx` — injeta `<AnaliseIaCard>` recebendo `{ origem, filtros, resumo, porDia, ranking, naoUtilizadas }` (usa dados já carregados; não faz refetch).
+```ts
+export interface DeParaMapeada {
+  sig_processo: string;
+  nome_tela: string | null;
+  modulo: string | null;
+  ativo: boolean;
+  obs: string | null;
+}
+export interface DeParaNaoMapeada {
+  sig_processo: string;
+  acessos: number | null;
+  ultimo_acesso: string | null;
+}
+export interface DeParaResponse {
+  mapeadas: DeParaMapeada[];
+  nao_mapeadas: DeParaNaoMapeada[];
+}
+export interface DeParaUpsertInput {
+  sig_processo: string;
+  nome_tela: string;
+  modulo: string;
+  ativo: boolean;
+  obs?: string;
+}
+export function fetchDeParaTelas(): Promise<DeParaResponse>;
+export function upsertDeParaTela(input: DeParaUpsertInput): Promise<void>;
+```
 
-## Regras de dados
+Usa a mesma base `API_BASE` e mesmo cabeçalho `Authorization: Bearer <token>` do restante do módulo. Sem mocks.
 
-- Se todos os blocos da aba estiverem vazios, o botão fica desabilitado com tooltip "Sem dados no período".
-- Nunca enviar mais que ~15 KB de payload (trunca listas para top-N).
-- Nunca chamar a IA automaticamente — sempre sob clique do usuário (custo controlado).
+### Modal (`DeParaTelasModal.tsx`)
+
+Props: `{ open, onOpenChange, onSaved }`. Ao abrir (open=true) chama `fetchDeParaTelas()`.
+
+Layout:
+- `<Dialog>` com `max-w-5xl`.
+- Título: "De-Para de Telas Senior". Subtítulo conforme spec.
+- `<Tabs>` internas: `a-mapear` (default) e `mapeadas`, com contadores nos labels.
+- Loading: `<Skeleton>` grid dentro do body.
+- Erros: `<Alert variant="destructive">` (401 → "Sessão expirada..."; outros → "Não foi possível carregar o de-para de telas.").
+
+Aba "A mapear":
+- Ordenar `nao_mapeadas` por `acessos` desc.
+- Tabela: Sigla (badge "Pendente" ao lado, destaque visual para os 3 primeiros por acessos), Acessos, Último Acesso (via `formatDateTimeBR`), Nome da Tela (`<Input>`), Módulo (`<Input>`), Obs (`<Input>` opcional), Ação (`<Button>` Salvar).
+- Botão Salvar `disabled` até que `nome_tela` e `modulo` estejam preenchidos (validação client-side).
+- Ao salvar: `POST` com `ativo: true`, `toast.success`, recarrega `GET /depara` e seta flag `savedAny=true`.
+- Vazio: "Não há novas siglas para mapear."
+
+Aba "Mapeadas":
+- Tabela com Sigla, Nome da Tela (editável), Módulo (editável), Ativo (`<Switch>`), Obs (editável), Ação (Salvar).
+- Badge "Mapeada" (verde) quando `ativo`, "Inativa" (cinza) quando `!ativo`.
+- Ao salvar: `POST` com os valores atuais, mesmo tratamento (toast + reload).
+- Vazio: "Nenhum de-para cadastrado ainda."
+
+Fechamento:
+- `onOpenChange(false)` chama `onSaved()` se `savedAny` for true, para o pai recarregar os blocos da aba.
+
+### Integração em `MonitorTelasTab.tsx`
+
+- Novo state `deParaOpen: boolean`.
+- Bloco condicional `{origem === 'nativo' && (...)}` renderiza uma barra fina acima dos KPIs com `<Button variant="outline">De-Para de Telas</Button>` alinhado à direita.
+- `<DeParaTelasModal open={deParaOpen} onOpenChange={setDeParaOpen} onSaved={load} />`.
+- Ranking e Não Utilizadas continuam usando o fallback já existente (`nomeTela` retorna `sig_processo` / "Processo XXX" quando `nome_tela` é nulo). Adicionar apenas fallback de módulo `"Não mapeado"` na renderização das duas tabelas quando `origem === 'nativo'` e `r.modulo` for null/vazio.
+- Modal de histórico (`HistoricoTelaModal`) já é o consumidor de `/eventos`; nenhuma mudança adicional necessária além de continuar exibindo `sig_processo` quando não houver `nome_tela` (já é o comportamento atual).
+
+## Critérios de aceite mapeados
+
+1. Botão só na aba ERP Nativo — condicional por `origem`.
+2. `GET /depara` chamado ao abrir o modal.
+3. Seção "A mapear" lista `nao_mapeadas` ordenadas por acessos.
+4. Seção "Mapeadas" lista `mapeadas` com badges Mapeada/Inativa.
+5. Salvar sigla pendente via `POST` com `ativo: true`.
+6. Editar mapeada via mesmo `POST`.
+7. `onSaved` recarrega resumo/ranking/por-dia/nao-utilizadas ao fechar o modal.
+8. Sem mocks — todos os dados vêm dos endpoints reais.
+9. Aba ERP Nativo sem logs continua funcionando; o botão abre o modal mesmo sem dados de telemetria.
 
 ## Fora de escopo
 
-- Live fetch dos sites Senior (evita CORS/latência; o modelo cita as fontes por nome).
-- Persistência do resultado em banco. É gerado sob demanda.
-- Nenhuma mudança no shell da página, filtros ou nas outras tabelas.
-
-## Critérios de aceite
-
-1. Cada aba mostra o card "Análise IA".
-2. O clique chama `monitor-telas-ia` com o payload da aba ativa e os filtros aplicados.
-3. Resultado exibe diagnóstico, riscos e recomendações em bullets.
-4. Recomendações citam a documentação Senior (Central de Ajuda / TDN / regra `GER-000CONCX01`) quando aplicável.
-5. Erros 401/402/429/500 exibem mensagem amigável.
-6. Nenhum refetch das APIs de telemetria é disparado pela análise.
+- Alterações na aba Portal Web.
+- Novos endpoints/tabelas no Lovable Cloud (o de-para vive na API 8070).
+- Exclusão de mapeamentos (não há endpoint DELETE listado; inativar via `ativo=false` cobre o caso).
