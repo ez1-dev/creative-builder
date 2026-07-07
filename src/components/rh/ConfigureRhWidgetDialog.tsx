@@ -63,21 +63,6 @@ const VALUE_FORMATS = [
   { value: 'compact', label: 'Compacto (1,2 mi)' },
 ];
 
-const toLabel = (key: string) => key
-  .replace(/[_-]+/g, ' ')
-  .replace(/\b\w/g, (c) => c.toUpperCase());
-
-function mergeByKey<T extends { key: string }>(primary: T[], secondary: T[]): T[] {
-  const seen = new Set<string>();
-  const out: T[] = [];
-  [...primary, ...secondary].forEach((item) => {
-    if (!item?.key || seen.has(item.key)) return;
-    seen.add(item.key);
-    out.push(item);
-  });
-  return out;
-}
-
 export function ConfigureRhWidgetDialog({ open, onOpenChange, pageKey, widget, allowedComponentIds, onSave, onDelete }: Props) {
   const page = getPage(pageKey);
   const ctx = usePageData();
@@ -93,26 +78,18 @@ export function ConfigureRhWidgetDialog({ open, onOpenChange, pageKey, widget, a
   const [title, setTitle] = useState<string>('');
   const [options, setOptions] = useState<Record<string, any>>({});
 
-  const kpisOpts = useMemo(() => {
-    const fromPage = page?.schema.kpis ?? [];
-    const fromCtx = Object.keys(ctx?.kpis ?? {}).map((key) => ({ key, label: toLabel(key) }));
-    return mergeByKey(fromPage, fromCtx);
-  }, [ctx?.kpis, page?.schema.kpis]);
-
-  const seriesOpts = useMemo(() => {
-    const fromCatalog = ctx?.seriesCatalog?.length ? ctx.seriesCatalog : [];
-    const fromSeries = Object.keys(ctx?.series ?? {}).map((key) => ({ key, label: toLabel(key) }));
-    return mergeByKey(mergeByKey(fromCatalog, fromSeries), page?.schema.series ?? []);
-  }, [ctx?.series, ctx?.seriesCatalog, page?.schema.series]);
-
-  const effectiveSchema = useMemo<PageDataSchema>(() => ({
-    ...(page?.schema ?? {}),
-    kpis: kpisOpts,
-    series: seriesOpts,
-    rows: page?.schema.rows ?? (Array.isArray(ctx?.rows) && ctx.rows.length
-      ? { key: 'dados', label: 'Dados da página', fields: Object.keys(ctx.rows[0] ?? {}) }
-      : undefined),
-  }), [ctx?.rows, kpisOpts, page?.schema, seriesOpts]);
+  const kpisOpts = useMemo(
+    () => buildKpisOpts(ctx?.kpis, page?.schema.kpis),
+    [ctx?.kpis, page?.schema.kpis],
+  );
+  const seriesOpts = useMemo(
+    () => buildSeriesOpts(ctx?.series, ctx?.seriesCatalog, page?.schema.series),
+    [ctx?.series, ctx?.seriesCatalog, page?.schema.series],
+  );
+  const effectiveSchema = useMemo(
+    () => buildEffectiveSchema(page, ctx),
+    [ctx, page],
+  );
 
   const firstCompatibleComponentId = useCallback(() => {
     if (widget?.componentId && available.some((c) => c.id === widget.componentId)) return widget.componentId;
@@ -134,14 +111,18 @@ export function ConfigureRhWidgetDialog({ open, onOpenChange, pageKey, widget, a
   useEffect(() => {
     if (!open || !widget) return;
     const initialComponentId = widget.componentId ?? firstCompatibleComponentId();
-    const initialMapping = widget.mapping && Object.keys(widget.mapping).length
-      ? widget.mapping
+    const cmp = available.find((c) => c.id === initialComponentId) ?? getComponent(initialComponentId);
+    const savedMapping = widget.mapping && Object.keys(widget.mapping).length ? widget.mapping : null;
+    // Se o mapping salvo aponta para chaves órfãs (não existem em ctx),
+    // remapeia com base no schema efetivo para garantir preview com dados.
+    const initialMapping = savedMapping && cmp && !mappingHasOrphans(cmp, savedMapping, effectiveSchema)
+      ? savedMapping
       : autoMapFor(initialComponentId);
     setComponentId(initialComponentId);
     setMapping(initialMapping);
     setTitle(widget.customTitle ?? '');
     setOptions(widget.options ?? {});
-  }, [autoMapFor, firstCompatibleComponentId, open, widget]);
+  }, [autoMapFor, available, effectiveSchema, firstCompatibleComponentId, open, widget]);
 
   const def = useMemo(() => available.find((c) => c.id === componentId), [available, componentId]);
   const isKpi = def?.kind === 'kpi' || widget?.type?.toLowerCase().includes('kpi');
