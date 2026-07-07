@@ -12,6 +12,10 @@ import type { RhWidget } from '@/hooks/useRhModuleLayout';
 import type { RhWidgetDef } from '@/lib/rh/widgetCatalogs';
 import { rhSeriesToOptions, rhSeriesToRecord, type RhSerie } from '@/lib/rh/seriesAdapter';
 
+const seriesKeyToLabel = (key: string) => key
+  .replace(/[_-]+/g, ' ')
+  .replace(/\b\w/g, (c) => c.toUpperCase());
+
 interface LayoutApi {
   widgets: RhWidget[];
   editing: boolean;
@@ -68,7 +72,9 @@ export function RhDashboardWithBiLibrary({
   const backendRecord: Record<string, any> = isSeriesArray
     ? rhSeriesToRecord(series as RhSerie[])
     : ((series as any) ?? {});
-  const backendCatalog = isSeriesArray ? rhSeriesToOptions(series as RhSerie[]) : [];
+  const backendCatalog = isSeriesArray
+    ? rhSeriesToOptions(series as RhSerie[])
+    : Object.keys(backendRecord).map((key) => ({ key, label: seriesKeyToLabel(key) }));
 
   const derived = derivedSeries ?? [];
   const seriesRecord: Record<string, any> = { ...backendRecord };
