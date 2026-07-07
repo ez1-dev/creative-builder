@@ -497,7 +497,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   // Gráfico Motivo: ignora apenas selectedMotivo (próprio eixo).
   // Agrupa fatias <5% do total numa fatia "Outros" com drill-down.
   const { porMotivo, porMotivoOutros, totalMotivo } = useMemo(() => {
-    const base = applyCross(filtered, { mes: true, cc: true, destino: true, uf: true });
+    const base = applyCross(filtered, { mes: true, cc: true, destino: true, uf: true, produto: true });
     const map = new Map<string, number>();
     base.forEach((r) => {
       const raw = (r.motivo_viagem && r.motivo_viagem.trim()) || 'TRANSFERENCIA DE OBRA';
