@@ -1,22 +1,22 @@
-## Ajustes de rótulos em Passagens Aéreas
+## Cross-filter no gráfico "Por Produto" em `/passagens-aereas`
 
-Escopo: apenas exibição do motivo da viagem no dashboard `/passagens-aereas`. Sem mudanças em dados, API, filtros, cross-filter ou lógica de agregação.
+Hoje o gráfico "Por Produto" só reage aos demais filtros; clicar nas barras não faz nada. Adicionar cross-filter por produto no mesmo padrão de CC/Destino/UF.
 
 ### Alterações em `src/components/passagens/PassagensDashboard.tsx`
 
-1. Substituir o fallback `'Não informado'` usado para `motivo_viagem` por `'TRANSFERENCIA DE OBRA'` nos pontos onde a coluna `motivo_viagem` está vazia/nula:
-   - `applyCross` (linha ~285) — quando aplica selectedMotivo.
-   - Agrupamento do gráfico "Por Motivo de Viagem" (linha ~497) — chave usada em `porMotivo`, `porMotivoOutros`, tabela do modal "Detalhamento — Outros motivos" e legenda.
-   - Entrada `groupOptions` para `motivo_viagem` (linha 78): `empty: 'TRANSFERENCIA DE OBRA'`.
-   - Não alterar os demais campos que também usam "Não informado" (tipo_despesa etc.).
-
-2. Padronizar os nomes de motivo em CAIXA ALTA na exibição do gráfico e do modal "Detalhamento — Outros motivos", para que valores vindos do ERP em mixed-case (ex.: "Contratação") apareçam como "CONTRATAÇÃO", alinhados aos demais (DESISTÊNCIA, REMARCAÇÃO, VIAGEM OBRA, PARTICULAR). Aplicar `.toLocaleUpperCase('pt-BR')` apenas no `name` usado para render (gráfico Pie, legenda inline e linhas da tabela de outros motivos). Manter o valor original nas comparações do cross-filter (a chave de agrupamento já será o texto uppercased, então continua consistente).
+1. Novo estado: `const [selectedProduto, setSelectedProduto] = useState<string[]>([]);` junto aos demais `selected*`.
+2. Estender `applyCross` com opção `produto?: boolean`; quando ativa e `selectedProduto.length > 0`, filtrar linhas por `((r.produto ?? '').trim() || 'Sem produto')`.
+3. Ativar `produto: true` em todos os `applyCross` dos demais gráficos/KPIs (mes, motivo, cc, destino, uf, tipo_despesa e `crossFiltered` para tabela/export), **exceto** no próprio `porProduto` (que continua ignorando seu próprio eixo). Adicionar `selectedProduto` aos arrays de dependências dos `useMemo` correspondentes.
+4. Incluir `selectedProduto` em `hasCrossFilter` e no `limparTudo` (reset para `[]`).
+5. Renderizar chips ativos de produto na barra de filtros ativos (padrão dos outros: "Produto: X" com botão X para remover).
+6. No card `chart-por-produto`:
+   - Título ganha "(clique para adicionar/remover)" quando `selectedProduto.length > 0`.
+   - `<Bar>` recebe `cursor="pointer"` e `onClick={(d) => setSelectedProduto((prev) => toggleItem(prev, d.name))}`.
+   - Cada `<Cell>` ganha `fillOpacity={selectedProduto.length > 0 && !selectedProduto.includes(entry.name) ? dimOpacity : 1}`.
 
 ### Fora de escopo
-- Filtro topo "Motivo da Viagem" (dropdown de seleção): mantém os valores originais do ERP.
-- Nenhuma outra tela, KPI, export, ou lógica de negócio.
+- Nenhuma outra tela, API ou lógica.
+- Não mexer em cores, layout, filtros de topo.
 
 ### Validação
-- Abrir `/passagens-aereas`, conferir gráfico "Por Motivo de Viagem": registros sem motivo aparecem como TRANSFERENCIA DE OBRA; "Contratação" aparece como CONTRATAÇÃO.
-- Abrir modal "Detalhamento — Outros motivos": mesmas regras aplicadas.
-- Clicar em uma fatia continua filtrando o dashboard normalmente.
+- Clicar em uma barra em "Por Produto": barra fica destacada, chip aparece, demais gráficos/KPIs/tabela recalculam. Clicar de novo remove. Múltipla seleção funciona (OR). "Limpar tudo" zera.
