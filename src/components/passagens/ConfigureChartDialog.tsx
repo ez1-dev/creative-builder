@@ -175,10 +175,19 @@ export function ConfigureChartDialog({
               />
             </div>
             {componentId === 'ranking-chart' && (
-              <div>
-                <Label className="text-xs">Top N</Label>
-                <Input type="number" min={1} max={50} value={topN} onChange={(e) => setTopN(e.target.value)} />
-              </div>
+              <>
+                <div>
+                  <Label className="text-xs">Top N</Label>
+                  <Input type="number" min={1} max={50} value={topN} onChange={(e) => setTopN(e.target.value)} />
+                </div>
+                <div className="flex items-center justify-between rounded-md border bg-muted/20 px-3 py-2">
+                  <div>
+                    <Label className="text-xs font-medium">Mostrar percentual (%)</Label>
+                    <p className="text-[11px] text-muted-foreground">Exibe a participação de cada item no total.</p>
+                  </div>
+                  <Switch checked={showPercent} onCheckedChange={setShowPercent} />
+                </div>
+              </>
             )}
             {supportsColor && (
               <ChartColorPicker value={color} onChange={setColor} />
