@@ -169,18 +169,16 @@ export function ConfigureRhWidgetDialog({ open, onOpenChange, pageKey, widget, a
     setMapping(nextId ? autoMapFor(nextId) : {});
   };
 
-  // Debounce para o preview.
-  const [debounced, setDebounced] = useState({ componentId: '', mapping: {} as Record<string, string>, title: '', options: {} as Record<string, any> });
+  // Debounce apenas do título (input de texto). Componente/mapping/opções
+  // fluem instantaneamente para o preview — é o mesmo objeto que será salvo.
+  const [debouncedTitle, setDebouncedTitle] = useState('');
   useEffect(() => {
-    const t = window.setTimeout(() => setDebounced({ componentId, mapping, title, options }), 150);
+    const t = window.setTimeout(() => setDebouncedTitle(title), 150);
     return () => window.clearTimeout(t);
-  }, [componentId, mapping, title, options]);
+  }, [title]);
 
-  const previewDef = useMemo(
-    () => (debounced.componentId ? getComponent(debounced.componentId) : undefined),
-    [debounced.componentId],
-  );
-  const previewMappingReady = !!previewDef && previewDef.inputs.every((i) => !i.required || !!debounced.mapping[i.key]);
+  const previewDef = def;
+  const previewMappingReady = !!previewDef && previewDef.inputs.every((i) => !i.required || !!mapping[i.key]);
 
   const availableSeriesKeys = useMemo(() => {
     const keys = Object.values(mapping).filter(Boolean);
