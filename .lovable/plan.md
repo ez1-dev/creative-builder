@@ -1,38 +1,53 @@
-O front já está correto e alinhado com o pedido. Nenhuma alteração adicional é necessária — a correção no `ValueOrMissing` (para diferenciar `null`/`undefined` de `0`) já foi aplicada na iteração anterior.
+## Objetivo
+Criar página `/monitor-telas` (Monitor de Telas) consumindo os 5 endpoints reais de telemetria da API FastAPI (`/api/navegacao/telemetria/*` e `/api/navegacao/historico`). Sem mock, sem HEARTBEAT, sem catálogo de "telas nunca acessadas" nesta versão.
 
-## Estado atual (já implementado)
+## Arquivos
 
-**`src/pages/rh/ResumoFolhaPage.tsx`**
-- `FILIAL_COLS[0] = { key: "salario_base", label: "Salário Base", format: "currency" }` — primeira coluna após "Cód. Filial" e "Filial".
-- Lê exclusivamente `filiais[].salario_base` (sem aliases, sem `vl_salario_base`, sem `calc_vl_sal_bruto`, sem `salario_bruto`).
-- Sem cálculo/soma no front. Sem consulta ao backend analítico.
+**Novos**
+- `src/lib/navegacaoTelemetriaApi.ts` — tipos + wrappers `api.get(...)` para: `resumo`, `ranking`, `porDia`, `naoUtilizadas`, `historico`. Todos aceitam `{ dias, modulo?, usuario_filtro? }`; historico aceita `{ cod_tela, data_ini, data_fim, incluir_heartbeat:false }`.
+- `src/pages/MonitorTelasPage.tsx` — página completa.
+- `src/components/monitor-telas/HistoricoTelaModal.tsx` — dialog do drill.
 
-**`src/components/rh/KpiOrMissing.tsx` → `ValueOrMissing`**
-```tsx
-if (missing) return <badge>Campo pendente na API</badge>;
-if (format === "horas") return <>{fmtHoras(value)}</>;
-if (value === null || value === undefined) return <>-</>;
-return <>{formatCurrency(Number(value))}</>;
-```
-Comportamento:
-- Chave `salario_base` ausente no payload → "Campo pendente na API" (indica payload antigo — resolver reiniciando API 8070).
-- `salario_base = 0` → `R$ 0,00`.
-- `salario_base = null`/`undefined` → `-`.
-- `salario_base = 1076641.56` → `R$ 1.076.641,56`.
+**Editados**
+- `src/App.tsx` — importar `MonitorTelasPage` e adicionar rota `/monitor-telas` dentro de `ProtectedRoute` (padrão das demais).
+- `src/components/AppSidebar.tsx` — adicionar item **Monitor de Telas** (`Activity` icon) no grupo **Administração**, próximo ao "Monitor Usuários Senior".
 
-## Ação recomendada
+## Layout da página
 
-Nenhuma mudança de código. Passos operacionais:
+**Header**: título "Monitor de Telas" + subtítulo "Telemetria de uso das telas do ERP Web — ranking, frequência e telas sem uso."
 
-1. Reiniciar a API `8070`.
-2. Recarregar `/rh/resumo-folha?anomes_ini=202606&anomes_fim=202606`.
-3. Validar Jun/2026:
-   - KPI `salario_base` = `R$ 1.711.444,89`.
-   - Matriz `R$ 1.076.641,56` · 663 Via Maris `R$ 166.935,93` · 669 TESC `R$ 105.257,97` · 664 Bunge `R$ 78.035,35`.
-   - Soma da coluna = `R$ 1.711.444,89`.
+**Barra de filtros** (Card):
+- `dias`: Select 7/30/60/90 (default 30)
+- `modulo`: Input opcional
+- `usuario_filtro`: Input opcional
+- Botão **Atualizar** (dispara refetch de todos os blocos)
 
-Se após o restart a coluna ainda exibir "Campo pendente na API", o payload continua antigo — problema de backend/cache, não do front.
+**5 KPI Cards** (de `/resumo`): Total de Acessos, Telas Usadas, Telas Sem Uso (destaque laranja/vermelho), Usuários Ativos, Último Acesso (formatado pt-BR).
 
-## Fora de escopo (confirmado)
+**Gráfico "Acessos por Dia"** (`/por-dia`) — usar `recharts` (já no projeto): eixo X `dia`, barras `acessos`, linha secundária opcional `telas`.
 
-Nenhuma alteração em Salário Base (regra), Benefícios, Hora Extra, Custo Férias, Provisões, Custo Total, Rescisões, FGTS, INSS. Sem novos aliases. Sem `_missing_kpis` extra.
+**Tabela "Ranking de Telas Mais Usadas"** (`/ranking?limit=100`):
+Colunas Cód. Tela · Nome · Módulo · Acessos (com mini-barra proporcional ao maior) · Usuários · Primeiro Acesso · Último Acesso. Ordenação `acessos desc`. Linha clicável → abre `HistoricoTelaModal`.
+
+**Tabela "Telas Sem Uso no Período"** (`/nao-utilizadas`):
+Colunas Cód. Tela · Nome · Módulo · Último Acesso (ou "Nunca acessada" se null) · Dias Sem Uso (badge vermelho >30, laranja 15–30) · Total Histórico.
+
+**Modal Histórico da Tela**:
+Chama `/api/navegacao/historico?cod_tela=...&data_ini=...&data_fim=...&incluir_heartbeat=false`.
+`data_ini` = hoje − `dias`; `data_fim` = hoje. Colunas: Data/Hora · Usuário · Ação · Módulo · Sistema.
+
+## Estados
+- **Loading**: skeletons em cards/gráfico/tabelas.
+- **Vazio**: "Nenhum acesso encontrado para os filtros selecionados."
+- **Erro genérico**: alert "Não foi possível carregar a telemetria de telas."
+- **404 / API offline**: detectar via `error.status === 404` ou falha de rede → alert amigável "API indisponível. Verifique se a porta 8070 foi reiniciada." (endpoints são novos e só respondem após restart da API 8070).
+
+## Regras
+- Autenticação via `api.get` (já injeta `Bearer` e header ngrok).
+- Zero mock, zero cálculo paralelo — apenas renderiza o que a API entrega.
+- HEARTBEAT / FECHOU_TELA nunca são contados (backend já filtra).
+- Reutilizar `formatDate`/`formatNumber` de `src/lib/format.ts`; adicionar `formatDateTimeBR` se não existir.
+- Nesta v1 **não** implementar "telas nunca acessadas" (exigiria catálogo completo separado — fica para v2 com tabela-catálogo).
+
+## Fora de escopo
+Catálogo de telas, edição de logs, alterações no backend, mudanças em `UserTrackingProvider` ou em `MonitorNavegacaoSection`.
