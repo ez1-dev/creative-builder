@@ -1305,7 +1305,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                     width={isMobile ? 90 : 140}
                     tickFormatter={(v: string) => (v.length > (isMobile ? 12 : 22) ? `${v.slice(0, isMobile ? 12 : 22)}…` : v)}
                   />
-                  <RTooltip formatter={(v: number, _n, p: any) => [`${formatCurrency(v)} (${(p?.payload?.pct ?? 0).toFixed(1).replace('.', ',')}%)`, 'Valor']} />
+                  <RTooltip formatter={(v: number, _n, p: any) => [(effectiveWidgets.find((w) => w.type === 'chart-por-produto')?.options?.showPercent !== false) ? `${formatCurrency(v)} (${(p?.payload?.pct ?? 0).toFixed(1).replace('.', ',')}%)` : formatCurrency(v), 'Valor']} />
                   <Bar
                     dataKey="value"
                     radius={[0, 4, 4, 0]}
@@ -1327,6 +1327,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                         const item = porProduto[index];
                         if (!item) return null;
                         const pct = (item.pct ?? 0).toFixed(1).replace('.', ',');
+                        const showPct = effectiveWidgets.find((w) => w.type === 'chart-por-produto')?.options?.showPercent !== false;
                         return (
                           <text
                             x={Number(x) + Number(width) + 6}
@@ -1335,7 +1336,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                             fontSize={12}
                             fill="hsl(var(--foreground))"
                           >
-                            {formatCurrency(item.value)} ({pct}%)
+                            {showPct ? `${formatCurrency(item.value)} (${pct}%)` : formatCurrency(item.value)}
                           </text>
                         );
                       }}
