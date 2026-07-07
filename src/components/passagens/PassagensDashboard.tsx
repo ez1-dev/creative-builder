@@ -521,7 +521,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       return { porMotivo: principais, porMotivoOutros: outros, totalMotivo: total };
     }
     return { porMotivo: all, porMotivoOutros: [] as { name: string; value: number }[], totalMotivo: total };
-  }, [filtered, selectedMes, selectedCC, selectedDestino, selectedUF]);
+  }, [filtered, selectedMes, selectedCC, selectedDestino, selectedUF, selectedProduto]);
 
   // Gráfico CC: ignora apenas selectedCC (próprio eixo)
   const porCentroCusto = useMemo(() => {
