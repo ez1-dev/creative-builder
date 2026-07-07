@@ -56,7 +56,7 @@ export async function invalidateRhCache(scopes?: string[]): Promise<void> {
   const prefixes = scopes && scopes.length > 0 ? scopes : [RH_CACHE_PREFIX];
   for (const p of prefixes) {
     try {
-      await supabase.from("dashboard_cache").delete().like("cache_key", `${p}%`);
+      await supabase.rpc("delete_dashboard_cache_prefix" as any, { _prefix: p });
     } catch {
       // best-effort
     }
