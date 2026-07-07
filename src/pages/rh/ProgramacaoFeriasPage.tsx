@@ -379,6 +379,9 @@ export default function ProgramacaoFeriasPage() {
               onShow={layout.showWidget}
               pageKey="rh-ferias"
               onAdd={layout.addWidget}
+              onCommit={layout.commitEdits}
+              onCancel={layout.cancelEdits}
+              hasPendingChanges={layout.hasPendingChanges}
             />
             <Button variant="outline" size="sm" onClick={handleExport} disabled={isExporting}>
               {isExporting ? (
