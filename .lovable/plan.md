@@ -1,27 +1,40 @@
-Plano para corrigir o problema no RH:
+## Diagnóstico
 
-1. Corrigir abertura da engrenagem em widgets padrão do RH
-- Quando o bloco ainda estiver em “Padrão”, selecionar automaticamente um componente compatível da Biblioteca BI.
-- Gerar o mapping inicial automaticamente para esse componente, para o preview não ficar vazio esperando seleção manual.
-- Se o usuário trocar o tipo de componente, recalcular o mapping com campos válidos da página atual.
+Verifiquei as 6 páginas RH — todas usam `RhDashboardWithBiLibrary` com `derivedSeries` e o diálogo abre com o catálogo populado. O preview aparece vazio porque os *dropdowns* misturam duas fontes de chaves de série que **não batem entre si**:
 
-2. Corrigir preview dentro do diálogo
-- Garantir que o preview use o mesmo contrato de dados que o widget real usa no dashboard.
-- Exibir preview real para gráficos, cards e KPIs assim que houver componente e mapping válido.
-- Manter mensagem clara apenas quando faltar série/KPI obrigatório.
+- **Schema declarado** em `src/lib/bi/pageRegistry.ts` (ex.: `por_faixa`, `historico`, `serie_mensal`, `por_mes`, `mensal`…).
+- **Chaves reais** produzidas pelos builders em `src/lib/rh/seriesBuilders.ts` (ex.: `por_faixa_etaria`, `historico_colaboradores`, `admissoes_por_mes`, `evolucao_mensal`…).
 
-3. Corrigir “não está levando” para o dashboard
-- Ao salvar, persistir sempre `componentId`, `mapping`, `customTitle` e `options.visual` juntos.
-- Garantir que widgets RH configurados passem a renderizar pela Biblioteca BI no grid, usando as opções salvas.
-- Preservar o fluxo do botão maior “Salvar edição”: a engrenagem salva no rascunho, e o botão “Salvar edição” grava no banco.
+Nos diálogos `ConfigureRhWidgetDialog` e `AddRhBiWidgetDialog`, `seriesOpts` faz `mergeByKey(fromCatalog, fromSeries, page.schema.series)`. Isso mostra também as chaves do schema que **não têm dados**. Quando o usuário escolhe uma dessas, `mapping.series` fica com uma chave inexistente e `ctx.series?.[mapping.series]` retorna `undefined` → preview vazio (mesmo comportamento do widget final ao salvar).
 
-4. Manter escopo somente RH
-- Alterar apenas os componentes/hook do layout RH necessários.
-- Não mexer em Passagens, Frota, Máquinas, Comercial ou demais dashboards.
+Efeito colateral no `Configure`: se `widget.mapping.series` herdado for uma chave de schema sem dados (ex.: um layout default), o preview também nasce vazio até o usuário trocar manualmente.
 
-Validação após implementar:
-- Em `/rh/quadro-colaboradores`, entrar em “Editar layout”.
-- Abrir engrenagem em um gráfico padrão.
-- Ver preview aparecer automaticamente.
-- Trocar tipo/aparência/mapping, salvar a engrenagem e confirmar que o bloco muda no dashboard.
-- Clicar “Salvar edição”, recarregar e confirmar persistência.
+## Escopo
+
+Somente RH. Nenhuma mudança em Passagens, Frota, Comercial, Fiscal, Financeiro etc.
+
+## Alterações
+
+### 1. `src/components/rh/ConfigureRhWidgetDialog.tsx`
+- Reescrever `kpisOpts` e `seriesOpts` para **priorizar dados reais**:
+  - `kpisOpts` = união de `ctx.kpis` (rotulados via `page.schema.kpis` quando existir) + fallback do schema **apenas** se `ctx.kpis` estiver vazio.
+  - `seriesOpts` = união de `ctx.seriesCatalog` + chaves de `ctx.series` (rotuladas via schema quando bater) + fallback do schema **apenas** se `ctx.series`/`seriesCatalog` estiver vazio.
+- Ao inicializar (useEffect de `open`), se `widget.mapping.<input>` apontar para chave que não existe em `effectiveSchema`, descartar e usar `autoMapFor(initialComponentId)`.
+- No `handleComponentChange`, garantir que `autoMapFor` só considere chaves com dados reais.
+
+### 2. `src/components/rh/AddRhBiWidgetDialog.tsx`
+- Aplicar a mesma regra em `effectiveSchema` (kpis/series só com dados reais, schema como fallback).
+- `autoMap(effectiveSchema)` já passa a devolver mapping válido, evitando "Selecione os campos obrigatórios" ou preview vazio pós-seleção.
+
+### 3. `src/components/rh/RhDashboardGrid.tsx` (defensivo)
+- Ao renderizar widget final: se `mapping.series`/`mapping.kpi` não existir em `ctx.series`/`ctx.kpis`, tentar `autoMap` do componente com o schema efetivo antes de mostrar vazio. (Assegura que layouts antigos salvos com chaves órfãs se auto-recuperem.)
+
+Sem mudanças em `pageRegistry`, `seriesBuilders`, `componentRegistry`, `PageDataContext` ou nas páginas RH.
+
+## Validação
+
+Rodar Playwright nas 6 rotas:
+1. `/rh/resumo-folha`, `/rh/quadro-colaboradores`, `/rh/contrato-experiencia`, `/rh/programacao-ferias`, `/rh/turnover`, `/rh/absenteismo`.
+2. Em cada uma: abrir "Editar layout" → "Adicionar da Biblioteca BI" → trocar componente para "Barras (agrupadas)" → escolher a primeira série sugerida → conferir screenshot com barras renderizadas.
+3. Abrir a engrenagem em um widget existente → conferir que o preview aparece imediatamente (sem trocar nada).
+4. Salvar e recarregar a página → widget continua exibindo dados.

@@ -13,6 +13,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import type { RhWidget } from '@/hooks/useRhModuleLayout';
 import { usePageData } from '@/lib/bi/PageDataContext';
 import { getComponent } from '@/lib/bi/componentRegistry';
+import { buildEffectiveSchema, mappingHasOrphans } from '@/lib/rh/dialogSchema';
 
 interface Props {
   widgets: RhWidget[];
@@ -56,6 +57,10 @@ function compactVerticalLayout(widgets: RhWidget[]): RhWidget[] {
 
 export function RhDashboardGrid({ loading, skeletonHeight = 600, widgets, editing, blocks, configurableTypes, ...rest }: Props) {
   const ctx = usePageData();
+  const effectiveSchema = useMemo(
+    () => buildEffectiveSchema(ctx?.page, ctx),
+    [ctx],
+  );
 
   const effectiveWidgets = useMemo(
     () => (editing ? widgets : compactVerticalLayout(widgets)),
@@ -70,7 +75,19 @@ export function RhDashboardGrid({ loading, skeletonHeight = 600, widgets, editin
         const def = getComponent(w.componentId);
         if (!def) continue;
         const title = w.customTitle ?? w.title;
-        const mapping = w.mapping ?? {};
+        // Se o mapping salvo aponta para chaves órfãs (ex.: layout antigo),
+        // remapeia com autoMap sobre o schema efetivo para evitar render vazio.
+        const savedMapping = w.mapping ?? {};
+        const mapping = mappingHasOrphans(def, savedMapping, effectiveSchema)
+          ? { ...def.autoMap(effectiveSchema), ...Object.fromEntries(
+              Object.entries(savedMapping).filter(([k, v]) => {
+                const inp = def.inputs.find((i) => i.key === k);
+                if (!inp || !v) return false;
+                const bag = inp.source === 'kpis' ? effectiveSchema.kpis : inp.source === 'series' ? effectiveSchema.series : null;
+                return !bag || bag.some((o) => o.key === v);
+              })
+            ) }
+          : savedMapping;
         const options = w.options ?? {};
         out[w.type] = (
           <Card className="h-full">
@@ -99,7 +116,7 @@ export function RhDashboardGrid({ loading, skeletonHeight = 600, widgets, editin
       }
     }
     return out;
-  }, [blocks, widgets, ctx]);
+  }, [blocks, widgets, ctx, effectiveSchema]);
 
   // Todo widget custom-* é configurável; canônicos passam via prop.
   const effectiveConfigurableTypes = useMemo(() => {
