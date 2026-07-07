@@ -9,7 +9,7 @@
  * caso contrário o preview e o widget salvos ficam vazios.
  */
 import type { PageDataSchema } from '@/lib/bi/pageRegistry';
-import type { ComponentDef } from '@/lib/bi/componentRegistry';
+import type { BiComponentDef as ComponentDef } from '@/lib/bi/componentRegistry';
 
 export interface Option { key: string; label: string }
 
