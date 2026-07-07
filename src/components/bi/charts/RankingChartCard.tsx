@@ -25,6 +25,7 @@ export function RankingChartCard({
   step,
   expandable = true,
   showTotal = true,
+  showPercent = false,
   onItemClick,
   height = 320,
   ...shell
