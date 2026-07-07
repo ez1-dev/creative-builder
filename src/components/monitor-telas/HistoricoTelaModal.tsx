@@ -3,37 +3,33 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Loader2 } from 'lucide-react';
-import { fetchHistoricoTela, type HistoricoTelaRow } from '@/lib/navegacaoTelemetriaApi';
-
-function fmtDT(iso: string | null | undefined): string {
-  if (!iso) return '-';
-  try { return new Date(iso).toLocaleString('pt-BR'); } catch { return '-'; }
-}
+import { fetchHistoricoTela, type HistoricoTelaRow, type TelemetriaOrigem } from '@/lib/navegacaoTelemetriaApi';
+import { formatDateTimeBR } from '@/lib/format';
 
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  origem: TelemetriaOrigem;
   codTela: string | null;
   nomeTela: string | null;
   dias: number;
 }
 
-export function HistoricoTelaModal({ open, onOpenChange, codTela, nomeTela, dias }: Props) {
+export function HistoricoTelaModal({ open, onOpenChange, origem, codTela, nomeTela, dias }: Props) {
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<HistoricoTelaRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open || !codTela) return;
-    const now = new Date();
-    const ini = new Date(now.getTime() - dias * 86400_000);
-    const iso = (d: Date) => d.toISOString().slice(0, 10);
     setLoading(true); setErr(null); setRows([]);
-    fetchHistoricoTela({ cod_tela: codTela, data_ini: iso(ini), data_fim: iso(now) })
+    fetchHistoricoTela({ origem, cod_tela: codTela, dias })
       .then(setRows)
       .catch((e: any) => setErr(e?.message ?? 'Erro ao carregar histórico'))
       .finally(() => setLoading(false));
-  }, [open, codTela, dias]);
+  }, [open, origem, codTela, dias]);
+
+  const isNativo = origem === 'nativo';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -58,17 +54,17 @@ export function HistoricoTelaModal({ open, onOpenChange, codTela, nomeTela, dias
                   <TableHead>Usuário</TableHead>
                   <TableHead>Ação</TableHead>
                   <TableHead>Módulo</TableHead>
-                  <TableHead>Sistema</TableHead>
+                  <TableHead>{isNativo ? 'Observação' : 'Sistema'}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.map((r, i) => (
                   <TableRow key={i}>
-                    <TableCell className="text-xs">{fmtDT(r.data_hora)}</TableCell>
-                    <TableCell className="text-xs">{r.usuario ?? '-'}</TableCell>
+                    <TableCell className="text-xs">{formatDateTimeBR(r.data_hora)}</TableCell>
+                    <TableCell className="text-xs">{(isNativo ? r.nomusu : r.usuario) ?? '-'}</TableCell>
                     <TableCell><Badge variant="outline" className="text-[10px]">{r.acao ?? '-'}</Badge></TableCell>
                     <TableCell className="text-xs">{r.modulo ?? '-'}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{r.sistema ?? '-'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{(isNativo ? r.observacao : r.sistema) ?? '-'}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

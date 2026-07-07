@@ -1,53 +1,83 @@
 ## Objetivo
-Criar página `/monitor-telas` (Monitor de Telas) consumindo os 5 endpoints reais de telemetria da API FastAPI (`/api/navegacao/telemetria/*` e `/api/navegacao/historico`). Sem mock, sem HEARTBEAT, sem catálogo de "telas nunca acessadas" nesta versão.
 
-## Arquivos
+Transformar a página existente `/monitor-telas` em uma tela com **duas abas** (Portal Web e ERP Nativo) que usam o **mesmo layout** e alternam apenas a base da API de telemetria, sem mock, sem inventar dados.
 
-**Novos**
-- `src/lib/navegacaoTelemetriaApi.ts` — tipos + wrappers `api.get(...)` para: `resumo`, `ranking`, `porDia`, `naoUtilizadas`, `historico`. Todos aceitam `{ dias, modulo?, usuario_filtro? }`; historico aceita `{ cod_tela, data_ini, data_fim, incluir_heartbeat:false }`.
-- `src/pages/MonitorTelasPage.tsx` — página completa.
-- `src/components/monitor-telas/HistoricoTelaModal.tsx` — dialog do drill.
+## Estrutura de arquivos
 
-**Editados**
-- `src/App.tsx` — importar `MonitorTelasPage` e adicionar rota `/monitor-telas` dentro de `ProtectedRoute` (padrão das demais).
-- `src/components/AppSidebar.tsx` — adicionar item **Monitor de Telas** (`Activity` icon) no grupo **Administração**, próximo ao "Monitor Usuários Senior".
+**Novo / editado:**
 
-## Layout da página
+- `src/lib/format.ts` — garantir `formatDateBR`, `formatDateTimeBR`, `formatNumberBR` (reutilizar se existirem; caso contrário criar helpers seguros a timezone via `Intl.DateTimeFormat('pt-BR')`).
+- `src/lib/navegacaoTelemetriaApi.ts` — generalizar: aceitar `basePath` (`/api/navegacao/telemetria` ou `/api/telemetria-nativa`) e endpoint de histórico configurável. Adicionar campos opcionais nos tipos: `sig_processo`, `telas_catalogo`, `fonte`, e para eventos nativos `nomusu`, `observacao`.
+- `src/components/monitor-telas/MonitorTelasTab.tsx` (novo) — componente que recebe `{ origem: 'web' | 'nativo', basePath, historicoConfig, dias, modulo, usuario }` e renderiza cards + gráfico + ranking + tabela "sem uso" + modal de drill. Extrai a lógica hoje em `MonitorTelasPage.tsx`.
+- `src/components/monitor-telas/HistoricoTelaModal.tsx` — aceitar `origem` para escolher endpoint e conjunto de colunas:
+  - Portal Web → `GET /api/navegacao/historico?cod_tela=&incluir_heartbeat=false&tamanho_pagina=200` (payload `dados[]`, colunas Data/Hora, Usuário, Ação, Módulo, Sistema).
+  - ERP Nativo → `GET /api/telemetria-nativa/eventos?cod_tela=&dias=&limit=200` (payload `dados[]`, colunas Data/Hora, Usuário `nomusu`, Ação, Módulo, Observação).
+- `src/pages/MonitorTelasPage.tsx` — vira shell: título/subtítulo, filtros globais (dias 7/30/60/90, modulo, usuario_filtro, botão Atualizar) e `Tabs` com `MonitorTelasTab` para cada origem. Os filtros aplicam à aba ativa; trocar de aba força reload.
 
-**Header**: título "Monitor de Telas" + subtítulo "Telemetria de uso das telas do ERP Web — ranking, frequência e telas sem uso."
+## Comportamento por aba
 
-**Barra de filtros** (Card):
-- `dias`: Select 7/30/60/90 (default 30)
-- `modulo`: Input opcional
-- `usuario_filtro`: Input opcional
-- Botão **Atualizar** (dispara refetch de todos os blocos)
+Cada aba faz em paralelo:
 
-**5 KPI Cards** (de `/resumo`): Total de Acessos, Telas Usadas, Telas Sem Uso (destaque laranja/vermelho), Usuários Ativos, Último Acesso (formatado pt-BR).
+- `GET {base}/resumo`
+- `GET {base}/ranking?limit=100`
+- `GET {base}/por-dia`
+- `GET {base}/nao-utilizadas`
 
-**Gráfico "Acessos por Dia"** (`/por-dia`) — usar `recharts` (já no projeto): eixo X `dia`, barras `acessos`, linha secundária opcional `telas`.
+Enviando sempre `dias`, `modulo`, `usuario_filtro` quando preenchidos. `Authorization: Bearer` já é injetado pelo `api.ts` atual (mantido).
 
-**Tabela "Ranking de Telas Mais Usadas"** (`/ranking?limit=100`):
-Colunas Cód. Tela · Nome · Módulo · Acessos (com mini-barra proporcional ao maior) · Usuários · Primeiro Acesso · Último Acesso. Ordenação `acessos desc`. Linha clicável → abre `HistoricoTelaModal`.
+### Cards (resumo)
 
-**Tabela "Telas Sem Uso no Período"** (`/nao-utilizadas`):
-Colunas Cód. Tela · Nome · Módulo · Último Acesso (ou "Nunca acessada" se null) · Dias Sem Uso (badge vermelho >30, laranja 15–30) · Total Histórico.
+1. Total de Acessos — `total_acessos`.
+2. Telas Usadas — `telas_usadas / telas_catalogo` (se `telas_catalogo` vier nulo, mostra só `telas_usadas`).
+3. Telas Sem Uso — `telas_sem_uso`, laranja quando > 0.
+4. Usuários Ativos — `usuarios_ativos` com subtítulo "Último acesso: …" ou "Sem acesso no período." quando `ultimo_acesso` é nulo.
 
-**Modal Histórico da Tela**:
-Chama `/api/navegacao/historico?cod_tela=...&data_ini=...&data_fim=...&incluir_heartbeat=false`.
-`data_ini` = hoje − `dias`; `data_fim` = hoje. Colunas: Data/Hora · Usuário · Ação · Módulo · Sistema.
+### Gráfico "Acessos por Dia"
 
-## Estados
-- **Loading**: skeletons em cards/gráfico/tabelas.
-- **Vazio**: "Nenhum acesso encontrado para os filtros selecionados."
-- **Erro genérico**: alert "Não foi possível carregar a telemetria de telas."
-- **404 / API offline**: detectar via `error.status === 404` ou falha de rede → alert amigável "API indisponível. Verifique se a porta 8070 foi reiniciada." (endpoints são novos e só respondem após restart da API 8070).
+`ComposedChart` mantido: barra `acessos`, linha `telas` (opcional). Formatar eixo X com `formatDateBR`.
 
-## Regras
-- Autenticação via `api.get` (já injeta `Bearer` e header ngrok).
-- Zero mock, zero cálculo paralelo — apenas renderiza o que a API entrega.
-- HEARTBEAT / FECHOU_TELA nunca são contados (backend já filtra).
-- Reutilizar `formatDate`/`formatNumber` de `src/lib/format.ts`; adicionar `formatDateTimeBR` se não existir.
-- Nesta v1 **não** implementar "telas nunca acessadas" (exigiria catálogo completo separado — fica para v2 com tabela-catálogo).
+### Ranking
+
+Colunas conforme spec. Ordenação padrão `acessos desc`. Barra proporcional ao maior `acessos` da lista. Para **ERP Nativo**: se `cod_tela` vazio usar `sig_processo` como identificador; se `nome_tela` vazio, exibir `"Processo " + sig_processo`. Clique na linha abre `HistoricoTelaModal` passando `origem` e o identificador correto.
+
+### Telas Sem Uso
+
+Colunas conforme spec. Regras visuais:
+
+- `dias_sem_uso > 30` → badge vermelho.
+- `dias_sem_uso` entre 15 e 30 → badge laranja.
+- `ultimo_acesso` nulo → "Nunca acessada".
+- `total_historico === 0` → badge "Nunca usada".
+
+### Validação de `fonte`
+
+Ao receber payloads de resumo/ranking, se vier `fonte`:
+
+- Aba **Portal Web** aceita `ERP_WEB`, `PORTAL_WEB`, `NAVEGACAO_WEB`.
+- Aba **ERP Nativo** aceita apenas `ERP_SENIOR_NATIVO`. Se vier `ERP_WEB`, bloquear a renderização dos dados dessa aba e mostrar alerta: *"Fonte incorreta: estes dados são do Portal Web, não do ERP Senior Nativo."*
+
+### Estados
+
+- Loading: skeletons nos cards, gráfico e tabelas.
+- Erro genérico: "Não foi possível carregar a telemetria de telas."
+- 401 → "Sessão expirada. Faça login novamente."
+- 404 → "Endpoint de telemetria ainda não disponível. Verifique se a API 8070 foi reiniciada."
+- Vazio (todas as coleções sem itens e resumo zerado):
+  - Portal Web → "Sem dados no período selecionado."
+  - ERP Nativo → "A telemetria nativa depende da regra GER-000CONCX01 no Senior. Nenhum evento nativo foi registrado ainda."
+
+Detecção de status HTTP: usar `error.statusCode` já exposto pelo `api.ts`.
+
+## Filtros globais vs. por aba
+
+Os filtros ficam no shell da página. Alterar filtro **não** dispara reload automático (evita chamadas duplicadas ao digitar): reload ocorre no clique em **Atualizar** ou ao trocar de aba, replicando o comportamento atual.
 
 ## Fora de escopo
-Catálogo de telas, edição de logs, alterações no backend, mudanças em `UserTrackingProvider` ou em `MonitorNavegacaoSection`.
+
+- Nenhuma alteração em outras páginas, sidebar ou rotas (item já está no menu).
+- Sem mock, sem dados sintéticos, sem catálogo próprio de telas no front.
+- Sem mudanças em `UserTrackingProvider` ou `navegacaoLogger`.
+
+## Critérios de aceite
+
+Cobrem os 12 itens listados: rota abre, duas abas, cada uma consome sua base, filtros propagados, cards/gráfico/ranking/sem-uso carregam de seus endpoints, drill correto por aba, sem mock, aba nativa suporta payload vazio, mensagens claras para 404/regra nativa ausente.
