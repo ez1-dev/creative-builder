@@ -144,7 +144,18 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
         </Alert>
       )}
 
+      <AnaliseIaCard
+        origem={origem}
+        filtros={filtros}
+        resumo={resumo.data}
+        porDia={porDia.data ?? []}
+        ranking={ranking.data ?? []}
+        naoUtilizadas={naoUt.data ?? []}
+        disabled={resumo.loading || ranking.loading || porDia.loading || naoUt.loading || !!anyError}
+      />
+
       {/* KPIs */}
+
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <KpiCard label="Total de Acessos" value={formatNumberBR(resumo.data?.total_acessos)} loading={resumo.loading} />
         <KpiCard
