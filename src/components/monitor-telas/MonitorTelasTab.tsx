@@ -335,6 +335,14 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
         nomeTela={drill.nome}
         dias={filtros.dias}
       />
+
+      {origem === 'nativo' && (
+        <DeParaTelasModal
+          open={deParaOpen}
+          onOpenChange={setDeParaOpen}
+          onSaved={load}
+        />
+      )}
     </div>
   );
 }
