@@ -13,7 +13,7 @@
  * respeitam `options.color`/`options.valueFormat`/etc. Nenhuma mudança de
  * schema é necessária.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -31,6 +31,7 @@ import { VisualConfigEditor } from '@/components/bi/visual/VisualConfigEditor';
 import { DEFAULT_VISUAL_CONFIG, mergeVisualConfig, type VisualConfig } from '@/lib/bi/visualConfig';
 import type { RhWidget } from '@/hooks/useRhModuleLayout';
 import { Trash2 } from 'lucide-react';
+import type { PageDataSchema } from '@/lib/bi/pageRegistry';
 
 interface Props {
   open: boolean;
@@ -62,11 +63,24 @@ const VALUE_FORMATS = [
   { value: 'compact', label: 'Compacto (1,2 mi)' },
 ];
 
+const toLabel = (key: string) => key
+  .replace(/[_-]+/g, ' ')
+  .replace(/\b\w/g, (c) => c.toUpperCase());
+
+function mergeByKey<T extends { key: string }>(primary: T[], secondary: T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  [...primary, ...secondary].forEach((item) => {
+    if (!item?.key || seen.has(item.key)) return;
+    seen.add(item.key);
+    out.push(item);
+  });
+  return out;
+}
+
 export function ConfigureRhWidgetDialog({ open, onOpenChange, pageKey, widget, allowedComponentIds, onSave, onDelete }: Props) {
   const page = getPage(pageKey);
   const ctx = usePageData();
-  const kpisOpts = page?.schema.kpis ?? [];
-  const seriesOpts = ctx?.seriesCatalog?.length ? ctx.seriesCatalog : (page?.schema.series ?? []);
   const isCustom = !!widget && widget.type.startsWith('custom-');
 
   const available = useMemo(() => {
@@ -79,28 +93,69 @@ export function ConfigureRhWidgetDialog({ open, onOpenChange, pageKey, widget, a
   const [title, setTitle] = useState<string>('');
   const [options, setOptions] = useState<Record<string, any>>({});
 
+  const kpisOpts = useMemo(() => {
+    const fromPage = page?.schema.kpis ?? [];
+    const fromCtx = Object.keys(ctx?.kpis ?? {}).map((key) => ({ key, label: toLabel(key) }));
+    return mergeByKey(fromPage, fromCtx);
+  }, [ctx?.kpis, page?.schema.kpis]);
+
+  const seriesOpts = useMemo(() => {
+    const fromCtx = ctx?.seriesCatalog?.length ? ctx.seriesCatalog : [];
+    return mergeByKey(fromCtx, page?.schema.series ?? []);
+  }, [ctx?.seriesCatalog, page?.schema.series]);
+
+  const effectiveSchema = useMemo<PageDataSchema>(() => ({
+    ...(page?.schema ?? {}),
+    kpis: kpisOpts,
+    series: seriesOpts,
+    rows: page?.schema.rows ?? (Array.isArray(ctx?.rows) && ctx.rows.length
+      ? { key: 'dados', label: 'Dados da página', fields: Object.keys(ctx.rows[0] ?? {}) }
+      : undefined),
+  }), [ctx?.rows, kpisOpts, page?.schema, seriesOpts]);
+
+  const firstCompatibleComponentId = useCallback(() => {
+    if (widget?.componentId && available.some((c) => c.id === widget.componentId)) return widget.componentId;
+    return available[0]?.id ?? '';
+  }, [available, widget?.componentId]);
+
+  const autoMapFor = useCallback((id: string) => {
+    const cmp = available.find((c) => c.id === id) ?? getComponent(id);
+    if (!cmp) return {};
+    return cmp.autoMap(effectiveSchema);
+  }, [available, effectiveSchema]);
+
+  const requiredMappingReady = useCallback((id: string, map: Record<string, string>) => {
+    const cmp = available.find((c) => c.id === id) ?? getComponent(id);
+    if (!cmp) return false;
+    return cmp.inputs.every((i) => !i.required || !!map[i.key]);
+  }, [available]);
+
   useEffect(() => {
     if (!open || !widget) return;
-    setComponentId(widget.componentId ?? '');
-    setMapping(widget.mapping ?? {});
+    const initialComponentId = widget.componentId ?? firstCompatibleComponentId();
+    const initialMapping = widget.mapping && Object.keys(widget.mapping).length
+      ? widget.mapping
+      : autoMapFor(initialComponentId);
+    setComponentId(initialComponentId);
+    setMapping(initialMapping);
     setTitle(widget.customTitle ?? '');
     setOptions(widget.options ?? {});
-  }, [open, widget]);
+  }, [autoMapFor, firstCompatibleComponentId, open, widget]);
 
   const def = useMemo(() => available.find((c) => c.id === componentId), [available, componentId]);
   const isKpi = def?.kind === 'kpi' || widget?.type?.toLowerCase().includes('kpi');
 
   useEffect(() => {
     if (!def || !page) return;
-    if (!Object.keys(mapping).length) {
-      setMapping(def.autoMap(page.schema));
+    if (!requiredMappingReady(def.id, mapping)) {
+      setMapping((cur) => ({ ...def.autoMap(effectiveSchema), ...cur }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [def]);
+  }, [def, effectiveSchema]);
 
-  const canSave = isCustom
+  const canSave = componentId
     ? !!def && def.inputs.every((i) => !i.required || !!mapping[i.key])
-    : true;
+    : !isCustom;
 
   const visual = useMemo<VisualConfig>(() => mergeVisualConfig(options?.visual), [options]);
   const updateVisual = (next: VisualConfig) => {
@@ -113,6 +168,12 @@ export function ConfigureRhWidgetDialog({ open, onOpenChange, pageKey, widget, a
       else next[key] = val;
       return next;
     });
+  };
+
+  const handleComponentChange = (value: string) => {
+    const nextId = value === '__none__' ? '' : value;
+    setComponentId(nextId);
+    setMapping(nextId ? autoMapFor(nextId) : {});
   };
 
   // Debounce para o preview.
@@ -157,7 +218,7 @@ export function ConfigureRhWidgetDialog({ open, onOpenChange, pageKey, widget, a
           <TabsContent value="componente" className="space-y-3 pt-3">
             <div className="space-y-1">
               <Label>Componente</Label>
-              <Select value={componentId || '__none__'} onValueChange={(v) => setComponentId(v === '__none__' ? '' : v)}>
+              <Select value={componentId || '__none__'} onValueChange={handleComponentChange}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {!isCustom && <SelectItem value="__none__">— Padrão (sem substituição) —</SelectItem>}
