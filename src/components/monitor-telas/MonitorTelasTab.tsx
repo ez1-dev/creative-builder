@@ -309,7 +309,7 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
                   <TableRow key={`${identificador(r)}-${i}`}>
                     <TableCell className="font-mono text-xs">{identificador(r) ?? '-'}</TableCell>
                     <TableCell className="text-sm">{nomeTela(r)}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{r.modulo ?? '-'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{r.modulo ?? (origem === 'nativo' ? 'Não mapeado' : '-')}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {r.ultimo_acesso ? formatDateTimeBR(r.ultimo_acesso) : <span className="italic">Nunca acessada</span>}
                     </TableCell>
