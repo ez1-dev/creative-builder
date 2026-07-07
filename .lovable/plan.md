@@ -1,40 +1,51 @@
-## Diagnóstico
+## Objetivo
 
-Verifiquei as 6 páginas RH — todas usam `RhDashboardWithBiLibrary` com `derivedSeries` e o diálogo abre com o catálogo populado. O preview aparece vazio porque os *dropdowns* misturam duas fontes de chaves de série que **não batem entre si**:
+Fazer o preview do diálogo refletir instantaneamente a série escolhida **e** garantir que o widget salvo use exatamente o mesmo mapping/opções — sem risco de a chave de série apontar para um dataset inexistente no `PageDataProvider`.
 
-- **Schema declarado** em `src/lib/bi/pageRegistry.ts` (ex.: `por_faixa`, `historico`, `serie_mensal`, `por_mes`, `mensal`…).
-- **Chaves reais** produzidas pelos builders em `src/lib/rh/seriesBuilders.ts` (ex.: `por_faixa_etaria`, `historico_colaboradores`, `admissoes_por_mes`, `evolucao_mensal`…).
+## Diagnóstico atual
 
-Nos diálogos `ConfigureRhWidgetDialog` e `AddRhBiWidgetDialog`, `seriesOpts` faz `mergeByKey(fromCatalog, fromSeries, page.schema.series)`. Isso mostra também as chaves do schema que **não têm dados**. Quando o usuário escolhe uma dessas, `mapping.series` fica com uma chave inexistente e `ctx.series?.[mapping.series]` retorna `undefined` → preview vazio (mesmo comportamento do widget final ao salvar).
+Após o ajuste anterior os dropdowns já só oferecem séries com dados reais, mas ainda restam três descolamentos entre "o que vejo" e "o que salvo":
 
-Efeito colateral no `Configure`: se `widget.mapping.series` herdado for uma chave de schema sem dados (ex.: um layout default), o preview também nasce vazio até o usuário trocar manualmente.
+1. **Debounce global (150 ms)** em `ConfigureRhWidgetDialog` e `AddRhBiWidgetDialog` atrasa a atualização do preview quando o usuário troca componente/série. Percebido como "não mostra imediatamente".
+2. **Save não sanitiza mapping**: o `onSave` envia o objeto inteiro; se o usuário mantiver uma chave herdada não coberta pelo schema efetivo, o widget é persistido "quebrado" — o grid disfarça remapeando na renderização, mas ao reabrir o diálogo o valor do dropdown fica vazio.
+3. **Rótulos incoerentes**: em `RhDashboardWithBiLibrary`, quando a série vem do `derivedSeries`, o `seriesCatalog` já traz o label bonito; mas se vier só do backend (`series` como record) usamos `toLabel(key)`, que pode ficar diferente do que a Biblioteca BI usa no dropdown ao abrir a engrenagem novamente.
 
 ## Escopo
 
-Somente RH. Nenhuma mudança em Passagens, Frota, Comercial, Fiscal, Financeiro etc.
+Apenas RH. Nenhuma mudança em Passagens, Frota, Comercial, Fiscal ou na Biblioteca BI genérica.
 
 ## Alterações
 
 ### 1. `src/components/rh/ConfigureRhWidgetDialog.tsx`
-- Reescrever `kpisOpts` e `seriesOpts` para **priorizar dados reais**:
-  - `kpisOpts` = união de `ctx.kpis` (rotulados via `page.schema.kpis` quando existir) + fallback do schema **apenas** se `ctx.kpis` estiver vazio.
-  - `seriesOpts` = união de `ctx.seriesCatalog` + chaves de `ctx.series` (rotuladas via schema quando bater) + fallback do schema **apenas** se `ctx.series`/`seriesCatalog` estiver vazio.
-- Ao inicializar (useEffect de `open`), se `widget.mapping.<input>` apontar para chave que não existe em `effectiveSchema`, descartar e usar `autoMapFor(initialComponentId)`.
-- No `handleComponentChange`, garantir que `autoMapFor` só considere chaves com dados reais.
+- Remover o debounce das seleções: `componentId`, `mapping` e `options` são passados **direto** para o preview (sem `setTimeout`). Mantém debounce só para o `title` (input de texto).
+- Antes de chamar `onSave`, sanitizar o mapping:
+  - Descartar entradas cujo `mapping[key]` não exista no `effectiveSchema.kpis`/`series` (fonte da input).
+  - Reaplicar `def.autoMap(effectiveSchema)` para preencher inputs obrigatórios vazios após o descarte.
+- Garantir que o `onSave` receba os mesmos objetos usados no render do preview (mesma referência de `mapping` e `options`).
 
 ### 2. `src/components/rh/AddRhBiWidgetDialog.tsx`
-- Aplicar a mesma regra em `effectiveSchema` (kpis/series só com dados reais, schema como fallback).
-- `autoMap(effectiveSchema)` já passa a devolver mapping válido, evitando "Selecione os campos obrigatórios" ou preview vazio pós-seleção.
+- Mesma remoção de debounce para `componentId`/`mapping`.
+- Mesma sanitização de mapping antes do `onAdd`.
 
-### 3. `src/components/rh/RhDashboardGrid.tsx` (defensivo)
-- Ao renderizar widget final: se `mapping.series`/`mapping.kpi` não existir em `ctx.series`/`ctx.kpis`, tentar `autoMap` do componente com o schema efetivo antes de mostrar vazio. (Assegura que layouts antigos salvos com chaves órfãs se auto-recuperem.)
+### 3. `src/components/rh/RhDashboardWithBiLibrary.tsx`
+- Ao montar o `seriesCatalog` de fallback (série no formato record), aproveitar o label declarado em `page.schema.series` quando a chave bater — assim o dropdown mostra o mesmo rótulo antes e depois de salvar.
+- Passar `page.schema` também ao helper para que `buildEffectiveSchema` respeite os rótulos oficiais.
 
-Sem mudanças em `pageRegistry`, `seriesBuilders`, `componentRegistry`, `PageDataContext` ou nas páginas RH.
+### 4. `src/lib/rh/dialogSchema.ts`
+- Expor helper `sanitizeMapping(def, mapping, schema)` reutilizado pelos dois diálogos e pelo grid. Retorna `{ mapping, changed }`, mantendo a lógica de descarte/autoMap num único lugar.
+- `RhDashboardGrid` passa a usar esse helper (substitui o `Object.fromEntries` inline atual).
 
-## Validação
+## Validação (Playwright, headless)
 
-Rodar Playwright nas 6 rotas:
-1. `/rh/resumo-folha`, `/rh/quadro-colaboradores`, `/rh/contrato-experiencia`, `/rh/programacao-ferias`, `/rh/turnover`, `/rh/absenteismo`.
-2. Em cada uma: abrir "Editar layout" → "Adicionar da Biblioteca BI" → trocar componente para "Barras (agrupadas)" → escolher a primeira série sugerida → conferir screenshot com barras renderizadas.
-3. Abrir a engrenagem em um widget existente → conferir que o preview aparece imediatamente (sem trocar nada).
-4. Salvar e recarregar a página → widget continua exibindo dados.
+Rotina única aplicada às 6 rotas RH (`resumo-folha`, `quadro-colaboradores`, `contrato-experiencia`, `programacao-ferias`, `turnover`, `absenteismo`):
+
+1. Entrar em "Editar layout" → abrir "Adicionar da Biblioteca BI".
+2. Escolher **Gráfico de Barras**; confirmar que o preview renderiza com dados **na primeira frame** (screenshot antes de qualquer wait).
+3. Trocar a série no dropdown; conferir que o preview atualiza imediatamente (screenshot pós-clique, sem `wait_for_timeout` extra).
+4. Clicar em **Adicionar** e depois **Salvar edição**; recarregar a página.
+5. Abrir a engrenagem do widget recém-criado; conferir que:
+   - o dropdown de série está preenchido com a mesma chave escolhida,
+   - o preview mostra o mesmo gráfico do grid,
+   - o gráfico no grid tem os mesmos dados do preview.
+
+Critério de aceite: nenhum screenshot com "Sem dados", nenhuma diferença visual entre preview do diálogo e widget no grid, dropdown volta preenchido ao reabrir.
