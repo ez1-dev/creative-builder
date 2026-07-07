@@ -3,7 +3,7 @@ import { Barcode } from "./Barcode";
 import { useAuthedBlobUrl } from "@/hooks/useAuthedBlobUrl";
 import type { BlobStateMap } from "@/hooks/useAuthedBlobUrls";
 import type { OpImpressao, OpOperacao, OpComponente, OpDesenho } from "@/lib/producao/opImpressao";
-import type { OpDesenhoPaginaA4Carregada } from "@/lib/producao/opDesenhosA4";
+import type { OpDesenhoPaginaA4Carregada, OpDesenhoErro } from "@/lib/producao/opDesenhosA4";
 import "./op-print.css";
 
 interface Props {
@@ -13,16 +13,18 @@ interface Props {
   quebrarPorOperacao?: boolean | null;
   blobStates?: BlobStateMap;
   paginasDesenhosA4?: OpDesenhoPaginaA4Carregada[];
+  errosDesenhosA4?: OpDesenhoErro[];
   imprimirDesenhos?: boolean | null;
 }
 
-function MissingDrawingPage() {
+function MissingDrawingPage({ message = "Desenho não encontrado para esta OP" }: { message?: string }) {
   return (
     <div className="op-print-unit op-missing-drawing-page">
-      <div className="op-missing-drawing-label">Desenho não encontrado para esta OP</div>
+      <div className="op-missing-drawing-label">{message}</div>
     </div>
   );
 }
+
 
 function fmtDate(s?: string) {
   if (!s) return "-";
