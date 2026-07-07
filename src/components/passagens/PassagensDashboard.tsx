@@ -75,7 +75,7 @@ const GROUP_OPTIONS: { value: GroupBy; label: string; empty: string }[] = [
   { value: 'centro_custo', label: 'Centro de Custo', empty: 'Sem CC' },
   { value: 'projeto_obra', label: 'Projeto/Obra', empty: 'Sem projeto' },
   { value: 'colaborador', label: 'Colaborador', empty: 'Sem colaborador' },
-  { value: 'motivo_viagem', label: 'Motivo da Viagem', empty: 'Não informado' },
+  { value: 'motivo_viagem', label: 'Motivo da Viagem', empty: 'TRANSFERENCIA DE OBRA' },
   { value: 'produto', label: 'Produto', empty: 'Sem produto' },
   { value: 'tipo_despesa', label: 'Tipo de Despesa', empty: 'Não informado' },
   { value: 'cidade_destino', label: 'Cidade de Destino', empty: 'Sem cidade' },
