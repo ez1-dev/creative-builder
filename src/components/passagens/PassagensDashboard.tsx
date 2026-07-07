@@ -662,7 +662,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
 
   // Tipos canônicos que aceitam reconfiguração de gráfico
   const CONFIGURABLE_CANONICAL = useMemo(
-    () => ['chart-evolucao-mensal', 'chart-motivo-viagem', 'chart-por-produto', 'chart-top-cc', 'chart-top-cidades', 'chart-top-uf', 'chart-top-destinos-valor'],
+    () => ['chart-evolucao-mensal', 'chart-motivo-viagem', 'chart-por-produto', 'chart-top-cc', 'chart-top-cidades', 'chart-top-uf', 'chart-top-destinos-valor', 'chart-mapa-brasil'],
     [],
   );
 
