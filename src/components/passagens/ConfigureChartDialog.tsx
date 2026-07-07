@@ -96,11 +96,14 @@ export function ConfigureChartDialog({
 
   const buildOptions = useCallback(() => {
     const options: Record<string, any> = {};
-    if (def?.id === 'ranking-chart') options.topN = Number(topN) || 10;
+    if (def?.id === 'ranking-chart') {
+      options.topN = Number(topN) || 10;
+      if (showPercent) options.showPercent = true;
+    }
     if (supportsColor && color && color !== DEFAULT_CHART_COLOR) options.color = color;
     if (JSON.stringify(visual) !== JSON.stringify(DEFAULT_VISUAL_CONFIG)) options.visual = visual;
     return options;
-  }, [def, topN, supportsColor, color, visual]);
+  }, [def, topN, showPercent, supportsColor, color, visual]);
 
   // Preview
   const previewNode = useMemo(() => {
