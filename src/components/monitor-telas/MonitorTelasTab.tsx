@@ -261,7 +261,7 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
                     <TableRow key={`${id}-${i}`} className={id ? 'cursor-pointer hover:bg-muted/50' : ''} onClick={() => id && openDrill(r)}>
                       <TableCell className="font-mono text-xs">{id ?? '-'}</TableCell>
                       <TableCell className="text-sm">{nomeTela(r)}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{r.modulo ?? '-'}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{r.modulo ?? (origem === 'nativo' ? 'Não mapeado' : '-')}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
                           <div className="hidden h-1.5 w-24 overflow-hidden rounded bg-muted sm:block">
