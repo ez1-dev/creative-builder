@@ -1,7 +1,17 @@
 /**
- * Diálogo para configurar um widget RH: substituir por um componente da
- * Biblioteca BI, limpar a substituição (voltar ao padrão) ou excluir
- * (apenas widgets custom-*).
+ * Diálogo para configurar um widget RH.
+ *
+ * Traz a experiência completa da Biblioteca BI:
+ *  - Aba "Componente": escolher componente da Biblioteca; para KPIs,
+ *    variante (info/success/warning/danger) e formato do valor.
+ *  - Aba "Dados": mapping de campos (kpis/series) + título customizado.
+ *  - Aba "Aparência": VisualConfigEditor (formato de rótulos, mostrar/ocultar
+ *    %, legenda, grade, eixos, densidade do card, fontes…).
+ *
+ * Toda a configuração é persistida em `widget.options` — os cards do RH que
+ * usam ChartCardShell já leem `options.visual` e componentes do registry
+ * respeitam `options.color`/`options.valueFormat`/etc. Nenhuma mudança de
+ * schema é necessária.
  */
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -11,11 +21,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { COMPONENT_REGISTRY, getComponent } from '@/lib/bi/componentRegistry';
 import { getPage } from '@/lib/bi/pageRegistry';
 import { usePageData } from '@/lib/bi/PageDataContext';
 import { WidgetErrorBoundary } from '@/components/bi/runtime/WidgetErrorBoundary';
+import { VisualConfigEditor } from '@/components/bi/visual/VisualConfigEditor';
+import { DEFAULT_VISUAL_CONFIG, mergeVisualConfig, type VisualConfig } from '@/lib/bi/visualConfig';
 import type { RhWidget } from '@/hooks/useRhModuleLayout';
 import { Trash2 } from 'lucide-react';
 
@@ -25,9 +38,29 @@ interface Props {
   pageKey: string;
   widget: RhWidget | null;
   allowedComponentIds?: string[];
-  onSave: (patch: { componentId: string | null; mapping: Record<string, string> | null; customTitle: string | null }) => void | Promise<void>;
+  onSave: (patch: {
+    componentId: string | null;
+    mapping: Record<string, string> | null;
+    customTitle: string | null;
+    options: Record<string, any> | null;
+  }) => void | Promise<void>;
   onDelete?: (type: string) => void | Promise<void>;
 }
+
+const KPI_VARIANTS = [
+  { value: '__none__', label: 'Padrão' },
+  { value: 'info', label: 'Info (azul)' },
+  { value: 'success', label: 'Sucesso (verde)' },
+  { value: 'warning', label: 'Atenção (amarelo)' },
+  { value: 'danger', label: 'Perigo (vermelho)' },
+];
+
+const VALUE_FORMATS = [
+  { value: 'currency', label: 'Moeda (R$)' },
+  { value: 'number', label: 'Número' },
+  { value: 'percent', label: 'Percentual' },
+  { value: 'compact', label: 'Compacto (1,2 mi)' },
+];
 
 export function ConfigureRhWidgetDialog({ open, onOpenChange, pageKey, widget, allowedComponentIds, onSave, onDelete }: Props) {
   const page = getPage(pageKey);
@@ -44,19 +77,21 @@ export function ConfigureRhWidgetDialog({ open, onOpenChange, pageKey, widget, a
   const [componentId, setComponentId] = useState<string>('');
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [title, setTitle] = useState<string>('');
+  const [options, setOptions] = useState<Record<string, any>>({});
 
   useEffect(() => {
     if (!open || !widget) return;
     setComponentId(widget.componentId ?? '');
     setMapping(widget.mapping ?? {});
     setTitle(widget.customTitle ?? '');
+    setOptions(widget.options ?? {});
   }, [open, widget]);
 
   const def = useMemo(() => available.find((c) => c.id === componentId), [available, componentId]);
+  const isKpi = def?.kind === 'kpi' || widget?.type?.toLowerCase().includes('kpi');
 
   useEffect(() => {
     if (!def || !page) return;
-    // Se mapping estiver vazio, aplica autoMap.
     if (!Object.keys(mapping).length) {
       setMapping(def.autoMap(page.schema));
     }
@@ -67,12 +102,25 @@ export function ConfigureRhWidgetDialog({ open, onOpenChange, pageKey, widget, a
     ? !!def && def.inputs.every((i) => !i.required || !!mapping[i.key])
     : true;
 
-  // Debounce das seleções para não re-renderizar o preview a cada tecla.
-  const [debounced, setDebounced] = useState({ componentId: '', mapping: {} as Record<string, string>, title: '' });
+  const visual = useMemo<VisualConfig>(() => mergeVisualConfig(options?.visual), [options]);
+  const updateVisual = (next: VisualConfig) => {
+    setOptions((prev) => ({ ...prev, visual: next }));
+  };
+  const updateOption = (key: string, val: any) => {
+    setOptions((prev) => {
+      const next = { ...prev };
+      if (val === null || val === undefined || val === '' || val === '__none__') delete next[key];
+      else next[key] = val;
+      return next;
+    });
+  };
+
+  // Debounce para o preview.
+  const [debounced, setDebounced] = useState({ componentId: '', mapping: {} as Record<string, string>, title: '', options: {} as Record<string, any> });
   useEffect(() => {
-    const t = window.setTimeout(() => setDebounced({ componentId, mapping, title }), 150);
+    const t = window.setTimeout(() => setDebounced({ componentId, mapping, title, options }), 150);
     return () => window.clearTimeout(t);
-  }, [componentId, mapping, title]);
+  }, [componentId, mapping, title, options]);
 
   const previewDef = useMemo(
     () => (debounced.componentId ? getComponent(debounced.componentId) : undefined),
@@ -80,99 +128,169 @@ export function ConfigureRhWidgetDialog({ open, onOpenChange, pageKey, widget, a
   );
   const previewMappingReady = !!previewDef && previewDef.inputs.every((i) => !i.required || !!debounced.mapping[i.key]);
 
+  const availableSeriesKeys = useMemo(() => {
+    const keys = Object.values(mapping).filter(Boolean);
+    return keys.length ? keys : ['valor'];
+  }, [mapping]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Configurar {widget?.title}</DialogTitle>
           <DialogDescription>
-            {isCustom
-              ? 'Escolha um componente da Biblioteca BI.'
-              : 'Substitua este bloco por um componente da Biblioteca BI ou limpe para voltar ao padrão.'}
+            Escolha o componente, mapeie os dados e ajuste a aparência.
+            <span className="block text-[11px] text-muted-foreground/80 mt-1">
+              Opções de aparência aplicam-se a componentes da Biblioteca BI e a gráficos padrão que usam ChartCardShell.
+            </span>
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <Label>Componente</Label>
-            <Select value={componentId || '__none__'} onValueChange={(v) => setComponentId(v === '__none__' ? '' : v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {!isCustom && <SelectItem value="__none__">— Padrão (sem substituição) —</SelectItem>}
-                {available.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.label} <span className="text-muted-foreground">· {c.kind}</span></SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {def?.description && <p className="text-xs text-muted-foreground">{def.description}</p>}
-          </div>
+        <Tabs defaultValue="componente">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="componente">Componente</TabsTrigger>
+            <TabsTrigger value="dados">Dados</TabsTrigger>
+            <TabsTrigger value="aparencia">Aparência</TabsTrigger>
+          </TabsList>
 
-          {def?.inputs.map((inp) => {
-            const bag = inp.source === 'kpis' ? kpisOpts : inp.source === 'series' ? seriesOpts : [];
-            return (
-              <div key={inp.key} className="space-y-1">
-                <Label>{inp.label} <span className="text-muted-foreground">({inp.source})</span></Label>
-                {bag.length ? (
-                  <Select
-                    value={mapping[inp.key] ?? ''}
-                    onValueChange={(v) => setMapping((m) => ({ ...m, [inp.key]: v }))}
-                  >
-                    <SelectTrigger><SelectValue placeholder="Selecionar…" /></SelectTrigger>
+          {/* ===== Componente ===== */}
+          <TabsContent value="componente" className="space-y-3 pt-3">
+            <div className="space-y-1">
+              <Label>Componente</Label>
+              <Select value={componentId || '__none__'} onValueChange={(v) => setComponentId(v === '__none__' ? '' : v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {!isCustom && <SelectItem value="__none__">— Padrão (sem substituição) —</SelectItem>}
+                  {available.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.label} <span className="text-muted-foreground">· {c.kind}</span></SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {def?.description && <p className="text-xs text-muted-foreground">{def.description}</p>}
+            </div>
+
+            {isKpi && (
+              <div className="grid grid-cols-2 gap-3 rounded-md border bg-muted/20 p-3">
+                <div className="col-span-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Aparência do KPI
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Variante</Label>
+                  <Select value={(options.color as string) || '__none__'} onValueChange={(v) => updateOption('color', v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {bag.map((k) => (
-                        <SelectItem key={k.key} value={k.key}>{k.label}</SelectItem>
+                      {KPI_VARIANTS.map((v) => (
+                        <SelectItem key={v.value} value={v.value}>{v.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                ) : (
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Formato do valor</Label>
+                  <Select value={(options.valueFormat as string) || 'currency'} onValueChange={(v) => updateOption('valueFormat', v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {VALUE_FORMATS.map((v) => (
+                        <SelectItem key={v.value} value={v.value}>{v.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-2 space-y-1">
+                  <Label className="text-xs">Subtítulo (opcional)</Label>
                   <Input
-                    placeholder={`chave (${inp.source})`}
-                    value={mapping[inp.key] ?? ''}
-                    onChange={(e) => setMapping((m) => ({ ...m, [inp.key]: e.target.value }))}
+                    value={(options.subtitle as string) ?? ''}
+                    onChange={(e) => updateOption('subtitle', e.target.value)}
+                    placeholder="Ex.: no período selecionado"
                   />
-                )}
+                </div>
               </div>
-            );
-          })}
+            )}
+          </TabsContent>
 
-          <div className="space-y-1">
-            <Label>Título</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={widget?.title} />
-          </div>
+          {/* ===== Dados ===== */}
+          <TabsContent value="dados" className="space-y-3 pt-3">
+            {def?.inputs.length ? def.inputs.map((inp) => {
+              const bag = inp.source === 'kpis' ? kpisOpts : inp.source === 'series' ? seriesOpts : [];
+              return (
+                <div key={inp.key} className="space-y-1">
+                  <Label>{inp.label} <span className="text-muted-foreground">({inp.source})</span></Label>
+                  {bag.length ? (
+                    <Select
+                      value={mapping[inp.key] ?? ''}
+                      onValueChange={(v) => setMapping((m) => ({ ...m, [inp.key]: v }))}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Selecionar…" /></SelectTrigger>
+                      <SelectContent>
+                        {bag.map((k) => (
+                          <SelectItem key={k.key} value={k.key}>{k.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      placeholder={`chave (${inp.source})`}
+                      value={mapping[inp.key] ?? ''}
+                      onChange={(e) => setMapping((m) => ({ ...m, [inp.key]: e.target.value }))}
+                    />
+                  )}
+                </div>
+              );
+            }) : (
+              <p className="text-xs text-muted-foreground">
+                Selecione um componente na aba <b>Componente</b> para mapear os dados.
+              </p>
+            )}
 
-          <div className="space-y-1 pt-2">
-            <Label>Pré-visualização</Label>
-            <Card className="h-[260px] overflow-hidden bg-muted/30">
-              {!ctx ? (
-                <div className="h-full flex items-center justify-center text-xs text-muted-foreground px-4 text-center">
-                  Preview indisponível fora da página.
-                </div>
-              ) : !previewDef ? (
-                <div className="h-full flex items-center justify-center text-xs text-muted-foreground px-4 text-center">
-                  Escolha um componente para ver o preview com dados reais.
-                </div>
-              ) : !previewMappingReady ? (
-                <div className="h-full flex items-center justify-center text-xs text-muted-foreground px-4 text-center">
-                  Selecione os campos obrigatórios para ver o preview.
-                </div>
-              ) : (
-                <div className="h-full p-3 overflow-hidden">
-                  <WidgetErrorBoundary>
-                    {previewDef.render({
-                      title: debounced.title || widget?.customTitle || widget?.title || previewDef.label,
-                      mapping: debounced.mapping,
-                      options: { filtros: ctx.filtros ?? {} },
-                      ctx: {
-                        kpis: ctx.kpis ?? {},
-                        series: ctx.series ?? {},
-                        rows: Array.isArray(ctx.rows) ? ctx.rows : [],
-                      },
-                    })}
-                  </WidgetErrorBoundary>
-                </div>
-              )}
-            </Card>
-          </div>
+            <div className="space-y-1 pt-2">
+              <Label>Título</Label>
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={widget?.title} />
+            </div>
+          </TabsContent>
+
+          {/* ===== Aparência ===== */}
+          <TabsContent value="aparencia" className="pt-3">
+            <VisualConfigEditor
+              value={visual}
+              onChange={updateVisual}
+              availableSeriesKeys={availableSeriesKeys}
+            />
+          </TabsContent>
+        </Tabs>
+
+        {/* Pré-visualização (visível em qualquer aba) */}
+        <div className="space-y-1 pt-3">
+          <Label className="text-xs">Pré-visualização</Label>
+          <Card className="h-[260px] overflow-hidden bg-muted/30">
+            {!ctx ? (
+              <div className="h-full flex items-center justify-center text-xs text-muted-foreground px-4 text-center">
+                Preview indisponível fora da página.
+              </div>
+            ) : !previewDef ? (
+              <div className="h-full flex items-center justify-center text-xs text-muted-foreground px-4 text-center">
+                Escolha um componente para ver o preview com dados reais.
+              </div>
+            ) : !previewMappingReady ? (
+              <div className="h-full flex items-center justify-center text-xs text-muted-foreground px-4 text-center">
+                Selecione os campos obrigatórios para ver o preview.
+              </div>
+            ) : (
+              <div className="h-full p-3 overflow-hidden">
+                <WidgetErrorBoundary>
+                  {previewDef.render({
+                    title: debounced.title || widget?.customTitle || widget?.title || previewDef.label,
+                    mapping: debounced.mapping,
+                    options: { ...debounced.options, filtros: ctx.filtros ?? {} },
+                    ctx: {
+                      kpis: ctx.kpis ?? {},
+                      series: ctx.series ?? {},
+                      rows: Array.isArray(ctx.rows) ? ctx.rows : [],
+                    },
+                  })}
+                </WidgetErrorBoundary>
+              </div>
+            )}
+          </Card>
         </div>
 
         <DialogFooter className="flex items-center justify-between gap-2">
@@ -191,6 +309,15 @@ export function ConfigureRhWidgetDialog({ open, onOpenChange, pageKey, widget, a
             )}
           </div>
           <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setOptions((prev) => ({ ...prev, visual: { ...DEFAULT_VISUAL_CONFIG } }));
+              }}
+            >
+              Restaurar aparência
+            </Button>
             <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button
               disabled={!canSave}
@@ -199,6 +326,7 @@ export function ConfigureRhWidgetDialog({ open, onOpenChange, pageKey, widget, a
                   componentId: componentId ? componentId : null,
                   mapping: componentId ? mapping : null,
                   customTitle: title || null,
+                  options: Object.keys(options).length ? options : null,
                 });
                 onOpenChange(false);
               }}
