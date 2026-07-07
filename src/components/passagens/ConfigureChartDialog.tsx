@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -187,6 +188,17 @@ export function ConfigureChartDialog({
               </div>
             )}
           </div>
+        </div>
+
+        <div className="mt-4 flex items-center justify-between rounded-md border bg-muted/20 px-3 py-2">
+          <div>
+            <Label className="text-xs font-medium">Mostrar valor em cima das barras</Label>
+            <p className="text-[11px] text-muted-foreground">Exibe o valor de cada barra/ponto no gráfico.</p>
+          </div>
+          <Switch
+            checked={visual.dataLabels.visible}
+            onCheckedChange={(v) => setVisual((prev) => ({ ...prev, dataLabels: { ...prev.dataLabels, visible: v } }))}
+          />
         </div>
 
         <div className="mt-4 max-h-[50vh] overflow-y-auto rounded-md border p-3">
