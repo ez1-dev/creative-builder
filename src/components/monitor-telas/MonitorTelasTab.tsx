@@ -15,6 +15,7 @@ import {
 } from '@/lib/navegacaoTelemetriaApi';
 import { formatDateBR, formatDateTimeBR, formatNumberBR } from '@/lib/format';
 import { HistoricoTelaModal } from './HistoricoTelaModal';
+import { AnaliseIaCard } from './AnaliseIaCard';
 
 const FONTES_WEB = new Set(['ERP_WEB', 'PORTAL_WEB', 'NAVEGACAO_WEB']);
 const FONTE_NATIVO = 'ERP_SENIOR_NATIVO';
