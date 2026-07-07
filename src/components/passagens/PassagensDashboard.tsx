@@ -1271,7 +1271,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                 onClick={() => setOutrosMotivoOpen(true)}
                 className="mt-2 text-xs text-primary hover:underline"
               >
-                Ver detalhamento de "Outros" ({porMotivoOutros.length} motivos)
+                Ver detalhamento de "OUTROS" ({porMotivoOutros.length} motivos)
               </button>
             )}
           </CardContent>
