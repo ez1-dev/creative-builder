@@ -13,7 +13,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import type { RhWidget } from '@/hooks/useRhModuleLayout';
 import { usePageData } from '@/lib/bi/PageDataContext';
 import { getComponent } from '@/lib/bi/componentRegistry';
-import { buildEffectiveSchema, mappingHasOrphans } from '@/lib/rh/dialogSchema';
+import { buildEffectiveSchema, sanitizeMapping } from '@/lib/rh/dialogSchema';
 
 interface Props {
   widgets: RhWidget[];
