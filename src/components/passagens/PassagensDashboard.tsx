@@ -536,7 +536,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
 
   // Top 10 Cidades de Destino — ignora apenas selectedDestino (próprio eixo)
   const porCidade = useMemo(() => {
-    const base = applyCross(filtered, { mes: true, motivo: true, cc: true, uf: true });
+    const base = applyCross(filtered, { mes: true, motivo: true, cc: true, uf: true, produto: true });
     const map = new Map<string, { label: string; qtd: number; valor: number }>();
     base.forEach((r) => {
       if (!r.destino) return;
@@ -551,7 +551,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       .map(([, v]) => ({ name: v.label, qtd: v.qtd, valor: v.valor }))
       .sort((a, b) => b.qtd - a.qtd)
       .slice(0, 10);
-  }, [filtered, selectedMes, selectedMotivo, selectedCC, selectedUF]);
+  }, [filtered, selectedMes, selectedMotivo, selectedCC, selectedUF, selectedProduto]);
 
   // Top Estados (UF) de Destino — ignora apenas selectedUF (próprio eixo)
   const porUF = useMemo(() => {
