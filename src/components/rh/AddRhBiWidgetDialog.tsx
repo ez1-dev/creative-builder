@@ -158,8 +158,10 @@ export function AddRhBiWidgetDialog({ open, onOpenChange, pageKey, onAdd }: Prop
                         kpis: ctx.kpis ?? {},
                         series: ctx.series ?? {},
                         rows: Array.isArray(ctx.rows) ? ctx.rows : [],
+                        schema: effectiveSchema,
                       },
                     })}
+
                   </WidgetErrorBoundary>
                 </div>
               )}

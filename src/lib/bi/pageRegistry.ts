@@ -21,10 +21,11 @@ export interface PageDataSchema {
   /** Campos numéricos de KPI (lidos de `kpis` no PageDataContext) */
   kpis?: { key: string; label: string; format?: 'currency' | 'number' | 'percent' }[];
   /** Séries para gráficos (lidos de `series`) — cada série é um array {label, valor} */
-  series?: { key: string; label: string }[];
+  series?: { key: string; label: string; format?: 'currency' | 'number' | 'percent' }[];
   /** Linhas tabulares (lidos de `rows`) */
   rows?: { key: string; label: string; fields: string[] };
 }
+
 
 /**
  * Dimensões e métricas suportadas no dashboard de Manutenção de Frota.
@@ -442,13 +443,14 @@ const RH_PAGES: BiPageDef[] = [
         { key: 'qtd_colaboradores',label: 'Colaboradores',    format: 'number'   },
       ],
       series: [
-        { key: 'mensal',       label: 'Evolução mensal' },
-        { key: 'proventos',    label: 'Proventos' },
-        { key: 'descontos',    label: 'Descontos' },
-        { key: 'filial',       label: 'Por Filial' },
-        { key: 'tipos_evento', label: 'Tipos de Evento' },
+        { key: 'mensal',       label: 'Evolução mensal',  format: 'currency' },
+        { key: 'proventos',    label: 'Proventos',        format: 'currency' },
+        { key: 'descontos',    label: 'Descontos',        format: 'currency' },
+        { key: 'filial',       label: 'Por Filial',       format: 'currency' },
+        { key: 'tipos_evento', label: 'Tipos de Evento',  format: 'currency' },
       ],
       rows: { key: 'dados', label: 'Detalhamento', fields: ['anomes', 'valor'] },
+
     },
   },
   {
@@ -464,13 +466,14 @@ const RH_PAGES: BiPageDef[] = [
         { key: 'ativos',       label: 'Ativos',              format: 'number' },
       ],
       series: [
-        { key: 'historico',   label: 'Histórico Nº Colaboradores' },
-        { key: 'por_sexo',    label: 'Por Sexo' },
-        { key: 'por_situacao',label: 'Por Situação' },
-        { key: 'por_vinculo', label: 'Por Vínculo' },
-        { key: 'por_escolaridade', label: 'Por Escolaridade' },
-        { key: 'por_faixa',   label: 'Por Faixa Etária' },
+        { key: 'historico',   label: 'Histórico Nº Colaboradores', format: 'number' },
+        { key: 'por_sexo',    label: 'Por Sexo',                   format: 'number' },
+        { key: 'por_situacao',label: 'Por Situação',               format: 'number' },
+        { key: 'por_vinculo', label: 'Por Vínculo',                format: 'number' },
+        { key: 'por_escolaridade', label: 'Por Escolaridade',      format: 'number' },
+        { key: 'por_faixa',   label: 'Por Faixa Etária',           format: 'number' },
       ],
+
     },
   },
   {
@@ -486,11 +489,12 @@ const RH_PAGES: BiPageDef[] = [
         { key: 'horas_perdidas',  label: 'Horas Perdidas',      format: 'number'  },
       ],
       series: [
-        { key: 'por_mes',       label: 'Por Mês' },
-        { key: 'por_categoria', label: 'Por Categoria' },
-        { key: 'por_empresa',   label: 'Por Empresa' },
-        { key: 'por_motivo',    label: 'Por Motivo' },
+        { key: 'por_mes',       label: 'Por Mês',       format: 'number' },
+        { key: 'por_categoria', label: 'Por Categoria', format: 'number' },
+        { key: 'por_empresa',   label: 'Por Empresa',   format: 'number' },
+        { key: 'por_motivo',    label: 'Por Motivo',    format: 'number' },
       ],
+
     },
   },
   {
@@ -521,10 +525,11 @@ const RH_PAGES: BiPageDef[] = [
         { key: 'media_ativos',    label: 'Média Ativos',  format: 'number'  },
       ],
       series: [
-        { key: 'serie_mensal', label: 'Admissões x Demissões por Mês' },
-        { key: 'motivos',      label: 'Motivos de Desligamento' },
-        { key: 'por_empresa',  label: 'Por Empresa' },
+        { key: 'serie_mensal', label: 'Admissões x Demissões por Mês', format: 'number' },
+        { key: 'motivos',      label: 'Motivos de Desligamento',       format: 'number' },
+        { key: 'por_empresa',  label: 'Por Empresa',                   format: 'number' },
       ],
+
     },
   },
   {

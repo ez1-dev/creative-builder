@@ -45,11 +45,29 @@ import {
 import { formatCurrency, formatNumber, formatPercent } from '@/components/bi/utils/formatters';
 
 /**
- * Deriva o formatador adequado a partir do sufixo da chave de série.
- * Convenção (Frota/Máquinas/etc): `<dim>__<metric>` ou `mensal__<metric>`.
- * Mapeia métricas conhecidas para currency/percent/number.
+ * Deriva o formatador adequado para uma série.
+ *
+ * Ordem de prioridade:
+ *  1. `options.valueFormat` — override explícito do usuário (aba Aparência).
+ *  2. `schemaFormat` — declarado em `page.schema.series[].format` (via ctx.schema).
+ *  3. Sufixo `__<metric>` da chave (convenção Frota/Comercial).
+ *  4. Fallback: `formatCurrency` (preserva comportamento histórico).
  */
-function formatterForSeriesKey(key?: string): (v: number) => string {
+function formatterForSeriesKey(
+  key?: string,
+  options?: { valueFormat?: string },
+  schemaFormat?: 'currency' | 'number' | 'percent',
+): (v: number) => string {
+  const opt = options?.valueFormat;
+  if (opt === 'currency') return formatCurrency;
+  if (opt === 'number')   return (v) => formatNumber(v, 0);
+  if (opt === 'percent')  return (v) => formatPercent(v, 2);
+  if (opt === 'compact')  return (v) => formatNumber(v, 0);
+
+  if (schemaFormat === 'currency') return formatCurrency;
+  if (schemaFormat === 'number')   return (v) => formatNumber(v, 0);
+  if (schemaFormat === 'percent')  return (v) => formatPercent(v, 2);
+
   if (!key) return formatCurrency;
   const m = /__([a-z0-9_]+)$/i.exec(key);
   const metric = m?.[1] ?? '';
@@ -82,6 +100,18 @@ function formatterForSeriesKey(key?: string): (v: number) => string {
       return formatCurrency;
   }
 }
+
+/** Lê o `format` declarado no schema (se ctx.schema estiver presente). */
+function schemaFormatFor(
+  ctx: { schema?: PageDataSchema } | undefined,
+  key: string | undefined,
+  source: 'series' | 'kpis' = 'series',
+): 'currency' | 'number' | 'percent' | undefined {
+  if (!ctx?.schema || !key) return undefined;
+  const bag = source === 'series' ? ctx.schema.series : ctx.schema.kpis;
+  return bag?.find((s: any) => s.key === key)?.format;
+}
+
 
 /** Resolve um ícone lucide pelo nome; retorna null se inválido. */
 function resolveIcon(name?: string) {
@@ -163,11 +193,18 @@ export interface BiComponentDef {
       kpis: Record<string, any>;
       series: Record<string, any>;
       rows: any[];
+      /**
+       * Schema efetivo da página (opcional). Quando passado, permite ao
+       * componente ler `series[].format` / `kpis[].format` para escolher o
+       * formatador correto sem depender apenas do sufixo da chave.
+       */
+      schema?: PageDataSchema;
       /** Callback opcional disparado ao clicar em um item de chart. seriesKey identifica a série mapeada. */
       onItemClick?: (seriesKey: string, datum: { name: string; value: number; label?: string; valor?: number }) => void;
     };
     options: Record<string, any>;
   }) => ReactNode;
+
 }
 
 /** Helper interno: monta o handler de clique a partir do ctx, normalizando datum para { name, value, ...original }. */
@@ -297,7 +334,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
       const opts = (options ?? {}) as WidgetOptions;
       const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
       const color = chartColor(opts);
-      const valueFormatter = formatterForSeriesKey(mapping.series);
+      const valueFormatter = formatterForSeriesKey(mapping.series, opts, schemaFormatFor(ctx, mapping.series));
       return (
         <BarChartCard
           title={title || mapping.series}
@@ -321,7 +358,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
       const opts = (options ?? {}) as WidgetOptions;
       const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
       const color = chartColor(opts);
-      const valueFormatter = formatterForSeriesKey(mapping.series);
+      const valueFormatter = formatterForSeriesKey(mapping.series, opts, schemaFormatFor(ctx, mapping.series));
       return (
         <HorizontalBarChartCard
           title={title || mapping.series}
@@ -345,7 +382,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
       const opts = (options ?? {}) as WidgetOptions;
       const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
       const color = chartColor(opts);
-      const valueFormatter = formatterForSeriesKey(mapping.series);
+      const valueFormatter = formatterForSeriesKey(mapping.series, opts, schemaFormatFor(ctx, mapping.series));
       return (
         <LineChartCard
           title={title || mapping.series}
@@ -368,7 +405,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
       const opts = (options ?? {}) as WidgetOptions;
       const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
       const color = chartColor(opts);
-      const valueFormatter = formatterForSeriesKey(mapping.series);
+      const valueFormatter = formatterForSeriesKey(mapping.series, opts, schemaFormatFor(ctx, mapping.series));
       return (
         <AreaChartCard
           title={title || mapping.series}
@@ -390,7 +427,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     render: ({ title, mapping, ctx, options }) => {
       const opts = (options ?? {}) as WidgetOptions;
       const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
-      const valueFormatter = formatterForSeriesKey(mapping.series);
+      const valueFormatter = formatterForSeriesKey(mapping.series, opts, schemaFormatFor(ctx, mapping.series));
       return (
         <DonutSideLegendCard
           title={title || mapping.series}
@@ -412,7 +449,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     render: ({ title, mapping, ctx, options }) => {
       const opts = (options ?? {}) as WidgetOptions;
       const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
-      const valueFormatter = formatterForSeriesKey(mapping.series);
+      const valueFormatter = formatterForSeriesKey(mapping.series, opts, schemaFormatFor(ctx, mapping.series));
       return (
         <DonutSideLegendCard
           title={title || mapping.series}
@@ -434,7 +471,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     render: ({ title, mapping, ctx, options }) => {
       const opts = (options ?? {}) as WidgetOptions;
       const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), undefined, opts.sort);
-      const valueFormatter = formatterForSeriesKey(mapping.series);
+      const valueFormatter = formatterForSeriesKey(mapping.series, opts, schemaFormatFor(ctx, mapping.series));
       return (
         <RankingChartCard
           title={title || mapping.series}
@@ -491,7 +528,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
           title={title || mapping.series}
           data={data}
           colorVar={opts.color ? undefined : '--primary'}
-          valueFormatter={formatterForSeriesKey(mapping.series)}
+          valueFormatter={formatterForSeriesKey(mapping.series, opts, schemaFormatFor(ctx, mapping.series))}
           onItemClick={(d) => makeClickHandler(ctx, mapping.series)?.({ label: d.uf, valor: d.valor })}
         />
       );
@@ -535,7 +572,8 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
           title={title || mapping.series}
           data={data}
           colorStops={stops}
-          valueFormatter={formatterForSeriesKey(mapping.series)}
+          valueFormatter={formatterForSeriesKey(mapping.series, options as any, schemaFormatFor(ctx, mapping.series))}
+
           onStateClick={onClick ? (uf, d) => onClick({ label: uf, valor: d?.valor ?? 0 }) : undefined}
         />
       );

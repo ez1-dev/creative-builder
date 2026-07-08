@@ -258,6 +258,33 @@ export function ConfigureRhWidgetDialog({ open, onOpenChange, pageKey, widget, a
                 </div>
               </div>
             )}
+
+            {!isKpi && def?.kind === 'chart' && (
+              <div className="rounded-md border bg-muted/20 p-3 space-y-2">
+                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Formato do gráfico
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Formato do valor</Label>
+                  <Select
+                    value={(options.valueFormat as string) || '__auto__'}
+                    onValueChange={(v) => updateOption('valueFormat', v === '__auto__' ? '' : v)}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__auto__">Automático (pelo schema da série)</SelectItem>
+                      {VALUE_FORMATS.map((v) => (
+                        <SelectItem key={v.value} value={v.value}>{v.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground">
+                    Sobrescreve o formato padrão dos valores exibidos no gráfico.
+                  </p>
+                </div>
+              </div>
+            )}
+
           </TabsContent>
 
           {/* ===== Dados ===== */}
@@ -337,8 +364,10 @@ export function ConfigureRhWidgetDialog({ open, onOpenChange, pageKey, widget, a
                       kpis: ctx.kpis ?? {},
                       series: ctx.series ?? {},
                       rows: Array.isArray(ctx.rows) ? ctx.rows : [],
+                      schema: effectiveSchema,
                     },
                   })}
+
                 </WidgetErrorBoundary>
               </div>
             )}
