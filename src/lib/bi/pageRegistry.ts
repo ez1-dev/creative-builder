@@ -466,13 +466,14 @@ const RH_PAGES: BiPageDef[] = [
         { key: 'ativos',       label: 'Ativos',              format: 'number' },
       ],
       series: [
-        { key: 'historico',   label: 'Histórico Nº Colaboradores' },
-        { key: 'por_sexo',    label: 'Por Sexo' },
-        { key: 'por_situacao',label: 'Por Situação' },
-        { key: 'por_vinculo', label: 'Por Vínculo' },
-        { key: 'por_escolaridade', label: 'Por Escolaridade' },
-        { key: 'por_faixa',   label: 'Por Faixa Etária' },
+        { key: 'historico',   label: 'Histórico Nº Colaboradores', format: 'number' },
+        { key: 'por_sexo',    label: 'Por Sexo',                   format: 'number' },
+        { key: 'por_situacao',label: 'Por Situação',               format: 'number' },
+        { key: 'por_vinculo', label: 'Por Vínculo',                format: 'number' },
+        { key: 'por_escolaridade', label: 'Por Escolaridade',      format: 'number' },
+        { key: 'por_faixa',   label: 'Por Faixa Etária',           format: 'number' },
       ],
+
     },
   },
   {
