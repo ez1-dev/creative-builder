@@ -21,10 +21,11 @@ export interface PageDataSchema {
   /** Campos numéricos de KPI (lidos de `kpis` no PageDataContext) */
   kpis?: { key: string; label: string; format?: 'currency' | 'number' | 'percent' }[];
   /** Séries para gráficos (lidos de `series`) — cada série é um array {label, valor} */
-  series?: { key: string; label: string }[];
+  series?: { key: string; label: string; format?: 'currency' | 'number' | 'percent' }[];
   /** Linhas tabulares (lidos de `rows`) */
   rows?: { key: string; label: string; fields: string[] };
 }
+
 
 /**
  * Dimensões e métricas suportadas no dashboard de Manutenção de Frota.
