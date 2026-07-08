@@ -334,7 +334,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
       const opts = (options ?? {}) as WidgetOptions;
       const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
       const color = chartColor(opts);
-      const valueFormatter = formatterForSeriesKey(mapping.series);
+      const valueFormatter = formatterForSeriesKey(mapping.series, opts, schemaFormatFor(ctx, mapping.series));
       return (
         <BarChartCard
           title={title || mapping.series}
@@ -358,7 +358,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
       const opts = (options ?? {}) as WidgetOptions;
       const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
       const color = chartColor(opts);
-      const valueFormatter = formatterForSeriesKey(mapping.series);
+      const valueFormatter = formatterForSeriesKey(mapping.series, opts, schemaFormatFor(ctx, mapping.series));
       return (
         <HorizontalBarChartCard
           title={title || mapping.series}
@@ -382,7 +382,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
       const opts = (options ?? {}) as WidgetOptions;
       const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
       const color = chartColor(opts);
-      const valueFormatter = formatterForSeriesKey(mapping.series);
+      const valueFormatter = formatterForSeriesKey(mapping.series, opts, schemaFormatFor(ctx, mapping.series));
       return (
         <LineChartCard
           title={title || mapping.series}
@@ -405,7 +405,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
       const opts = (options ?? {}) as WidgetOptions;
       const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
       const color = chartColor(opts);
-      const valueFormatter = formatterForSeriesKey(mapping.series);
+      const valueFormatter = formatterForSeriesKey(mapping.series, opts, schemaFormatFor(ctx, mapping.series));
       return (
         <AreaChartCard
           title={title || mapping.series}
@@ -427,7 +427,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     render: ({ title, mapping, ctx, options }) => {
       const opts = (options ?? {}) as WidgetOptions;
       const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
-      const valueFormatter = formatterForSeriesKey(mapping.series);
+      const valueFormatter = formatterForSeriesKey(mapping.series, opts, schemaFormatFor(ctx, mapping.series));
       return (
         <DonutSideLegendCard
           title={title || mapping.series}
@@ -449,7 +449,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     render: ({ title, mapping, ctx, options }) => {
       const opts = (options ?? {}) as WidgetOptions;
       const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
-      const valueFormatter = formatterForSeriesKey(mapping.series);
+      const valueFormatter = formatterForSeriesKey(mapping.series, opts, schemaFormatFor(ctx, mapping.series));
       return (
         <DonutSideLegendCard
           title={title || mapping.series}
@@ -471,7 +471,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     render: ({ title, mapping, ctx, options }) => {
       const opts = (options ?? {}) as WidgetOptions;
       const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), undefined, opts.sort);
-      const valueFormatter = formatterForSeriesKey(mapping.series);
+      const valueFormatter = formatterForSeriesKey(mapping.series, opts, schemaFormatFor(ctx, mapping.series));
       return (
         <RankingChartCard
           title={title || mapping.series}
@@ -528,7 +528,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
           title={title || mapping.series}
           data={data}
           colorVar={opts.color ? undefined : '--primary'}
-          valueFormatter={formatterForSeriesKey(mapping.series)}
+          valueFormatter={formatterForSeriesKey(mapping.series, opts, schemaFormatFor(ctx, mapping.series))}
           onItemClick={(d) => makeClickHandler(ctx, mapping.series)?.({ label: d.uf, valor: d.valor })}
         />
       );
@@ -572,7 +572,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
           title={title || mapping.series}
           data={data}
           colorStops={stops}
-          valueFormatter={formatterForSeriesKey(mapping.series)}
+          valueFormatter={formatterForSeriesKey(mapping.series, opts, schemaFormatFor(ctx, mapping.series))}
           onStateClick={onClick ? (uf, d) => onClick({ label: uf, valor: d?.valor ?? 0 }) : undefined}
         />
       );
