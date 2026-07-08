@@ -193,11 +193,18 @@ export interface BiComponentDef {
       kpis: Record<string, any>;
       series: Record<string, any>;
       rows: any[];
+      /**
+       * Schema efetivo da página (opcional). Quando passado, permite ao
+       * componente ler `series[].format` / `kpis[].format` para escolher o
+       * formatador correto sem depender apenas do sufixo da chave.
+       */
+      schema?: PageDataSchema;
       /** Callback opcional disparado ao clicar em um item de chart. seriesKey identifica a série mapeada. */
       onItemClick?: (seriesKey: string, datum: { name: string; value: number; label?: string; valor?: number }) => void;
     };
     options: Record<string, any>;
   }) => ReactNode;
+
 }
 
 /** Helper interno: monta o handler de clique a partir do ctx, normalizando datum para { name, value, ...original }. */
