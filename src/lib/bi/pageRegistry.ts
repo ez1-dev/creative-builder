@@ -525,10 +525,11 @@ const RH_PAGES: BiPageDef[] = [
         { key: 'media_ativos',    label: 'Média Ativos',  format: 'number'  },
       ],
       series: [
-        { key: 'serie_mensal', label: 'Admissões x Demissões por Mês' },
-        { key: 'motivos',      label: 'Motivos de Desligamento' },
-        { key: 'por_empresa',  label: 'Por Empresa' },
+        { key: 'serie_mensal', label: 'Admissões x Demissões por Mês', format: 'number' },
+        { key: 'motivos',      label: 'Motivos de Desligamento',       format: 'number' },
+        { key: 'por_empresa',  label: 'Por Empresa',                   format: 'number' },
       ],
+
     },
   },
   {
