@@ -1,51 +1,68 @@
-## Objetivo
+## Diagnóstico
 
-Fazer o preview do diálogo refletir instantaneamente a série escolhida **e** garantir que o widget salvo use exatamente o mesmo mapping/opções — sem risco de a chave de série apontar para um dataset inexistente no `PageDataProvider`.
+O preview do widget de Escolaridade (e de qualquer breakdown RH via Biblioteca BI) mostra os dados **reais** vindos do `PageDataContext` — as barras (~90 a ~360) são a contagem real de colaboradores por escolaridade. Só que o eixo aparece com prefixo **R$**, e é isso que dá a impressão de que os dados são "de teste" ou irreais.
 
-## Diagnóstico atual
+A causa está em `src/lib/bi/componentRegistry.tsx`, na função `formatterForSeriesKey(key)`:
 
-Após o ajuste anterior os dropdowns já só oferecem séries com dados reais, mas ainda restam três descolamentos entre "o que vejo" e "o que salvo":
+- Ela olha o sufixo `__<metric>` da chave da série (padrão usado em Frota/Comercial: `mensal__faturamento`, `por_maquina__valor` etc.).
+- Para chaves sem esse sufixo, cai no `default: return formatCurrency`.
+- As séries de RH têm chaves como `por_escolaridade`, `por_sexo`, `por_vinculo`, `historico` — nenhuma casa com os sufixos conhecidos, então **tudo é renderizado como R$**, inclusive contagens de headcount, taxas e outros indicadores não-monetários.
 
-1. **Debounce global (150 ms)** em `ConfigureRhWidgetDialog` e `AddRhBiWidgetDialog` atrasa a atualização do preview quando o usuário troca componente/série. Percebido como "não mostra imediatamente".
-2. **Save não sanitiza mapping**: o `onSave` envia o objeto inteiro; se o usuário mantiver uma chave herdada não coberta pelo schema efetivo, o widget é persistido "quebrado" — o grid disfarça remapeando na renderização, mas ao reabrir o diálogo o valor do dropdown fica vazio.
-3. **Rótulos incoerentes**: em `RhDashboardWithBiLibrary`, quando a série vem do `derivedSeries`, o `seriesCatalog` já traz o label bonito; mas se vier só do backend (`series` como record) usamos `toLabel(key)`, que pode ficar diferente do que a Biblioteca BI usa no dropdown ao abrir a engrenagem novamente.
+Além disso, o formato definido pelo usuário na aba "Aparência" (`options.valueFormat`) e o `format` declarado no schema da página (`page.schema.series[].format` / `kpis[].format`) hoje **não influenciam** o formatter usado pelos componentes de chart da Biblioteca BI — só o sufixo da chave.
 
-## Escopo
+## Plano
 
-Apenas RH. Nenhuma mudança em Passagens, Frota, Comercial, Fiscal ou na Biblioteca BI genérica.
+Objetivo: fazer o preview (e o widget salvo) usar o formato correto por padrão nas páginas RH e permitir que o usuário sobrescreva pela aba Aparência, sem regredir os módulos Comercial/Frota que já dependem do sufixo `__metric`.
 
-## Alterações
+### 1. `src/lib/bi/componentRegistry.tsx` — resolver formatter em 3 camadas
 
-### 1. `src/components/rh/ConfigureRhWidgetDialog.tsx`
-- Remover o debounce das seleções: `componentId`, `mapping` e `options` são passados **direto** para o preview (sem `setTimeout`). Mantém debounce só para o `title` (input de texto).
-- Antes de chamar `onSave`, sanitizar o mapping:
-  - Descartar entradas cujo `mapping[key]` não exista no `effectiveSchema.kpis`/`series` (fonte da input).
-  - Reaplicar `def.autoMap(effectiveSchema)` para preencher inputs obrigatórios vazios após o descarte.
-- Garantir que o `onSave` receba os mesmos objetos usados no render do preview (mesma referência de `mapping` e `options`).
+Substituir as chamadas atuais `formatterForSeriesKey(mapping.series)` (nos 12+ `render` de charts) por um único helper novo `resolveSeriesFormatter({ key, options, schemaFormat })` com esta ordem:
 
-### 2. `src/components/rh/AddRhBiWidgetDialog.tsx`
-- Mesma remoção de debounce para `componentId`/`mapping`.
-- Mesma sanitização de mapping antes do `onAdd`.
+1. `options.valueFormat` (definido pelo usuário na aba Aparência): `currency` → `formatCurrency`, `number` → `formatNumber`, `percent` → `formatPercent`, `compact` → `formatCompact`.
+2. Sufixo conhecido da chave (`__pct`, `__qtd`, `__valor`, `__km`, …) — mantém a heurística atual para Frota/Comercial.
+3. `schemaFormat` — quando a página declara `format: 'number' | 'percent' | 'currency'` na série (a ser adicionado ao schema RH).
+4. Fallback: **`formatNumber`** (0 decimais), não mais `formatCurrency`. Assim, qualquer série RH sem metadados vira contagem inteira em vez de R$.
 
-### 3. `src/components/rh/RhDashboardWithBiLibrary.tsx`
-- Ao montar o `seriesCatalog` de fallback (série no formato record), aproveitar o label declarado em `page.schema.series` quando a chave bater — assim o dropdown mostra o mesmo rótulo antes e depois de salvar.
-- Passar `page.schema` também ao helper para que `buildEffectiveSchema` respeite os rótulos oficiais.
+Nenhuma mudança nos `render` além de trocar a linha do `valueFormatter`.
 
-### 4. `src/lib/rh/dialogSchema.ts`
-- Expor helper `sanitizeMapping(def, mapping, schema)` reutilizado pelos dois diálogos e pelo grid. Retorna `{ mapping, changed }`, mantendo a lógica de descarte/autoMap num único lugar.
-- `RhDashboardGrid` passa a usar esse helper (substitui o `Object.fromEntries` inline atual).
+### 2. `src/lib/bi/pageRegistry.ts` — declarar `format` nas séries RH
 
-## Validação (Playwright, headless)
+Adicionar o campo opcional `format?: 'number' | 'percent' | 'currency'` ao tipo de série do schema (já existe em `kpis`) e preencher nas páginas RH:
 
-Rotina única aplicada às 6 rotas RH (`resumo-folha`, `quadro-colaboradores`, `contrato-experiencia`, `programacao-ferias`, `turnover`, `absenteismo`):
+- `rh-quadro`: todas `por_*`, `historico` → `number`.
+- `rh-absenteismo`: `taxa_abs` (kpi) já é percent; séries `por_mes/por_categoria/por_empresa/por_motivo` → `number`.
+- `rh-contratos-exp`, `rh-ferias`, `rh-turnover` → `number` para contagens; qualquer série de custo → `currency` (a confirmar caso a caso lendo o schema atual).
+- `rh-resumo-folha`: manter séries de `custo_*` como `currency`; contagens (`quantidade_*`, `admissoes`, `demissoes`) como `number`.
 
-1. Entrar em "Editar layout" → abrir "Adicionar da Biblioteca BI".
-2. Escolher **Gráfico de Barras**; confirmar que o preview renderiza com dados **na primeira frame** (screenshot antes de qualquer wait).
-3. Trocar a série no dropdown; conferir que o preview atualiza imediatamente (screenshot pós-clique, sem `wait_for_timeout` extra).
-4. Clicar em **Adicionar** e depois **Salvar edição**; recarregar a página.
-5. Abrir a engrenagem do widget recém-criado; conferir que:
-   - o dropdown de série está preenchido com a mesma chave escolhida,
-   - o preview mostra o mesmo gráfico do grid,
-   - o gráfico no grid tem os mesmos dados do preview.
+Esse campo é lido pelo helper novo (camada 3). Comercial/Frota continuam funcionando pela camada 2 (sufixo).
 
-Critério de aceite: nenhum screenshot com "Sem dados", nenhuma diferença visual entre preview do diálogo e widget no grid, dropdown volta preenchido ao reabrir.
+### 3. Diálogos RH — expor "Formato do valor" também para charts
+
+Hoje o `VALUE_FORMATS` no `ConfigureRhWidgetDialog.tsx` só aparece para KPIs (via `isKpi`). Estender para `kind === 'chart'`:
+
+- Mostrar o mesmo `Select` "Formato do valor" quando `def.kind === 'chart'` (e também em `AddRhBiWidgetDialog.tsx`).
+- Persistir em `options.valueFormat`, que a camada 1 do helper já vai consumir.
+- Rótulo/tooltip: "Como formatar os valores do gráfico".
+
+### 4. Verificação (Playwright)
+
+Roteiro após implementação, em cada página RH (`rh-quadro`, `rh-absenteismo`, `rh-contratos-exp`, `rh-ferias`, `rh-turnover`, `rh-resumo-folha`):
+
+1. Entrar em modo de edição, abrir **Configurar** no widget de breakdown (ex.: Escolaridade em Quadro).
+2. Confirmar via screenshot que a pré-visualização mostra o eixo em **números inteiros** (sem R$) para contagens.
+3. Trocar a série para uma métrica de custo (se houver, em Resumo Folha) e confirmar que volta a exibir R$.
+4. Na aba Aparência, mudar "Formato do valor" para percentual e conferir que o eixo passa a `%`.
+5. Salvar e conferir que o widget na grade herda o mesmo formatter.
+
+### Arquivos afetados
+
+- `src/lib/bi/componentRegistry.tsx` — novo helper `resolveSeriesFormatter`, substitui chamadas.
+- `src/lib/bi/pageRegistry.ts` — adiciona `format` opcional às séries RH.
+- `src/components/rh/ConfigureRhWidgetDialog.tsx` — expõe "Formato do valor" para charts.
+- `src/components/rh/AddRhBiWidgetDialog.tsx` — idem.
+
+### Fora de escopo
+
+- Não mexer em Comercial/Frota/Compras/Contabilidade.
+- Não mudar a estrutura de `options.visual` nem o `VisualConfigEditor`.
+- Não alterar `previewData.ts` (mock) — o preview já usa dados reais quando o `PageDataProvider` está montado; o problema aqui é só de formatação.
