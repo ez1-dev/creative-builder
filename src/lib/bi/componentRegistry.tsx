@@ -572,7 +572,8 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
           title={title || mapping.series}
           data={data}
           colorStops={stops}
-          valueFormatter={formatterForSeriesKey(mapping.series, opts, schemaFormatFor(ctx, mapping.series))}
+          valueFormatter={formatterForSeriesKey(mapping.series, options as any, schemaFormatFor(ctx, mapping.series))}
+
           onStateClick={onClick ? (uf, d) => onClick({ label: uf, valor: d?.valor ?? 0 }) : undefined}
         />
       );
