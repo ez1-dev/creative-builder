@@ -337,8 +337,10 @@ export function ConfigureRhWidgetDialog({ open, onOpenChange, pageKey, widget, a
                       kpis: ctx.kpis ?? {},
                       series: ctx.series ?? {},
                       rows: Array.isArray(ctx.rows) ? ctx.rows : [],
+                      schema: effectiveSchema,
                     },
                   })}
+
                 </WidgetErrorBoundary>
               </div>
             )}
