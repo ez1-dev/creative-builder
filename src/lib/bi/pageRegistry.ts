@@ -443,13 +443,14 @@ const RH_PAGES: BiPageDef[] = [
         { key: 'qtd_colaboradores',label: 'Colaboradores',    format: 'number'   },
       ],
       series: [
-        { key: 'mensal',       label: 'Evolução mensal' },
-        { key: 'proventos',    label: 'Proventos' },
-        { key: 'descontos',    label: 'Descontos' },
-        { key: 'filial',       label: 'Por Filial' },
-        { key: 'tipos_evento', label: 'Tipos de Evento' },
+        { key: 'mensal',       label: 'Evolução mensal',  format: 'currency' },
+        { key: 'proventos',    label: 'Proventos',        format: 'currency' },
+        { key: 'descontos',    label: 'Descontos',        format: 'currency' },
+        { key: 'filial',       label: 'Por Filial',       format: 'currency' },
+        { key: 'tipos_evento', label: 'Tipos de Evento',  format: 'currency' },
       ],
       rows: { key: 'dados', label: 'Detalhamento', fields: ['anomes', 'valor'] },
+
     },
   },
   {
