@@ -489,11 +489,12 @@ const RH_PAGES: BiPageDef[] = [
         { key: 'horas_perdidas',  label: 'Horas Perdidas',      format: 'number'  },
       ],
       series: [
-        { key: 'por_mes',       label: 'Por Mês' },
-        { key: 'por_categoria', label: 'Por Categoria' },
-        { key: 'por_empresa',   label: 'Por Empresa' },
-        { key: 'por_motivo',    label: 'Por Motivo' },
+        { key: 'por_mes',       label: 'Por Mês',       format: 'number' },
+        { key: 'por_categoria', label: 'Por Categoria', format: 'number' },
+        { key: 'por_empresa',   label: 'Por Empresa',   format: 'number' },
+        { key: 'por_motivo',    label: 'Por Motivo',    format: 'number' },
       ],
+
     },
   },
   {
