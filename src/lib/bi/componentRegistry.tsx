@@ -45,11 +45,29 @@ import {
 import { formatCurrency, formatNumber, formatPercent } from '@/components/bi/utils/formatters';
 
 /**
- * Deriva o formatador adequado a partir do sufixo da chave de série.
- * Convenção (Frota/Máquinas/etc): `<dim>__<metric>` ou `mensal__<metric>`.
- * Mapeia métricas conhecidas para currency/percent/number.
+ * Deriva o formatador adequado para uma série.
+ *
+ * Ordem de prioridade:
+ *  1. `options.valueFormat` — override explícito do usuário (aba Aparência).
+ *  2. `schemaFormat` — declarado em `page.schema.series[].format` (via ctx.schema).
+ *  3. Sufixo `__<metric>` da chave (convenção Frota/Comercial).
+ *  4. Fallback: `formatCurrency` (preserva comportamento histórico).
  */
-function formatterForSeriesKey(key?: string): (v: number) => string {
+function formatterForSeriesKey(
+  key?: string,
+  options?: { valueFormat?: string },
+  schemaFormat?: 'currency' | 'number' | 'percent',
+): (v: number) => string {
+  const opt = options?.valueFormat;
+  if (opt === 'currency') return formatCurrency;
+  if (opt === 'number')   return (v) => formatNumber(v, 0);
+  if (opt === 'percent')  return (v) => formatPercent(v, 2);
+  if (opt === 'compact')  return (v) => formatNumber(v, 0);
+
+  if (schemaFormat === 'currency') return formatCurrency;
+  if (schemaFormat === 'number')   return (v) => formatNumber(v, 0);
+  if (schemaFormat === 'percent')  return (v) => formatPercent(v, 2);
+
   if (!key) return formatCurrency;
   const m = /__([a-z0-9_]+)$/i.exec(key);
   const metric = m?.[1] ?? '';
@@ -82,6 +100,18 @@ function formatterForSeriesKey(key?: string): (v: number) => string {
       return formatCurrency;
   }
 }
+
+/** Lê o `format` declarado no schema (se ctx.schema estiver presente). */
+function schemaFormatFor(
+  ctx: { schema?: PageDataSchema } | undefined,
+  key: string | undefined,
+  source: 'series' | 'kpis' = 'series',
+): 'currency' | 'number' | 'percent' | undefined {
+  if (!ctx?.schema || !key) return undefined;
+  const bag = source === 'series' ? ctx.schema.series : ctx.schema.kpis;
+  return bag?.find((s: any) => s.key === key)?.format;
+}
+
 
 /** Resolve um ícone lucide pelo nome; retorna null se inválido. */
 function resolveIcon(name?: string) {
