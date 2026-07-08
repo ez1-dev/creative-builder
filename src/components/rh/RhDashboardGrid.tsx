@@ -90,8 +90,10 @@ export function RhDashboardGrid({ loading, skeletonHeight = 600, widgets, editin
                   kpis: ctx?.kpis ?? {},
                   series: ctx?.series ?? {},
                   rows: Array.isArray(ctx?.rows) ? ctx!.rows : [],
+                  schema: effectiveSchema,
                 },
               })}
+
             </CardContent>
           </Card>
         );
