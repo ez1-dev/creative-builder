@@ -98,10 +98,17 @@ export function useDashboardGeral(periodo: Periodo = 'ytd', codemp: number = 1) 
       },
       {
         queryKey: ['dg', 'compras', range.ini, range.fim],
-        queryFn: () => api.get<PainelComprasDashboardResponse>('/api/painel-compras-dashboard', {
-          data_ini: `${range.ini.slice(0, 4)}-${range.ini.slice(4, 6)}-01`,
-          data_fim: `${range.fim.slice(0, 4)}-${range.fim.slice(4, 6)}-28`,
-        }),
+        queryFn: () => {
+          const yIni = Number(range.ini.slice(0, 4));
+          const mIni = Number(range.ini.slice(4, 6));
+          const yFim = Number(range.fim.slice(0, 4));
+          const mFim = Number(range.fim.slice(4, 6));
+          const lastDay = new Date(yFim, mFim, 0).getDate();
+          return api.get<PainelComprasDashboardResponse>('/api/painel-compras-dashboard', {
+            data_ini: `${yIni}-${String(mIni).padStart(2, '0')}-01`,
+            data_fim: `${yFim}-${String(mFim).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`,
+          });
+        },
         retry: 0,
         staleTime: 5 * 60 * 1000,
       },
@@ -145,22 +152,29 @@ export function useDashboardGeral(periodo: Periodo = 'ytd', codemp: number = 1) 
 
     const fatKpis = fat?.kpis ?? {};
     const fatAntKpis = fatAnt?.kpis ?? {};
-    const faturamentoMes = num(fatKpis.valor_total ?? fatKpis.fat_liquido);
-    const faturamentoAnt = num(fatAntKpis.valor_total ?? fatAntKpis.fat_liquido);
-    const meta = num(fatKpis.meta_faturamento ?? fatKpis.meta);
+    const faturamentoMes = num(fatKpis.valor_total ?? fatKpis.fat_liquido ?? fatKpis.faturamento);
+    const faturamentoAnt = num(fatAntKpis.valor_total ?? fatAntKpis.fat_liquido ?? fatAntKpis.faturamento);
+    const meta = num(fatKpis.meta_faturamento ?? fatKpis.meta ?? fatKpis.meta_total);
 
     // Faturamento por mês (série)
-    const fatSerie: any[] = fat?.graficos?.por_mes ?? fat?.por_mes ?? [];
+    const fatSerie: any[] = fat?.por_mes ?? fat?.graficos?.por_mes ?? [];
     const faturamentoMeta = fatSerie.slice(-12).map((row: any) => ({
-      label: labelAnomes(String(row.anomes ?? row.mes ?? row.periodo ?? '')),
-      valor: num(row.valor ?? row.fat_liquido ?? row.valor_total),
-      meta: num(row.meta),
+      label: labelAnomes(String(row.anomes ?? row.mes ?? row.periodo ?? '').replace(/\D/g, '').slice(0, 6)),
+      valor: num(row.valor_total ?? row.valor ?? row.fat_liquido),
+      meta: num(row.meta ?? row.meta_faturamento),
     }));
 
     // Faturamento por revenda (breakdown)
-    const revendas: any[] = fat?.graficos?.por_revenda ?? fat?.por_revenda ?? [];
+    const revendas: any[] = fat?.por_revenda ?? fat?.graficos?.por_revenda ?? [];
     const faturamentoRevenda = revendas
-      .map((r: any) => ({ label: String(r.revenda ?? r.nome ?? '—').slice(0, 24), valor: num(r.valor ?? r.fat_liquido) }))
+      .filter((r: any) => {
+        const nome = String(r.revenda ?? r.nome ?? '').toUpperCase();
+        return nome && nome !== 'OUTROS' && nome !== 'LANCTO MANUAL';
+      })
+      .map((r: any) => ({
+        label: String(r.revenda ?? r.nome ?? '—').slice(0, 24),
+        valor: num(r.valor_total ?? r.valor ?? r.fat_liquido),
+      }))
       .sort((a, b) => b.valor - a.valor)
       .slice(0, 8);
 
@@ -168,11 +182,14 @@ export function useDashboardGeral(periodo: Periodo = 'ytd', codemp: number = 1) 
     const comprasKpis = compras?.kpis ?? {};
     const comprasSerie: any[] = compras?.graficos?.por_mes ?? [];
     const comprasMes = comprasSerie.slice(-12).map((r: any) => ({
-      label: labelAnomes(String(r.mes ?? '').replace(/-/g, '').slice(0, 6)),
-      valor: num(r.valor),
+      label: labelAnomes(String(r.mes ?? r.anomes ?? '').replace(/\D/g, '').slice(0, 6)),
+      valor: num(r.valor ?? r.valor_total),
     }));
     const comprasTipo = (compras?.graficos?.por_tipo_despesa ?? [])
-      .map((r: any) => ({ label: String(r.tipo ?? '—').slice(0, 20), valor: num(r.valor) }))
+      .map((r: any) => ({
+        label: String(r.tipo_despesa ?? r.tipo ?? r.label ?? '—').slice(0, 20),
+        valor: num(r.valor ?? r.valor_total),
+      }))
       .sort((a: any, b: any) => b.valor - a.valor)
       .slice(0, 8);
 
@@ -188,21 +205,40 @@ export function useDashboardGeral(periodo: Periodo = 'ytd', codemp: number = 1) 
 
     // Série mensal do headcount (usar turnover.por_mes se existir)
     const headcount = ((turn?.por_mes ?? []) as any[]).slice(-12).map((r: any) => ({
-      label: labelAnomes(String(r.anomes ?? r.mes ?? '')),
+      label: labelAnomes(String(r.anomes ?? r.mes ?? '').replace(/\D/g, '').slice(0, 6)),
       valor: num(r.headcount_fim ?? r.headcount ?? r.headcount_medio),
     }));
 
     // Turnover série
     const turnoverMes = ((turn?.por_mes ?? []) as any[]).slice(-12).map((r: any) => ({
-      label: labelAnomes(String(r.anomes ?? r.mes ?? '')),
+      label: labelAnomes(String(r.anomes ?? r.mes ?? '').replace(/\D/g, '').slice(0, 6)),
       valor: num(r.taxa_rotatividade_pct ?? r.turnover_pct ?? r.taxa),
     }));
 
     // Absenteísmo motivo
     const absenteismoMotivo = ((abs?.por_motivo ?? []) as any[])
-      .map((r: any) => ({ label: String(r.motivo ?? r.descricao ?? '—').slice(0, 24), valor: num(r.dias ?? r.dias_perdidos ?? r.qtd) }))
+      .map((r: any) => ({
+        label: String(r.motivo ?? r.descricao ?? r.categoria ?? '—').slice(0, 24),
+        valor: num(r.dias_perdidos ?? r.dias ?? r.qtd ?? r.quantidade),
+      }))
       .sort((a, b) => b.valor - a.valor)
       .slice(0, 8);
+
+    // Debug: expor no console para diagnóstico rápido de campos ausentes
+    // eslint-disable-next-line no-console
+    console.log('[DashboardGeral] payloads recebidos', {
+      periodo_range: range,
+      faturamento_kpis: fatKpis,
+      faturamento_por_mes_len: fatSerie.length,
+      faturamento_por_revenda_len: revendas.length,
+      compras_kpis: comprasKpis,
+      compras_graficos_keys: Object.keys(compras?.graficos ?? {}),
+      folha_kpis: folhaKpis,
+      turnover_kpis: turn?.kpis,
+      turnover_por_mes_len: (turn?.por_mes ?? []).length,
+      absenteismo_kpis: abs?.kpis,
+      quadro_len: quadro.length,
+    });
 
     return {
       kpis: {
