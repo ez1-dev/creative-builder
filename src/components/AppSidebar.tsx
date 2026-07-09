@@ -35,7 +35,7 @@ const GROUPS: Group[] = [
     label: 'Início',
     icon: Home,
     items: [
-      { title: 'Dashboard Geral', url: '/', icon: LayoutDashboard },
+      { title: 'Dashboard Geral', url: '/dashboard-geral', icon: LayoutDashboard },
       { title: 'Relatório Executivo', url: '/bi/faturamento/relatorio-executivo', icon: FileBarChart },
     ],
   },

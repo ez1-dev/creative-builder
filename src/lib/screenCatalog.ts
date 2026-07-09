@@ -8,6 +8,7 @@ export interface ScreenInfo {
 
 const EXACT: Record<string, ScreenInfo> = {
   '/':                          { codigo: 'HOME',         nome: 'Início' },
+  '/dashboard-geral':           { codigo: 'DASH_GERAL',   nome: 'Dashboard Geral' },
   '/login':                     { codigo: 'LOGIN',        nome: 'Login' },
   '/dashboard':                 { codigo: 'DASH',         nome: 'Dashboard' },
   '/configuracoes':             { codigo: 'CONFIG',       nome: 'Configurações' },
