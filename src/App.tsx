@@ -9,6 +9,7 @@ import LoginPage from "@/pages/LoginPage";
 import AuthCallback from "@/pages/AuthCallback";
 import OAuthConsent from "@/pages/OAuthConsent";
 import ConnectAgentPage from "@/pages/ConnectAgentPage";
+import DashboardGeralPage from "@/pages/DashboardGeralPage";
 
 import EstoquePage from "@/pages/EstoquePage";
 import EstoqueMinMaxPage from "@/pages/EstoqueMinMaxPage";
@@ -125,6 +126,7 @@ const App = () => (
             <Route path="/manutencao-maquinas/compartilhado" element={<ManutencaoMaquinasCompartilhadoPage />} />
             <Route element={<AppLayout />}>
               <Route path="/" element={<PostLoginRedirect />} />
+              <Route path="/dashboard-geral" element={<ProtectedRoute path="/dashboard-geral"><DashboardGeralPage /></ProtectedRoute>} />
               <Route path="/estoque" element={<ProtectedRoute path="/estoque"><EstoquePage /></ProtectedRoute>} />
               <Route path="/estoque-min-max" element={<ProtectedRoute path="/estoque-min-max"><EstoqueMinMaxPage /></ProtectedRoute>} />
               <Route path="/sugestao-min-max" element={<ProtectedRoute path="/sugestao-min-max"><SugestaoMinMaxPage /></ProtectedRoute>} />
