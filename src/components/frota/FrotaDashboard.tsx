@@ -99,6 +99,17 @@ const CONFIGURABLE_CANONICAL = [
   'chart-tipo-veiculo',
 ];
 
+const CANONICAL_DEFAULTS: Record<string, Partial<ConfigureChartValue>> = {
+  'chart-evolucao-mensal':  { componentId: 'bar-chart',     mapping: { series: 'mensal__valor' },           customTitle: 'Evolução mensal (R$)' },
+  'chart-categoria':        { componentId: 'donut-chart',   mapping: { series: 'por_categoria__valor' },    customTitle: 'Por Segmento (Categoria)' },
+  'chart-segmento':         { componentId: 'donut-chart',   mapping: { series: 'por_segmento__valor' },     customTitle: 'Distribuição por Segmento (FROTA/GENIUS/OBRA)' },
+  'chart-top-veiculos':     { componentId: 'ranking-chart', mapping: { series: 'por_placa__valor' },        customTitle: 'Placa — Ranking',           options: { topN: 10 } },
+  'chart-top-fornecedores': { componentId: 'ranking-chart', mapping: { series: 'por_fornecedor__valor' },   customTitle: 'Fornecedor — Ranking',      options: { topN: 10 } },
+  'chart-top-cc':           { componentId: 'ranking-chart', mapping: { series: 'por_centro_custo__valor' }, customTitle: 'Centro de Custo — Ranking', options: { topN: 10 } },
+  'chart-top-motoristas':   { componentId: 'ranking-chart', mapping: { series: 'por_motorista__valor' },    customTitle: 'Motorista — Ranking',       options: { topN: 10 } },
+  'chart-tipo-veiculo':     { componentId: 'donut-chart',   mapping: { series: 'por_tipo_veiculo__valor' }, customTitle: 'Por Tipo de Veículo' },
+};
+
 const FULL_WIDTH_DONUT_WIDGET_TYPES = new Set([
   'chart-categoria',
   'chart-segmento',
@@ -425,15 +436,16 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     if (!configureType) return null;
     const pending = pendingConfig[configureType];
     const widget = effectiveWidgets.find((w) => w.type === configureType);
+    const defaults = CANONICAL_DEFAULTS[configureType] ?? {};
     return {
       widget,
       initial: pending !== undefined
-        ? (pending ?? {}) as Partial<ConfigureChartValue>
+        ? ({ ...defaults, ...(pending ?? {}) }) as Partial<ConfigureChartValue>
         : ({
-            componentId: widget?.componentId,
-            mapping: widget?.mapping,
-            customTitle: widget?.customTitle,
-            options: widget?.options,
+            componentId: widget?.componentId ?? defaults.componentId,
+            mapping:     widget?.mapping     ?? defaults.mapping,
+            customTitle: widget?.customTitle ?? defaults.customTitle,
+            options:     widget?.options     ?? defaults.options,
           } as Partial<ConfigureChartValue>),
     };
   }, [configureType, pendingConfig, effectiveWidgets]);

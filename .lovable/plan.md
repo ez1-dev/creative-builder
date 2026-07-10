@@ -1,28 +1,58 @@
-## Objetivo
+## Problema
 
-No diálogo "Configurar gráfico" da Manutenção de Frota, quando a série escolhida é `Placa · ...` (ex.: `por_placa__valor`, `por_placa__pct`, `por_placa__qtd` etc.), o preview mostra apenas a placa (ex.: `MGB3558`). Já no bloco renderizado no dashboard ("Top Veículos"), o rótulo aparece enriquecido (`MGB3558 — CAMINHÃO IVECO - ANO 2007`). Vamos padronizar: o preview e qualquer bloco que consuma `por_placa__*` deve mostrar `PLACA — DESCRIÇÃO`.
+Ao abrir "Configurar gráfico" num bloco canônico do dashboard de Frota (ex.: "Top Veículos"), o diálogo abre com `Tipo de visualização = Gráfico de Barras` e `Série = Evolução mensal · Valor (R$)` — que são apenas os defaults do `ConfigureChartDialog`, não a configuração real do bloco. Isso acontece porque os blocos canônicos (`chart-top-veiculos`, `chart-evolucao-mensal`, `chart-categoria`, etc.) são renderizados com componentes específicos hardcoded no `blocks[...]`, sem `componentId`/`mapping` no widget. Quando `widget.componentId` é `undefined`, o diálogo cai no default.
+
+## Solução
+
+Definir, no `FrotaDashboard.tsx`, um mapa `CANONICAL_DEFAULTS` que descreva a configuração real de cada um dos 8 blocos canônicos configuráveis, e usar esse mapa como fallback ao montar `configureTarget.initial`.
 
 ## Mudança
 
 Arquivo único: `src/components/frota/FrotaDashboard.tsx`
 
-1. No `seriesPayload` (linhas ~332–356), após montar `out[`por_placa__${m.key}`]`, enriquecer o `name` de cada ponto para `"PLACA — DESCRIÇÃO"`, reaproveitando a mesma lógica já usada em `topVeiculos` (descrição mais frequente por placa em `crossFiltered`).
+1. Adicionar constante (perto de `CONFIGURABLE_CANONICAL`, linha ~91):
 
-   Implementação:
-   - Construir um `Map<placa, topDesc>` a partir de `crossFiltered` (contando `veiculo_descricao` não-vazio por placa e escolhendo o mais frequente).
-   - Para cada métrica `m`, mapear `out[`por_placa__${m.key}`]` gerando `{ name: topDesc ? `${placa} — ${topDesc}` : placa, value }`.
-   - O alias legado `out.top_veiculos = toLegacy(out['por_placa__valor'])` passa a herdar o rótulo enriquecido automaticamente.
+```ts
+const CANONICAL_DEFAULTS: Record<string, Partial<ConfigureChartValue>> = {
+  'chart-evolucao-mensal':  { componentId: 'bar-chart',     mapping: { series: 'mensal__valor' },        customTitle: 'Evolução mensal (R$)' },
+  'chart-categoria':        { componentId: 'donut-chart',   mapping: { series: 'por_categoria__valor' }, customTitle: 'Por Segmento (Categoria)' },
+  'chart-segmento':         { componentId: 'donut-chart',   mapping: { series: 'por_segmento__valor' },  customTitle: 'Distribuição por Segmento (FROTA/GENIUS/OBRA)' },
+  'chart-top-veiculos':     { componentId: 'ranking-chart', mapping: { series: 'por_placa__valor' },       customTitle: 'Placa — Ranking',           options: { topN: 10 } },
+  'chart-top-fornecedores': { componentId: 'ranking-chart', mapping: { series: 'por_fornecedor__valor' },  customTitle: 'Fornecedor — Ranking',      options: { topN: 10 } },
+  'chart-top-cc':           { componentId: 'ranking-chart', mapping: { series: 'por_centro_custo__valor' },customTitle: 'Centro de Custo — Ranking', options: { topN: 10 } },
+  'chart-top-motoristas':   { componentId: 'ranking-chart', mapping: { series: 'por_motorista__valor' },   customTitle: 'Motorista — Ranking',       options: { topN: 10 } },
+  'chart-tipo-veiculo':     { componentId: 'donut-chart',   mapping: { series: 'por_tipo_veiculo__valor' },customTitle: 'Por Tipo de Veículo' },
+};
+```
 
-2. Cross-filter continua funcionando: o handler genérico em `PaginaDashboardTemplate` (linhas ~691–714) já faz `String(name).split(' — ')[0]` para dimensão `placa`? Verificar. Se não fizer, ajustar o dispatch em `placa` para extrair a placa antes do ` — ` (mesmo padrão já usado em `onItemClick` do bloco "Top Veículos", linha ~534). Caso o handler genérico use `name` cru, adicionar `name.split(' — ')[0].trim()` no dispatch `placa`.
+2. Ajustar `configureTarget` (linhas ~423–439) para combinar `CANONICAL_DEFAULTS[configureType]` com os overrides salvos no widget:
+
+```ts
+const defaults = CANONICAL_DEFAULTS[configureType] ?? {};
+return {
+  widget,
+  initial: pending !== undefined
+    ? ({ ...defaults, ...(pending ?? {}) }) as Partial<ConfigureChartValue>
+    : ({
+        componentId: widget?.componentId ?? defaults.componentId,
+        mapping:     widget?.mapping     ?? defaults.mapping,
+        customTitle: widget?.customTitle ?? defaults.customTitle,
+        options:     widget?.options     ?? defaults.options,
+      } as Partial<ConfigureChartValue>),
+};
+```
+
+O `pending` já representa a customização em andamento; permanece prevalente. Novos gráficos (`custom-*`) continuam usando o `componentId`/`mapping` próprios porque `defaults` fica vazio.
 
 ## Fora do escopo
 
-- Outras páginas (Máquinas, Passagens, RH, Comercial): não solicitadas.
-- Alterações no `RankingChartCard` ou no `componentRegistry`: desnecessárias, o rótulo já vem pronto na série.
-- Backend / ETL.
+- Passagens Aéreas / Máquinas / RH: mesmo padrão poderia ser aplicado, mas o usuário reportou o problema em Frota. Deixar como follow-up.
+- Nenhuma mudança visual dos blocos renderizados.
+- Nenhuma mudança no `ConfigureChartDialog` — os defaults do dialog continuam intactos.
 
 ## Validação
 
-1. Abrir `/frota`, clicar em "Configurar" no bloco Top Veículos → confirmar preview mostra `PLACA — DESCRIÇÃO`.
-2. Trocar série para `Placa · Quantidade` / `Placa · % do total` → confirmar mesmo enriquecimento.
-3. Clicar em uma barra do bloco renderizado → confirmar que o filtro cruzado por placa ainda aplica (extraindo a placa antes do ` — `).
+1. `/frota` → configurar "Top Veículos": diálogo abre com `Tipo = Ranking`, `Série = Placa · Valor (R$)`, `Top N = 10`, título "Placa — Ranking".
+2. Configurar "Evolução Mensal": `Tipo = Gráfico de Barras`, `Série = Evolução mensal · Valor (R$)`.
+3. Configurar "Por Segmento (Categoria)": `Tipo = Donut`, `Série = Categoria · Valor (R$)`.
+4. Após aplicar uma customização e reabrir, a customização (pending ou salva) prevalece sobre o default.
