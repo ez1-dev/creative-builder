@@ -1,75 +1,28 @@
-## Dashboard Geral — Página Executiva Consolidada
+## Objetivo
 
-### Situação atual
-A rota `/` (item **Dashboard Geral** do menu) hoje só faz redirect para a primeira tela permitida do usuário (`PostLoginRedirect`). Não existe um painel executivo real — vamos criar um em **`/dashboard-geral`** e apontar o menu para lá, mantendo o redirect da raiz para retrocompatibilidade.
+No diálogo "Configurar gráfico" da Manutenção de Frota, quando a série escolhida é `Placa · ...` (ex.: `por_placa__valor`, `por_placa__pct`, `por_placa__qtd` etc.), o preview mostra apenas a placa (ex.: `MGB3558`). Já no bloco renderizado no dashboard ("Top Veículos"), o rótulo aparece enriquecido (`MGB3558 — CAMINHÃO IVECO - ANO 2007`). Vamos padronizar: o preview e qualquer bloco que consuma `por_placa__*` deve mostrar `PLACA — DESCRIÇÃO`.
 
-### Objetivo
-Painel único, ao entrar no ERP, que consolida o "pulso da empresa" cruzando os módulos já existentes (Comercial, Compras, Financeiro, Produção e RH), com KPIs, tendências, breakdowns e insights de IA.
+## Mudança
 
-### Escopo do conteúdo
+Arquivo único: `src/components/frota/FrotaDashboard.tsx`
 
-**1. Cabeçalho / filtros globais**
-- Período (mês atual, mês anterior, YTD, últimos 12 meses, customizado).
-- Filial (multi-seleção, mesmas opções já usadas em Comercial/Compras).
-- Botão "Atualizar" (invalida caches) e link "Personalizar" (abre `AddRhBiWidgetDialog` reutilizado para dashboard-geral).
+1. No `seriesPayload` (linhas ~332–356), após montar `out[`por_placa__${m.key}`]`, enriquecer o `name` de cada ponto para `"PLACA — DESCRIÇÃO"`, reaproveitando a mesma lógica já usada em `topVeiculos` (descrição mais frequente por placa em `crossFiltered`).
 
-**2. Faixa de KPIs consolidados (12 cards, 4 colunas × 3 linhas)**
+   Implementação:
+   - Construir um `Map<placa, topDesc>` a partir de `crossFiltered` (contando `veiculo_descricao` não-vazio por placa e escolhendo o mais frequente).
+   - Para cada métrica `m`, mapear `out[`por_placa__${m.key}`]` gerando `{ name: topDesc ? `${placa} — ${topDesc}` : placa, value }`.
+   - O alias legado `out.top_veiculos = toLegacy(out['por_placa__valor'])` passa a herdar o rótulo enriquecido automaticamente.
 
-```text
-[ Faturamento mês ]  [ Δ vs mês anterior ]  [ Meta atingida % ]  [ Ticket médio ]
-[ Compras mês ]      [ Recebimentos mês ]   [ Contas a pagar ]   [ Contas a receber ]
-[ OPs em aberto ]    [ Carga prevista (h) ] [ Headcount ativo ]  [ Turnover 12m % ]
-```
-Cada card usa o `KpiCard` da Biblioteca BI, com tendência (sparkline) dos últimos 6 meses.
+2. Cross-filter continua funcionando: o handler genérico em `PaginaDashboardTemplate` (linhas ~691–714) já faz `String(name).split(' — ')[0]` para dimensão `placa`? Verificar. Se não fizer, ajustar o dispatch em `placa` para extrair a placa antes do ` — ` (mesmo padrão já usado em `onItemClick` do bloco "Top Veículos", linha ~534). Caso o handler genérico use `name` cru, adicionar `name.split(' — ')[0].trim()` no dispatch `placa`.
 
-**3. Gráficos de tendência (grid 2 col)**
-- **Faturamento vs Meta (últimos 12 meses)** — linha dupla (bi_faturamento + bi_meta_faturamento).
-- **Compras vs Recebimentos (12 meses)** — barras agrupadas.
-- **Produção — carga prevista por semana (próximas 8)** — barras (bi_ops_fila).
-- **Headcount evolução (12 meses)** — linha (endpoint rh/quadro-colaboradores histórico).
+## Fora do escopo
 
-**4. Breakdown por dimensão (grid 3 col)**
-- **Faturamento por revenda** (Top 8, barras horizontais).
-- **Compras por classificação** (donut).
-- **Absenteísmo por setor** (barras horizontais).
+- Outras páginas (Máquinas, Passagens, RH, Comercial): não solicitadas.
+- Alterações no `RankingChartCard` ou no `componentRegistry`: desnecessárias, o rótulo já vem pronto na série.
+- Backend / ETL.
 
-**5. Alertas & Insights (IA)**
-Painel lateral (ou faixa inferior) com:
-- Chamada à edge function `rh-ai-insights` (já existe) + nova função `dashboard-geral-insights` que resume KPIs de todos os módulos.
-- Bullets priorizados (crítico/atenção/ok) com link direto para o módulo detalhado.
-- Modelo: `google/gemini-2.5-flash` via Lovable AI Gateway (rápido e barato para resumo diário).
+## Validação
 
-### Arquitetura técnica
-
-**Novos arquivos**
-- `src/pages/DashboardGeralPage.tsx` — página principal, usa `PageDataProvider` + `UserWidgetsSlot`.
-- `src/hooks/useDashboardGeral.ts` — orquestra chamadas paralelas aos dashboards já existentes (faturamento-genius, painel-compras, notas-recebimento, rh-resumo-folha, rh-quadro-colaboradores, rh-turnover, rh-absenteismo, contas-pagar/receber, carga) e monta objeto consolidado `{ kpis, series, breakdowns }`.
-- `src/lib/dashboardGeral/aggregator.ts` — normalização e cálculo de deltas/tendências.
-- `src/lib/dashboardGeral/widgetCatalog.ts` — catálogo de widgets fixos + libraryComponentIds para permitir personalização.
-- `supabase/functions/dashboard-geral-insights/index.ts` — edge function que recebe os KPIs consolidados e devolve insights priorizados.
-
-**Alterações**
-- `src/App.tsx` — adiciona `<Route path="/dashboard-geral" element={<ProtectedRoute path="/dashboard-geral"><DashboardGeralPage /></ProtectedRoute>} />`.
-- `src/components/AppSidebar.tsx` — item "Dashboard Geral" passa a apontar para `/dashboard-geral` (mantém "/" como fallback de redirect).
-- `src/lib/screenCatalog.ts` — registra a nova tela (para permissões).
-- `PostLoginRedirect` — se o usuário tem acesso a `/dashboard-geral`, prioriza essa rota como destino padrão.
-
-**Padrões reutilizados**
-- Design system existente (tokens semânticos, sem cores hardcoded).
-- Biblioteca BI (`@/components/bi`), `useDashboardData`, `ChartCard`, `KpiCard`.
-- `PageDataProvider` para permitir que o usuário adicione widgets extras da Biblioteca BI ao Dashboard Geral (persistidos em `bi_user_widgets` com `pageKey='dashboard-geral'`).
-
-**Cache**
-- Cada bloco reaproveita seu próprio cache do TanStack Query já existente (chamadas paralelas, sem duplicação).
-- Camada `dashboard_cache` do Cloud usada apenas pelo bloco de IA (chave `dashboard-geral:insights:{yyyymm}`, expira em 6h).
-
-### Validação
-1. `tsgo` limpo.
-2. Playwright: login com usuário admin, navegar `/dashboard-geral`, screenshot da página completa, conferir que os 12 KPIs renderizam com valores (não zeros/skeletons), tendências aparecem, insights de IA chegam.
-3. Verificar que usuário sem permissão em nenhum módulo cai no `NoAccessScreen` (não trava carregando).
-
-### Entrega em etapas
-1. Estrutura da página + rota + KPIs consolidados (sem IA).
-2. Gráficos de tendência + breakdowns.
-3. Edge function de insights + painel de alertas.
-4. Personalização via Biblioteca BI + polimento visual.
+1. Abrir `/frota`, clicar em "Configurar" no bloco Top Veículos → confirmar preview mostra `PLACA — DESCRIÇÃO`.
+2. Trocar série para `Placa · Quantidade` / `Placa · % do total` → confirmar mesmo enriquecimento.
+3. Clicar em uma barra do bloco renderizado → confirmar que o filtro cruzado por placa ainda aplica (extraindo a placa antes do ` — `).

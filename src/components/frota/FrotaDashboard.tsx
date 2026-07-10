@@ -342,6 +342,30 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
         out[`por_${d.key}__${m.key}`] = computeMetricByGroups(groups, m.key);
       });
     });
+    // Enriquecimento: por_placa__* → rótulo "PLACA — DESCRIÇÃO"
+    const descByPlaca = new Map<string, string | undefined>();
+    {
+      const counts = new Map<string, Map<string, number>>();
+      crossFiltered.forEach((r) => {
+        const placa = r.placa || '—';
+        const desc = (r.veiculo_descricao || '').trim();
+        if (!desc) return;
+        const c = counts.get(placa) ?? new Map<string, number>();
+        c.set(desc, (c.get(desc) ?? 0) + 1);
+        counts.set(placa, c);
+      });
+      counts.forEach((c, placa) => {
+        const top = Array.from(c.entries()).sort((a, b) => b[1] - a[1])[0]?.[0];
+        descByPlaca.set(placa, top);
+      });
+    }
+    FROTA_METRICAS.forEach((m) => {
+      const key = `por_placa__${m.key}`;
+      out[key] = out[key].map((p) => {
+        const desc = descByPlaca.get(p.name);
+        return { name: desc ? `${p.name} — ${desc}` : p.name, value: p.value };
+      });
+    });
     // aliases legados (objetos { label, valor }) — mantém widgets antigos funcionando
     const toLegacy = (rows: { name: string; value: number }[]) =>
       rows.map((p) => ({ label: p.name, valor: p.value }));
@@ -354,6 +378,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     out.por_tipo_veiculo   = toLegacy(out['por_tipo_veiculo__valor']) as any;
     return out;
   }, [crossFiltered]);
+
 
   const drillLevelsConfig = useMemo(
     () => drillLevels
@@ -701,7 +726,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
                 const dispatch: Record<string, (p: string[]) => string[]> = {
                   segmento:     (p) => toggleItem(p, name),
                   tipo_veiculo: (p) => toggleItem(p, name),
-                  placa:        (p) => toggleItem(p, name),
+                  placa:        (p) => toggleItem(p, String(name).split(' — ')[0].trim()),
                   fornecedor:   (p) => toggleItem(p, name),
                   centro_custo: (p) => toggleItem(p, name),
                   motorista:    (p) => toggleItem(p, name),
