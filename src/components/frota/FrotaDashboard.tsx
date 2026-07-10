@@ -726,7 +726,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
                 const dispatch: Record<string, (p: string[]) => string[]> = {
                   segmento:     (p) => toggleItem(p, name),
                   tipo_veiculo: (p) => toggleItem(p, name),
-                  placa:        (p) => toggleItem(p, name),
+                  placa:        (p) => toggleItem(p, String(name).split(' — ')[0].trim()),
                   fornecedor:   (p) => toggleItem(p, name),
                   centro_custo: (p) => toggleItem(p, name),
                   motorista:    (p) => toggleItem(p, name),
