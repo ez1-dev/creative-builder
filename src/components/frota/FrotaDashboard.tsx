@@ -436,15 +436,16 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     if (!configureType) return null;
     const pending = pendingConfig[configureType];
     const widget = effectiveWidgets.find((w) => w.type === configureType);
+    const defaults = CANONICAL_DEFAULTS[configureType] ?? {};
     return {
       widget,
       initial: pending !== undefined
-        ? (pending ?? {}) as Partial<ConfigureChartValue>
+        ? ({ ...defaults, ...(pending ?? {}) }) as Partial<ConfigureChartValue>
         : ({
-            componentId: widget?.componentId,
-            mapping: widget?.mapping,
-            customTitle: widget?.customTitle,
-            options: widget?.options,
+            componentId: widget?.componentId ?? defaults.componentId,
+            mapping:     widget?.mapping     ?? defaults.mapping,
+            customTitle: widget?.customTitle ?? defaults.customTitle,
+            options:     widget?.options     ?? defaults.options,
           } as Partial<ConfigureChartValue>),
     };
   }, [configureType, pendingConfig, effectiveWidgets]);
