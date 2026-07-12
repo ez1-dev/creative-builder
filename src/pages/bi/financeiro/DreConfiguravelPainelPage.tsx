@@ -146,11 +146,12 @@ export default function DreConfiguravelPainelPage() {
 
   return (
     <div className="space-y-4 p-4">
+      <DreApiHealthBanner />
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-foreground">DRE Configurável</h1>
           <p className="text-xs text-muted-foreground">
-            Modelo e linhas mantidos via <code>/api/dre/modelos</code> e <code>/api/dre/linhas</code>; valores apurados via <code>/api/bi/contabilidade/dre-dinamica</code>.
+            Modelo e linhas mantidos via <code>/api/contabil/modelos</code> e <code>/api/contabil/linhas</code>; valores apurados via <code>/api/contabil/realizado/resumo</code> (API principal do ERP).
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
