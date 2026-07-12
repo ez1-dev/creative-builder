@@ -314,6 +314,10 @@ export default function ConfiguracoesPage() {
       toast.error('A URL base não deve incluir /api/contabil — informe apenas o domínio.');
       return;
     }
+    if (/api-erp-renato\.ngrok\.app/i.test(trimmed)) {
+      toast.error('Use https://dreconfiguravel.ngrok.app — o domínio api-erp-renato não atende rotas /api/contabil.');
+      return;
+    }
     const { error } = await supabase.from('app_settings').upsert({ key: 'contabil_api_url', value: trimmed }, { onConflict: 'key' });
     if (error) {
       toast.error('Erro ao salvar URL da API contábil');
