@@ -197,6 +197,10 @@ export default function ConfiguracoesPage() {
   // API config states
   const [apiUrl, setApiUrl] = useState('');
   const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+  const [apiLastResult, setApiLastResult] = useState<ContabilHealthResult | null>(null);
+  const [contabilUrl, setContabilUrl] = useState('');
+  const [contabilStatus, setContabilStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+  const [contabilLastResult, setContabilLastResult] = useState<ContabilHealthResult | null>(null);
   const [apiUser, setApiUser] = useState('');
   const [apiPass, setApiPass] = useState('');
   const [apiCredentialsLoading, setApiCredentialsLoading] = useState(true);
