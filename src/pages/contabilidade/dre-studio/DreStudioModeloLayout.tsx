@@ -28,13 +28,16 @@ function ModeloLayout() {
   }
 
   const isBalanco = data?.modelo?.tipo_modelo === "BALANCO";
+  const base = `/contabilidade/dre-studio/${id}`;
   const tabs = [
-    { to: "/dre/modelo/$id/estrutura", label: "Estrutura" },
-    { to: "/dre/modelo/$id/visualizacao", label: "Visualização" },
-    { to: "/dre/modelo/$id/orcamento", label: "Orçamento" },
-    { to: "/dre/modelo/$id/editar", label: "Editar modelo" },
+    { to: `${base}/estrutura`, label: "Estrutura" },
+    { to: `${base}/visualizacao`, label: "Visualização" },
+    { to: `${base}/orcamento`, label: "Orçamento" },
+    { to: `${base}/conciliacao`, label: "Conciliação" },
+    { to: `${base}/editar`, label: "Editar modelo" },
   ] as const;
   void isBalanco;
+
 
   return (
     <div className="flex flex-col min-h-screen">
