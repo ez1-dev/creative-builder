@@ -3,6 +3,7 @@
 // Usa o cliente compartilhado `api` (envia Authorization: Bearer <token> e trata 401).
 
 import { api } from '@/lib/api';
+import { describeDreError } from './dreErrors';
 import type {
   DreFiltrosPainel,
   DreRealizadoResumo,
