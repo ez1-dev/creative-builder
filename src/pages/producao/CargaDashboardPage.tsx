@@ -363,7 +363,7 @@ export default function CargaDashboardPage() {
       <div className={biResponsive.chartGrid3}>
         <DonutCard
           title="3. Distribuição por unidade de negócio"
-          data={porUnidade.map((u) => ({ name: String(u.name), value: u.carga_min }))}
+          data={porUnidade.map((u) => ({ name: maskUnidade(String(u.name)), value: u.carga_min, __raw: String(u.name) }))}
           centerLabel="Carga (min)"
           centerValue={fmtNum(totalCargaMin)}
           totalLabel="Total"
