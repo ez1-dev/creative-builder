@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Trash2, Edit, Users, Shield, Eye, Wifi, WifiOff, UserCheck, UserX, FileWarning, Sparkles, Activity, Rocket, BarChart3, Brain, LineChart, PowerOff, BookOpen, Download, ExternalLink, Search, Filter, UserPlus, ChevronsUpDown, Check, ShieldCheck, X, ArrowUpDown, Inbox } from 'lucide-react';
+import { Plus, Trash2, Edit, Users, Shield, Eye, EyeOff, Wifi, WifiOff, UserCheck, UserX, FileWarning, Sparkles, Activity, Rocket, BarChart3, Brain, LineChart, PowerOff, BookOpen, Download, ExternalLink, Search, Filter, UserPlus, ChevronsUpDown, Check, ShieldCheck, X, ArrowUpDown, Inbox } from 'lucide-react';
 import { VISUAL_CATALOG } from '@/lib/visualCatalog';
 import { MonitoramentoUsuarios } from '@/components/erp/MonitoramentoUsuarios';
 
