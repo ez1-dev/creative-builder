@@ -1612,43 +1612,108 @@ export default function ConfiguracoesPage() {
         <TabsContent value="api">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Configuração da API</CardTitle>
+              <CardTitle className="text-base">Configuração das APIs</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-3">
-                {apiStatus === 'online' ? (
-                  <Badge variant="default" className="gap-1 bg-emerald-600 hover:bg-emerald-600 text-sm font-normal">
-                    <Wifi className="h-3.5 w-3.5" /> API Online
-                  </Badge>
-                ) : apiStatus === 'offline' ? (
-                  <Badge variant="destructive" className="gap-1 text-sm font-normal">
-                    <WifiOff className="h-3.5 w-3.5" /> API Offline
-                  </Badge>
-                ) : (
-                  <Badge variant="secondary" className="gap-1 text-sm font-normal">
-                    Verificando...
-                  </Badge>
+            <CardContent className="space-y-6">
+              {/* API principal do ERP */}
+              <section className="space-y-3 rounded-md border p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold">API principal do ERP</h3>
+                    <p className="text-xs text-muted-foreground">Endpoint testado: <span className="font-mono">{getApiUrl()}/health</span></p>
+                  </div>
+                  {apiStatus === 'online' ? (
+                    <Badge className="gap-1 bg-emerald-600 hover:bg-emerald-600 text-sm font-normal">
+                      <Wifi className="h-3.5 w-3.5" /> Online
+                    </Badge>
+                  ) : apiStatus === 'offline' ? (
+                    <Badge variant="destructive" className="gap-1 text-sm font-normal">
+                      <WifiOff className="h-3.5 w-3.5" /> Offline
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="gap-1 text-sm font-normal">Verificando…</Badge>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="api-url">URL da API principal do ERP</Label>
+                  <Input
+                    id="api-url"
+                    value={apiUrl}
+                    onChange={(e) => setApiUrl(e.target.value)}
+                    placeholder="https://api-erp-renato.ngrok.app"
+                  />
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={handleSaveUrl}>Salvar URL</Button>
+                  <Button variant="outline" onClick={handleResetUrl}>Resetar para padrão</Button>
+                  <Button variant="secondary" onClick={checkApi}>Testar conexão</Button>
+                </div>
+
+                {apiStatus === 'offline' && apiLastResult && (
+                  <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs space-y-1">
+                    <div className="font-semibold text-destructive">API principal indisponível</div>
+                    <div><span className="font-medium">URL testada:</span> <span className="font-mono break-all">{apiLastResult.urlTested}</span></div>
+                    <div><span className="font-medium">Status HTTP:</span> <span className="font-mono">{String(apiLastResult.status)}</span></div>
+                    {apiLastResult.details && (
+                      <div><span className="font-medium">Detalhes:</span> <span className="font-mono break-all">{String(apiLastResult.details).slice(0, 400)}</span></div>
+                    )}
+                  </div>
                 )}
-                <Button variant="outline" size="sm" onClick={checkApi}>
-                  Verificar conexão
-                </Button>
-              </div>
+              </section>
 
-              <div className="space-y-2">
-                <Label htmlFor="api-url">URL da API</Label>
-                <Input
-                  id="api-url"
-                  value={apiUrl}
-                  onChange={(e) => setApiUrl(e.target.value)}
-                  placeholder="https://sua-api.ngrok.io"
-                />
-                <p className="text-xs text-muted-foreground">URL atual: {getApiUrl()}</p>
-              </div>
+              {/* API contábil / DRE */}
+              <section className="space-y-3 rounded-md border p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold">API contábil / DRE</h3>
+                    <p className="text-xs text-muted-foreground">Endpoint testado: <span className="font-mono">{getContabilBaseUrl()}/api/contabil/health</span></p>
+                  </div>
+                  {contabilStatus === 'online' ? (
+                    <Badge className="gap-1 bg-emerald-600 hover:bg-emerald-600 text-sm font-normal">
+                      <Wifi className="h-3.5 w-3.5" /> Online
+                    </Badge>
+                  ) : contabilStatus === 'offline' ? (
+                    <Badge variant="destructive" className="gap-1 text-sm font-normal">
+                      <WifiOff className="h-3.5 w-3.5" /> Offline
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="gap-1 text-sm font-normal">Verificando…</Badge>
+                  )}
+                </div>
 
-              <div className="flex gap-2">
-                <Button onClick={handleSaveUrl}>Salvar URL</Button>
-                <Button variant="outline" onClick={handleResetUrl}>Resetar para padrão</Button>
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="contabil-url">URL da API contábil / DRE</Label>
+                  <Input
+                    id="contabil-url"
+                    value={contabilUrl}
+                    onChange={(e) => setContabilUrl(e.target.value)}
+                    placeholder="https://dreconfiguravel.ngrok.app"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Informe apenas o domínio (não inclua <code>/api/contabil</code>).
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={handleSaveContabilUrl}>Salvar URL</Button>
+                  <Button variant="outline" onClick={handleResetContabilUrl}>Resetar para padrão</Button>
+                  <Button variant="secondary" onClick={checkContabil}>Testar conexão</Button>
+                </div>
+
+                {contabilStatus === 'offline' && contabilLastResult && (
+                  <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs space-y-1">
+                    <div className="font-semibold text-destructive">API contábil indisponível</div>
+                    <div><span className="font-medium">URL testada:</span> <span className="font-mono break-all">{contabilLastResult.urlTested}</span></div>
+                    <div><span className="font-medium">Status HTTP:</span> <span className="font-mono">{String(contabilLastResult.status)}</span></div>
+                    {contabilLastResult.details && (
+                      <div><span className="font-medium">Detalhes:</span> <span className="font-mono break-all">{String(contabilLastResult.details).slice(0, 400)}</span></div>
+                    )}
+                    <div className="pt-1 text-muted-foreground">Somente o módulo DRE Studio depende desta API. Os demais módulos do ERP não são afetados.</div>
+                  </div>
+                )}
+              </section>
 
               <hr className="my-4 border-border" />
 
