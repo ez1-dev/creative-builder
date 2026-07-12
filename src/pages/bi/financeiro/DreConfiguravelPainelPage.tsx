@@ -22,6 +22,9 @@ import {
   type MontadorLinha,
 } from '@/lib/bi/dreMontadorModelosApi';
 import type { DreFiltrosPainel } from '@/lib/bi/dreConfiguravelTypes';
+import { useDreApiHealth } from '@/lib/bi/dreErrors';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertTriangle } from 'lucide-react';
 
 function defaultFiltros(): DreFiltrosPainel {
   const now = new Date();
@@ -38,6 +41,20 @@ function defaultFiltros(): DreFiltrosPainel {
 function dataToAnomes(iso: string): string {
   if (!iso || iso.length < 7) return '';
   return iso.slice(0, 4) + iso.slice(5, 7);
+}
+
+function DreApiHealthBanner() {
+  const health = useDreApiHealth();
+  if (health.isLoading || health.data) return null;
+  return (
+    <Alert variant="destructive">
+      <AlertTriangle className="h-4 w-4" />
+      <AlertTitle>API contábil offline</AlertTitle>
+      <AlertDescription>
+        Não foi possível acessar a API contábil. Verifique se a API ERP está em execução na porta 8070.
+      </AlertDescription>
+    </Alert>
+  );
 }
 
 export default function DreConfiguravelPainelPage() {
@@ -143,11 +160,12 @@ export default function DreConfiguravelPainelPage() {
 
   return (
     <div className="space-y-4 p-4">
+      <DreApiHealthBanner />
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-foreground">DRE Configurável</h1>
           <p className="text-xs text-muted-foreground">
-            Modelo e linhas mantidos via <code>/api/dre/modelos</code> e <code>/api/dre/linhas</code>; valores apurados via <code>/api/bi/contabilidade/dre-dinamica</code>.
+            Modelo e linhas mantidos via <code>/api/contabil/modelos</code> e <code>/api/contabil/linhas</code>; valores apurados via <code>/api/contabil/realizado/resumo</code> (API principal do ERP).
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

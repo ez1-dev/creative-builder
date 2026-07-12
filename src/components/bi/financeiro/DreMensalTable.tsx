@@ -46,7 +46,7 @@ export function DreMensalTable({ data, loading, onSelecionarMes }: DreMensalTabl
       loading={loading}
       emptyMessage="Sem lançamentos no período"
       onRowClick={(row) => {
-        // TODO: abrir drill-down por conta (Tela 2) usando GET /api/dre/realizado/contas
+        // TODO: abrir drill-down por conta (Tela 2) usando GET /api/contabil/realizado/contas
         console.log('[DRE CONFIGURAVEL] selecionar mês', row.anomes);
         onSelecionarMes?.(row.anomes);
       }}

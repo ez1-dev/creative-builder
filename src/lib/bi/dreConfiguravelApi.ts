@@ -3,6 +3,7 @@
 // Usa o cliente compartilhado `api` (envia Authorization: Bearer <token> e trata 401).
 
 import { api } from '@/lib/api';
+import { describeDreError } from './dreErrors';
 import type {
   DreFiltrosPainel,
   DreRealizadoResumo,
@@ -55,7 +56,11 @@ function rethrowAuthAware(err: any): never {
     e.isAuthError = true;
     throw e;
   }
-  throw err;
+  const info = describeDreError(err);
+  const e: any = new Error(info.message);
+  e.dreKind = info.kind;
+  e.statusCode = status;
+  throw e;
 }
 
 export async function fetchDreRealizadoResumo(filtros: DreFiltrosPainel): Promise<DreRealizadoResumo> {
@@ -68,9 +73,9 @@ export async function fetchDreRealizadoResumo(filtros: DreFiltrosPainel): Promis
     tipo: filtros.tipo ?? 'MENSAL',
     comparar_orcamento: !!filtros.comparar_orcamento,
   };
-  console.log('[DRE CONFIGURAVEL] GET /api/dre/realizado/resumo', params);
+  console.log('[DRE CONFIGURAVEL] GET /api/contabil/realizado/resumo', params);
   try {
-    const data = await api.get<any>('/api/dre/realizado/resumo', params);
+    const data = await api.get<any>('/api/contabil/realizado/resumo', params);
     return {
       totais: normalizarTotais(data?.totais),
       mensal: normalizarMensal(data?.mensal ?? data?.linhas ?? []),
@@ -81,9 +86,9 @@ export async function fetchDreRealizadoResumo(filtros: DreFiltrosPainel): Promis
 }
 
 export async function fetchDreModelos(): Promise<DreModeloItem[]> {
-  console.log('[DRE CONFIGURAVEL] GET /api/dre/modelos');
+  console.log('[DRE CONFIGURAVEL] GET /api/contabil/modelos');
   try {
-    const data = await api.get<any>('/api/dre/modelos');
+    const data = await api.get<any>('/api/contabil/modelos');
     const arr = Array.isArray(data?.itens) ? data.itens : Array.isArray(data) ? data : [];
     return arr
       .map((m: any) => ({
