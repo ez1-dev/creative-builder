@@ -18,6 +18,7 @@ import { TopRecursosChart } from '@/components/producao/carga-dashboard/TopRecur
 import { CargaQtdOpsChart } from '@/components/producao/carga-dashboard/CargaQtdOpsChart';
 import { DonutCard } from '@/components/producao/carga-dashboard/DonutCard';
 import { PorRecursoTable } from '@/components/producao/carga-dashboard/PorRecursoTable';
+import { useDemoMode } from '@/contexts/DemoModeContext';
 import { DrillSheet, useDrillSheet, biResponsive, type DrillSheetFilterChip } from '@/components/bi';
 import { DetalheOpsTab } from '@/components/producao/carga/DetalheOpsTab';
 import { cn } from '@/lib/utils';
