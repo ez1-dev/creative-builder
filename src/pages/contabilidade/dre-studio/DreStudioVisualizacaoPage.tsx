@@ -1292,7 +1292,7 @@ function Visualizacao() {
             modelo que já tenha contas.
           </div>
           <Button asChild size="sm" variant="outline">
-            <Link to={`/contabilidade/contabilidade/dre-studio-studio/modelo/${id}/estrutura`}>
+            <Link to={`/contabilidade/dre-studio/${id}/estrutura`}>
               Ir para Estrutura
             </Link>
           </Button>
@@ -1309,7 +1309,7 @@ function Visualizacao() {
             finais (ex: contas de compensação e totalizadores).
           </div>
           <Button asChild size="sm" variant="outline">
-            <Link to={`/contabilidade/contabilidade/dre-studio-studio/modelo/${id}/estrutura`}>
+            <Link to={`/contabilidade/dre-studio/${id}/estrutura`}>
               Ir para Estrutura
             </Link>
           </Button>

@@ -102,7 +102,7 @@ function ModelosList() {
         onOpenChange={setCriarPadraoOpen}
         onCreated={(m) => {
           setCriarPadraoOpen(false);
-          navigate(`/contabilidade/dre-studio/modelo/${m.id}/estrutura`);
+          navigate(`/contabilidade/dre-studio/${m.id}/estrutura`);
         }}
       />
 
@@ -111,7 +111,7 @@ function ModelosList() {
         onOpenChange={setBalancoSeniorOpen}
         onCreated={(m) => {
           setBalancoSeniorOpen(false);
-          navigate(`/contabilidade/dre-studio/modelo/${m.id}/estrutura`);
+          navigate(`/contabilidade/dre-studio/${m.id}/estrutura`);
         }}
       />
 
@@ -218,12 +218,12 @@ function ModelosList() {
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <Button asChild variant="ghost" size="sm">
-                        <Link to={`/contabilidade/contabilidade/dre-studio-studio/modelo/${m.id}/editar`}>
+                        <Link to={`/contabilidade/dre-studio/${m.id}/editar`}>
                           <Pencil className="h-4 w-4 mr-1" /> Editar
                         </Link>
                       </Button>
                       <Button asChild variant="ghost" size="sm">
-                        <Link to={`/contabilidade/contabilidade/dre-studio-studio/modelo/${m.id}/visualizacao`}>
+                        <Link to={`/contabilidade/dre-studio/${m.id}/visualizacao`}>
                           <BarChart3 className="h-4 w-4 mr-1" /> Visualizar
                         </Link>
                       </Button>

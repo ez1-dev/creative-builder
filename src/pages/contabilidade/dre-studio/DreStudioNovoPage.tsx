@@ -28,7 +28,7 @@ function NovoModelo() {
             toast.error("Modelo criado sem id — volte e abra pela lista.");
             return;
           }
-          navigate(`/contabilidade/dre-studio/modelo/${m.id}/estrutura`);
+          navigate(`/contabilidade/dre-studio/${m.id}/estrutura`);
         }}
       />
     </div>

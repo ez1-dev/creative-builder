@@ -308,7 +308,7 @@ function SnapshotRow({ snap }: { snap: any }) {
         <TableCell className="text-right">
           <div className="flex items-center justify-end gap-1">
             <Button asChild size="sm" variant="outline">
-              <Link to={`/contabilidade/contabilidade/dre-studio-studio/modelo/${snap.modelo_id}/visualizacao`}>
+              <Link to={`/contabilidade/dre-studio/${snap.modelo_id}/visualizacao`}>
                 <ExternalLink className="h-3.5 w-3.5 mr-1" /> Ver
               </Link>
             </Button>
