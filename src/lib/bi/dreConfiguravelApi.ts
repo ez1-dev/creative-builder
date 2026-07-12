@@ -2,7 +2,7 @@
 // Front é apenas interface — não calcula DRE, não acessa ERP, não usa Cloud para valores.
 // Usa o cliente compartilhado `api` (envia Authorization: Bearer <token> e trata 401).
 
-import { api } from '@/lib/api';
+import { contabilApi as api } from '@/lib/contabil/contabilApi';
 import { describeDreError } from './dreErrors';
 import type {
   DreFiltrosPainel,

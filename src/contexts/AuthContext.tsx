@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useRef, useMemo, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { api, setApiBaseUrl } from '@/lib/api';
+import { setContabilBaseUrl } from '@/lib/contabil/contabilApi';
 import type { Session, User } from '@supabase/supabase-js';
 
 interface AuthContextType {
@@ -80,13 +81,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (profileData.erp_user) {
         try {
           const { data: settings } = await withTimeout(
-            supabase.from('app_settings').select('key, value').in('key', ['erp_api_user', 'erp_api_pass', 'erp_api_url']),
+            supabase.from('app_settings').select('key, value').in('key', ['erp_api_user', 'erp_api_pass', 'erp_api_url', 'contabil_api_url']),
             8000,
             'app_settings',
           );
           const settingsMap = Object.fromEntries((settings || []).map((s) => [s.key, s.value]));
           const apiUrl = settingsMap['erp_api_url'];
           if (apiUrl) setApiBaseUrl(apiUrl);
+          const contabilUrl = settingsMap['contabil_api_url'];
+          if (contabilUrl) setContabilBaseUrl(contabilUrl);
           const apiUser = settingsMap['erp_api_user'];
           const apiPass = settingsMap['erp_api_pass'];
           if (apiUser && apiPass) {

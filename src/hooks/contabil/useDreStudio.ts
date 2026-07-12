@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as dreApi from '@/lib/contabil/dreStudioApi';
+import { getContabilBaseUrl } from '@/lib/contabil/contabilApi';
 import type {
   DreLinha, DreModelo, DreOrcamentoItem, TipoModelo,
 } from '@/lib/contabil/dreStudioTypes';
@@ -20,7 +21,7 @@ export const dreStudioKeys = {
 
 export function useDreStudioHealth() {
   return useQuery({
-    queryKey: dreStudioKeys.health,
+    queryKey: [...dreStudioKeys.health, getContabilBaseUrl()],
     queryFn: dreApi.fetchDreHealth,
     staleTime: 60_000,
     retry: 0,
