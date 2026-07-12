@@ -13,6 +13,8 @@ interface MultiSelectFilterProps {
   value: string;
   onChange: (csv: string) => void;
   placeholder?: string;
+  /** Opcional: transforma o rótulo de cada opção (mantém o valor original). */
+  renderLabel?: (opt: string) => string;
 }
 
 export function MultiSelectFilter({ label, options, value, onChange, placeholder }: MultiSelectFilterProps) {
