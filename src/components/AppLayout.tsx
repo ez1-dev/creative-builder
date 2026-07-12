@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemoMode } from '@/contexts/DemoModeContext';
 import AppLoadingScreen from '@/components/AppLoadingScreen';
 
 // Rotas que renderizam sua própria UI de fallback quando não autenticado/aprovado,
@@ -14,6 +15,7 @@ import { AiAssistantChat } from '@/components/erp/AiAssistantChat';
 import { UpdateNotifier } from '@/components/UpdateNotifier';
 import { DemoBadge } from '@/components/DemoBadge';
 import { PresentationToggle } from '@/components/PresentationToggle';
+import { useBrand } from '@/contexts/DemoModeContext';
 import { useTvMode } from '@/hooks/useTvMode';
 import packageJson from '../../package.json';
 
@@ -21,6 +23,7 @@ export default function AppLayout() {
   const { isAuthenticated, user, displayName, approved, loading, logout } = useAuth();
   const location = useLocation();
   const { tvMode } = useTvMode();
+  const { name: brandName } = useBrand('EZ ERP IA');
   const allowFallback = PUBLIC_FALLBACK_PATHS.has(location.pathname);
 
   if (loading) return <AppLoadingScreen label="Verificando sua sessão…" />;
@@ -53,7 +56,9 @@ export default function AppLayout() {
     );
   }
 
-  const label = displayName || user?.email || '';
+  const { maskName, presentationActive } = useDemoMode();
+  const rawLabel = displayName || user?.email || '';
+  const label = presentationActive ? maskName('colaborador', rawLabel) : rawLabel;
 
   return (
     <SidebarProvider>
@@ -94,7 +99,7 @@ export default function AppLayout() {
               data-tv-hide="true"
               className="border-t bg-card px-3 py-2 text-center text-xs 3xl:text-sm text-muted-foreground"
             >
-              EZ ERP IA v{packageJson.version} · © {new Date().getFullYear()} Todos os direitos reservados.
+              {brandName} v{packageJson.version} · © {new Date().getFullYear()} Todos os direitos reservados.
             </footer>
           )}
         </div>

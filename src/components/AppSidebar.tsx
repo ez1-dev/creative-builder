@@ -9,7 +9,12 @@ import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { useFavorites } from '@/hooks/useFavorites';
-import { useDemoMode } from '@/contexts/DemoModeContext';
+import { useDemoMode, useBrand } from '@/contexts/DemoModeContext';
+
+function BrandName() {
+  const { name } = useBrand('ERP Sapiens');
+  return <span className="text-[15px] font-semibold tracking-tight text-sidebar-foreground truncate">{name}</span>;
+}
 import {
   Sidebar,
   SidebarContent,
@@ -490,7 +495,7 @@ export function AppSidebar() {
       <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
         <div className="flex items-center gap-2">
           <LayoutDashboard className="h-6 w-6 text-sidebar-primary" />
-          {!collapsed && <span className="text-[15px] font-semibold tracking-tight text-sidebar-foreground">ERP Sapiens</span>}
+          {!collapsed && <BrandName />}
         </div>
         {!collapsed && (
           <div className="relative mt-3">

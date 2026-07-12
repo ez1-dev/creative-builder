@@ -27,6 +27,7 @@ import { ColaboradorCombobox } from '@/components/passagens/ColaboradorCombobox'
 import { ImportarPassagensDialog } from '@/components/passagens/ImportarPassagensDialog';
 import { geocodeCidade, nomeNormalizado } from '@/components/passagens/cidadesBrasil';
 import { BiAutoSlots } from '@/components/bi';
+import { useMaskedData } from '@/hooks/useMaskedData';
 
 const PATH = '/passagens-aereas';
 
@@ -44,6 +45,7 @@ export default function PassagensAereasPage() {
   const { toast } = useToast();
 
   const [data, setData] = useState<Passagem[]>([]);
+  const displayData = useMaskedData(data, 'passagens');
   const [loading, setLoading] = useState(true);
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState<Passagem | null>(null);
@@ -216,7 +218,7 @@ export default function PassagensAereasPage() {
       />
 
       <PassagensDashboard
-        data={data}
+        data={displayData}
         loading={loading}
         onEdit={editAllowed ? handleOpenEdit : undefined}
         onDelete={editAllowed ? setDeleteId : undefined}
