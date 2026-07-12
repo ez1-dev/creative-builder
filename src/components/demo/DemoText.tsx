@@ -23,3 +23,8 @@ export function DemoMoney({ value, format }: { value: number | null | undefined;
   const fmt = format ?? ((n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
   return <>{fmt(v)}</>;
 }
+
+export function DemoUnidade({ children }: { children: string | null | undefined }) {
+  const { maskUnidade } = useDemoMode();
+  return <>{maskUnidade(children ?? '')}</>;
+}
