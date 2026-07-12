@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemoMode } from '@/contexts/DemoModeContext';
 import AppLoadingScreen from '@/components/AppLoadingScreen';
 
 // Rotas que renderizam sua própria UI de fallback quando não autenticado/aprovado,
@@ -55,7 +56,9 @@ export default function AppLayout() {
     );
   }
 
-  const label = displayName || user?.email || '';
+  const { maskName, presentationActive } = useDemoMode();
+  const rawLabel = displayName || user?.email || '';
+  const label = presentationActive ? maskName('colaborador', rawLabel) : rawLabel;
 
   return (
     <SidebarProvider>
