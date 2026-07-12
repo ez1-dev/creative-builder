@@ -211,17 +211,18 @@ export default function ConfiguracoesPage() {
   const [logsPeriod, setLogsPeriod] = useState('7d');
   const [logsCount24h, setLogsCount24h] = useState(0);
 
-  // Carregar credenciais do banco
   useEffect(() => {
     const loadCredentials = async () => {
       const { data } = await supabase
         .from('app_settings')
         .select('key, value')
-        .in('key', ['erp_api_user', 'erp_api_pass', 'erp_api_url']);
+        .in('key', ['erp_api_user', 'erp_api_pass', 'erp_api_url', 'contabil_api_url']);
       const map = Object.fromEntries((data || []).map(s => [s.key, s.value]));
       setApiUser(map['erp_api_user'] || '');
       setApiPass(map['erp_api_pass'] || '');
       setApiUrl(map['erp_api_url'] || getApiUrl());
+      if (map['contabil_api_url']) setContabilBaseUrl(map['contabil_api_url']);
+      setContabilUrl(map['contabil_api_url'] || getContabilBaseUrl());
       setApiCredentialsLoading(false);
     };
     loadCredentials();
@@ -229,15 +230,19 @@ export default function ConfiguracoesPage() {
 
   const checkApi = useCallback(async () => {
     setApiStatus('checking');
-    try {
-      await fetch(getApiUrl(), { method: 'GET', signal: AbortSignal.timeout(5000), headers: { 'ngrok-skip-browser-warning': 'true' } });
-      setApiStatus('online');
-    } catch {
-      setApiStatus('offline');
-    }
+    const result = await pingErpHealth();
+    setApiLastResult(result);
+    setApiStatus(result.ok ? 'online' : 'offline');
   }, []);
 
-  useEffect(() => { checkApi(); }, [checkApi]);
+  const checkContabil = useCallback(async () => {
+    setContabilStatus('checking');
+    const result = await pingContabilHealth();
+    setContabilLastResult(result);
+    setContabilStatus(result.ok ? 'online' : 'offline');
+  }, []);
+
+  useEffect(() => { checkApi(); checkContabil(); }, [checkApi, checkContabil]);
 
   const fetchLogs = useCallback(async () => {
     setLogsLoading(true);
@@ -290,7 +295,7 @@ export default function ConfiguracoesPage() {
     }
     setApiBaseUrl(trimmed);
     setApiUrl(trimmed);
-    toast.success('URL da API atualizada para todos os usuários');
+    toast.success('URL da API ERP atualizada');
     checkApi();
   };
 
@@ -298,8 +303,34 @@ export default function ConfiguracoesPage() {
     await supabase.from('app_settings').delete().eq('key', 'erp_api_url');
     setApiBaseUrl('');
     setApiUrl(getApiUrl());
-    toast.success('URL restaurada para o padrão');
+    toast.success('URL do ERP restaurada para o padrão');
     checkApi();
+  };
+
+  const handleSaveContabilUrl = async () => {
+    const trimmed = contabilUrl.trim().replace(/\/+$/, '');
+    if (!trimmed) return;
+    if (/\/api\/contabil/i.test(trimmed)) {
+      toast.error('A URL base não deve incluir /api/contabil — informe apenas o domínio.');
+      return;
+    }
+    const { error } = await supabase.from('app_settings').upsert({ key: 'contabil_api_url', value: trimmed }, { onConflict: 'key' });
+    if (error) {
+      toast.error('Erro ao salvar URL da API contábil');
+      return;
+    }
+    setContabilBaseUrl(trimmed);
+    setContabilUrl(trimmed);
+    toast.success('URL da API contábil atualizada');
+    checkContabil();
+  };
+
+  const handleResetContabilUrl = async () => {
+    await supabase.from('app_settings').delete().eq('key', 'contabil_api_url');
+    setContabilBaseUrl(null);
+    setContabilUrl(getContabilBaseUrl());
+    toast.success('URL da API contábil restaurada para o padrão');
+    checkContabil();
   };
 
   // Dialog states
