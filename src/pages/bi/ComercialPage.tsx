@@ -560,32 +560,31 @@ export default function ComercialPage() {
       { key:'unidade_negocio', header:'Unidade', render:(_v,r)=> r.unidade_negocio ?? '' },
       { key:'cd_empresa', header:'Empresa', render:(_v,r)=> r.cd_empresa ?? '' },
       { key:'cd_filial', header:'Filial', render:(_v,r)=> r.cd_filial ?? '' },
-      { key:'cd_nf', header:'NF', render:(_v,r)=> r.cd_nf ?? '' },
+      { key:'cd_nf', header:'NF', render:(_v,r)=> maskDoc('nota', r.cd_nf) },
       { key:'cd_serie', header:'Série', render:(_v,r)=> r.cd_serie ?? '' },
       { key:'cd_tns', header:'TNS', render:(_v,r)=> r.cd_tns ?? '' },
       { key:'cd_tp_movimento', header:'Tipo Mov.', render:(_v,r)=> r.cd_tp_movimento ?? '' },
       { key:'cd_origem', header:'Origem', render:(_v,r)=> r.cd_origem ?? '' },
       { key:'cd_estado', header:'Estado', render:(_v,r)=> r.cd_estado ?? '' },
-      { key:'cliente_label', header:'Cliente', groupable: true, render:(_v,r:any)=> r.cliente_label ?? r.cd_cliente ?? '' },
+      { key:'cliente_label', header:'Cliente', groupable: true, render:(_v,r:any)=> maskName('cliente', r.cliente_label ?? r.cd_cliente ?? '') },
       { key:'cd_prj', header:'Obra', render:(_v,r)=> {
         const cd = String(r.cd_prj ?? '').trim();
         const ds = String(r.ds_abr_prj ?? '').trim();
-        if (!ds) return cd;
-        if (cd && ds.startsWith(cd)) return ds;
-        return cd ? `${cd} — ${ds}` : ds;
+        const label = !ds ? cd : (cd && ds.startsWith(cd) ? ds : (cd ? `${cd} — ${ds}` : ds));
+        return maskName('cliente', label);
       } },
-      { key:'cd_rev_pedido', header:'Revenda', render:(_v,r)=> r.cd_rev_pedido ?? '' },
-      { key:'vl_bruto', header:'Vl. Bruto', align:'right', summaryInGroupHeader: true, render:(_v,r)=> fmtCurNeg(n(r.vl_bruto)) },
-      { key:'vl_desconto', header:'Desconto', align:'right', render:(_v,r)=> fmtCurNeg(n(r.vl_desconto)) },
-      { key:'vl_impostos', header:'Impostos', align:'right', render:(_v,r)=> fmtCurNeg(n(r.vl_impostos)) },
-      { key:'vl_liquido', header:'Líquido', align:'right', summaryInGroupHeader: true, render:(_v,r)=> fmtCurNeg(n(r.vl_liquido)) },
-      { key:'vl_devolucao', header:'Devolução', align:'right', render:(_v,r)=> fmtCurNeg(n(r.vl_devolucao)) },
+      { key:'cd_rev_pedido', header:'Revenda', render:(_v,r)=> maskName('revenda', r.cd_rev_pedido ?? '') },
+      { key:'vl_bruto', header:'Vl. Bruto', align:'right', summaryInGroupHeader: true, render:(_v,r)=> fmtCurNeg(n(displayMoney(r.vl_bruto))) },
+      { key:'vl_desconto', header:'Desconto', align:'right', render:(_v,r)=> fmtCurNeg(n(displayMoney(r.vl_desconto))) },
+      { key:'vl_impostos', header:'Impostos', align:'right', render:(_v,r)=> fmtCurNeg(n(displayMoney(r.vl_impostos))) },
+      { key:'vl_liquido', header:'Líquido', align:'right', summaryInGroupHeader: true, render:(_v,r)=> fmtCurNeg(n(displayMoney(r.vl_liquido))) },
+      { key:'vl_devolucao', header:'Devolução', align:'right', render:(_v,r)=> fmtCurNeg(n(displayMoney(r.vl_devolucao))) },
       { key:'qtd_produtos', header:'Qtd. Produtos', align:'right', summaryInGroupHeader: true, render:(_v,r)=> fmtNumNeg(n(r.qtd_produtos)) },
     ];
     return unidade === 'ESTRUTURAL ZORTEA'
       ? cols.filter(c => c.key !== 'cd_rev_pedido')
       : cols;
-  }, [unidade]);
+  }, [unidade, maskCurrency, maskDoc, maskName]);
 
 
 
