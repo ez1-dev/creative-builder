@@ -3,7 +3,7 @@
  * Permite ao usuário configurar quais módulos, gráficos e dados serão ocultados/mascarados
  * para apresentar o produto a investidores.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -102,7 +102,7 @@ export function DemoModeSection() {
   const [newTo, setNewTo] = useState('');
 
   // Sincroniza local quando os prefs chegam do servidor.
-  useState(() => setLocal(prefs));
+  useEffect(() => { setLocal(prefs); }, [prefs]);
   if (loading) return <div className="p-6 text-sm text-muted-foreground">Carregando…</div>;
 
   const toggleModule = (path: string) => {
