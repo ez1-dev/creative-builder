@@ -176,6 +176,7 @@ function levelTitle(
 
 export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_negocio }: Props) {
   const cur = stack.current;
+  const { maskUnidade } = useDemoMode();
   const [selectorOpenInline, setSelectorOpenInline] = useState(false);
 
   const query = useQuery<DrillResponse>({
