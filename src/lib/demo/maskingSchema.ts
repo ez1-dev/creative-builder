@@ -35,6 +35,7 @@ export const MASKING_SCHEMAS: Record<string, FieldSpec> = {
     },
     docs: { cnpj: 'cnpj', cpf: 'cpf', cnpj_cpf: 'cnpj', nr_nota: 'nota', numero_nota: 'nota', nota_fiscal: 'nota' },
     money: ['vl_total', 'vl_liquido', 'vl_bruto', 'vl_faturado', 'vl_recebido', 'vl_meta', 'valor', 'valor_total', 'valor_liquido', 'total', 'ticket_medio'],
+    unidades: DEFAULT_UNIDADES,
   },
   frota: {
     names: {
