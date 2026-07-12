@@ -2,7 +2,7 @@
 // Todas as chamadas passam pelo ApiClient central (Authorization + ngrok header + base URL).
 // Rotas exclusivas: /api/contabil/*  (NÃO confundir com /api/contabilidade/*).
 
-import { api } from '@/lib/api';
+import { contabilApi as api } from '@/lib/contabil/contabilApi';
 import { describeDreStudioError } from './dreStudioErrors';
 import { isValidUuid } from './anomes';
 import type {
