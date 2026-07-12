@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import { getApiUrl, setApiBaseUrl } from '@/lib/api';
 import { formatDate } from '@/lib/format';
 import { PermissoesPorTelaPanel } from '@/components/configuracoes/PermissoesPorTelaPanel';
+import { DemoModeSection } from '@/components/configuracoes/DemoModeSection';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -734,6 +735,7 @@ export default function ConfiguracoesPage() {
       label: 'Pessoal',
       items: [
         { value: 'minhas-preferencias', label: 'Minhas Preferências', icon: Brain, description: 'Ajustes do seu usuário' },
+        { value: 'demo', label: 'Modo Demonstração', icon: EyeOff, description: 'Esconder módulos e mascarar dados' },
       ],
     },
   ];
