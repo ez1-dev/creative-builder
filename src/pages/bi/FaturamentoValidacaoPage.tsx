@@ -306,7 +306,7 @@ export default function FaturamentoValidacaoPage() {
     { key: 'vl_icms', header: 'VL ICMS', render: (_, r) => formatCurrency(num(r.vl_icms)), align: 'right' },
     { key: 'vl_pis', header: 'VL PIS', render: (_, r) => formatCurrency(num(r.vl_pis)), align: 'right' },
     { key: 'vl_cofins', header: 'VL COFINS', render: (_, r) => formatCurrency(num(r.vl_cofins)), align: 'right' },
-  ], []);
+  ], [maskUnidade]);
 
   const uniTecColumns: Column<UnidadeTecnicaRow>[] = useMemo(() => [
     { key: 'anomes_emissao', header: 'AnoMês', render: (_, r) => r.anomes_emissao ?? '-' },
