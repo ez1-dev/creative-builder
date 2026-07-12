@@ -1,77 +1,97 @@
 
 ## Objetivo
 
-Separar as duas APIs em bases independentes, com clientes HTTP, health checks, telemetria e configuração próprios, para que a indisponibilidade da API contábil deixe de derrubar o ERP e vice-versa.
+Trazer o pacote `DRE_Studio_5-2.zip` inteiro para dentro do portal como módulo nativo em Contabilidade, reaproveitando shell/menu/auth/tema/API client contábil já existentes. Nenhum projeto separado, nenhum router paralelo (TanStack Router do zip é descartado — usamos React Router do portal).
 
-- **API principal do ERP:** `VITE_ERP_API_URL` → padrão `https://api-erp-renato.ngrok.app`, health em `/health`.
-- **API contábil / DRE:** `VITE_CONTABIL_API_URL` → padrão `https://dreconfiguravel.ngrok.app`, health em `/api/contabil/health`.
+## Estrutura de rotas (todas em `src/pages/contabilidade/dre-studio/`)
 
-## Mudanças
+```
+/contabilidade/dre-studio                        → DreStudioIndex (lista de modelos + status API)
+/contabilidade/dre-studio/novo                   → DreStudioNovo (form + criar padrão Senior)
+/contabilidade/dre-studio/configuracoes          → DreStudioConfiguracoes
+/contabilidade/dre-studio/:id                    → layout com tabs
+    ├─ /estrutura                                → EstruturaTree + LinhaDialog + PlanoContasPanel
+    ├─ /orcamento                                → grade mensal editável
+    ├─ /visualizacao                             → resultado + drill + composição + cache
+    ├─ /conciliacao                              → DRE×Balanço + CC CC 106 + validação Senior
+    └─ /editar                                   → ModeloForm
+```
 
-### 1. Nova base contábil e cliente dedicado (`src/lib/contabil/contabilApi.ts` – novo)
+As rotas atuais (`modelos`, `modelo/novo`, `modelo/:id`, `orcamento/:id`, `resultado/:id`, `visao-geral`) são substituídas por essas novas. Redireciono as URLs antigas para as novas.
 
-Arquivo novo, isolado do `ApiClient` do ERP. Expõe:
+## Componentes portados (adaptados ao design system do portal)
 
-- `getContabilBaseUrl()` — resolve nesta ordem: valor salvo em `app_settings.contabil_api_url` (via `setContabilBaseUrl`, chamado no bootstrap do `AuthContext`), `import.meta.env.VITE_CONTABIL_API_URL`, fallback `https://dreconfiguravel.ngrok.app`. Nunca inclui `/api/contabil`.
-- `setContabilBaseUrl(url)` — grava em memória (mesmo padrão do `setApiBaseUrl`).
-- `contabilApiFetch<T>(endpoint, options?)` — anexa `Authorization: Bearer <token>` (reusa `api.getToken()`), header `ngrok-skip-browser-warning`, `Content-Type: application/json`, timeout de **15 s** via `AbortController`. Em erro, lança `Error` com `statusCode`, `dreKind` (`api_offline` / `timeout` / `auth` / `not_found` / `functional`), `urlTested`, `bodyText`.
-- Métodos `contabilApi.get/post/put/delete` no mesmo formato do `ApiClient`, para permitir substituição drop-in.
-- `pingContabilHealth()` — `GET /api/contabil/health` com timeout de 15 s, retorna `{ ok, status, urlTested, details }`.
+Todos vão para `src/components/dre-studio/`, substituindo os arquivos atuais quando houver equivalente:
 
-### 2. Redirecionar chamadas contábeis
+- `ApiOfflineBanner` → funde com `DreHealthBanner` existente (mantém dados técnicos: URL testada, status, detalhes).
+- `EstruturaTree`, `LinhaDialog`, `PlanoContasPanel`, `MoneyCell`, `MonthPicker`, `ContasBadge`, `FonteSaldoBadge`.
+- `ComposicaoDREDialog`, `DrillDrawer`, `HistoricoCacheDialog`, `MaterializacaoDialog`, `ResultadoExercicioDialog`.
+- `ConciliacaoDREBalancoPanel`, `ConciliacaoCCCC106Table`, `ConciliacaoSeniorMensalTable`, `ImportarCCCC106Dialog`, `ValidacaoCCCC106`.
+- `CriarDREPadraoDialog`, `CriarBalancoPadraoSeniorDialog`, `PendenciasCtaredZeroPanel`.
+- `ModeloForm`, `ConnectionStatus` (mini indicador no header do módulo).
 
-- `src/lib/contabil/dreStudioApi.ts` — trocar `import { api }` por `import { contabilApi as api }`. Nenhuma outra alteração — as constantes de rota (`/api/contabil/...`) já batem.
-- `src/lib/bi/dreConfiguravelApi.ts` — mesma troca (usa `/api/contabil/realizado/resumo` e `/api/contabil/modelos`).
-- `src/lib/bi/dreErrors.ts` — `useDreApiHealth` passa a apontar para `getContabilBaseUrl() + /api/contabil/health` em vez de `getApiUrl() + /openapi.json`.
-- `src/hooks/contabil/useDreStudio.ts` — o hook `useDreStudioHealth` continua chamando `fetchDreHealth()` do `dreStudioApi`, que já vai pelo novo cliente. Ajustar apenas o `queryKey` para incluir a base contábil (invalidação ao trocar URL).
+Ajustes obrigatórios: remover imports de `sonner` direto (usar `useToast` do portal); trocar `Link`/`useNavigate` do TanStack por React Router; usar tokens semânticos do design system (nunca `bg-white`, `text-black`); usar `Sidebar` do portal (não recriar shell).
 
-### 3. Banner contábil (`src/components/dre-studio/DreHealthBanner.tsx`)
+## Hooks e API
 
-Passar a exibir, em caso de falha, um bloco técnico com **URL testada**, **status HTTP** (ou `timeout`/`network`) e **detalhes** retornados. Textos:
+- Novos hooks em `src/hooks/contabil/`: `useCCCC106`, `useConciliacaoSeniorMensal`, `useCriarDREPadrao`, `useCriarBalancoPadraoSenior`, `useVincularContasDRESenior`, `useVincularContasBalancoSenior`, `useHistoricoCache`, `useSnapshots`, `usePendenciasCtaredZero`, `useReferenciaSenior`, `useAgendamentosContabeis`.
+- `useDreStudio.ts` existente é ampliado (não substituído): novas queries reaproveitam `contabilApi` de `src/lib/contabil/contabilApi.ts` (já independente do ERP, timeout 15s, header ngrok, base `dreconfiguravel.ngrok.app`).
+- `src/lib/contabil/dreStudioApi.ts` ganha wrappers para os novos endpoints (mantém tratamento `dreKind` para 404/timeout/rede/501).
+- `src/lib/contabil/estruturasPadrao.ts` (novo): árvores DRE e Balanço padrão Senior offline (fallback quando `/api/contabil/estrutura-padrao` estiver 404), permitindo que o usuário ao menos visualize a árvore proposta.
 
-- `api_offline` / `timeout` / rede → “API contábil indisponível”.
-- `404` / `not_found` → “Endpoint /api/contabil/health não encontrado — verifique se o backend contábil está publicado”.
-- `500` → mensagem do payload.
+## Endpoints consumidos (novos)
 
-Mantém o caso `erp_offline` (banco Senior) que vem do payload do próprio `/api/contabil/health`.
+Adicionar ao `docs/backend-dre-studio-endpoints.md`:
 
-### 4. Bootstrap (`src/contexts/AuthContext.tsx`)
+```
+POST   /api/contabil/modelos/criar-padrao              body: { tipo, codemp, vincular_contas?: bool }
+GET    /api/contabil/cache/execucoes?modelo_id
+GET    /api/contabil/cache/periodos-status?modelo_id&anomes_ini&anomes_fim
+GET    /api/contabil/snapshots?modelo_id
+POST   /api/contabil/snapshots                         (materializa período)
+GET    /api/contabil/cccc106/senior?codemp&anomes_ini&anomes_fim
+POST   /api/contabil/cccc106/importar                  multipart CSV/XLSX
+GET    /api/contabil/cccc106/conciliacao?modelo_id&anomes_ini&anomes_fim
+GET    /api/contabil/diagnostico/ctared-zero?codemp&anomes_ini&anomes_fim
+GET    /api/contabil/referencia-senior?tipo
+POST   /api/contabil/referencia-senior/replicar        body: { modelo_id }
+POST   /api/contabil/referencia-senior/validar         body: { modelo_id }
+GET    /api/contabil/agendamentos
+```
 
-Ampliar o `loadCredentials` para ler também `contabil_api_url` de `app_settings` e chamar `setContabilBaseUrl(...)`. Não altera o carregamento de `erp_api_url`.
+Enquanto não publicados: `describeDreStudioError` marca `endpoint_indisponivel` e cada painel exibe placeholder amigável (banner técnico + botão "reexecutar"), sem quebrar a página.
 
-### 5. Configurações (`src/pages/ConfiguracoesPage.tsx`)
+## Menu lateral
 
-Na aba onde hoje há a URL da API ERP, adicionar um **segundo bloco** para a API contábil:
+Em `AppSidebar.tsx`, sub-grupo "DRE Studio" (dentro de Contabilidade) volta a ser visível com itens:
+- Modelos (index)
+- Novo modelo
+- Configurações
+- Conciliação DRE × Balanço (link contextual — abre último modelo aberto ou primeiro ativo)
+- Reprocessamentos / cache
 
-- Campo “URL da API contábil / DRE” + botões **Salvar** e **Testar conexão** independentes.
-- Estado `ApiStatus = { erp, contabil }` com valores `online | offline | checking`.
-- Botão “Testar conexão” do ERP: `GET ${ERP}/health` com timeout 15 s.
-- Botão “Testar conexão” da contábil: `pingContabilHealth()`.
-- Em caso de erro, exibir card com URL testada, status HTTP e detalhes brutos (sem trocar por mensagem genérica).
-- Persistência em `app_settings.contabil_api_url` (upsert) + reset para padrão (delete).
+Item bloqueado apenas por permissão (mesma flag já usada por Contabilidade). O banner técnico continua alertando 404 mas o menu permanece.
 
-### 6. Sem mudança
+## Design system e comportamento
 
-- `ApiClient` principal (`src/lib/api.ts`) continua exatamente como está. Nenhum módulo não-contábil é afetado.
-- Nenhum mock, nenhum dado fictício, nenhuma remoção de endpoint real. Autenticação, permissões e layout intactos.
-- Nenhuma referência a `localhost` / `127.0.0.1` é adicionada — os defaults são os domínios ngrok informados.
+- Cores/typografia dos componentes portados são reescritas para tokens (`bg-card`, `text-foreground`, `border-border`, `text-muted-foreground` etc.) — sem cor hardcoded.
+- Tema claro/escuro respeitado automaticamente.
+- Notificações via `useToast` do portal, não `sonner`.
+- Logs de navegação: cada rota nova é registrada em `screenCatalog.ts` para o `navegacaoLogger` capturar.
+- Autenticação/permissões: rotas envolvidas pelo `AuthGuard` já usado pelas demais páginas de Contabilidade.
 
-### 7. Variáveis de ambiente
+## Testes / verificação
 
-`.env` é auto-gerado e não pode ser tocado. Documentar no relatório final (e via defaults no código) que o operador pode definir `VITE_ERP_API_URL` e `VITE_CONTABIL_API_URL` em builds locais; em produção a URL contábil também pode ser editada pela tela Configurações e sobrescreve o env.
+- `tsgo` em todos os arquivos novos e alterados.
+- Playwright: abrir `/contabilidade/dre-studio`, `/novo`, `/configuracoes`, `/:id/estrutura`, `/:id/conciliacao`, `/:id/visualizacao`; verificar que o banner técnico aparece com URL + status HTTP; screenshot de cada tela em modo claro e escuro; validar que `/health` do ERP continua isolado (falha do contábil não deixa o portal offline).
 
-## Arquivos afetados
+## Relatório final (será entregue ao concluir)
 
-- **novo** `src/lib/contabil/contabilApi.ts`
-- edit `src/lib/contabil/dreStudioApi.ts` (troca de import)
-- edit `src/lib/bi/dreConfiguravelApi.ts` (troca de import)
-- edit `src/lib/bi/dreErrors.ts` (health aponta para contábil)
-- edit `src/hooks/contabil/useDreStudio.ts` (queryKey inclui base contábil)
-- edit `src/components/dre-studio/DreHealthBanner.tsx` (detalhes técnicos)
-- edit `src/contexts/AuthContext.tsx` (carrega `contabil_api_url`)
-- edit `src/pages/ConfiguracoesPage.tsx` (segundo campo + teste independente)
+Arquivos criados, arquivos alterados, rotas adicionadas, itens de menu, permissões utilizadas, endpoints consumidos, referências antigas removidas, endpoints não encontrados (404), funcionalidades desabilitadas por falta de endpoint, resultado do `tsgo`, resultado dos testes Playwright, pendências.
 
-## Verificação
+## O que NÃO será feito
 
-- `tsgo` nos arquivos alterados.
-- Playwright: abrir `/configuracoes`, disparar “Testar conexão” em cada API, capturar screenshot do card de erro com URL/status/detalhes; abrir `/contabilidade/dre-studio/modelos` e conferir que o banner mostra dados técnicos quando a API contábil responder 404/timeout.
+- Não trago `router.tsx`, `routeTree.gen.ts`, `server.ts`, `start.ts`, `__root.tsx` do zip (TanStack Start). O portal usa React Router — descartados.
+- Não duplico componentes `ui/*` — reuso os do portal.
+- Não crio novo cliente HTTP — reuso `contabilApi` já configurado.
+- Não toco em `.env`, cliente Supabase, ou API principal do ERP.

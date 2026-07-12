@@ -171,9 +171,15 @@ const GROUPS: Group[] = [
       { title: 'Balanço', url: '/contabilidade/balanco', icon: Landmark },
     ],
     subGroups: [
-      // DRE Studio oculto do menu enquanto os endpoints /api/contabil/* não são publicados no backend.
-      // Rotas continuam registradas em App.tsx; ver docs/backend-dre-studio-endpoints.md.
-
+      {
+        id: 'ctrl-dre-studio',
+        label: 'DRE Studio',
+        items: [
+          { title: 'Modelos', url: '/contabilidade/dre-studio', icon: Landmark },
+          { title: 'Novo modelo', url: '/contabilidade/dre-studio/novo', icon: FileCheck },
+          { title: 'Configurações contábeis', url: '/contabilidade/dre-studio/configuracoes', icon: Cog },
+        ],
+      },
       {
         id: 'ctrl-dre',
         label: 'DRE (outros)',
