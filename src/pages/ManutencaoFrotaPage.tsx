@@ -43,6 +43,7 @@ export default function ManutencaoFrotaPage() {
   const { toast } = useToast();
 
   const [data, setData] = useState<ManutencaoFrota[]>([]);
+  const displayData = useMaskedData(data, 'frota');
   const [loading, setLoading] = useState(true);
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState<ManutencaoFrota | null>(null);
@@ -195,7 +196,7 @@ export default function ManutencaoFrotaPage() {
       />
 
       <FrotaDashboard
-        data={useMaskedData(data, 'frota')}
+        data={displayData}
         loading={loading}
         onEdit={editAllowed ? handleOpenEdit : undefined}
         onDelete={deleteAllowed ? setDeleteId : undefined}
