@@ -74,6 +74,12 @@ import DreConfiguracaoPage from "@/pages/bi/contabilidade/DreConfiguracaoPage";
 import DreDinamicaPage from "@/pages/bi/contabilidade/DreDinamicaPage";
 import DreMontadorPage from "@/pages/bi/contabilidade/DreMontadorPage";
 import DreConfiguravelPainelPage from "@/pages/bi/financeiro/DreConfiguravelPainelPage";
+import DreStudioVisaoGeralPage from "@/pages/contabilidade/dre-studio/DreStudioVisaoGeralPage";
+import DreStudioModelosPage from "@/pages/contabilidade/dre-studio/DreStudioModelosPage";
+import DreStudioModeloNovoPage from "@/pages/contabilidade/dre-studio/DreStudioModeloNovoPage";
+import DreStudioModeloEditorPage from "@/pages/contabilidade/dre-studio/DreStudioModeloEditorPage";
+import DreStudioOrcamentoPage from "@/pages/contabilidade/dre-studio/DreStudioOrcamentoPage";
+import DreStudioResultadoPage from "@/pages/contabilidade/dre-studio/DreStudioResultadoPage";
 import RegrasSeniorDashboardPage from "@/pages/regras-senior/RegrasSeniorDashboardPage";
 import RegrasListPage from "@/pages/regras-senior/RegrasListPage";
 import RegraNovaPage from "@/pages/regras-senior/RegraNovaPage";
@@ -177,6 +183,13 @@ const App = () => (
               <Route path="/bi/contabilidade/dre-dinamica" element={<ProtectedRoute path="/bi/contabilidade/dre-dinamica"><DreDinamicaPage /></ProtectedRoute>} />
               <Route path="/bi/contabilidade/dre-dinamica/montador" element={<ProtectedRoute path="/bi/contabilidade/dre-dinamica/montador"><DreMontadorPage /></ProtectedRoute>} />
               <Route path="/bi/financeiro/dre-configuravel" element={<ProtectedRoute path="/bi/financeiro/dre-configuravel"><DreConfiguravelPainelPage /></ProtectedRoute>} />
+              {/* DRE Studio */}
+              <Route path="/contabilidade/dre-studio" element={<ProtectedRoute path="/contabilidade/dre-studio"><DreStudioVisaoGeralPage /></ProtectedRoute>} />
+              <Route path="/contabilidade/dre-studio/modelos" element={<ProtectedRoute path="/contabilidade/dre-studio"><DreStudioModelosPage /></ProtectedRoute>} />
+              <Route path="/contabilidade/dre-studio/modelos/novo" element={<ProtectedRoute path="/contabilidade/dre-studio"><DreStudioModeloNovoPage /></ProtectedRoute>} />
+              <Route path="/contabilidade/dre-studio/modelos/:modeloId" element={<ProtectedRoute path="/contabilidade/dre-studio"><DreStudioModeloEditorPage /></ProtectedRoute>} />
+              <Route path="/contabilidade/dre-studio/orcamento" element={<ProtectedRoute path="/contabilidade/dre-studio"><DreStudioOrcamentoPage /></ProtectedRoute>} />
+              <Route path="/contabilidade/dre-studio/resultado" element={<ProtectedRoute path="/contabilidade/dre-studio"><DreStudioResultadoPage /></ProtectedRoute>} />
               {/* Regras Senior */}
               <Route path="/regras-senior" element={<ProtectedRoute path="/regras-senior"><RegrasSeniorDashboardPage /></ProtectedRoute>} />
               <Route path="/regras-senior/regras" element={<ProtectedRoute path="/regras-senior/regras"><RegrasListPage /></ProtectedRoute>} />
