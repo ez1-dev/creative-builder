@@ -39,7 +39,7 @@ export function MultiSelectFilter({ label, options, value, onChange, placeholder
   const display = selected.length === 0
     ? (placeholder ?? 'Selecionar...')
     : selected.length <= 2
-      ? selected.join(', ')
+      ? selected.map(s => renderLabel ? renderLabel(s) : s).join(', ')
       : `${selected.length} selecionados`;
 
   return (
