@@ -74,7 +74,7 @@ export function MultiSelectFilter({ label, options, value, onChange, placeholder
                   return (
                     <CommandItem key={opt} value={opt} onSelect={() => toggle(opt)} className="text-xs">
                       <Check className={cn('mr-2 h-3.5 w-3.5', checked ? 'opacity-100' : 'opacity-0')} />
-                      {opt}
+                      {renderLabel ? renderLabel(opt) : opt}
                     </CommandItem>
                   );
                 })}
