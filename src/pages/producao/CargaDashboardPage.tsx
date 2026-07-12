@@ -59,6 +59,7 @@ interface DrillCtx {
 
 export default function CargaDashboardPage() {
   const qc = useQueryClient();
+  const { maskUnidade } = useDemoMode();
   const [filtros, setFiltros] = useState<CargaFiltros>({
     codemp: 1,
     data_ini: primeiroDiaMes(),
