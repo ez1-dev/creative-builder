@@ -167,7 +167,7 @@ export default function ManutencaoMaquinasPage() {
       />
 
       <MaquinasDashboard
-        data={data} loading={loading}
+        data={displayData} loading={loading}
         onEdit={editAllowed ? handleOpenEdit : undefined}
         onDelete={editAllowed ? setDeleteId : undefined}
       />
