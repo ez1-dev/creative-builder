@@ -310,7 +310,7 @@ export default function FaturamentoValidacaoPage() {
 
   const uniTecColumns: Column<UnidadeTecnicaRow>[] = useMemo(() => [
     { key: 'anomes_emissao', header: 'AnoMês', render: (_, r) => r.anomes_emissao ?? '-' },
-    { key: 'unidade_negocio', header: 'Unidade', render: (_, r) => r.unidade_negocio ?? '-' },
+    { key: 'unidade_negocio', header: 'Unidade', render: (_, r) => maskUnidade(r.unidade_negocio ?? '-') },
     { key: 'fonte_acao', header: 'Fonte Ação', render: (_, r) => r.fonte_acao ?? 'SEM_FONTE' },
     { key: 'cd_tp_movimento', header: 'Tp Mov', render: (_, r) => r.cd_tp_movimento ?? '-' },
     { key: 'cd_origem', header: 'Origem', render: (_, r) => r.cd_origem ?? '-' },
