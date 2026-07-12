@@ -276,8 +276,8 @@ export default function RelatorioExecutivoFaturamentoPage() {
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="CONSOLIDADO">Consolidado</SelectItem>
-                      <SelectItem value="GENIUS">GENIUS</SelectItem>
-                      <SelectItem value="ESTRUTURAL ZORTEA">ESTRUTURAL ZORTEA</SelectItem>
+                      <SelectItem value="GENIUS">{maskUnidade('GENIUS')}</SelectItem>
+                      <SelectItem value="ESTRUTURAL ZORTEA">{maskUnidade('ESTRUTURAL ZORTEA')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
