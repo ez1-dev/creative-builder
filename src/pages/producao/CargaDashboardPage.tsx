@@ -198,8 +198,8 @@ export default function CargaDashboardPage() {
 
   const openUnidade = (un: string) => {
     openDrill({
-      title: `Unidade · ${un}`,
-      chips: [...baseChips(), { label: 'Unidade', value: un }],
+      title: `Unidade · ${maskUnidade(un)}`,
+      chips: [...baseChips(), { label: 'Unidade', value: maskUnidade(un) }],
       ctx: { filtros: { ...filtros, unidade_negocio: un } },
     });
   };
