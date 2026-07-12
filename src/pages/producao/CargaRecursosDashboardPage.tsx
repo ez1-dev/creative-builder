@@ -175,7 +175,7 @@ export default function CargaRecursosDashboardPage() {
       ctx: { filtros },
     });
   const openUnidade = (un: string) =>
-    openDrill({ title: `Unidade · ${un}`, chips: [...baseChips(), { label: 'Unidade', value: un }], ctx: { filtros: { ...filtros, unidade_negocio: un } } });
+    openDrill({ title: `Unidade · ${maskUnidade(un)}`, chips: [...baseChips(), { label: 'Unidade', value: maskUnidade(un) }], ctx: { filtros: { ...filtros, unidade_negocio: un } } });
   const openTipo = (tp: string) =>
     openDrill({ title: `Tipo · ${tp}`, chips: [...baseChips(), { label: 'Tipo', value: tp }], ctx: { filtros: { ...filtros, tipo_recurso: tp } } });
   const openCcu = (ccu: string) => {
