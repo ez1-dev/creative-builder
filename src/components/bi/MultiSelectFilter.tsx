@@ -17,7 +17,7 @@ interface MultiSelectFilterProps {
   renderLabel?: (opt: string) => string;
 }
 
-export function MultiSelectFilter({ label, options, value, onChange, placeholder }: MultiSelectFilterProps) {
+export function MultiSelectFilter({ label, options, value, onChange, placeholder, renderLabel }: MultiSelectFilterProps) {
   const [open, setOpen] = useState(false);
   const selected = useMemo(
     () => (value ? value.split(',').map(s => s.trim()).filter(Boolean) : []),
