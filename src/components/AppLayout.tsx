@@ -13,6 +13,7 @@ import { HeaderInfo } from '@/components/HeaderInfo';
 import { AiAssistantChat } from '@/components/erp/AiAssistantChat';
 import { UpdateNotifier } from '@/components/UpdateNotifier';
 import { DemoBadge } from '@/components/DemoBadge';
+import { PresentationToggle } from '@/components/PresentationToggle';
 import { useTvMode } from '@/hooks/useTvMode';
 import packageJson from '../../package.json';
 
