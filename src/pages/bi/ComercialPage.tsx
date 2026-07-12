@@ -92,6 +92,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { getEffectiveTheme, getBgOverride, setBgOverride, clearBgOverride, SUGGESTED_BG_COLORS } from './comercialTheme';
 import { AnomesSelect } from '@/components/bi/comercial/AnomesSelect';
+import { useDemoMode } from '@/contexts/DemoModeContext';
 
 const n = (v: any) => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
 const UNIDADES: UnidadeNegocio[] = ['CONSOLIDADO', 'GENIUS', 'ESTRUTURAL ZORTEA'];
@@ -105,6 +106,13 @@ const ERR_MSG = 'Não foi possível carregar os dados do BI Comercial';
 const ERR_DRILL = 'Não foi possível carregar os dados do drill';
 const EMPTY_MSG = 'Sem dados para o período selecionado';
 const PAGE_KEY = 'bi-comercial';
+const COMERCIAL_MONEY_KEYS = [
+  'faturamento', 'faturamento_bruto', 'faturamento_liquido', 'realizado',
+  'fat_bruto', 'fat_liquido', 'vl_meta', 'meta', 'diferenca', 'vl_diferenca',
+  'impostos', 'devolucao', 'ticket_medio', 'preco_medio', 'vl_total',
+  'vl_bruto', 'vl_desconto', 'vl_impostos', 'vl_liquido', 'vl_devolucao',
+  'liquido', 'valor_total', 'total_impostos',
+] as const;
 
 const normalizeAnomes = (value: unknown) => String(value ?? '').replace(/\D/g, '').slice(0, 6);
 
@@ -179,6 +187,7 @@ function Clickable({ children, onClick, className, title }: { children: ReactNod
 
 
 export default function ComercialPage() {
+  const { maskCurrency, maskName, maskDoc } = useDemoMode();
   const [draft, setDraft] = useState<{ anomes_ini: string; anomes_fim: string; unidade_negocio: UnidadeNegocio }>({
     anomes_ini: '202601', anomes_fim: '202606', unidade_negocio: 'GENIUS',
   });
