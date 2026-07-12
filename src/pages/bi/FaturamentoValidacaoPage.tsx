@@ -321,7 +321,7 @@ export default function FaturamentoValidacaoPage() {
     { key: 'vl_icms', header: 'VL ICMS', render: (_, r) => formatCurrency(num(r.vl_icms)), align: 'right' },
     { key: 'vl_pis', header: 'VL PIS', render: (_, r) => formatCurrency(num(r.vl_pis)), align: 'right' },
     { key: 'vl_cofins', header: 'VL COFINS', render: (_, r) => formatCurrency(num(r.vl_cofins)), align: 'right' },
-  ], []);
+  ], [maskUnidade]);
 
   const totalPaginas = qDet.data ? Math.max(1, Math.ceil(qDet.data.total / pageSize)) : 1;
 
