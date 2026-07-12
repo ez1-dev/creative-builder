@@ -17,7 +17,11 @@ export interface FieldSpec {
   docs?: Partial<Record<string, MaskDocKind>>;
   money?: string[];
   text?: string[];
+  /** Campos que carregam o rótulo da Unidade de Negócio (GENIUS, ESTRUTURAL ZORTEA, etc.). */
+  unidades?: string[];
 }
+
+const DEFAULT_UNIDADES = ['unidade_negocio', 'unidadeNegocio', 'projeto_macro', 'projetoMacro', 'un', 'bu'];
 
 /** Especificações por "schemaKey" — use o nome curto do módulo. */
 export const MASKING_SCHEMAS: Record<string, FieldSpec> = {
