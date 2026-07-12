@@ -70,7 +70,7 @@ export function ProgramacaoFiltersBar({ filtros, onChange, onRefresh, loading, s
           <Label className="text-xs">Unidade</Label>
           <Select value={filtros.unidade_negocio || 'TODOS'} onValueChange={(v) => set({ unidade_negocio: v === 'TODOS' ? undefined : v })}>
             <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>{UNIDADES.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
+            <SelectContent>{UNIDADES.map((u) => <SelectItem key={u} value={u}>{u === 'TODOS' ? u : maskUnidade(u)}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div>
