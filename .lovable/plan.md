@@ -1,70 +1,171 @@
-## Integração da DRE Configurável à API principal (`/api/contabil/*`)
+## Objetivo
 
-Migrar todas as chamadas do frontend da DRE Configurável da rota antiga `/api/dre/*` para as novas rotas `/api/contabil/*` servidas pela mesma API ERP (porta 8070, `VITE_API_BASE_URL`).
+Incorporar o **DRE Studio** (do ZIP anexado) como módulo nativo do portal, reutilizando layout, sidebar, autenticação, permissões, cliente HTTP e tema — sem app paralela, sem novo login, sem porta 8090, consumindo apenas `/api/contabil/*` via `VITE_API_BASE_URL`.
 
-### Diagnóstico
-Busca no repositório mostrou que **nenhuma** URL antiga hardcoded (`8090`, `dreconfiguravel.ngrok`, `VITE_DRE_API_URL`) permanece — todas as chamadas já passam por `getApiUrl()`/`api.*` que resolve `VITE_API_BASE_URL`. Portanto o único trabalho é **renomear o prefixo dos endpoints**, além de padronizar tratamento de erros e adicionar a checagem inicial de saúde.
+## Análise já feita
 
-Arquivos afetados (apenas os que chamam `/api/dre/*` — DRE Configurável):
-- `src/lib/bi/dreConfiguravelApi.ts` — painel realizado + listagem de modelos.
-- `src/lib/bi/dreMontadorModelosApi.ts` — CRUD de modelos e linhas do montador.
-- `src/components/bi/financeiro/DreMensalTable.tsx` — só um comentário `TODO` com URL antiga.
-- `src/pages/bi/financeiro/DreConfiguravelPainelPage.tsx` — texto de rodapé documentando as rotas.
+- **ZIP**: 5 rotas (`dre.index`, `dre.novo`, `dre.modelo.$id.{editar,estrutura,orcamento,visualizacao,conciliacao}`) + ~25 componentes contábeis (`EstruturaTree`, `LinhaDialog`, `PlanoContasPanel`, `DrillDrawer`, `ComposicaoDREDialog`, `MonthPicker`, `MoneyCell`, `CriarDREPadraoDialog`, `CriarBalancoPadraoSeniorDialog`, `ApiOfflineBanner` etc.), tipagem completa em `types/contabil.ts` e cliente `lib/contabilApi.ts` já apontando para `/api/contabil/*`.
+- **Portal atual**: rotas React Router em `src/App.tsx` protegidas por `<ProtectedRoute path=…>`; menu em `src/components/AppSidebar.tsx`; cliente HTTP central `src/lib/api.ts` (já envia `Authorization` e `ngrok-skip-browser-warning`); permissões via `useUserPermissions` + tabela `screen_permissions`. Já existe `DreConfiguravelPainelPage` consumindo `/api/contabil/{modelos,realizado/resumo}`, mas sem editor, orçamento nem gerenciamento de modelos.
 
-**Não** serão alteradas:
-- `/api/contabilidade/*` (contabilidade legada — balanço patrimonial etc.).
-- `/api/bi/contabilidade/*` (DRE Dinâmica antiga, plano de contas, drills, sincronizações). Explicitamente fora do escopo pedido pelo usuário.
-- `/api/erp/plano-contas` e demais rotas ERP compartilhadas.
+## Escopo (o que será construído)
 
-### 1. Renomear endpoints `/api/dre/*` → `/api/contabil/*`
+### 1. Novas rotas (React Router, dentro de `AppLayout`)
 
-| Antigo | Novo |
-| --- | --- |
-| `GET /api/dre/modelos` | `GET /api/contabil/modelos` |
-| `POST /api/dre/modelos` | `POST /api/contabil/modelos` |
-| `PATCH /api/dre/modelos/{id}` | `PATCH /api/contabil/modelos/{id}` |
-| `GET /api/dre/linhas?modelo_id=` | `GET /api/contabil/linhas?modelo_id=` |
-| `POST /api/dre/linhas` | `POST /api/contabil/linhas` |
-| `PATCH /api/dre/linhas/{id}` | `PATCH /api/contabil/linhas/{id}` |
-| `DELETE /api/dre/linhas/{id}` | `DELETE /api/contabil/linhas/{id}` |
-| `GET /api/dre/realizado/resumo` | `GET /api/contabil/realizado/resumo` |
-| `GET /api/dre/realizado/contas` (TODO) | `GET /api/contabil/realizado/contas` |
+```
+/contabilidade/dre-studio                       → Visão Geral (KPIs + gráficos)
+/contabilidade/dre-studio/modelos               → Listagem de modelos
+/contabilidade/dre-studio/modelos/novo          → Criação (vazio / padrão DRE / padrão Balanço)
+/contabilidade/dre-studio/modelos/:modeloId     → Editor (3 painéis: árvore | linha | contas)
+/contabilidade/dre-studio/orcamento             → Grade mensal de orçamento
+/contabilidade/dre-studio/resultado             → Tabela hierárquica realizado x orçado
+```
 
-Atualizar também os textos/logs (`console.log('[DRE CONFIGURAVEL] GET /api/dre/...')`) e o parágrafo informativo em `DreConfiguravelPainelPage.tsx` para refletirem `/api/contabil/*`.
+Todas envoltas em `<ProtectedRoute path="/contabilidade/dre-studio">`. A rota antiga `/bi/financeiro/dre-configuravel` permanece intacta.
 
-### 2. Padronização de erros da DRE
-Criar helper `src/lib/bi/dreErrors.ts` com `describeDreError(err)` que retorna a mensagem final a exibir, aplicando esta ordem:
+### 2. Menu lateral (`AppSidebar.tsx`)
 
-1. `err.response?.data?.detail` ou `err.detail`
-2. `err.response?.data?.message` ou `err.message`
-3. Diagnóstico por sintoma:
-   - `TypeError`/`Failed to fetch`/timeout na chamada principal → **"Não foi possível acessar a API contábil. Verifique se a API ERP está em execução na porta 8070."**
-   - Mensagem contém `172.16.137.100:1433`, `timeout SQL`, `pymssql`, `pyodbc`, `SQL Server` → **"A API está online, mas não conseguiu acessar o banco do ERP. Verifique a VPN ou a conexão com o servidor Senior."**
-   - HTTP 404 → **"Rota da DRE não encontrada na API principal. Verifique se a versão integrada do backend foi reiniciada."**
-4. Fallback: mensagem original.
+Novo grupo sob o item **Contabilidade** já existente (ou criado se ausente):
 
-Aplicar em:
-- `dreConfiguravelApi.ts` (substitui o `rethrowAuthAware` — 401 continua tratado).
-- `dreMontadorModelosApi.ts` (wrap em `call()`).
-- Chamadas de `useQuery`/mutations nas telas: `DreConfiguravelPainelPage` e diálogos `ModeloFormDialog`/`LinhaFormDialog` — usar `describeDreError` no `onError`/`ErrorState`.
+```
+Contabilidade
+└── DRE Studio
+    ├── Visão Geral
+    ├── Modelos
+    ├── Orçamento
+    └── Resultado
+```
 
-### 3. Health check inicial
-Criar hook `useDreApiHealth()` em `src/lib/bi/dreErrors.ts` (ou arquivo adjacente) que, ao montar telas da DRE, faz `GET ${VITE_API_BASE_URL}/openapi.json` uma vez por sessão (com `staleTime` grande). Se falhar por rede → mostra banner "API contábil offline"; se responder → considera API OK. Uma falha subsequente em rota de dados que seja de banco não deve derrubar o banner (mensagens distintas).
+Sem duplicar entradas antigas de DRE.
 
-Aplicar o banner no topo de `DreConfiguravelPainelPage` e nas telas de configuração (`DreConfiguracaoPage`, `DreDinamicaPage` continuam usando rotas antigas — mas o banner só aparece quando a checagem falha, então não bloqueia).
+### 3. Estrutura de arquivos novos
 
-### 4. Cliente HTTP com token opcional
-`authHeaders()` já envia `Authorization` apenas se `api.getToken()` existir — comportamento correto. Manter como está; validar nos dois arquivos.
+```
+src/pages/contabilidade/dre-studio/
+  DreStudioVisaoGeralPage.tsx
+  DreStudioModelosPage.tsx
+  DreStudioModeloNovoPage.tsx
+  DreStudioModeloEditorPage.tsx
+  DreStudioOrcamentoPage.tsx
+  DreStudioResultadoPage.tsx
 
-### 5. Verificação
-- Rodar `rg` após as mudanças para confirmar zero ocorrências de `/api/dre/` em `src`.
-- Playwright: abrir `/bi/financeiro/dre-configuravel-painel`, aguardar `openapi.json`, disparar filtros e conferir que as requisições vão para `/api/contabil/modelos`, `/api/contabil/linhas`, `/api/contabil/realizado/resumo` via Network. Capturar screenshot.
+src/components/dre-studio/
+  DreFilters.tsx           (empresa/filial/modelo/período/centro custo)
+  DreHealthBanner.tsx      (usa GET /api/contabil/health)
+  DreKpiCards.tsx
+  DreResultTable.tsx       (hierárquica, colapsável, coluna fixa)
+  DreModelTree.tsx         (árvore + drag opcional — só usa PUT ordem)
+  DreLineForm.tsx          (formulário completo da linha)
+  DreAccountSelector.tsx   (busca no plano de contas com filtros)
+  DreLinkedAccounts.tsx    (lista + desvincular)
+  DreBudgetGrid.tsx        (12 meses + total, copiar/distribuir/limpar)
+  DreDrillDialog.tsx       (desabilitado se endpoint ausente)
 
-### Fora de escopo
-- Não mexer em `/api/contabilidade/*` nem `/api/bi/contabilidade/*`.
-- Não criar variável de ambiente exclusiva para DRE.
-- Não expor `SUPABASE_SERVICE_ROLE_KEY`/credenciais SQL no frontend (já não estão).
-- Sem alterações em tabelas do Cloud/Supabase.
+src/lib/contabil/
+  dreStudioApi.ts          (todos os endpoints /api/contabil/*, via `api` central)
+  dreStudioTypes.ts        (portados de types/contabil.ts do ZIP, enxutos)
+  dreStudioErrors.ts       (reaproveita describeDreError existente)
 
-### Entrega
-Ao concluir, informarei: arquivos alterados, URLs antigas removidas, variável de ambiente (`VITE_API_BASE_URL`), endpoints DRE agora em uso, quaisquer 404 residuais e resultado da verificação Playwright.
+src/hooks/contabil/
+  useDreStudioModels.ts
+  useDreStudioModel.ts
+  useDreStudioLinhas.ts
+  useDreStudioContas.ts
+  useDreStudioPlanoContas.ts
+  useDreStudioCentrosCusto.ts
+  useDreStudioResultado.ts
+  useDreStudioOrcamento.ts
+  useDreStudioHealth.ts
+```
+
+Todos usam `@tanstack/react-query` (já no projeto) e `api.get/post/put/delete` de `src/lib/api.ts`. Não será criado 2º cliente HTTP.
+
+### 4. Endpoints consumidos (somente os confirmados na especificação)
+
+| Método | Rota |
+|---|---|
+| GET | `/api/contabil/health` |
+| GET | `/api/contabil/estrutura-padrao?tipo_modelo=DRE\|BALANCO` |
+| GET/POST/PUT/DELETE | `/api/contabil/modelos[/:id]` |
+| POST/PUT/DELETE | `/api/contabil/modelos/:mid/linhas[/:lid]` |
+| GET/POST/DELETE | `/api/contabil/modelos/:mid/linhas/:lid/contas[/:vid]` |
+| GET | `/api/contabil/plano-contas` |
+| GET | `/api/contabil/centros-custo` |
+| GET/POST | `/api/contabil/orcamento` |
+| GET | `/api/contabil/modelos/:mid/resultado-cache` |
+
+Drill-down: detecção via `/openapi.json` (já usado por `useDreApiHealth`). Se não encontrar rota, botão desabilitado com tooltip *"Detalhamento disponível após ativação do endpoint no backend."*
+
+### 5. Reaproveitamento visual do ZIP
+
+Portados/adaptados ao design system (tokens semânticos do portal, `bg-card`, `text-foreground`, etc.):
+
+- **EstruturaTree** → `DreModelTree` (mesma UX de expandir/recolher, ícones por tipo, add-filho, badges).
+- **LinhaDialog** → `DreLineForm` como painel (não modal), mesmos campos.
+- **PlanoContasPanel** → `DreAccountSelector` com busca + filtros.
+- **MoneyCell**, **MonthPicker**, **ContasBadge**, **FonteSaldoBadge**, **ApiOfflineBanner** → componentes utilitários.
+- **CriarDREPadraoDialog / CriarBalancoPadraoSeniorDialog** → passos de "novo modelo" (vazio / DRE padrão / Balanço padrão via `estrutura-padrao`).
+- **ComposicaoDREDialog / DrillDrawer** → `DreDrillDialog`.
+- **dre.modelo.$id.visualizacao.tsx** (2600 linhas) é a referência para `DreResultTable` (hierarquia, análise vertical, expandir/recolher, formatação).
+
+**Não** portados: `router.tsx`, `__root.tsx`, `server.ts`, `start.ts`, `contabilStore`, `error-capture`, `contabilConfig` (variáveis próprias), rotas `.conciliacao` (dependem de CCCC106, fora do escopo pedido).
+
+### 6. Permissões
+
+Registrar as 4 permissões no catálogo do portal (`src/lib/screenCatalog.ts`) e usá-las via `useUserPermissions().canView/canEdit/canDelete` no path `/contabilidade/dre-studio`:
+
+- `contabilidade.dre.visualizar` → acessar Visão Geral / Resultado
+- `contabilidade.dre.configurar` → editar modelos/linhas/contas
+- `contabilidade.dre.orcamento` → gravar orçamento
+- `contabilidade.dre.excluir` → deletar modelo/linha
+
+Botões e ações escondidos + ProtectedRoute + guard nos hooks de mutação.
+
+### 7. Tratamento de erros
+
+Reuso de `src/lib/bi/dreErrors.ts::describeDreError` (já cobre API offline, ERP SQL Server, 404, auth). Serão adicionados novos "kinds":
+
+- `supabase_dre_offline` — detectado por payload contendo `supabase` / `service_role`
+- `modelo_not_found` — 404 em `/modelos/:id`
+- `estrutura_vazia` — resposta OK com lista vazia
+- `sem_resultado` — resultado-cache vazio
+- `endpoint_indisponivel` — 501 / 405
+
+Prioridade: `error.response.data.detail` → `.message` → `error.message` → fallback. Detail objeto é serializado.
+
+### 8. Exportação
+
+CSV e XLSX gerados no frontend (usa `xlsx` se já presente, senão CSV puro). Cabeçalho com modelo, empresa, filial, período, timestamp e usuário. Sem endpoint novo.
+
+### 9. Regras de não-regressão
+
+- **Nada** de `/api/contabilidade/*` é tocado.
+- Rotas `/bi/contabilidade/dre*`, `/bi/financeiro/dre-configuravel`, `/contabilidade/balanco` continuam intactas.
+- `src/lib/api.ts`, `AuthContext`, `AppLayout`, `AppSidebar`, `ProtectedRoute` só recebem *adições* (rotas/itens de menu), nunca refactor.
+- Nenhuma referência a `dreconfiguravel.ngrok.app`, `8090`, `VITE_DRE_API_URL` (já removidas em turnos anteriores — será feito `rg` de confirmação).
+- Nenhum secret no frontend.
+
+### 10. Validação
+
+1. `tsgo` sobre arquivos novos (o harness já roda typecheck automático).
+2. Playwright headless: navegar em `/contabilidade/dre-studio`, `/modelos`, criar modelo, abrir editor, ver Network → confirmar 100% `/api/contabil/*`, sem 401/CORS.
+3. Verificar tema escuro e responsividade (viewport 1280 e 768).
+
+## Detalhes técnicos-chave
+
+- Datas: usuário vê "Jul/2026", persistido como `anomes = 202607` (helper `anomesFormat` já existe no ZIP; será portado como `src/lib/contabil/anomes.ts`).
+- UUIDs: validador antes de qualquer POST/PUT; nada de `"undefined"`/`"null"` no payload.
+- Cancelamento: react-query já cancela ao trocar `queryKey` (empresa/modelo/período são chaves).
+- Modo demo: flag `VITE_DRE_DEMO_MODE=false` só ativa fixtures em dev; nunca em produção.
+- Health banner mostra 3 status: API online / ERP inacessível / Supabase-DRE indisponível (do `/health`).
+- Ordenação de linhas: PUT individual em `ordem` (sem endpoint de reorder em lote).
+- Drag-and-drop na árvore: opcional na v1 — se sair rápido, ok; senão, botões ↑/↓.
+
+## Fora de escopo (para não inflar a entrega)
+
+- Conciliação CCCC106 e Materialização (ZIP tem, mas não foram pedidos).
+- Aprovação/publicação de modelos (o backend `/api/contabil/*` não expõe endpoint disso).
+- Upsert de orçamento sem confirmação de endpoint PATCH/PUT no `/openapi.json`.
+
+## Entregável final
+
+Relatório imprimindo: arquivos criados/alterados, rotas, itens de menu, permissões, endpoints consumidos, URL base, referências antigas removidas, endpoints indisponíveis, funcionalidades desabilitadas, resultado do build/testes, pendências.
