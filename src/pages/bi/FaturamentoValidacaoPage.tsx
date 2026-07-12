@@ -404,6 +404,7 @@ export default function FaturamentoValidacaoPage() {
               value={draft.unidade_negocio ?? ''}
               onChange={(v) => setDraft({ ...draft, unidade_negocio: v })}
               placeholder="Todas"
+              renderLabel={maskUnidade}
             />
 
 
