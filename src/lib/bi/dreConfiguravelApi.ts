@@ -56,7 +56,11 @@ function rethrowAuthAware(err: any): never {
     e.isAuthError = true;
     throw e;
   }
-  throw err;
+  const info = describeDreError(err);
+  const e: any = new Error(info.message);
+  e.dreKind = info.kind;
+  e.statusCode = status;
+  throw e;
 }
 
 export async function fetchDreRealizadoResumo(filtros: DreFiltrosPainel): Promise<DreRealizadoResumo> {
