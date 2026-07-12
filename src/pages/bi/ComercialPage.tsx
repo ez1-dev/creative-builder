@@ -92,6 +92,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { getEffectiveTheme, getBgOverride, setBgOverride, clearBgOverride, SUGGESTED_BG_COLORS } from './comercialTheme';
 import { AnomesSelect } from '@/components/bi/comercial/AnomesSelect';
+import { useDemoMode } from '@/contexts/DemoModeContext';
 
 const n = (v: any) => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
 const UNIDADES: UnidadeNegocio[] = ['CONSOLIDADO', 'GENIUS', 'ESTRUTURAL ZORTEA'];
@@ -105,6 +106,13 @@ const ERR_MSG = 'Não foi possível carregar os dados do BI Comercial';
 const ERR_DRILL = 'Não foi possível carregar os dados do drill';
 const EMPTY_MSG = 'Sem dados para o período selecionado';
 const PAGE_KEY = 'bi-comercial';
+const COMERCIAL_MONEY_KEYS = [
+  'faturamento', 'faturamento_bruto', 'faturamento_liquido', 'realizado',
+  'fat_bruto', 'fat_liquido', 'vl_meta', 'meta', 'diferenca', 'vl_diferenca',
+  'impostos', 'devolucao', 'ticket_medio', 'preco_medio', 'vl_total',
+  'vl_bruto', 'vl_desconto', 'vl_impostos', 'vl_liquido', 'vl_devolucao',
+  'liquido', 'valor_total', 'total_impostos',
+] as const;
 
 const normalizeAnomes = (value: unknown) => String(value ?? '').replace(/\D/g, '').slice(0, 6);
 
@@ -179,6 +187,7 @@ function Clickable({ children, onClick, className, title }: { children: ReactNod
 
 
 export default function ComercialPage() {
+  const { maskCurrency, maskName, maskDoc } = useDemoMode();
   const [draft, setDraft] = useState<{ anomes_ini: string; anomes_fim: string; unidade_negocio: UnidadeNegocio }>({
     anomes_ini: '202601', anomes_fim: '202606', unidade_negocio: 'GENIUS',
   });
@@ -323,21 +332,41 @@ export default function ComercialPage() {
   // Nenhum override no frontend — a RPC bi_comercial_kpis lê bi_meta_faturamento.
   const { data: clientesMap } = useBiClientesMap();
 
-  const kpis = qKpis.data ?? ({} as any);
-  const mensal = qMensal.data ?? [];
-  const mix = qMix.data ?? [];
-  const estados = qEstado.data ?? [];
-  const revendaRows = qRevenda.data ?? [];
-  const obrasRows = qObras.data ?? [];
+  const displayMoney = (value: any): any => {
+    if (value == null || value === '') return value;
+    const raw = Number(value);
+    if (!Number.isFinite(raw)) return value;
+    return maskCurrency(raw);
+  };
+  const maskMoneyFields = <T extends Record<string, any>>(row: T): T => {
+    const out: Record<string, any> = { ...row };
+    COMERCIAL_MONEY_KEYS.forEach((key) => {
+      if (key in out) out[key] = displayMoney(out[key]);
+    });
+    return out as T;
+  };
+
+  const kpis = useMemo(() => maskMoneyFields((qKpis.data ?? {}) as any), [qKpis.data, maskCurrency]);
+  const mensal = useMemo(() => (qMensal.data ?? []).map((row) => maskMoneyFields(row as any)), [qMensal.data, maskCurrency]);
+  const mix = useMemo(() => (qMix.data ?? []).map((row) => maskMoneyFields(row as any)), [qMix.data, maskCurrency]);
+  const estados = useMemo(() => (qEstado.data ?? []).map((row) => maskMoneyFields(row as any)), [qEstado.data, maskCurrency]);
+  const revendaRows = useMemo(() => (qRevenda.data ?? []).map((row: any) => {
+    const label = pickDimensionLabel(row, 'revenda') || row?.revenda || row?.cd_rev_pedido || '';
+    return { ...maskMoneyFields(row), revenda_label: maskName('revenda', label) };
+  }), [qRevenda.data, maskCurrency, maskName]);
+  const obrasRows = useMemo(() => (qObras.data ?? []).map((row: any) => {
+    const label = pickDimensionLabel(row, 'obra') || row?.projeto || row?.cd_prj || '';
+    return { ...maskMoneyFields(row), obra_label: maskName('cliente', label) };
+  }), [qObras.data, maskCurrency, maskName]);
   const detalhesRaw = qDetalhes.data ?? [];
   const detalhes = useMemo(() => {
     return detalhesRaw.map((row) => {
       const cd = String((row as any).cd_cliente ?? '').trim();
       const c = clientesMap?.get(cd);
       const nome = c?.nm_fantasia || c?.nm_cliente || '';
-      return { ...row, cliente_label: nome ? `${cd} — ${nome}` : cd };
+      return maskMoneyFields({ ...row, cliente_label: nome ? `${cd} — ${nome}` : cd } as any);
     });
-  }, [detalhesRaw, clientesMap]);
+  }, [detalhesRaw, clientesMap, maskCurrency]);
 
 
   const mensalMultiYear = useMemo(() => {
@@ -531,32 +560,31 @@ export default function ComercialPage() {
       { key:'unidade_negocio', header:'Unidade', render:(_v,r)=> r.unidade_negocio ?? '' },
       { key:'cd_empresa', header:'Empresa', render:(_v,r)=> r.cd_empresa ?? '' },
       { key:'cd_filial', header:'Filial', render:(_v,r)=> r.cd_filial ?? '' },
-      { key:'cd_nf', header:'NF', render:(_v,r)=> r.cd_nf ?? '' },
+      { key:'cd_nf', header:'NF', render:(_v,r)=> maskDoc('nota', r.cd_nf) },
       { key:'cd_serie', header:'Série', render:(_v,r)=> r.cd_serie ?? '' },
       { key:'cd_tns', header:'TNS', render:(_v,r)=> r.cd_tns ?? '' },
       { key:'cd_tp_movimento', header:'Tipo Mov.', render:(_v,r)=> r.cd_tp_movimento ?? '' },
       { key:'cd_origem', header:'Origem', render:(_v,r)=> r.cd_origem ?? '' },
       { key:'cd_estado', header:'Estado', render:(_v,r)=> r.cd_estado ?? '' },
-      { key:'cliente_label', header:'Cliente', groupable: true, render:(_v,r:any)=> r.cliente_label ?? r.cd_cliente ?? '' },
+      { key:'cliente_label', header:'Cliente', groupable: true, render:(_v,r:any)=> maskName('cliente', r.cliente_label ?? r.cd_cliente ?? '') },
       { key:'cd_prj', header:'Obra', render:(_v,r)=> {
         const cd = String(r.cd_prj ?? '').trim();
         const ds = String(r.ds_abr_prj ?? '').trim();
-        if (!ds) return cd;
-        if (cd && ds.startsWith(cd)) return ds;
-        return cd ? `${cd} — ${ds}` : ds;
+        const label = !ds ? cd : (cd && ds.startsWith(cd) ? ds : (cd ? `${cd} — ${ds}` : ds));
+        return maskName('cliente', label);
       } },
-      { key:'cd_rev_pedido', header:'Revenda', render:(_v,r)=> r.cd_rev_pedido ?? '' },
-      { key:'vl_bruto', header:'Vl. Bruto', align:'right', summaryInGroupHeader: true, render:(_v,r)=> fmtCurNeg(n(r.vl_bruto)) },
-      { key:'vl_desconto', header:'Desconto', align:'right', render:(_v,r)=> fmtCurNeg(n(r.vl_desconto)) },
-      { key:'vl_impostos', header:'Impostos', align:'right', render:(_v,r)=> fmtCurNeg(n(r.vl_impostos)) },
-      { key:'vl_liquido', header:'Líquido', align:'right', summaryInGroupHeader: true, render:(_v,r)=> fmtCurNeg(n(r.vl_liquido)) },
-      { key:'vl_devolucao', header:'Devolução', align:'right', render:(_v,r)=> fmtCurNeg(n(r.vl_devolucao)) },
+      { key:'cd_rev_pedido', header:'Revenda', render:(_v,r)=> maskName('revenda', r.cd_rev_pedido ?? '') },
+      { key:'vl_bruto', header:'Vl. Bruto', align:'right', summaryInGroupHeader: true, render:(_v,r)=> fmtCurNeg(n(displayMoney(r.vl_bruto))) },
+      { key:'vl_desconto', header:'Desconto', align:'right', render:(_v,r)=> fmtCurNeg(n(displayMoney(r.vl_desconto))) },
+      { key:'vl_impostos', header:'Impostos', align:'right', render:(_v,r)=> fmtCurNeg(n(displayMoney(r.vl_impostos))) },
+      { key:'vl_liquido', header:'Líquido', align:'right', summaryInGroupHeader: true, render:(_v,r)=> fmtCurNeg(n(displayMoney(r.vl_liquido))) },
+      { key:'vl_devolucao', header:'Devolução', align:'right', render:(_v,r)=> fmtCurNeg(n(displayMoney(r.vl_devolucao))) },
       { key:'qtd_produtos', header:'Qtd. Produtos', align:'right', summaryInGroupHeader: true, render:(_v,r)=> fmtNumNeg(n(r.qtd_produtos)) },
     ];
     return unidade === 'ESTRUTURAL ZORTEA'
       ? cols.filter(c => c.key !== 'cd_rev_pedido')
       : cols;
-  }, [unidade]);
+  }, [unidade, maskCurrency, maskDoc, maskName]);
 
 
 
@@ -627,12 +655,22 @@ export default function ComercialPage() {
       if (!drillType) return;
       const resp = drillSeries.byDim[`por_${d.key}`];
       COMERCIAL_METRICAS.forEach((m) => {
-        out[`por_${d.key}__${m.key}`] = buildSerieFromDrill(resp, drillType, m.key as any);
+        const masksLabel = d.key === 'cliente' || d.key === 'produto' || d.key === 'revenda' || d.key === 'nota_fiscal' || d.key === 'obra';
+        const masksValue = !['nvendas', 'nclientes', 'quantidade'].includes(m.key);
+        out[`por_${d.key}__${m.key}`] = buildSerieFromDrill(resp, drillType, m.key as any).map((p: any) => ({
+          ...p,
+          label: masksLabel
+            ? d.key === 'nota_fiscal'
+              ? maskDoc('nota', p.label)
+              : maskName(d.key === 'revenda' ? 'revenda' : d.key === 'cliente' ? 'cliente' : 'fornecedor', p.label)
+            : p.label,
+          valor: masksValue ? n(displayMoney(p.valor)) : p.valor,
+        }));
       });
     });
     return out;
   }, [dadosCombo, donutMix, estadosSerie, revendaRank, obrasSerie,
-      mensal, estados, revendaRows, obrasRows, mix, drillSeries.byDim]);
+      mensal, estados, revendaRows, obrasRows, mix, drillSeries.byDim, maskCurrency, maskDoc, maskName]);
 
   // ===== Renderer dos blocos =====
   function renderKpi(def: typeof COMERCIAL_WIDGETS[string], w: ComercialWidget): ReactNode {

@@ -103,40 +103,47 @@ export function DemoModeProvider({ children }: { children: ReactNode }) {
   const [prefs, setPrefs] = useState<DemoPrefs>(DEFAULT_PREFS);
   const [loading, setLoading] = useState(true);
 
+  const normalizePrefs = useCallback((raw: any): DemoPrefs => ({
+    enabled: !!raw?.enabled,
+    hidden_modules: (raw?.hidden_modules as string[]) ?? [],
+    hidden_visuals: (raw?.hidden_visuals as string[]) ?? [],
+    mask_names: (raw?.mask_names as any) ?? {},
+    mask_values: (raw?.mask_values as any) ?? { mode: 'keep', factor: 1 },
+    mask_docs: (raw?.mask_docs as any) ?? {},
+    text_replacements: (raw?.text_replacements as any) ?? [],
+    presentation_enabled: !!raw?.presentation_enabled,
+    presentation_settings: { ...DEFAULT_PRESENTATION, ...((raw?.presentation_settings as any) ?? {}) },
+  }), []);
+
   const load = useCallback(async () => {
     if (!user?.id) { setPrefs(DEFAULT_PREFS); setLoading(false); return; }
     setLoading(true);
-    const { data } = await supabase
-      .from('user_demo_preferences')
-      .select('*')
-      .eq('user_id', user.id)
-      .maybeSingle();
-    if (data) {
-      const raw = data as any;
-      setPrefs({
-        enabled: !!raw.enabled,
-        hidden_modules: (raw.hidden_modules as string[]) ?? [],
-        hidden_visuals: (raw.hidden_visuals as string[]) ?? [],
-        mask_names: (raw.mask_names as any) ?? {},
-        mask_values: (raw.mask_values as any) ?? { mode: 'keep', factor: 1 },
-        mask_docs: (raw.mask_docs as any) ?? {},
-        text_replacements: (raw.text_replacements as any) ?? [],
-        presentation_enabled: !!raw.presentation_enabled,
-        presentation_settings: { ...DEFAULT_PRESENTATION, ...((raw.presentation_settings as any) ?? {}) },
-      });
-    } else {
+    try {
+      const { data, error } = await supabase
+        .from('user_demo_preferences')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      setPrefs(data ? normalizePrefs(data) : DEFAULT_PREFS);
+    } catch (error) {
+      console.warn('[DemoMode] Falha ao carregar preferências:', error);
       setPrefs(DEFAULT_PREFS);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }, [user?.id]);
+  }, [normalizePrefs, user?.id]);
 
   useEffect(() => { load(); }, [load]);
 
   const save = useCallback(async (patch: Partial<DemoPrefs>) => {
-    if (!user?.id) return;
-    const next = { ...prefs, ...patch };
+    if (!user?.id) throw new Error('Usuário não autenticado');
+    const previous = prefs;
+    const next = normalizePrefs({ ...prefs, ...patch });
     setPrefs(next);
-    await supabase
+
+    const { error } = await supabase
       .from('user_demo_preferences')
       .upsert({
         user_id: user.id,
@@ -149,8 +156,14 @@ export function DemoModeProvider({ children }: { children: ReactNode }) {
         text_replacements: next.text_replacements as any,
         presentation_enabled: next.presentation_enabled,
         presentation_settings: next.presentation_settings as any,
-      } as any);
-  }, [prefs, user?.id]);
+      } as any, { onConflict: 'user_id' });
+
+    if (error) {
+      setPrefs(previous);
+      console.warn('[DemoMode] Falha ao salvar preferências:', error);
+      throw error;
+    }
+  }, [normalizePrefs, prefs, user?.id]);
 
   const togglePresentation = useCallback(async (next?: boolean) => {
     const v = next ?? !prefs.presentation_enabled;
