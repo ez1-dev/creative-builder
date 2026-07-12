@@ -1,14 +1,10 @@
-import { Link } from "react-router-dom";
+import { Link, Outlet } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
 function DreLayout() {
-  return (
-    <>
-      <Outlet />
-      <Toaster richColors position="top-right" />
-    </>
-  );
+  return <Outlet />;
 }
+
 
 function DreNotFound() {
   return (
