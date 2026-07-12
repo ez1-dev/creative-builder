@@ -1,85 +1,44 @@
-## Objetivo
+## Mascarar Unidade de Negócio no Modo Apresentação
 
-Estender o **Modo Apresentação** para mascarar **todos os dados sensíveis em todos os módulos** do sistema — não só BI Comercial. Um único clique no botão "Apresentação" deve transformar visualmente a aplicação inteira: nomes de clientes, revendas, fornecedores, colaboradores, motoristas, placas, documentos (CNPJ/CPF), valores monetários, quantidades sensíveis, títulos de obras/projetos, nome da empresa em cabeçalhos, e conteúdo de relatórios/exportações/links públicos.
+Hoje o mascaramento cobre nomes de cliente/fornecedor/colaborador/etc., valores e documentos, mas os rótulos de **Unidade de Negócio** (GENIUS, ESTRUTURAL ZORTEA, APOIO, NÃO CLASSIFICADO, OUTROS) continuam aparecendo com o nome real em filtros, KPIs, tabelas, gráficos e drills. Precisamos mascará-los quando o Modo Apresentação estiver ligado.
 
-## Estratégia: interceptação central + varredura por módulo
+### 1. Novo helper `maskUnidade` no `DemoModeContext`
+- Adicionar tipo `MaskUnidadeKind = 'unidade'` e função `maskUnidade(v)` que:
+  - Quando `presentationActive`: mapeia deterministicamente valores conhecidos para rótulos genéricos.
+    - `GENIUS` → `Unidade A`
+    - `ESTRUTURAL ZORTEA` / `ESTRUTURAL` → `Unidade B`
+    - `APOIO` → `Unidade C`
+    - `NAO_CLASSIFICADO` / `NÃO CLASSIFICADO` → `Unidade D`
+    - `OUTROS` → `Unidade E`
+    - Qualquer outro valor → `Unidade <letra>` via hash FNV-1a.
+  - Preservar case original (`TODOS` e strings vazias passam sem alteração para não quebrar filtros que dependem do sentinel `'TODOS'`).
+- Expor no `DemoModeContextValue` e no fallback do `useDemoMode`.
 
-Em vez de instrumentar componente por componente manualmente (frágil e incompleto), combinar duas camadas:
+### 2. Estender o pipeline central de mascaramento
+- `src/lib/demo/maskingSchema.ts`: adicionar seção `unidades: string[]` no `FieldSpec` e declarar as chaves `unidade_negocio`, `unidadeNegocio`, `projeto_macro`, `un`, `bu` nos schemas `comercial`, `frota`, `maquinas`, `producao`, `compras`, `financeiro`.
+- `src/lib/demo/applyMask.ts`: aplicar `maskUnidade` para essas chaves durante a transformação recursiva. Assim, tudo que passa por `useMaskedData` já vem mascarado sem tocar nas páginas.
 
-### Camada 1 — Interceptação central de dados (nova)
-Criar um "pipeline de mascaramento" que roda automaticamente sobre os dados antes de chegarem à UI:
+### 3. Componente utilitário `<DemoUnidade/>`
+- Novo componente presentacional em `src/components/demo/DemoUnidade.tsx` (padrão dos existentes `DemoText`/`DemoMoney`) para uso em locais que renderizam o rótulo direto (títulos de card, badges, tooltips do Recharts, chips de filtro selecionado).
 
-1. **`useMaskedQuery` / `useMaskedData`** — wrapper sobre resultados de queries (React Query, fetch, Supabase) que, quando o modo está ativo, aplica `maskName`/`maskDoc`/`maskCurrency` recursivamente em objetos e arrays, usando um **schema de campos sensíveis por módulo** (mapa `tabela → { nomes: [...], docs: [...], moneys: [...] }`).
-2. **`MaskingSchema`** central em `src/lib/demo/maskingSchema.ts` — catálogo declarativo cobrindo:
-   - Comercial: cliente, revenda, produto, projeto, nota_fiscal, cnpj, cpf, vl_*, qt_*
-   - Financeiro/DRE: fornecedor, cd_conta, descricao, vl_*
-   - Frota: motorista, placa, veiculo_descricao, fornecedor, valor
-   - Máquinas: maquina, fornecedor, descricao, valor
-   - Passagens: colaborador, cidade origem/destino, valor
-   - Produção/Programação: OP, cliente, produto
-   - RH/Colaboradores: nome, matrícula, documento
-   - Compras/Recebimentos: fornecedor, cliente, valor
-3. **Determinístico via hash FNV-1a** já existente → mesmo original sempre vira mesmo fake dentro da sessão.
+### 4. Aplicar nos pontos onde o valor ainda vaza
+Locais identificados por `rg "unidade_negocio"` que renderizam o valor visível (não o valor do filtro/consulta ao backend):
+- `src/components/producao/programacao/ProgramacaoFiltersBar.tsx` — rótulo do `SelectItem` (mostrar mascarado, mas manter `value` cru).
+- `src/pages/producao/CargaDashboardPage.tsx` e `CargaRecursosDashboardPage.tsx` — labels de gráficos e cards.
+- `src/pages/bi/FaturamentoValidacaoPage.tsx` e `RelatorioExecutivoFaturamentoPage.tsx` — cabeçalhos das tabelas Unidade Comercial/Técnica.
+- `src/pages/PainelComprasPage.tsx`, `src/pages/NotasRecebimentoPage.tsx`, `src/pages/FaturamentoGeniusPage.tsx` — títulos, badges e séries.
+- `src/components/bi/drill/ComercialDrillDrawer.tsx` — chips do path do drill.
+- `src/components/producao/programacao/{MapaGargalosTab,LeadTimesTab,GerarProgramacaoTab,FilaOpsTab}.tsx` — eixos/legendas.
 
-### Camada 2 — Instrumentação de UI residual
-Onde texto vem hardcoded (títulos, breadcrumbs, cabeçalhos de tabela dinâmicos, tooltips, exportações CSV/PDF):
-1. Envolver com `<DemoText/>` `<DemoMoney/>` `<DemoDoc/>` existentes.
-2. Nome/logo da empresa em `AppLayout`, sidebar, header de relatórios e páginas públicas → usar `useBrand()`.
-3. Exportações (CSV/XLSX/PDF) — aplicar mascaramento no `buildExport()` antes de gerar arquivo.
-4. Links públicos de compartilhamento (Frota, Máquinas, Passagens) — respeitar `presentation_mode` do link + preferências do dono via RPCs `get_*_share_link_presentation` (já existem).
+Regra: **nunca** transformar o `value` do `<Select>` nem o payload enviado à API; só o texto exibido. Os schemas cuidam dos datasets; os componentes usam `useDemoMode().maskUnidade(...)` só para labels estáticos.
 
-## Escopo por módulo (varredura completa)
+### 5. Escopo mantido (frontend/apresentação apenas)
+- Sem alterações em API, RLS, migrações, cálculos ou regras de negócio.
+- Sem mudanças no `PresentationSettings` persistido (o mapeamento é determinístico, não precisa de nova preferência).
 
-```text
-BI
-  ├─ Comercial (já feito) — revisar cobertura
-  ├─ Financeiro / DRE / Balanço
-  ├─ Compras / Recebimentos
-  └─ Faturamento / Metas
-Operacional
-  ├─ Frota  (dashboard + tabela + share link)
-  ├─ Máquinas (dashboard + tabela + share link)
-  ├─ Passagens Aéreas (dashboard + tabela + share link)
-  └─ Produção / Programação / Sequenciamento
-Cadastros
-  ├─ Clientes / Revendas / Produtos / Fornecedores
-  └─ Colaboradores / Centros de Custo / Projetos
-Relatórios
-  ├─ Builder de relatórios (dados + cabeçalho)
-  └─ Exportações (CSV, XLSX, PDF)
-Layout global
-  ├─ Sidebar (nome da empresa, avatar/usuário)
-  ├─ Header (breadcrumb, título de página)
-  └─ Rodapé + selo "Modo Apresentação"
-```
+### 6. Validação
+- Playwright: ativar Apresentação e visitar `/bi/comercial`, `/bi/faturamento-validacao`, `/painel-compras`, `/producao/programacao`, `/producao/carga`, `/faturamento-genius` capturando screenshots que confirmem que "GENIUS"/"ESTRUTURAL ZORTEA" não aparecem em nenhum título, filtro, tabela, gráfico ou drill.
 
-## Entregáveis
-
-1. **`src/lib/demo/maskingSchema.ts`** — catálogo de campos sensíveis por origem/tabela.
-2. **`src/lib/demo/applyMask.ts`** — função recursiva que recebe `(data, schemaKey)` e retorna dados mascarados quando o modo está ativo.
-3. **`src/hooks/useMaskedQuery.ts`** — hook wrapper que aplica mascaramento em resultados React Query.
-4. **Atualização de hooks de dados existentes** dos módulos (Frota, Máquinas, Passagens, Financeiro, Compras, Produção, Colaboradores, Cadastros) para passar por `applyMask` antes de retornar.
-5. **Instrumentação de UI residual** com `<DemoText/>`/`<DemoMoney/>`/`<DemoDoc/>` onde a camada 1 não alcança (labels dinâmicos, títulos, tooltips).
-6. **`useBrand()`** aplicado em: `AppLayout`, `AppSidebar`, headers de relatórios, páginas de compartilhamento público.
-7. **Exportações** — wrapper `maskForExport(rows, schemaKey)` chamado em todos os pontos de export CSV/XLSX/PDF.
-8. **Selo "Modo Apresentação"** fixo (já existe `DemoBadge`) — confirmar visibilidade em todas as rotas incluindo públicas.
-9. **QA via Playwright** — script que ativa o modo, navega por todas as rotas principais e captura screenshots para verificação visual de que nenhum dado real vaza.
-
-## Detalhes técnicos
-
-- **Sem alterações de schema no banco** — todo mascaramento é client-side (o modo apresentação é visual, não de segurança de dados).
-- **Performance** — `applyMask` só percorre objetos quando `presentationMode === true`; caso contrário retorna referência original (custo zero).
-- **Compatibilidade com cache** — mascaramento roda **depois** do React Query, então cache continua com dados reais; alternar o toggle re-renderiza sem refetch.
-- **Cross-filter / drill-down** — filtros continuam usando IDs/valores reais internamente; só o label exibido é mascarado. Mantém funcionalidade intacta.
-- **Gráficos (Recharts)** — mascarar `name`/`label` de séries e eixos categóricos; valores numéricos passam pelo fator monetário quando aplicável.
-- **Tabelas virtualizadas** — aplicar mascaramento no `accessor` da coluna via wrapper, não no dado bruto, para preservar sort/filter.
-
-## Fora de escopo
-
-- Não altera lógica de negócio, cálculos, permissões ou RLS.
-- Não persiste dados fake no banco.
-- Não muda comportamento quando modo está desligado.
-
-## Validação final
-
-Playwright: login → ativar Apresentação → visitar `/bi/comercial`, `/bi/financeiro`, `/frota`, `/manutencao-maquinas`, `/passagens-aereas`, `/producao/programacao`, `/relatorios`, `/cadastros/*` → screenshot cada tela → confirmar que nenhum nome/documento/valor real aparece.
+### Detalhes técnicos
+- Mapeamento fixo + hash garante estabilidade entre re-renders e sessões (mesmo cliente vê sempre `Unidade A` para GENIUS).
+- Custo zero quando `presentationActive === false` (helper retorna o valor de entrada).
