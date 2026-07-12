@@ -655,12 +655,22 @@ export default function ComercialPage() {
       if (!drillType) return;
       const resp = drillSeries.byDim[`por_${d.key}`];
       COMERCIAL_METRICAS.forEach((m) => {
-        out[`por_${d.key}__${m.key}`] = buildSerieFromDrill(resp, drillType, m.key as any);
+        const masksLabel = d.key === 'cliente' || d.key === 'produto' || d.key === 'revenda' || d.key === 'nota_fiscal' || d.key === 'obra';
+        const masksValue = !['nvendas', 'nclientes', 'quantidade'].includes(m.key);
+        out[`por_${d.key}__${m.key}`] = buildSerieFromDrill(resp, drillType, m.key as any).map((p: any) => ({
+          ...p,
+          label: masksLabel
+            ? d.key === 'nota_fiscal'
+              ? maskDoc('nota', p.label)
+              : maskName(d.key === 'revenda' ? 'revenda' : d.key === 'cliente' ? 'cliente' : 'fornecedor', p.label)
+            : p.label,
+          valor: masksValue ? n(displayMoney(p.valor)) : p.valor,
+        }));
       });
     });
     return out;
   }, [dadosCombo, donutMix, estadosSerie, revendaRank, obrasSerie,
-      mensal, estados, revendaRows, obrasRows, mix, drillSeries.byDim]);
+      mensal, estados, revendaRows, obrasRows, mix, drillSeries.byDim, maskCurrency, maskDoc, maskName]);
 
   // ===== Renderer dos blocos =====
   function renderKpi(def: typeof COMERCIAL_WIDGETS[string], w: ComercialWidget): ReactNode {
