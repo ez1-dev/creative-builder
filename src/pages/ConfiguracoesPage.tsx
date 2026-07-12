@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Trash2, Edit, Users, Shield, Eye, Wifi, WifiOff, UserCheck, UserX, FileWarning, Sparkles, Activity, Rocket, BarChart3, Brain, LineChart, PowerOff, BookOpen, Download, ExternalLink, Search, Filter, UserPlus, ChevronsUpDown, Check, ShieldCheck, X, ArrowUpDown, Inbox } from 'lucide-react';
+import { Plus, Trash2, Edit, Users, Shield, Eye, EyeOff, Wifi, WifiOff, UserCheck, UserX, FileWarning, Sparkles, Activity, Rocket, BarChart3, Brain, LineChart, PowerOff, BookOpen, Download, ExternalLink, Search, Filter, UserPlus, ChevronsUpDown, Check, ShieldCheck, X, ArrowUpDown, Inbox } from 'lucide-react';
 import { VISUAL_CATALOG } from '@/lib/visualCatalog';
 import { MonitoramentoUsuarios } from '@/components/erp/MonitoramentoUsuarios';
 
@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import { getApiUrl, setApiBaseUrl } from '@/lib/api';
 import { formatDate } from '@/lib/format';
 import { PermissoesPorTelaPanel } from '@/components/configuracoes/PermissoesPorTelaPanel';
+import { DemoModeSection } from '@/components/configuracoes/DemoModeSection';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -734,6 +735,7 @@ export default function ConfiguracoesPage() {
       label: 'Pessoal',
       items: [
         { value: 'minhas-preferencias', label: 'Minhas Preferências', icon: Brain, description: 'Ajustes do seu usuário' },
+        { value: 'demo', label: 'Modo Demonstração', icon: EyeOff, description: 'Esconder módulos e mascarar dados' },
       ],
     },
   ];
@@ -1758,6 +1760,11 @@ export default function ConfiguracoesPage() {
         {/* === MINHAS PREFERÊNCIAS === */}
         <TabsContent value="minhas-preferencias">
           <MinhasPreferenciasSection />
+        </TabsContent>
+
+        {/* === MODO DEMONSTRAÇÃO === */}
+        <TabsContent value="demo">
+          <DemoModeSection />
         </TabsContent>
 
         {/* === VERSÃO === */}

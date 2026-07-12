@@ -9,6 +9,7 @@ import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { useFavorites } from '@/hooks/useFavorites';
+import { useDemoMode } from '@/contexts/DemoModeContext';
 import {
   Sidebar,
   SidebarContent,
@@ -293,6 +294,7 @@ export function AppSidebar() {
   const location = useLocation();
   const { canView, hasPermissions, loading, isAdmin } = useUserPermissions();
   const { favorites, isFavorite, toggle } = useFavorites();
+  const { isModuleHidden } = useDemoMode();
 
   const activeGroupId = useMemo(() => groupActiveId(location.pathname), [location.pathname]);
   const [openGroup, setOpenGroup] = useState<string | null>(activeGroupId ?? 'inicio');
@@ -306,6 +308,7 @@ export function AppSidebar() {
   }, [activeGroupId]);
 
   const isVisible = (url: string) => {
+    if (isModuleHidden(url)) return false;
     if (ALWAYS_VISIBLE.has(url)) return true;
     if (loading) return false;
     if (!hasPermissions) return true;

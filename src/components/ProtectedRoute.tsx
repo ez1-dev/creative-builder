@@ -1,6 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemoMode } from '@/contexts/DemoModeContext';
 import { Button } from '@/components/ui/button';
 import { LogOut, ShieldAlert } from 'lucide-react';
 import AppLoadingScreen from '@/components/AppLoadingScreen';
@@ -33,7 +34,11 @@ function NoAccessScreen() {
 
 export function ProtectedRoute({ path, children }: { path: string; children: React.ReactNode }) {
   const { canView, loading, hasPermissions, firstAllowedPath, isAdmin } = useUserPermissions();
+  const { isModuleHidden } = useDemoMode();
   if (loading) return <AppLoadingScreen label="Carregando permissões…" />;
+
+  // Modo demonstração: rotas ocultas redirecionam para o dashboard.
+  if (isModuleHidden(path)) return <Navigate to="/dashboard-geral" replace />;
 
   // Admin sempre passa, mesmo que o catálogo de permissões tenha vindo vazio por algum motivo.
   if (isAdmin) return <>{children}</>;

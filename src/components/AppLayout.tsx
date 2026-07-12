@@ -12,6 +12,7 @@ import { LogOut, Clock } from 'lucide-react';
 import { HeaderInfo } from '@/components/HeaderInfo';
 import { AiAssistantChat } from '@/components/erp/AiAssistantChat';
 import { UpdateNotifier } from '@/components/UpdateNotifier';
+import { DemoBadge } from '@/components/DemoBadge';
 import { useTvMode } from '@/hooks/useTvMode';
 import packageJson from '../../package.json';
 
@@ -85,6 +86,7 @@ export default function AppLayout() {
           </main>
           {!tvMode && <AiAssistantChat />}
           <UpdateNotifier />
+          <DemoBadge />
           {!tvMode && (
             <footer
               data-tv-hide="true"

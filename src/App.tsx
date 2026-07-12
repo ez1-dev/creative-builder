@@ -101,6 +101,7 @@ import { ProtectedRoute, PostLoginRedirect } from "@/components/ProtectedRoute";
 import { UserTrackingProvider } from "@/components/UserTrackingProvider";
 import { AiPageContextProvider } from "@/contexts/AiPageContext";
 import { PermissionsProvider } from "@/contexts/PermissionsContext";
+import { DemoModeProvider } from "@/contexts/DemoModeContext";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1 } },
@@ -114,6 +115,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <PermissionsProvider>
+          <DemoModeProvider>
           <UserTrackingProvider>
           <AiPageContextProvider>
           <Routes>
@@ -228,6 +230,7 @@ const App = () => (
           </Routes>
           </AiPageContextProvider>
           </UserTrackingProvider>
+          </DemoModeProvider>
           </PermissionsProvider>
         </AuthProvider>
       </BrowserRouter>
