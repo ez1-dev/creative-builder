@@ -172,8 +172,18 @@ const GROUPS: Group[] = [
     ],
     subGroups: [
       {
+        id: 'ctrl-dre-studio',
+        label: 'DRE Studio',
+        items: [
+          { title: 'Visão Geral', url: '/contabilidade/dre-studio', icon: LayoutDashboard },
+          { title: 'Modelos', url: '/contabilidade/dre-studio/modelos', icon: Cog },
+          { title: 'Orçamento', url: '/contabilidade/dre-studio/orcamento', icon: HandCoins },
+          { title: 'Resultado', url: '/contabilidade/dre-studio/resultado', icon: BarChart3 },
+        ],
+      },
+      {
         id: 'ctrl-dre',
-        label: 'DRE',
+        label: 'DRE (outros)',
         items: [
           { title: 'Contabilidade — DRE', url: '/bi/contabilidade/dre', icon: BarChart3 },
           { title: 'DRE Configurável', url: '/bi/financeiro/dre-configuravel', icon: Landmark },
