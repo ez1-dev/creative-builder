@@ -67,6 +67,7 @@ interface DemoModeContextValue {
   maskName: (kind: MaskNameKind, value: string | null | undefined) => string;
   maskCurrency: (v: number | null | undefined) => number | null;
   maskDoc: (kind: MaskDocKind, v: string | null | undefined) => string;
+  maskUnidade: (v: string | null | undefined) => string;
   applyText: (s: string | null | undefined) => string;
 }
 
