@@ -18,6 +18,7 @@ import {
   BLOCOS_PADRAO, BLOCOS_CURTO,
   type BlocosSelecionados,
 } from '@/hooks/useRelatorioExecutivoFaturamento';
+import { useDemoMode } from '@/contexts/DemoModeContext';
 import type { BiComercialFilters, UnidadeNegocio } from '@/lib/bi/comercialFilters';
 import {
   KpisBloco, EvolucaoBloco, RankingsBloco, MargemImpostosBloco,
