@@ -8,6 +8,7 @@ import { RefreshCw, DownloadCloud } from 'lucide-react';
 import { toast } from 'sonner';
 import { programacaoApi, type ProgramacaoFiltros } from '@/lib/producao/programacaoApi';
 import { useQueryClient } from '@tanstack/react-query';
+import { useDemoMode } from '@/contexts/DemoModeContext';
 
 const UNIDADES = ['TODOS', 'GENIUS', 'ESTRUTURAL', 'APOIO', 'NAO_CLASSIFICADO'];
 const TIPOS = ['TODOS', 'PRODUCAO', 'TERCEIROS', 'LOGISTICA', 'MANUTENCAO'];
