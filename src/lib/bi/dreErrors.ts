@@ -3,7 +3,7 @@
  * (DRE Configurável integrada à API principal do ERP).
  */
 import { useQuery } from '@tanstack/react-query';
-import { getApiUrl } from '@/lib/api';
+import { getContabilBaseUrl } from '@/lib/contabil/contabilApi';
 
 export interface DreErrorInfo {
   message: string;
