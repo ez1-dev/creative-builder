@@ -364,9 +364,9 @@ export default function ComercialPage() {
       const cd = String((row as any).cd_cliente ?? '').trim();
       const c = clientesMap?.get(cd);
       const nome = c?.nm_fantasia || c?.nm_cliente || '';
-      return { ...row, cliente_label: nome ? `${cd} — ${nome}` : cd };
+      return maskMoneyFields({ ...row, cliente_label: nome ? `${cd} — ${nome}` : cd } as any);
     });
-  }, [detalhesRaw, clientesMap]);
+  }, [detalhesRaw, clientesMap, maskCurrency]);
 
 
   const mensalMultiYear = useMemo(() => {
