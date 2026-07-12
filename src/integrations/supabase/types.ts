@@ -3471,6 +3471,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_demo_preferences: {
+        Row: {
+          enabled: boolean
+          hidden_modules: string[]
+          hidden_visuals: string[]
+          mask_docs: Json
+          mask_names: Json
+          mask_values: Json
+          text_replacements: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          enabled?: boolean
+          hidden_modules?: string[]
+          hidden_visuals?: string[]
+          mask_docs?: Json
+          mask_names?: Json
+          mask_values?: Json
+          text_replacements?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          enabled?: boolean
+          hidden_modules?: string[]
+          hidden_visuals?: string[]
+          mask_docs?: Json
+          mask_names?: Json
+          mask_values?: Json
+          text_replacements?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_preferences: {
         Row: {
           ai_assistant_prefs: Json
