@@ -208,8 +208,8 @@ export function useReferenciaSeniorList(params?: { anomes?: number; modelo_id?: 
 
 export function useReplicarReferenciaSenior() {
   const qc = useQueryClient();
-  return useMutation<{ modelos_atualizados?: number }, Error, { anomes?: number } | undefined>({
-    mutationFn: async (input) => {
+  return useMutation<{ modelos_atualizados?: number }, Error, { anomes?: number } | void>({
+    mutationFn: async (input?: { anomes?: number }) => {
       try {
         return await api.post<{ modelos_atualizados?: number }>(
           "/api/contabil/referencia-senior/replicar",

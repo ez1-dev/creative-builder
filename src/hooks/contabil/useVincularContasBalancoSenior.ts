@@ -31,8 +31,8 @@ const TIMEOUT_MS = 60_000;
  */
 export function useVincularContasBalancoSenior(modeloId: string) {
   const qc = useQueryClient();
-  return useMutation<VincularContasBalancoResumo, Error, VincularContasBalancoInput | undefined>({
-    mutationFn: async (input) => {
+  return useMutation<VincularContasBalancoResumo, Error, VincularContasBalancoInput | void>({
+    mutationFn: async (input?: VincularContasBalancoInput) => {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
       try {
