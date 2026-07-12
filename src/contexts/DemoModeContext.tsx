@@ -280,8 +280,8 @@ export function DemoModeProvider({ children }: { children: ReactNode }) {
     prefs, loading, active, presentationActive,
     save, reload: load, togglePresentation, updatePresentation,
     isModuleHidden, isVisualHidden,
-    maskName, maskCurrency, maskDoc, applyText,
-  }), [prefs, loading, active, presentationActive, save, load, togglePresentation, updatePresentation, isModuleHidden, isVisualHidden, maskName, maskCurrency, maskDoc, applyText]);
+    maskName, maskCurrency, maskDoc, maskUnidade, applyText,
+  }), [prefs, loading, active, presentationActive, save, load, togglePresentation, updatePresentation, isModuleHidden, isVisualHidden, maskName, maskCurrency, maskDoc, maskUnidade, applyText]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
@@ -297,6 +297,7 @@ export function useDemoMode(): DemoModeContextValue {
       maskName: (_k, v) => v ?? '',
       maskCurrency: (v) => v ?? null,
       maskDoc: (_k, v) => v ?? '',
+      maskUnidade: (v) => v ?? '',
       applyText: (s) => s ?? '',
     };
   }
