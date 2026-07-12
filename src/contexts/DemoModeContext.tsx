@@ -232,6 +232,39 @@ export function DemoModeProvider({ children }: { children: ReactNode }) {
     return v.replace(/[A-Za-z0-9]/g, '•');
   }, [active, presentationActive, prefs.mask_docs, prefs.presentation_settings.hideDocs]);
 
+  // Mascaramento determinístico de "Unidade de Negócio" (GENIUS, ESTRUTURAL ZORTEA, etc.)
+  const UNIDADE_MAP: Record<string, string> = {
+    'GENIUS': 'Unidade A',
+    'ESTRUTURAL ZORTEA': 'Unidade B',
+    'ESTRUTURAL': 'Unidade B',
+    'APOIO': 'Unidade C',
+    'NAO_CLASSIFICADO': 'Unidade D',
+    'NÃO CLASSIFICADO': 'Unidade D',
+    'NAO CLASSIFICADO': 'Unidade D',
+    'OUTROS': 'Unidade E',
+  };
+  const UNIDADE_PASSTHROUGH = new Set(['', 'TODOS', 'CONSOLIDADO', 'SEM_UNIDADE']);
+  const maskUnidade = useCallback((v: string | null | undefined): string => {
+    if (v == null) return '';
+    const s = String(v);
+    if (!presentationActive) return s;
+    const key = s.trim().toUpperCase();
+    if (UNIDADE_PASSTHROUGH.has(key)) return s;
+    if (UNIDADE_MAP[key]) return UNIDADE_MAP[key];
+    // Suporta strings com múltiplas unidades separadas por vírgula (ex.: filtro).
+    if (s.includes(',')) {
+      return s.split(',').map(p => {
+        const k = p.trim().toUpperCase();
+        if (UNIDADE_PASSTHROUGH.has(k)) return p;
+        if (UNIDADE_MAP[k]) return UNIDADE_MAP[k];
+        const letter = String.fromCharCode(65 + (hashStr(k) % 26));
+        return `Unidade ${letter}`;
+      }).join(', ');
+    }
+    const letter = String.fromCharCode(65 + (hashStr(key) % 26));
+    return `Unidade ${letter}`;
+  }, [presentationActive]);
+
   const applyText = useCallback((s: string | null | undefined): string => {
     if (!s) return s ?? '';
     if (!anyActive || !prefs.text_replacements?.length) return s;
