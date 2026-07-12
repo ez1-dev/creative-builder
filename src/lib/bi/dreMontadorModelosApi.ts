@@ -1,4 +1,5 @@
 import { api, getApiUrl } from '@/lib/api';
+import { describeDreError } from './dreErrors';
 
 export interface MontadorModelo {
   id: string;
