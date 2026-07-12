@@ -1,66 +1,74 @@
-# Modo Demonstração para Investidores
+## Modo Apresentação (1 clique)
 
-Criar em **Configurações** uma nova aba **"Modo Demonstração"** que permite, com um clique, esconder módulos e mascarar dados sensíveis em toda a aplicação — ideal para apresentar o produto a investidores sem expor informações reais da empresa.
+Um botão no topo do app liga/desliga um "Modo Apresentação" que substitui automaticamente dados sensíveis por versões fictícias, sem precisar configurar campo a campo. As substituições são **determinísticas**: o mesmo cliente/placa/CNPJ vira sempre o mesmo nome fake, mantendo consistência entre telas, gráficos e relatórios.
 
-## O que o modo faz
+### Como funciona para o usuário
 
-Quando ativado, aplica em tempo real (sem recarregar) três camadas de ofuscação, cada uma configurável individualmente:
+- Botão **"Modo Apresentação"** no header (ao lado do sino / avatar), com um selo visível "APRESENTAÇÃO" enquanto ativo.
+- 1 clique: liga com regras padrão fortes. Desligou: tudo volta ao normal.
+- Configurações rápidas (popover no próprio botão):
+  - Fator de valores (padrão ×0,73; opções ×0,5 / ×1 / ×1,25 / custom).
+  - Estilo dos nomes ("Cliente Alfa 12", "Empresa Norte", ou nomes fantasia de uma lista).
+  - Mostrar/ocultar documentos (CNPJ/CPF/placa).
+  - Nome fantasia da empresa exibido (ex.: "Empresa Demo S/A") + logo alternativa.
+- Aproveita o `DemoModeContext` já existente — o Modo Apresentação é uma **preset "global forte"** dele, ativável em 1 clique, sem eliminar a configuração granular atual.
 
-1. **Ocultar módulos** — remove itens escolhidos do menu lateral e bloqueia suas rotas (redireciona para o Dashboard). Você escolhe quais módulos esconder (ex.: Regras Senior, ETL, Gestão SGU, Monitor de Usuários, Contas a Pagar…).
-2. **Ocultar gráficos/mapas específicos** — reaproveita o catálogo já existente (`VISUAL_CATALOG`) para esconder gráficos individuais dentro das páginas visíveis.
-3. **Mascarar dados sensíveis** — substitui em telas de listagem/tabela/BI:
-   - **Nomes** de clientes, fornecedores, revendas, colaboradores, motoristas → nomes fictícios estáveis (ex.: "Cliente Alfa 12", "Fornecedor Beta 03") mantendo consistência entre linhas.
-   - **Valores monetários e quantidades** → opção "manter valores", "escalar por fator" (ex.: ×0,73) ou "mascarar como R$ ●●●".
-   - **Documentos**: CNPJ/CPF/placa/número de nota → padrão `••.•••/••••-••` preservando formato.
-   - **Textos livres customizados** — você cadastra pares "de → para" (ex.: "Empresa X" → "ACME Corp") aplicados globalmente em qualquer render de texto.
+### O que é mascarado
 
-Um selo discreto **"MODO DEMO"** aparece no topo da aplicação para lembrar que a ofuscação está ativa (só visível para admins).
+**BI e telas operacionais**
+- Nomes: clientes, fornecedores, revendas, motoristas, colaboradores, placas, veículos, máquinas, centros de custo.
+- Valores monetários: multiplicados pelo fator escolhido (consistente entre gráficos, KPIs e totais).
+- Documentos: CNPJ/CPF/placa formatados como `••.•••.•••/••••-••` / `AAA-0A00`.
+- Textos livres com padrões sensíveis (e-mails, telefones).
 
-## Escopo do primeiro release
+**Relatórios e exportações**
+- PDFs, Excel e CSV gerados pelo app aplicam o mesmo mascaramento no momento da geração.
+- Rodapé do PDF ganha marca d'água "APRESENTAÇÃO — DADOS FICTÍCIOS".
 
-- Preferência **por usuário logado** (persistida no Cloud, tabela nova `user_demo_preferences`), com botão "Copiar do meu usuário para o perfil" para reaproveitar.
-- Ativação é **client-side**: dados reais continuam vindo do backend; o mascaramento acontece na UI (rápido, sem risco de quebrar cálculos).
-- Perfis de acesso já existentes continuam funcionando — o Modo Demo é uma camada adicional em cima.
+**Links públicos (Frota, Máquinas, Passagens)**
+- Nova opção ao criar/editar o link: **"Publicar em Modo Apresentação"** (default ligado para links novos criados enquanto o modo está ativo).
+- A flag fica salva no próprio link (colunas novas nas tabelas `*_share_links`) e é aplicada server-side pelas RPCs `get_*_via_token` antes de devolver os dados, para que nem o payload de rede exponha os originais.
 
-## Estrutura da nova aba
+**Identidade da empresa**
+- Sidebar, header, título da aba, favicon e cabeçalho de relatórios trocam nome/logo pelo par "demo" configurado.
+- Meta description e og:title também trocam enquanto o modo está ativo (apenas em runtime).
 
-```text
-┌ Configurações › Modo Demonstração ─────────────────────┐
-│ [●] Ativar modo demonstração                           │
-│                                                        │
-│ ▸ Módulos ocultos       [Selecionar do menu lateral…]  │
-│ ▸ Gráficos ocultos      [Selecionar do catálogo BI…]   │
-│ ▸ Mascarar nomes        [ ] Clientes  [ ] Fornecedores │
-│                         [ ] Colaboradores  [ ] Motorist│
-│ ▸ Valores monetários    ( ) manter (●) escalar ×[0.73] │
-│                         ( ) ocultar                    │
-│ ▸ Documentos            [ ] CNPJ/CPF  [ ] Placas  [ ] N│
-│ ▸ Substituições texto   De: [_______] Para: [_______] +│
-│                                                        │
-│ [Pré-visualizar]  [Salvar]                             │
-└────────────────────────────────────────────────────────┘
-```
+### Determinismo (mesmo dado → mesmo fake)
 
-## Detalhes técnicos
+- Função `maskLabel(kind, original)` usa hash estável (FNV-1a) do texto original + salt do usuário → índice em uma lista de nomes por categoria (clientes, fornecedores, motoristas, etc.).
+- Fator de valor é constante na sessão de apresentação (não aleatório por render), garantindo que soma de partes = total.
+- Sem "criptografia reversível" real (não guardamos chave para reverter) — é pseudonimização estável. Se você desligar o modo, os dados originais voltam porque nunca foram sobrescritos no banco.
 
-**Backend (Lovable Cloud):**
-- Nova tabela `public.user_demo_preferences` (user_id PK, enabled bool, hidden_modules text[], hidden_visuals text[], mask_names jsonb, mask_values jsonb, mask_docs jsonb, text_replacements jsonb, updated_at). RLS: cada usuário lê/escreve só o próprio registro. GRANTs padrão para `authenticated`.
+### Arquitetura técnica
 
-**Frontend:**
-- Novo `DemoModeContext` + hook `useDemoMode()` (carrega preferências, expõe `enabled`, helpers `maskName(kind, value)`, `maskCurrency(v)`, `maskDoc(kind, v)`, `applyTextReplacements(s)`, `isModuleHidden(path)`, `isVisualHidden(key)`).
-- Integrações:
-  - `AppSidebar.tsx` — filtra itens conforme `isModuleHidden`.
-  - `App.tsx` — wrapper de rota que redireciona rotas ocultas.
-  - `VisualGate` já existente — passa a considerar também `isVisualHidden` do modo demo (união com `useUserVisuals`).
-  - Componentes utilitários novos: `<DemoText kind="cliente">{nome}</DemoText>`, `<DemoMoney value={v} />`, `<DemoDoc kind="cnpj">{v}</DemoDoc>`. Instrumentar primeiro as telas de maior exposição (BI Comercial, Painel de Compras, Contas a Pagar/Receber, RH — Quadro/Resumo Folha, Faturamento Genius). Demais telas mascaradas em ondas seguintes.
-  - Faixa `<DemoBadge />` fixa no topo quando ativo.
-- Nova aba `demo` em `ConfiguracoesPage.tsx` com formulário controlado usando `ALL_SCREENS` e `VISUAL_CATALOG` já existentes para as listagens.
+**Frontend**
+- `src/contexts/DemoModeContext.tsx`: adicionar `presentationMode: boolean`, `presentationSettings` (fator, estilo nomes, empresa fake, logo), e helpers determinísticos `maskEntity(kind, value)`.
+- Novo componente `PresentationToggle` no `AppLayout` header (botão + popover de config rápida).
+- Componentes `<DemoText/>`, `<DemoMoney/>`, `<DemoDoc/>` já existentes passam a usar as regras do preset quando `presentationMode` ativo.
+- Sweep de instrumentação nas telas ainda não cobertas: dashboards BI (Comercial, Compras, Contas, RH, Faturamento Genius), listas de Frota/Máquinas/Passagens, tabelas de registros e headers de relatórios.
+- Camada de exportação (PDF/Excel/CSV): wrapper `applyPresentationToRows(rows, schema)` chamado antes de gerar o arquivo; marca d'água no PDF via helper existente.
+- Identidade: `useBrand()` devolve `{ name, logo }` respeitando o modo.
 
-**Fora de escopo agora:**
-- Mascaramento em PDFs gerados server-side (relatórios executivos) — anotado para próxima iteração.
-- Modo demo por perfil de acesso (só por usuário nesta primeira versão).
-- Reescrita automática de todos os componentes legados; começaremos pelas telas prioritárias listadas acima e expandiremos incrementalmente.
+**Backend (Lovable Cloud)**
+- Migração:
+  - `user_demo_preferences`: adicionar `presentation_enabled bool`, `presentation_settings jsonb`.
+  - `manutencao_frota_share_links`, `manutencao_maquinas_share_links`, `passagens_aereas_share_links`: adicionar `presentation_mode bool default false`, `presentation_settings jsonb`.
+  - Atualizar RPCs `get_frota_via_token`, `get_maquinas_via_token`, `get_passagens_via_token` para, quando `presentation_mode = true`, devolver colunas já mascaradas (nomes via hash determinístico em SQL, valores × fator, documentos redigidos). GRANTs preservados.
+  - Nova RPC `set_share_link_presentation(_token, _enabled, _settings)` protegida por `can_manage_*_share`.
+- Nenhuma alteração destrutiva em dados reais.
 
-## Entrega
+### Fora de escopo
 
-Se aprovar, implemento em uma rodada: migration + contexto/hook + aba de Configurações + integração no sidebar/rotas/VisualGate + instrumentação das telas prioritárias + badge de demo.
+- Criptografia reversível com chave (foi descartado — pseudonimização determinística cobre o caso de investidores).
+- Perfil de acesso "Investidor" separado (pode vir depois; hoje qualquer usuário liga/desliga pelo botão).
+- Mascaramento de imagens/anexos enviados pelos usuários.
+- Reescrita de módulos legados que renderizam HTML cru fora do design system (serão migrados sob demanda conforme aparecerem).
+
+### Entregáveis
+
+1. Migração Cloud com colunas novas + RPCs atualizadas.
+2. `DemoModeContext` estendido + `PresentationToggle` no header + selo global.
+3. Helpers determinísticos + varredura de instrumentação das telas BI e listas prioritárias.
+4. Camada de exportação com mascaramento e marca d'água.
+5. UI nos formulários de link público para marcar "Publicar em Modo Apresentação".
+6. `useBrand()` + troca de nome/logo/favicon/título enquanto ativo.
