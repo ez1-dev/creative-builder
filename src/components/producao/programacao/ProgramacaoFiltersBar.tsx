@@ -8,6 +8,7 @@ import { RefreshCw, DownloadCloud } from 'lucide-react';
 import { toast } from 'sonner';
 import { programacaoApi, type ProgramacaoFiltros } from '@/lib/producao/programacaoApi';
 import { useQueryClient } from '@tanstack/react-query';
+import { useDemoMode } from '@/contexts/DemoModeContext';
 
 const UNIDADES = ['TODOS', 'GENIUS', 'ESTRUTURAL', 'APOIO', 'NAO_CLASSIFICADO'];
 const TIPOS = ['TODOS', 'PRODUCAO', 'TERCEIROS', 'LOGISTICA', 'MANUTENCAO'];
@@ -25,6 +26,7 @@ interface Props {
 export function ProgramacaoFiltersBar({ filtros, onChange, onRefresh, loading, showStatus }: Props) {
   const set = (patch: Partial<ProgramacaoFiltros>) => onChange({ ...filtros, ...patch });
   const qc = useQueryClient();
+  const { maskUnidade } = useDemoMode();
   const [syncing, setSyncing] = useState(false);
 
   const handleSync = async () => {
@@ -68,7 +70,7 @@ export function ProgramacaoFiltersBar({ filtros, onChange, onRefresh, loading, s
           <Label className="text-xs">Unidade</Label>
           <Select value={filtros.unidade_negocio || 'TODOS'} onValueChange={(v) => set({ unidade_negocio: v === 'TODOS' ? undefined : v })}>
             <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>{UNIDADES.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
+            <SelectContent>{UNIDADES.map((u) => <SelectItem key={u} value={u}>{u === 'TODOS' ? u : maskUnidade(u)}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div>

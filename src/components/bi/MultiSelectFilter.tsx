@@ -13,9 +13,11 @@ interface MultiSelectFilterProps {
   value: string;
   onChange: (csv: string) => void;
   placeholder?: string;
+  /** Opcional: transforma o rótulo de cada opção (mantém o valor original). */
+  renderLabel?: (opt: string) => string;
 }
 
-export function MultiSelectFilter({ label, options, value, onChange, placeholder }: MultiSelectFilterProps) {
+export function MultiSelectFilter({ label, options, value, onChange, placeholder, renderLabel }: MultiSelectFilterProps) {
   const [open, setOpen] = useState(false);
   const selected = useMemo(
     () => (value ? value.split(',').map(s => s.trim()).filter(Boolean) : []),
@@ -37,7 +39,7 @@ export function MultiSelectFilter({ label, options, value, onChange, placeholder
   const display = selected.length === 0
     ? (placeholder ?? 'Selecionar...')
     : selected.length <= 2
-      ? selected.join(', ')
+      ? selected.map(s => renderLabel ? renderLabel(s) : s).join(', ')
       : `${selected.length} selecionados`;
 
   return (
@@ -72,7 +74,7 @@ export function MultiSelectFilter({ label, options, value, onChange, placeholder
                   return (
                     <CommandItem key={opt} value={opt} onSelect={() => toggle(opt)} className="text-xs">
                       <Check className={cn('mr-2 h-3.5 w-3.5', checked ? 'opacity-100' : 'opacity-0')} />
-                      {opt}
+                      {renderLabel ? renderLabel(opt) : opt}
                     </CommandItem>
                   );
                 })}

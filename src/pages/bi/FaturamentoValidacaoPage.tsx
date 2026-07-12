@@ -37,6 +37,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { AiChartGenerator } from '@/components/bi/ai/AiChartGenerator';
+import { useDemoMode } from '@/contexts/DemoModeContext';
 
 const FONTE_ACAO_OPTIONS = ['VM_FATURAMENTO', 'VM_FATURAMENTO_MANUAL', 'VM_FAT_CONTABIL', 'VM_FAT_TRB', 'SEM_FONTE'];
 const UNIDADE_NEGOCIO_OPTIONS = ['GENIUS', 'ESTRUTURAL ZORTEA', 'SEM_UNIDADE'];
@@ -58,6 +59,7 @@ const defaultAnomes = () => {
 
 export default function FaturamentoValidacaoPage() {
   const { toast } = useToast();
+  const { maskUnidade } = useDemoMode();
   const def = defaultAnomes();
   const defaultsIniciais: FaturamentoValidacaoFiltros = {
     anomes_ini: def.ini,
@@ -296,7 +298,7 @@ export default function FaturamentoValidacaoPage() {
 
   const uniComColumns: Column<UnidadeComercialRow>[] = useMemo(() => [
     { key: 'anomes_emissao', header: 'AnoMês', render: (_, r) => r.anomes_emissao ?? '-' },
-    { key: 'unidade_negocio', header: 'Unidade', render: (_, r) => r.unidade_negocio ?? '-' },
+    { key: 'unidade_negocio', header: 'Unidade', render: (_, r) => maskUnidade(r.unidade_negocio ?? '-') },
     { key: 'qtd_linhas', header: 'Linhas', render: (_, r) => formatNumber(num(r.qtd_linhas)), align: 'right' },
     { key: 'vl_bruto', header: 'VL Bruto', render: (_, r) => formatCurrency(num(r.vl_bruto)), align: 'right' },
     { key: 'vl_total', header: 'VL Total', render: (_, r) => formatCurrency(num(r.vl_total)), align: 'right' },
@@ -304,11 +306,11 @@ export default function FaturamentoValidacaoPage() {
     { key: 'vl_icms', header: 'VL ICMS', render: (_, r) => formatCurrency(num(r.vl_icms)), align: 'right' },
     { key: 'vl_pis', header: 'VL PIS', render: (_, r) => formatCurrency(num(r.vl_pis)), align: 'right' },
     { key: 'vl_cofins', header: 'VL COFINS', render: (_, r) => formatCurrency(num(r.vl_cofins)), align: 'right' },
-  ], []);
+  ], [maskUnidade]);
 
   const uniTecColumns: Column<UnidadeTecnicaRow>[] = useMemo(() => [
     { key: 'anomes_emissao', header: 'AnoMês', render: (_, r) => r.anomes_emissao ?? '-' },
-    { key: 'unidade_negocio', header: 'Unidade', render: (_, r) => r.unidade_negocio ?? '-' },
+    { key: 'unidade_negocio', header: 'Unidade', render: (_, r) => maskUnidade(r.unidade_negocio ?? '-') },
     { key: 'fonte_acao', header: 'Fonte Ação', render: (_, r) => r.fonte_acao ?? 'SEM_FONTE' },
     { key: 'cd_tp_movimento', header: 'Tp Mov', render: (_, r) => r.cd_tp_movimento ?? '-' },
     { key: 'cd_origem', header: 'Origem', render: (_, r) => r.cd_origem ?? '-' },
@@ -319,7 +321,7 @@ export default function FaturamentoValidacaoPage() {
     { key: 'vl_icms', header: 'VL ICMS', render: (_, r) => formatCurrency(num(r.vl_icms)), align: 'right' },
     { key: 'vl_pis', header: 'VL PIS', render: (_, r) => formatCurrency(num(r.vl_pis)), align: 'right' },
     { key: 'vl_cofins', header: 'VL COFINS', render: (_, r) => formatCurrency(num(r.vl_cofins)), align: 'right' },
-  ], []);
+  ], [maskUnidade]);
 
   const totalPaginas = qDet.data ? Math.max(1, Math.ceil(qDet.data.total / pageSize)) : 1;
 
@@ -402,6 +404,7 @@ export default function FaturamentoValidacaoPage() {
               value={draft.unidade_negocio ?? ''}
               onChange={(v) => setDraft({ ...draft, unidade_negocio: v })}
               placeholder="Todas"
+              renderLabel={maskUnidade}
             />
 
 

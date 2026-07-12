@@ -18,6 +18,7 @@ import { TopRecursosChart } from '@/components/producao/carga-dashboard/TopRecur
 import { CargaQtdOpsChart } from '@/components/producao/carga-dashboard/CargaQtdOpsChart';
 import { DonutCard } from '@/components/producao/carga-dashboard/DonutCard';
 import { PorRecursoTable } from '@/components/producao/carga-dashboard/PorRecursoTable';
+import { useDemoMode } from '@/contexts/DemoModeContext';
 import { DrillSheet, useDrillSheet, biResponsive, type DrillSheetFilterChip } from '@/components/bi';
 import { DetalheOpsTab } from '@/components/producao/carga/DetalheOpsTab';
 import { cn } from '@/lib/utils';
@@ -56,6 +57,7 @@ interface DrillCtx { filtros: CargaFiltros }
 
 export default function CargaRecursosDashboardPage() {
   const qc = useQueryClient();
+  const { maskUnidade } = useDemoMode();
   const [filtros, setFiltros] = useState<CargaFiltros>({
     codemp: 1,
     data_ini: primeiroDiaMes(),
@@ -149,7 +151,7 @@ export default function CargaRecursosDashboardPage() {
     const c: DrillSheetFilterChip[] = [];
     if (filtros.data_ini || filtros.data_fim) c.push({ label: 'Período', value: `${filtros.data_ini ?? '…'} → ${filtros.data_fim ?? '…'}` });
     if (filtros.situacoes) c.push({ label: 'Situações', value: filtros.situacoes });
-    if (filtros.unidade_negocio) c.push({ label: 'Unidade', value: filtros.unidade_negocio });
+    if (filtros.unidade_negocio) c.push({ label: 'Unidade', value: maskUnidade(filtros.unidade_negocio) });
     if (filtros.tipo_recurso) c.push({ label: 'Tipo', value: filtros.tipo_recurso });
     return c;
   };
@@ -173,7 +175,7 @@ export default function CargaRecursosDashboardPage() {
       ctx: { filtros },
     });
   const openUnidade = (un: string) =>
-    openDrill({ title: `Unidade · ${un}`, chips: [...baseChips(), { label: 'Unidade', value: un }], ctx: { filtros: { ...filtros, unidade_negocio: un } } });
+    openDrill({ title: `Unidade · ${maskUnidade(un)}`, chips: [...baseChips(), { label: 'Unidade', value: maskUnidade(un) }], ctx: { filtros: { ...filtros, unidade_negocio: un } } });
   const openTipo = (tp: string) =>
     openDrill({ title: `Tipo · ${tp}`, chips: [...baseChips(), { label: 'Tipo', value: tp }], ctx: { filtros: { ...filtros, tipo_recurso: tp } } });
   const openCcu = (ccu: string) => {
@@ -313,12 +315,15 @@ export default function CargaRecursosDashboardPage() {
       <div className={biResponsive.chartGrid3}>
         <DonutCard
           title="Por unidade de negócio"
-          data={porUnidade}
+          data={porUnidade.map((u) => ({ ...u, name: maskUnidade(String(u.name)) }))}
           centerLabel="Carga (h)"
           centerValue={fmtDec(totals.carga_h)}
           totalLabel="Total"
           totalValue={`${fmtDec(totals.carga_h)} h / 100%`}
-          onSelect={openUnidade}
+          onSelect={(masked) => {
+            const raw = porUnidade.find((u) => maskUnidade(String(u.name)) === masked)?.name;
+            if (raw != null) openUnidade(String(raw));
+          }}
         />
         <DonutCard
           title="Por tipo de recurso"

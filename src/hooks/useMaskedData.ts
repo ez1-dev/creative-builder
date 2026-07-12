@@ -8,9 +8,9 @@ import { applyMask } from '@/lib/demo/applyMask';
 import type { SchemaKey } from '@/lib/demo/maskingSchema';
 
 export function useMaskedData<T = any>(data: T, schemaKey: SchemaKey): T {
-  const { active, presentationActive, maskName, maskDoc, maskCurrency, applyText } = useDemoMode();
+  const { active, presentationActive, maskName, maskDoc, maskCurrency, maskUnidade, applyText } = useDemoMode();
   return useMemo(() => {
     if (!active && !presentationActive) return data;
-    return applyMask(data, schemaKey, { active, presentationActive, maskName, maskDoc, maskCurrency, applyText });
-  }, [data, schemaKey, active, presentationActive, maskName, maskDoc, maskCurrency, applyText]);
+    return applyMask(data, schemaKey, { active, presentationActive, maskName, maskDoc, maskCurrency, maskUnidade, applyText });
+  }, [data, schemaKey, active, presentationActive, maskName, maskDoc, maskCurrency, maskUnidade, applyText]);
 }

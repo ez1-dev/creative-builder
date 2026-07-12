@@ -11,8 +11,11 @@ export interface MaskFns {
   maskName: (kind: MaskNameKind, v: string | null | undefined) => string;
   maskDoc: (kind: MaskDocKind, v: string | null | undefined) => string;
   maskCurrency: (v: number | null | undefined) => number | null;
+  maskUnidade: (v: string | null | undefined) => string;
   applyText: (v: string | null | undefined) => string;
 }
+
+const DEFAULT_UNIDADE_KEYS = ['unidade_negocio', 'unidadeNegocio', 'projeto_macro', 'projetoMacro'];
 
 function transformRow(row: any, spec: FieldSpec, fns: MaskFns): any {
   if (row == null || typeof row !== 'object') return row;
@@ -38,6 +41,12 @@ function transformRow(row: any, spec: FieldSpec, fns: MaskFns): any {
         const v = fns.maskCurrency(out[key]);
         out[key] = v == null || Number.isNaN(v) ? out[key] : v;
       }
+    }
+  }
+  const unidadeKeys = spec.unidades ?? DEFAULT_UNIDADE_KEYS;
+  for (const key of unidadeKeys) {
+    if (typeof out[key] === 'string' && out[key]) {
+      out[key] = fns.maskUnidade(out[key]);
     }
   }
   return out;

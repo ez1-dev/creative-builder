@@ -17,7 +17,11 @@ export interface FieldSpec {
   docs?: Partial<Record<string, MaskDocKind>>;
   money?: string[];
   text?: string[];
+  /** Campos que carregam o rótulo da Unidade de Negócio (GENIUS, ESTRUTURAL ZORTEA, etc.). */
+  unidades?: string[];
 }
+
+const DEFAULT_UNIDADES = ['unidade_negocio', 'unidadeNegocio', 'projeto_macro', 'projetoMacro', 'un', 'bu'];
 
 /** Especificações por "schemaKey" — use o nome curto do módulo. */
 export const MASKING_SCHEMAS: Record<string, FieldSpec> = {
@@ -31,6 +35,7 @@ export const MASKING_SCHEMAS: Record<string, FieldSpec> = {
     },
     docs: { cnpj: 'cnpj', cpf: 'cpf', cnpj_cpf: 'cnpj', nr_nota: 'nota', numero_nota: 'nota', nota_fiscal: 'nota' },
     money: ['vl_total', 'vl_liquido', 'vl_bruto', 'vl_faturado', 'vl_recebido', 'vl_meta', 'valor', 'valor_total', 'valor_liquido', 'total', 'ticket_medio'],
+    unidades: DEFAULT_UNIDADES,
   },
   frota: {
     names: {

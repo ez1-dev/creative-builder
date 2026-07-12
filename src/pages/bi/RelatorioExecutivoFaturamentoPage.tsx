@@ -18,6 +18,7 @@ import {
   BLOCOS_PADRAO, BLOCOS_CURTO,
   type BlocosSelecionados,
 } from '@/hooks/useRelatorioExecutivoFaturamento';
+import { useDemoMode } from '@/contexts/DemoModeContext';
 import type { BiComercialFilters, UnidadeNegocio } from '@/lib/bi/comercialFilters';
 import {
   KpisBloco, EvolucaoBloco, RankingsBloco, MargemImpostosBloco,
@@ -46,6 +47,7 @@ const PRESETS = [
 
 export default function RelatorioExecutivoFaturamentoPage() {
   const navigate = useNavigate();
+  const { maskUnidade } = useDemoMode();
   const [etapa, setEtapa] = useState<Etapa>('wizard');
   const [nivel, setNivel] = useState<NivelDetalhe>('completo');
   const [blocos, setBlocos] = useState<BlocosSelecionados>(BLOCOS_PADRAO);
@@ -274,8 +276,8 @@ export default function RelatorioExecutivoFaturamentoPage() {
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="CONSOLIDADO">Consolidado</SelectItem>
-                      <SelectItem value="GENIUS">GENIUS</SelectItem>
-                      <SelectItem value="ESTRUTURAL ZORTEA">ESTRUTURAL ZORTEA</SelectItem>
+                      <SelectItem value="GENIUS">{maskUnidade('GENIUS')}</SelectItem>
+                      <SelectItem value="ESTRUTURAL ZORTEA">{maskUnidade('ESTRUTURAL ZORTEA')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -419,7 +421,7 @@ export default function RelatorioExecutivoFaturamentoPage() {
           <div>
             <h1 className="rel-titulo">Relatório Executivo de Faturamento</h1>
             <p className="rel-subtitulo">
-              Período {filtrosFinais.anomes_ini} – {filtrosFinais.anomes_fim} • Unidade: {filtrosFinais.unidade_negocio}
+              Período {filtrosFinais.anomes_ini} – {filtrosFinais.anomes_fim} • Unidade: {maskUnidade(filtrosFinais.unidade_negocio)}
             </p>
           </div>
           <div className="rel-data">

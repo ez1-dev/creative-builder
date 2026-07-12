@@ -18,6 +18,7 @@ import { CargaQtdOpsChart } from '@/components/producao/carga-dashboard/CargaQtd
 import { DonutCard } from '@/components/producao/carga-dashboard/DonutCard';
 import { CentrosDemandadosTable } from '@/components/producao/carga-dashboard/CentrosDemandadosTable';
 import { InsightsPanel } from '@/components/producao/carga-dashboard/InsightsPanel';
+import { useDemoMode } from '@/contexts/DemoModeContext';
 import { HeatmapMock } from '@/components/producao/carga-dashboard/HeatmapMock';
 import { FilaSituacaoCard } from '@/components/producao/carga-dashboard/FilaSituacaoCard';
 import { DrillSheet, useDrillSheet, biResponsive, type DrillSheetFilterChip } from '@/components/bi';
@@ -58,6 +59,7 @@ interface DrillCtx {
 
 export default function CargaDashboardPage() {
   const qc = useQueryClient();
+  const { maskUnidade } = useDemoMode();
   const [filtros, setFiltros] = useState<CargaFiltros>({
     codemp: 1,
     data_ini: primeiroDiaMes(),
@@ -140,7 +142,7 @@ export default function CargaDashboardPage() {
       c.push({ label: 'Período', value: `${filtros.data_ini ?? '…'} → ${filtros.data_fim ?? '…'}` });
     }
     if (filtros.situacoes) c.push({ label: 'Situações', value: filtros.situacoes });
-    if (filtros.unidade_negocio) c.push({ label: 'Unidade', value: filtros.unidade_negocio });
+    if (filtros.unidade_negocio) c.push({ label: 'Unidade', value: maskUnidade(filtros.unidade_negocio) });
     if (filtros.tipo_recurso) c.push({ label: 'Tipo', value: filtros.tipo_recurso });
     return c;
   };
@@ -196,8 +198,8 @@ export default function CargaDashboardPage() {
 
   const openUnidade = (un: string) => {
     openDrill({
-      title: `Unidade · ${un}`,
-      chips: [...baseChips(), { label: 'Unidade', value: un }],
+      title: `Unidade · ${maskUnidade(un)}`,
+      chips: [...baseChips(), { label: 'Unidade', value: maskUnidade(un) }],
       ctx: { filtros: { ...filtros, unidade_negocio: un } },
     });
   };
@@ -361,12 +363,15 @@ export default function CargaDashboardPage() {
       <div className={biResponsive.chartGrid3}>
         <DonutCard
           title="3. Distribuição por unidade de negócio"
-          data={porUnidade.map((u) => ({ name: String(u.name), value: u.carga_min }))}
+          data={porUnidade.map((u) => ({ name: maskUnidade(String(u.name)), value: u.carga_min }))}
           centerLabel="Carga (min)"
           centerValue={fmtNum(totalCargaMin)}
           totalLabel="Total"
           totalValue={`${fmtNum(totalCargaMin)} min / 100%`}
-          onSelect={openUnidade}
+          onSelect={(masked) => {
+            const raw = porUnidade.find((u) => maskUnidade(String(u.name)) === masked)?.name;
+            if (raw != null) openUnidade(String(raw));
+          }}
         />
         <DonutCard
           title="4. Distribuição por centro de custo"

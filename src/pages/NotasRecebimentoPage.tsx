@@ -13,6 +13,7 @@ import { PageDataProvider } from '@/lib/bi/PageDataContext';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DemoUnidade } from '@/components/demo/DemoText';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -601,8 +602,8 @@ export default function NotasRecebimentoPage() {
             <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="TODOS">Todos</SelectItem>
-              <SelectItem value="GENIUS">Genius</SelectItem>
-              <SelectItem value="ESTRUTURAL ZORTEA">Estrutural Zortea</SelectItem>
+              <SelectItem value="GENIUS"><DemoUnidade>Genius</DemoUnidade></SelectItem>
+              <SelectItem value="ESTRUTURAL ZORTEA"><DemoUnidade>Estrutural Zortea</DemoUnidade></SelectItem>
               <SelectItem value="OUTROS">Outros</SelectItem>
             </SelectContent>
           </Select>

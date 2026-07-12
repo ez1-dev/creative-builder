@@ -23,6 +23,7 @@ import {
 } from '@/lib/bi/comercialDrillApi';
 import { DRILL_LABELS, NEXT_DRILLS, ROW_TO_CTX_KEY, CTX_LABELS } from '@/lib/bi/comercialDrillCatalog';
 import { cleanDrillValue, compactDrillContext } from '@/lib/bi/comercialDrillContract';
+import { useDemoMode } from '@/contexts/DemoModeContext';
 import { formatEstadoLabel as formatEstadoLabelLocal, ufName as ufNameLocal } from '@/lib/bi/ufLabels';
 import type { ComercialDrillStack } from '@/hooks/useComercialDrillStack';
 import { DrillEmptyDiagnostico } from './DrillEmptyDiagnostico';
@@ -175,6 +176,7 @@ function levelTitle(
 
 export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_negocio }: Props) {
   const cur = stack.current;
+  const { maskUnidade } = useDemoMode();
   const [selectorOpenInline, setSelectorOpenInline] = useState(false);
 
   const query = useQuery<DrillResponse>({
@@ -336,7 +338,7 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
   const chips = useMemo(() => {
     const ctx = cur?.contexto ?? {};
     const out: { label: string; value: string; removeKey?: keyof DrillContexto }[] = [
-      { label: 'Unidade', value: unidade_negocio },
+      { label: 'Unidade', value: maskUnidade(unidade_negocio) },
       { label: 'Período', value: `${anomes_ini} → ${anomes_fim}` },
     ];
     (Object.keys(ctx) as (keyof DrillContexto)[]).forEach((k) => {
@@ -344,7 +346,7 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
       if (v) out.push({ label: CTX_LABELS[k] ?? String(k), value: v, removeKey: k });
     });
     return out;
-  }, [cur?.contexto, anomes_ini, anomes_fim, unidade_negocio]);
+  }, [cur?.contexto, anomes_ini, anomes_fim, unidade_negocio, maskUnidade]);
 
 
   const totalPaginas = useMemo(() => {
