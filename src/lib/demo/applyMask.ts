@@ -2,7 +2,7 @@
  * Aplica mascaramento recursivo em objetos/arrays de dados.
  * Zero-custo quando o modo apresentação está desligado.
  */
-import { MASKING_SCHEMAS, type SchemaKey } from './maskingSchema';
+import { MASKING_SCHEMAS, type FieldSpec, type SchemaKey } from './maskingSchema';
 import type { MaskDocKind, MaskNameKind } from '@/contexts/DemoModeContext';
 
 export interface MaskFns {
@@ -14,7 +14,7 @@ export interface MaskFns {
   applyText: (v: string | null | undefined) => string;
 }
 
-function transformRow(row: any, spec: ReturnType<typeof MASKING_SCHEMAS['comercial']> extends never ? never : typeof MASKING_SCHEMAS[string], fns: MaskFns): any {
+function transformRow(row: any, spec: FieldSpec, fns: MaskFns): any {
   if (row == null || typeof row !== 'object') return row;
   const out: any = Array.isArray(row) ? [...row] : { ...row };
 
