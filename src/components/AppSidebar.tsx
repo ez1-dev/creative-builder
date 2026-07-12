@@ -490,7 +490,7 @@ export function AppSidebar() {
       <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
         <div className="flex items-center gap-2">
           <LayoutDashboard className="h-6 w-6 text-sidebar-primary" />
-          {!collapsed && <span className="text-[15px] font-semibold tracking-tight text-sidebar-foreground">ERP Sapiens</span>}
+          {!collapsed && <BrandName />}
         </div>
         {!collapsed && (
           <div className="relative mt-3">
