@@ -137,6 +137,15 @@ export function DemoModeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { load(); }, [load]);
 
+  // Alterna classes globais no <html> para permitir hooks CSS + document.title.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (prefs.presentation_enabled) root.classList.add('presentation-mode');
+    else root.classList.remove('presentation-mode');
+    if (prefs.enabled) root.classList.add('demo-mode');
+    else root.classList.remove('demo-mode');
+  }, [prefs.presentation_enabled, prefs.enabled]);
+
   const save = useCallback(async (patch: Partial<DemoPrefs>) => {
     if (!user?.id) throw new Error('Usuário não autenticado');
     const previous = prefs;
