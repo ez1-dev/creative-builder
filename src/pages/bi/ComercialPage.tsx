@@ -332,12 +332,32 @@ export default function ComercialPage() {
   // Nenhum override no frontend — a RPC bi_comercial_kpis lê bi_meta_faturamento.
   const { data: clientesMap } = useBiClientesMap();
 
-  const kpis = qKpis.data ?? ({} as any);
-  const mensal = qMensal.data ?? [];
-  const mix = qMix.data ?? [];
-  const estados = qEstado.data ?? [];
-  const revendaRows = qRevenda.data ?? [];
-  const obrasRows = qObras.data ?? [];
+  const displayMoney = (value: any): any => {
+    if (value == null || value === '') return value;
+    const raw = Number(value);
+    if (!Number.isFinite(raw)) return value;
+    return maskCurrency(raw);
+  };
+  const maskMoneyFields = <T extends Record<string, any>>(row: T): T => {
+    const out: Record<string, any> = { ...row };
+    COMERCIAL_MONEY_KEYS.forEach((key) => {
+      if (key in out) out[key] = displayMoney(out[key]);
+    });
+    return out as T;
+  };
+
+  const kpis = useMemo(() => maskMoneyFields((qKpis.data ?? {}) as any), [qKpis.data, maskCurrency]);
+  const mensal = useMemo(() => (qMensal.data ?? []).map((row) => maskMoneyFields(row as any)), [qMensal.data, maskCurrency]);
+  const mix = useMemo(() => (qMix.data ?? []).map((row) => maskMoneyFields(row as any)), [qMix.data, maskCurrency]);
+  const estados = useMemo(() => (qEstado.data ?? []).map((row) => maskMoneyFields(row as any)), [qEstado.data, maskCurrency]);
+  const revendaRows = useMemo(() => (qRevenda.data ?? []).map((row: any) => {
+    const label = pickDimensionLabel(row, 'revenda') || row?.revenda || row?.cd_rev_pedido || '';
+    return { ...maskMoneyFields(row), revenda_label: maskName('revenda', label) };
+  }), [qRevenda.data, maskCurrency, maskName]);
+  const obrasRows = useMemo(() => (qObras.data ?? []).map((row: any) => {
+    const label = pickDimensionLabel(row, 'obra') || row?.projeto || row?.cd_prj || '';
+    return { ...maskMoneyFields(row), obra_label: maskName('cliente', label) };
+  }), [qObras.data, maskCurrency, maskName]);
   const detalhesRaw = qDetalhes.data ?? [];
   const detalhes = useMemo(() => {
     return detalhesRaw.map((row) => {
