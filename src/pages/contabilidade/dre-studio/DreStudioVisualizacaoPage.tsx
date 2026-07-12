@@ -2024,10 +2024,8 @@ function Visualizacao() {
                   });
                   setConfirmRecriar(false);
                   if (r.modelo?.id) {
-                    navigate({
-                      to: "/dre/modelo/$id/visualizacao",
-                      params: { id: r.modelo.id },
-                    });
+                    navigate(`/contabilidade/dre-studio/${r.modelo.id}/visualizacao`);
+
                   }
                 } catch {
                   /* toast já tratado no hook */
