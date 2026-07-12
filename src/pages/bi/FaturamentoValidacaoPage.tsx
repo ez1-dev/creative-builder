@@ -59,6 +59,7 @@ const defaultAnomes = () => {
 
 export default function FaturamentoValidacaoPage() {
   const { toast } = useToast();
+  const { maskUnidade } = useDemoMode();
   const def = defaultAnomes();
   const defaultsIniciais: FaturamentoValidacaoFiltros = {
     anomes_ini: def.ini,
