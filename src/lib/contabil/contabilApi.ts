@@ -7,20 +7,54 @@ import { logError } from '@/lib/errorLogger';
 
 const DEFAULT_CONTABIL_URL = 'https://dreconfiguravel.ngrok.app';
 const CONTABIL_TIMEOUT_MS = 15000;
+// Domínio da API principal do ERP — NUNCA deve atender rotas /api/contabil/*.
+const FORBIDDEN_CONTABIL_HOST = 'api-erp-renato.ngrok.app';
 
 let _contabilBaseUrl: string | null = null;
+let _warnedForbidden = false;
 
 const stripTrailingSlash = (u: string) => u.replace(/\/+$/, '');
+
+function isForbiddenContabilUrl(u: string): boolean {
+  return u.toLowerCase().includes(FORBIDDEN_CONTABIL_HOST);
+}
+
+function warnForbiddenOnce(source: string, badUrl: string) {
+  if (_warnedForbidden) return;
+  _warnedForbidden = true;
+  // eslint-disable-next-line no-console
+  console.warn(
+    `[contabilApi] URL "${badUrl}" (via ${source}) aponta para ${FORBIDDEN_CONTABIL_HOST}, ` +
+    `que não atende /api/contabil/*. Usando fallback ${DEFAULT_CONTABIL_URL}.`,
+  );
+}
 
 export function getContabilBaseUrl(): string {
   if (_contabilBaseUrl) return stripTrailingSlash(_contabilBaseUrl);
   const envBase = (import.meta as any).env?.VITE_CONTABIL_API_URL;
-  if (envBase) return stripTrailingSlash(String(envBase));
+  if (envBase) {
+    const clean = stripTrailingSlash(String(envBase));
+    if (isForbiddenContabilUrl(clean)) {
+      warnForbiddenOnce('VITE_CONTABIL_API_URL', clean);
+      return DEFAULT_CONTABIL_URL;
+    }
+    return clean;
+  }
   return DEFAULT_CONTABIL_URL;
 }
 
 export function setContabilBaseUrl(url: string | null | undefined) {
-  _contabilBaseUrl = url ? stripTrailingSlash(String(url)) : null;
+  if (!url) {
+    _contabilBaseUrl = null;
+    return;
+  }
+  const clean = stripTrailingSlash(String(url));
+  if (isForbiddenContabilUrl(clean)) {
+    warnForbiddenOnce('setContabilBaseUrl', clean);
+    _contabilBaseUrl = null;
+    return;
+  }
+  _contabilBaseUrl = clean;
 }
 
 export interface ContabilHealthResult {
