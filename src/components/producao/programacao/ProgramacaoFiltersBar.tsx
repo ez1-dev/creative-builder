@@ -26,6 +26,7 @@ interface Props {
 export function ProgramacaoFiltersBar({ filtros, onChange, onRefresh, loading, showStatus }: Props) {
   const set = (patch: Partial<ProgramacaoFiltros>) => onChange({ ...filtros, ...patch });
   const qc = useQueryClient();
+  const { maskUnidade } = useDemoMode();
   const [syncing, setSyncing] = useState(false);
 
   const handleSync = async () => {
