@@ -14,6 +14,7 @@ import { AiAssistantChat } from '@/components/erp/AiAssistantChat';
 import { UpdateNotifier } from '@/components/UpdateNotifier';
 import { DemoBadge } from '@/components/DemoBadge';
 import { PresentationToggle } from '@/components/PresentationToggle';
+import { useBrand } from '@/contexts/DemoModeContext';
 import { useTvMode } from '@/hooks/useTvMode';
 import packageJson from '../../package.json';
 
@@ -21,6 +22,7 @@ export default function AppLayout() {
   const { isAuthenticated, user, displayName, approved, loading, logout } = useAuth();
   const location = useLocation();
   const { tvMode } = useTvMode();
+  const { name: brandName } = useBrand('EZ ERP IA');
   const allowFallback = PUBLIC_FALLBACK_PATHS.has(location.pathname);
 
   if (loading) return <AppLoadingScreen label="Verificando sua sessão…" />;
@@ -94,7 +96,7 @@ export default function AppLayout() {
               data-tv-hide="true"
               className="border-t bg-card px-3 py-2 text-center text-xs 3xl:text-sm text-muted-foreground"
             >
-              EZ ERP IA v{packageJson.version} · © {new Date().getFullYear()} Todos os direitos reservados.
+              {brandName} v{packageJson.version} · © {new Date().getFullYear()} Todos os direitos reservados.
             </footer>
           )}
         </div>
