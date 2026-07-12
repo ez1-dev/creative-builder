@@ -22,6 +22,9 @@ import {
   type MontadorLinha,
 } from '@/lib/bi/dreMontadorModelosApi';
 import type { DreFiltrosPainel } from '@/lib/bi/dreConfiguravelTypes';
+import { useDreApiHealth } from '@/lib/bi/dreErrors';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertTriangle } from 'lucide-react';
 
 function defaultFiltros(): DreFiltrosPainel {
   const now = new Date();
