@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Sparkles } from 'lucide-react';
+import { Loader2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
@@ -8,11 +8,34 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useDemoMode } from '@/contexts/DemoModeContext';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 export function PresentationToggle() {
-  const { presentationActive, prefs, togglePresentation, updatePresentation } = useDemoMode();
+  const { presentationActive, prefs, loading, togglePresentation, updatePresentation } = useDemoMode();
   const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const s = prefs.presentation_settings;
+
+  const handleToggle = async (next = !presentationActive) => {
+    if (loading || saving) return;
+    setSaving(true);
+    try {
+      await togglePresentation(next);
+      toast.success(next ? 'Modo Apresentação ativado' : 'Modo Apresentação desativado');
+    } catch (error: any) {
+      toast.error(`Não foi possível alterar o Modo Apresentação: ${error?.message ?? 'erro desconhecido'}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdate = async (patch: Parameters<typeof updatePresentation>[0]) => {
+    try {
+      await updatePresentation(patch);
+    } catch (error: any) {
+      toast.error(`Não foi possível salvar a configuração: ${error?.message ?? 'erro desconhecido'}`);
+    }
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -20,13 +43,15 @@ export function PresentationToggle() {
         <Button
           size="sm"
           variant={presentationActive ? 'default' : 'ghost'}
+          disabled={loading || saving}
+          onClick={() => void handleToggle()}
           className={cn(
             'h-7 3xl:h-9 text-xs 3xl:text-sm gap-1 shrink-0',
-            presentationActive && 'bg-amber-500 hover:bg-amber-600 text-white',
+            presentationActive && 'bg-[hsl(var(--warning))] hover:bg-[hsl(var(--warning))]/90 text-[hsl(var(--warning-foreground))]',
           )}
           title="Modo Apresentação"
         >
-          <Sparkles className="h-3 w-3 3xl:h-4 3xl:w-4" />
+          {saving ? <Loader2 className="h-3 w-3 3xl:h-4 3xl:w-4 animate-spin" /> : <Sparkles className="h-3 w-3 3xl:h-4 3xl:w-4" />}
           <span className="hidden sm:inline">{presentationActive ? 'Apresentação ON' : 'Apresentação'}</span>
         </Button>
       </PopoverTrigger>
@@ -36,12 +61,12 @@ export function PresentationToggle() {
             <p className="text-sm font-semibold">Modo Apresentação</p>
             <p className="text-xs text-muted-foreground">Mascara nomes, valores e documentos.</p>
           </div>
-          <Switch checked={presentationActive} onCheckedChange={(v) => togglePresentation(v)} />
+          <Switch checked={presentationActive} disabled={loading || saving} onCheckedChange={(v) => void handleToggle(v)} />
         </div>
 
         <div className="space-y-2">
           <Label className="text-xs">Fator de valores</Label>
-          <Select value={String(s.factor)} onValueChange={(v) => updatePresentation({ factor: Number(v) })}>
+          <Select value={String(s.factor)} onValueChange={(v) => void handleUpdate({ factor: Number(v) })}>
             <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="0.5">×0,50</SelectItem>
@@ -54,7 +79,7 @@ export function PresentationToggle() {
 
         <div className="space-y-2">
           <Label className="text-xs">Estilo dos nomes</Label>
-          <Select value={s.nameStyle} onValueChange={(v) => updatePresentation({ nameStyle: v as any })}>
+          <Select value={s.nameStyle} onValueChange={(v) => void handleUpdate({ nameStyle: v as any })}>
             <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="alfa">Cliente Alfa 12</SelectItem>
@@ -67,14 +92,14 @@ export function PresentationToggle() {
           <Label className="text-xs">Nome fantasia da empresa</Label>
           <Input
             value={s.companyName}
-            onChange={(e) => updatePresentation({ companyName: e.target.value })}
+            onChange={(e) => void handleUpdate({ companyName: e.target.value })}
             className="h-8"
           />
         </div>
 
         <div className="flex items-center justify-between">
           <Label className="text-xs">Ocultar CNPJ/CPF/placas</Label>
-          <Switch checked={s.hideDocs} onCheckedChange={(v) => updatePresentation({ hideDocs: v })} />
+          <Switch checked={s.hideDocs} onCheckedChange={(v) => void handleUpdate({ hideDocs: v })} />
         </div>
       </PopoverContent>
     </Popover>
