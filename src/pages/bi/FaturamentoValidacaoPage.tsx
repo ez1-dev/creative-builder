@@ -37,6 +37,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { AiChartGenerator } from '@/components/bi/ai/AiChartGenerator';
+import { useDemoMode } from '@/contexts/DemoModeContext';
 
 const FONTE_ACAO_OPTIONS = ['VM_FATURAMENTO', 'VM_FATURAMENTO_MANUAL', 'VM_FAT_CONTABIL', 'VM_FAT_TRB', 'SEM_FONTE'];
 const UNIDADE_NEGOCIO_OPTIONS = ['GENIUS', 'ESTRUTURAL ZORTEA', 'SEM_UNIDADE'];
