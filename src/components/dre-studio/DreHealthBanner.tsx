@@ -15,17 +15,23 @@ export function DreHealthBanner({ className }: { className?: string }) {
   if (isFetching && !data && !error) return null;
 
   if (error) {
+    const status = (error as any)?.statusCode ?? (error as any)?.status;
+    const isNotFound = status === 404 || (error as any)?.dreKind === 'not_found';
     return (
-      <Alert variant="destructive" className={cn('mb-3', className)}>
-        <Server className="h-4 w-4" />
-        <AlertTitle>API contábil offline</AlertTitle>
+      <Alert className={cn('mb-3 border-amber-500/50 bg-amber-500/5', className)}>
+        <AlertCircle className="h-4 w-4 text-amber-600" />
+        <AlertTitle>
+          {isNotFound ? 'Módulo aguardando backend' : 'API contábil indisponível'}
+        </AlertTitle>
         <AlertDescription>
-          Não foi possível acessar a API principal do ERP. Verifique se o backend FastAPI está em execução
-          e se a URL configurada em Configurações está correta.
+          {isNotFound
+            ? 'Os endpoints /api/contabil/* ainda não foram publicados na API principal do ERP. As telas do DRE Studio ficam disponíveis para pré-visualização, mas dados reais só carregarão após a integração no backend. Contrato esperado documentado em docs/backend-dre-studio-endpoints.md.'
+            : 'Não foi possível acessar a API principal do ERP. Verifique se o backend FastAPI está em execução e se a URL configurada em Configurações está correta.'}
         </AlertDescription>
       </Alert>
     );
   }
+
 
   if (!data) return null;
 
