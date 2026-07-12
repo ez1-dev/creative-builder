@@ -21,6 +21,7 @@ import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getApiUrl, setApiBaseUrl } from '@/lib/api';
+import { getContabilBaseUrl, setContabilBaseUrl, pingContabilHealth, pingErpHealth, type ContabilHealthResult } from '@/lib/contabil/contabilApi';
 import { formatDate } from '@/lib/format';
 import { PermissoesPorTelaPanel } from '@/components/configuracoes/PermissoesPorTelaPanel';
 import { DemoModeSection } from '@/components/configuracoes/DemoModeSection';
