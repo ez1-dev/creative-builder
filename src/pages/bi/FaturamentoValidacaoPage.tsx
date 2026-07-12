@@ -298,7 +298,7 @@ export default function FaturamentoValidacaoPage() {
 
   const uniComColumns: Column<UnidadeComercialRow>[] = useMemo(() => [
     { key: 'anomes_emissao', header: 'AnoMês', render: (_, r) => r.anomes_emissao ?? '-' },
-    { key: 'unidade_negocio', header: 'Unidade', render: (_, r) => r.unidade_negocio ?? '-' },
+    { key: 'unidade_negocio', header: 'Unidade', render: (_, r) => maskUnidade(r.unidade_negocio ?? '-') },
     { key: 'qtd_linhas', header: 'Linhas', render: (_, r) => formatNumber(num(r.qtd_linhas)), align: 'right' },
     { key: 'vl_bruto', header: 'VL Bruto', render: (_, r) => formatCurrency(num(r.vl_bruto)), align: 'right' },
     { key: 'vl_total', header: 'VL Total', render: (_, r) => formatCurrency(num(r.vl_total)), align: 'right' },
