@@ -51,14 +51,28 @@ function authHeaders(): Record<string, string> {
 
 async function call<T>(method: string, path: string, body?: any): Promise<T> {
   const url = `${getApiUrl()}${path}`;
-  const resp = await fetch(url, {
-    method,
-    headers: authHeaders(),
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  let resp: Response;
+  try {
+    resp = await fetch(url, {
+      method,
+      headers: authHeaders(),
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch (netErr: any) {
+    const info = describeDreError(netErr);
+    const e: any = new Error(info.message);
+    e.dreKind = info.kind;
+    throw e;
+  }
   if (!resp.ok) {
     const txt = await resp.text().catch(() => '');
-    throw new Error(`HTTP ${resp.status} ${method} ${path}: ${txt.slice(0, 300)}`);
+    let payload: any = null;
+    try { payload = JSON.parse(txt); } catch { /* ignore */ }
+    const info = describeDreError({ statusCode: resp.status, response: { status: resp.status, data: payload }, message: txt.slice(0, 300) });
+    const e: any = new Error(info.message);
+    e.dreKind = info.kind;
+    e.statusCode = resp.status;
+    throw e;
   }
   if (resp.status === 204) return undefined as any;
   return resp.json().catch(() => ({} as any));
