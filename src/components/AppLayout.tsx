@@ -72,6 +72,7 @@ export default function AppLayout() {
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0 min-w-0">
+                <PresentationToggle />
                 <span className="hidden md:inline text-xs 3xl:text-sm text-muted-foreground truncate max-w-[200px] 3xl:max-w-[320px]" title={label}>
                   Olá, <strong className="text-foreground">{label}</strong>
                 </span>
