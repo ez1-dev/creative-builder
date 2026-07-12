@@ -1,7 +1,8 @@
 /**
- * Modo Demonstração para investidores.
- * Permite esconder módulos, gráficos, e mascarar dados sensíveis na UI —
- * sem alterar dados reais no banco. Preferência é por usuário logado.
+ * Modo Demonstração + Modo Apresentação.
+ * - Modo Demonstração: preferências granulares por usuário (mascaramento seletivo).
+ * - Modo Apresentação: preset 1-clique com regras fortes que sobrepõem os granulares.
+ * Nenhum dos dois altera dados no banco — apenas transforma o que é exibido.
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,6 +13,20 @@ export type MaskDocKind = 'cnpj' | 'cpf' | 'placa' | 'nota';
 
 export interface TextReplacement { from: string; to: string; }
 
+export interface PresentationSettings {
+  factor: number;               // multiplicador de valores monetários (ex: 0.73)
+  nameStyle: 'alfa' | 'norte';  // estilo de nomes fake
+  companyName: string;          // nome exibido no header/sidebar/relatórios
+  hideDocs: boolean;            // oculta CNPJ/CPF/placa
+}
+
+export const DEFAULT_PRESENTATION: PresentationSettings = {
+  factor: 0.73,
+  nameStyle: 'alfa',
+  companyName: 'Empresa Demo S/A',
+  hideDocs: true,
+};
+
 export interface DemoPrefs {
   enabled: boolean;
   hidden_modules: string[];
@@ -20,6 +35,8 @@ export interface DemoPrefs {
   mask_values: { mode: 'keep' | 'scale' | 'hide'; factor?: number };
   mask_docs: Partial<Record<MaskDocKind, boolean>>;
   text_replacements: TextReplacement[];
+  presentation_enabled: boolean;
+  presentation_settings: PresentationSettings;
 }
 
 const DEFAULT_PREFS: DemoPrefs = {
@@ -30,14 +47,19 @@ const DEFAULT_PREFS: DemoPrefs = {
   mask_values: { mode: 'keep', factor: 1 },
   mask_docs: {},
   text_replacements: [],
+  presentation_enabled: false,
+  presentation_settings: DEFAULT_PRESENTATION,
 };
 
 interface DemoModeContextValue {
   prefs: DemoPrefs;
   loading: boolean;
-  active: boolean; // enabled && loaded
+  active: boolean;              // demo granular ativo
+  presentationActive: boolean;  // preset 1-clique ativo
   save: (next: Partial<DemoPrefs>) => Promise<void>;
   reload: () => Promise<void>;
+  togglePresentation: (next?: boolean) => Promise<void>;
+  updatePresentation: (patch: Partial<PresentationSettings>) => Promise<void>;
 
   isModuleHidden: (path: string) => boolean;
   isVisualHidden: (key: string) => boolean;
@@ -50,7 +72,7 @@ interface DemoModeContextValue {
 
 const Ctx = createContext<DemoModeContextValue | null>(null);
 
-// Nome fictício estável por (kind, value) — determinístico via hash simples.
+// Pools de nomes por categoria. Escolha determinística via hash do valor original.
 const FAKE_NAMES: Record<MaskNameKind, string[]> = {
   cliente: ['Alfa', 'Beta', 'Gama', 'Delta', 'Épsilon', 'Zeta', 'Ômega', 'Sigma', 'Nova', 'Vega', 'Orion', 'Áltair', 'Íris', 'Lyra'],
   fornecedor: ['Norte', 'Sul', 'Leste', 'Oeste', 'Prime', 'Global', 'Meridian', 'Atlas', 'Zenit', 'Poente', 'Aurora'],
@@ -59,10 +81,21 @@ const FAKE_NAMES: Record<MaskNameKind, string[]> = {
   revenda: ['Revenda Alfa', 'Revenda Beta', 'Revenda Gama', 'Revenda Delta', 'Revenda Ômega'],
 };
 
+const NAME_PREFIX_BY_KIND: Record<MaskNameKind, string> = {
+  cliente: 'Cliente',
+  fornecedor: 'Fornecedor',
+  colaborador: 'Colaborador',
+  motorista: 'Motorista',
+  revenda: 'Revenda',
+};
+
 function hashStr(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
-  return Math.abs(h);
+  let h = 2166136261 >>> 0; // FNV-1a
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
 }
 
 export function DemoModeProvider({ children }: { children: ReactNode }) {
@@ -79,14 +112,17 @@ export function DemoModeProvider({ children }: { children: ReactNode }) {
       .eq('user_id', user.id)
       .maybeSingle();
     if (data) {
+      const raw = data as any;
       setPrefs({
-        enabled: !!data.enabled,
-        hidden_modules: (data.hidden_modules as string[]) ?? [],
-        hidden_visuals: (data.hidden_visuals as string[]) ?? [],
-        mask_names: (data.mask_names as any) ?? {},
-        mask_values: (data.mask_values as any) ?? { mode: 'keep', factor: 1 },
-        mask_docs: (data.mask_docs as any) ?? {},
-        text_replacements: (data.text_replacements as any) ?? [],
+        enabled: !!raw.enabled,
+        hidden_modules: (raw.hidden_modules as string[]) ?? [],
+        hidden_visuals: (raw.hidden_visuals as string[]) ?? [],
+        mask_names: (raw.mask_names as any) ?? {},
+        mask_values: (raw.mask_values as any) ?? { mode: 'keep', factor: 1 },
+        mask_docs: (raw.mask_docs as any) ?? {},
+        text_replacements: (raw.text_replacements as any) ?? [],
+        presentation_enabled: !!raw.presentation_enabled,
+        presentation_settings: { ...DEFAULT_PRESENTATION, ...((raw.presentation_settings as any) ?? {}) },
       });
     } else {
       setPrefs(DEFAULT_PREFS);
@@ -111,10 +147,24 @@ export function DemoModeProvider({ children }: { children: ReactNode }) {
         mask_values: next.mask_values as any,
         mask_docs: next.mask_docs as any,
         text_replacements: next.text_replacements as any,
-      });
+        presentation_enabled: next.presentation_enabled,
+        presentation_settings: next.presentation_settings as any,
+      } as any);
   }, [prefs, user?.id]);
 
+  const togglePresentation = useCallback(async (next?: boolean) => {
+    const v = next ?? !prefs.presentation_enabled;
+    await save({ presentation_enabled: v });
+  }, [prefs.presentation_enabled, save]);
+
+  const updatePresentation = useCallback(async (patch: Partial<PresentationSettings>) => {
+    await save({ presentation_settings: { ...prefs.presentation_settings, ...patch } });
+  }, [prefs.presentation_settings, save]);
+
   const active = prefs.enabled && !loading;
+  const presentationActive = prefs.presentation_enabled && !loading;
+  // Qualquer um dos dois modos ativa mascaramento.
+  const anyActive = active || presentationActive;
 
   const hiddenModulesSet = useMemo(() => new Set(prefs.hidden_modules), [prefs.hidden_modules]);
   const hiddenVisualsSet = useMemo(() => new Set(prefs.hidden_visuals), [prefs.hidden_visuals]);
@@ -123,42 +173,59 @@ export function DemoModeProvider({ children }: { children: ReactNode }) {
   const isVisualHidden = useCallback((key: string) => active && hiddenVisualsSet.has(key), [active, hiddenVisualsSet]);
 
   const maskName = useCallback((kind: MaskNameKind, value: string | null | undefined): string => {
-    if (!active || !prefs.mask_names[kind] || !value) return value ?? '';
+    if (!value) return value ?? '';
+    // Presentation: mascara TODOS os kinds. Demo granular: só se marcado.
+    const shouldMask = presentationActive || (active && prefs.mask_names[kind]);
+    if (!shouldMask) return value;
+    const style = prefs.presentation_settings.nameStyle;
+    const h = hashStr(String(value));
+    if (presentationActive && style === 'norte') {
+      // Empresa <sufixo>
+      const pool = FAKE_NAMES.fornecedor;
+      return `${NAME_PREFIX_BY_KIND[kind]} ${pool[h % pool.length]}`;
+    }
     const pool = FAKE_NAMES[kind];
-    const pick = pool[hashStr(String(value)) % pool.length];
-    const suffix = String(hashStr(String(value)) % 99 + 1).padStart(2, '0');
+    const pick = pool[h % pool.length];
+    const suffix = String((h % 99) + 1).padStart(2, '0');
     return `${pick} ${suffix}`;
-  }, [active, prefs.mask_names]);
+  }, [active, presentationActive, prefs.mask_names, prefs.presentation_settings.nameStyle]);
 
   const maskCurrency = useCallback((v: number | null | undefined): number | null => {
-    if (v == null || !active) return v ?? null;
+    if (v == null) return v ?? null;
+    if (presentationActive) {
+      return v * (prefs.presentation_settings.factor ?? 1);
+    }
+    if (!active) return v;
     const m = prefs.mask_values;
     if (m.mode === 'scale') return v * (m.factor ?? 1);
     if (m.mode === 'hide') return NaN;
     return v;
-  }, [active, prefs.mask_values]);
+  }, [active, presentationActive, prefs.mask_values, prefs.presentation_settings.factor]);
 
   const maskDoc = useCallback((kind: MaskDocKind, v: string | null | undefined): string => {
-    if (!active || !prefs.mask_docs[kind] || !v) return v ?? '';
+    if (!v) return v ?? '';
+    const shouldMask = (presentationActive && prefs.presentation_settings.hideDocs) || (active && prefs.mask_docs[kind]);
+    if (!shouldMask) return v;
     return v.replace(/[A-Za-z0-9]/g, '•');
-  }, [active, prefs.mask_docs]);
+  }, [active, presentationActive, prefs.mask_docs, prefs.presentation_settings.hideDocs]);
 
   const applyText = useCallback((s: string | null | undefined): string => {
     if (!s) return s ?? '';
-    if (!active || !prefs.text_replacements?.length) return s;
+    if (!anyActive || !prefs.text_replacements?.length) return s;
     let out = s;
     for (const r of prefs.text_replacements) {
       if (!r.from) continue;
       out = out.split(r.from).join(r.to);
     }
     return out;
-  }, [active, prefs.text_replacements]);
+  }, [anyActive, prefs.text_replacements]);
 
   const value = useMemo<DemoModeContextValue>(() => ({
-    prefs, loading, active, save, reload: load,
+    prefs, loading, active, presentationActive,
+    save, reload: load, togglePresentation, updatePresentation,
     isModuleHidden, isVisualHidden,
     maskName, maskCurrency, maskDoc, applyText,
-  }), [prefs, loading, active, save, load, isModuleHidden, isVisualHidden, maskName, maskCurrency, maskDoc, applyText]);
+  }), [prefs, loading, active, presentationActive, save, load, togglePresentation, updatePresentation, isModuleHidden, isVisualHidden, maskName, maskCurrency, maskDoc, applyText]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
@@ -166,10 +233,10 @@ export function DemoModeProvider({ children }: { children: ReactNode }) {
 export function useDemoMode(): DemoModeContextValue {
   const v = useContext(Ctx);
   if (!v) {
-    // fallback seguro fora do provider
     return {
-      prefs: DEFAULT_PREFS, loading: false, active: false,
+      prefs: DEFAULT_PREFS, loading: false, active: false, presentationActive: false,
       save: async () => {}, reload: async () => {},
+      togglePresentation: async () => {}, updatePresentation: async () => {},
       isModuleHidden: () => false, isVisualHidden: () => false,
       maskName: (_k, v) => v ?? '',
       maskCurrency: (v) => v ?? null,
@@ -178,4 +245,13 @@ export function useDemoMode(): DemoModeContextValue {
     };
   }
   return v;
+}
+
+/** Hook auxiliar para trocar nome da empresa em headers/sidebar/relatórios. */
+export function useBrand(defaultName: string): { name: string; presentation: boolean } {
+  const { presentationActive, prefs } = useDemoMode();
+  return {
+    name: presentationActive ? (prefs.presentation_settings.companyName || defaultName) : defaultName,
+    presentation: presentationActive,
+  };
 }

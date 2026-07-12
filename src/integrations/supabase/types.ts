@@ -2260,6 +2260,8 @@ export type Database = {
           last_accessed_at: string | null
           nome: string
           password_hash: string | null
+          presentation_mode: boolean
+          presentation_settings: Json
           token: string
           updated_at: string
         }
@@ -2274,6 +2276,8 @@ export type Database = {
           last_accessed_at?: string | null
           nome: string
           password_hash?: string | null
+          presentation_mode?: boolean
+          presentation_settings?: Json
           token: string
           updated_at?: string
         }
@@ -2288,6 +2292,8 @@ export type Database = {
           last_accessed_at?: string | null
           nome?: string
           password_hash?: string | null
+          presentation_mode?: boolean
+          presentation_settings?: Json
           token?: string
           updated_at?: string
         }
@@ -2362,6 +2368,8 @@ export type Database = {
           last_accessed_at: string | null
           nome: string
           password_hash: string | null
+          presentation_mode: boolean
+          presentation_settings: Json
           token: string
           updated_at: string
         }
@@ -2376,6 +2384,8 @@ export type Database = {
           last_accessed_at?: string | null
           nome: string
           password_hash?: string | null
+          presentation_mode?: boolean
+          presentation_settings?: Json
           token: string
           updated_at?: string
         }
@@ -2390,6 +2400,8 @@ export type Database = {
           last_accessed_at?: string | null
           nome?: string
           password_hash?: string | null
+          presentation_mode?: boolean
+          presentation_settings?: Json
           token?: string
           updated_at?: string
         }
@@ -2482,6 +2494,8 @@ export type Database = {
           last_accessed_at: string | null
           nome: string
           password_hash: string | null
+          presentation_mode: boolean
+          presentation_settings: Json
           token: string
           updated_at: string
         }
@@ -2496,6 +2510,8 @@ export type Database = {
           last_accessed_at?: string | null
           nome: string
           password_hash?: string | null
+          presentation_mode?: boolean
+          presentation_settings?: Json
           token: string
           updated_at?: string
         }
@@ -2510,6 +2526,8 @@ export type Database = {
           last_accessed_at?: string | null
           nome?: string
           password_hash?: string | null
+          presentation_mode?: boolean
+          presentation_settings?: Json
           token?: string
           updated_at?: string
         }
@@ -3479,6 +3497,8 @@ export type Database = {
           mask_docs: Json
           mask_names: Json
           mask_values: Json
+          presentation_enabled: boolean
+          presentation_settings: Json
           text_replacements: Json
           updated_at: string
           user_id: string
@@ -3490,6 +3510,8 @@ export type Database = {
           mask_docs?: Json
           mask_names?: Json
           mask_values?: Json
+          presentation_enabled?: boolean
+          presentation_settings?: Json
           text_replacements?: Json
           updated_at?: string
           user_id: string
@@ -3501,6 +3523,8 @@ export type Database = {
           mask_docs?: Json
           mask_names?: Json
           mask_values?: Json
+          presentation_enabled?: boolean
+          presentation_settings?: Json
           text_replacements?: Json
           updated_at?: string
           user_id?: string
@@ -3920,6 +3944,13 @@ export type Database = {
           requires_password: boolean
         }[]
       }
+      get_frota_share_link_presentation: {
+        Args: { _token: string }
+        Returns: {
+          presentation_mode: boolean
+          presentation_settings: Json
+        }[]
+      }
       get_frota_share_link_visuals: {
         Args: { _token: string }
         Returns: string[]
@@ -3985,6 +4016,13 @@ export type Database = {
           requires_password: boolean
         }[]
       }
+      get_maquinas_share_link_presentation: {
+        Args: { _token: string }
+        Returns: {
+          presentation_mode: boolean
+          presentation_settings: Json
+        }[]
+      }
       get_maquinas_share_link_visuals: {
         Args: { _token: string }
         Returns: string[]
@@ -4037,6 +4075,13 @@ export type Database = {
           widget_position: number
           widget_title: string
           widget_type: string
+        }[]
+      }
+      get_passagens_share_link_presentation: {
+        Args: { _token: string }
+        Returns: {
+          presentation_mode: boolean
+          presentation_settings: Json
         }[]
       }
       get_passagens_via_token: {

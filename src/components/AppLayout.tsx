@@ -13,6 +13,7 @@ import { HeaderInfo } from '@/components/HeaderInfo';
 import { AiAssistantChat } from '@/components/erp/AiAssistantChat';
 import { UpdateNotifier } from '@/components/UpdateNotifier';
 import { DemoBadge } from '@/components/DemoBadge';
+import { PresentationToggle } from '@/components/PresentationToggle';
 import { useTvMode } from '@/hooks/useTvMode';
 import packageJson from '../../package.json';
 
@@ -71,6 +72,7 @@ export default function AppLayout() {
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0 min-w-0">
+                <PresentationToggle />
                 <span className="hidden md:inline text-xs 3xl:text-sm text-muted-foreground truncate max-w-[200px] 3xl:max-w-[320px]" title={label}>
                   Olá, <strong className="text-foreground">{label}</strong>
                 </span>
