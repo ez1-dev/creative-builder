@@ -421,7 +421,7 @@ export default function RelatorioExecutivoFaturamentoPage() {
           <div>
             <h1 className="rel-titulo">Relatório Executivo de Faturamento</h1>
             <p className="rel-subtitulo">
-              Período {filtrosFinais.anomes_ini} – {filtrosFinais.anomes_fim} • Unidade: {filtrosFinais.unidade_negocio}
+              Período {filtrosFinais.anomes_ini} – {filtrosFinais.anomes_fim} • Unidade: {maskUnidade(filtrosFinais.unidade_negocio)}
             </p>
           </div>
           <div className="rel-data">
