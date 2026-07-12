@@ -22,6 +22,7 @@ import { Link } from 'react-router-dom';
 import { FrotaDashboard, type ManutencaoFrota, CATEGORIA_OPTIONS } from '@/components/frota/FrotaDashboard';
 import { FrotaShareLinksDialog } from '@/components/frota/FrotaShareLinksDialog';
 import { ImportarFrotaDialog } from '@/components/frota/ImportarFrotaDialog';
+import { useMaskedData } from '@/hooks/useMaskedData';
 
 const PATH = '/frota';
 
@@ -194,7 +195,7 @@ export default function ManutencaoFrotaPage() {
       />
 
       <FrotaDashboard
-        data={data}
+        data={useMaskedData(data, 'frota')}
         loading={loading}
         onEdit={editAllowed ? handleOpenEdit : undefined}
         onDelete={deleteAllowed ? setDeleteId : undefined}
