@@ -18,6 +18,7 @@ import { CargaQtdOpsChart } from '@/components/producao/carga-dashboard/CargaQtd
 import { DonutCard } from '@/components/producao/carga-dashboard/DonutCard';
 import { CentrosDemandadosTable } from '@/components/producao/carga-dashboard/CentrosDemandadosTable';
 import { InsightsPanel } from '@/components/producao/carga-dashboard/InsightsPanel';
+import { useDemoMode } from '@/contexts/DemoModeContext';
 import { HeatmapMock } from '@/components/producao/carga-dashboard/HeatmapMock';
 import { FilaSituacaoCard } from '@/components/producao/carga-dashboard/FilaSituacaoCard';
 import { DrillSheet, useDrillSheet, biResponsive, type DrillSheetFilterChip } from '@/components/bi';
