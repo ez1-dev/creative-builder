@@ -13,6 +13,7 @@ import { PageDataProvider } from '@/lib/bi/PageDataContext';
 import { useErpOptions } from '@/hooks/useErpOptions';
 import { AutocompleteAsync } from '@/components/erp/AutocompleteAsync';
 import { fetchFornecedoresCadastro, fetchCentrosCusto, fetchDepositos, fetchTransacoesCompras } from '@/hooks/useCadastrosErp';
+import { DemoUnidade } from '@/components/demo/DemoText';
 import { KPICard } from '@/components/erp/KPICard';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
