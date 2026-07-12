@@ -1762,6 +1762,11 @@ export default function ConfiguracoesPage() {
           <MinhasPreferenciasSection />
         </TabsContent>
 
+        {/* === MODO DEMONSTRAÇÃO === */}
+        <TabsContent value="demo">
+          <DemoModeSection />
+        </TabsContent>
+
         {/* === VERSÃO === */}
         <TabsContent value="versao">
           <VersionPanel />
