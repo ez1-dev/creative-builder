@@ -9,7 +9,12 @@ import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { useFavorites } from '@/hooks/useFavorites';
-import { useDemoMode } from '@/contexts/DemoModeContext';
+import { useDemoMode, useBrand } from '@/contexts/DemoModeContext';
+
+function BrandName() {
+  const { name } = useBrand('ERP Sapiens');
+  return <span className="text-[15px] font-semibold tracking-tight text-sidebar-foreground truncate">{name}</span>;
+}
 import {
   Sidebar,
   SidebarContent,
