@@ -16,6 +16,7 @@ import { MaquinasDashboard, type ManutencaoMaquina } from '@/components/maquinas
 import { TipoMaquinaCombobox } from '@/components/maquinas/TipoMaquinaCombobox';
 import { MaquinasShareLinksDialog } from '@/components/maquinas/MaquinasShareLinksDialog';
 import { ImportarMaquinasDialog } from '@/components/maquinas/ImportarMaquinasDialog';
+import { useMaskedData } from '@/hooks/useMaskedData';
 
 const PATH = '/manutencao-maquinas';
 
@@ -32,6 +33,7 @@ export default function ManutencaoMaquinasPage() {
   const { toast } = useToast();
 
   const [data, setData] = useState<ManutencaoMaquina[]>([]);
+  const displayData = useMaskedData(data, 'maquinas');
   const [loading, setLoading] = useState(true);
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState<ManutencaoMaquina | null>(null);
