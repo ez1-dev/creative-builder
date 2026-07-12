@@ -949,9 +949,9 @@ export default function PainelComprasPage() {
               <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="TODOS">Todos</SelectItem>
-                <SelectItem value="GENIUS">Genius</SelectItem>
-                <SelectItem value="ESTRUTURAL ZORTEA">Estrutural Zortea</SelectItem>
-                <SelectItem value="OUTROS">Outros</SelectItem>
+                <SelectItem value="GENIUS"><DemoUnidade>Genius</DemoUnidade></SelectItem>
+                <SelectItem value="ESTRUTURAL ZORTEA"><DemoUnidade>Estrutural Zortea</DemoUnidade></SelectItem>
+                <SelectItem value="OUTROS"><DemoUnidade>Outros</DemoUnidade></SelectItem>
               </SelectContent>
             </Select>
           </div>
