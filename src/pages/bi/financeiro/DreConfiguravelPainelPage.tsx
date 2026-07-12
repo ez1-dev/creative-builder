@@ -43,6 +43,20 @@ function dataToAnomes(iso: string): string {
   return iso.slice(0, 4) + iso.slice(5, 7);
 }
 
+function DreApiHealthBanner() {
+  const health = useDreApiHealth();
+  if (health.isLoading || health.data) return null;
+  return (
+    <Alert variant="destructive">
+      <AlertTriangle className="h-4 w-4" />
+      <AlertTitle>API contábil offline</AlertTitle>
+      <AlertDescription>
+        Não foi possível acessar a API contábil. Verifique se a API ERP está em execução na porta 8070.
+      </AlertDescription>
+    </Alert>
+  );
+}
+
 export default function DreConfiguravelPainelPage() {
   const qc = useQueryClient();
   const [filtros, setFiltros] = useState<DreFiltrosPainel>(defaultFiltros());
