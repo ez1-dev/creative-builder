@@ -35,7 +35,7 @@ const TIMEOUT_MS = 60_000;
  */
 export function useVincularContasDRESenior(modeloId: string) {
   const qc = useQueryClient();
-  return useMutation<VincularContasDREResumo, Error, VincularContasDREInput | void>({
+  return useMutation<VincularContasDREResumo, Error, VincularContasDREInput | undefined>({
     mutationFn: async (input) => {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
