@@ -47,6 +47,7 @@ const PRESETS = [
 
 export default function RelatorioExecutivoFaturamentoPage() {
   const navigate = useNavigate();
+  const { maskUnidade } = useDemoMode();
   const [etapa, setEtapa] = useState<Etapa>('wizard');
   const [nivel, setNivel] = useState<NivelDetalhe>('completo');
   const [blocos, setBlocos] = useState<BlocosSelecionados>(BLOCOS_PADRAO);
