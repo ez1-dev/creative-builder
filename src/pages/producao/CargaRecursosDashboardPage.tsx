@@ -151,7 +151,7 @@ export default function CargaRecursosDashboardPage() {
     const c: DrillSheetFilterChip[] = [];
     if (filtros.data_ini || filtros.data_fim) c.push({ label: 'Período', value: `${filtros.data_ini ?? '…'} → ${filtros.data_fim ?? '…'}` });
     if (filtros.situacoes) c.push({ label: 'Situações', value: filtros.situacoes });
-    if (filtros.unidade_negocio) c.push({ label: 'Unidade', value: filtros.unidade_negocio });
+    if (filtros.unidade_negocio) c.push({ label: 'Unidade', value: maskUnidade(filtros.unidade_negocio) });
     if (filtros.tipo_recurso) c.push({ label: 'Tipo', value: filtros.tipo_recurso });
     return c;
   };
