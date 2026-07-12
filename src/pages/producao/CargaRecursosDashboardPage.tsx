@@ -315,12 +315,15 @@ export default function CargaRecursosDashboardPage() {
       <div className={biResponsive.chartGrid3}>
         <DonutCard
           title="Por unidade de negócio"
-          data={porUnidade}
+          data={porUnidade.map((u) => ({ ...u, name: maskUnidade(String(u.name)) }))}
           centerLabel="Carga (h)"
           centerValue={fmtDec(totals.carga_h)}
           totalLabel="Total"
           totalValue={`${fmtDec(totals.carga_h)} h / 100%`}
-          onSelect={openUnidade}
+          onSelect={(masked) => {
+            const raw = porUnidade.find((u) => maskUnidade(String(u.name)) === masked)?.name;
+            if (raw != null) openUnidade(String(raw));
+          }}
         />
         <DonutCard
           title="Por tipo de recurso"
