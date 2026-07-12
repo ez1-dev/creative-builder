@@ -26,6 +26,11 @@ const EXACT: Record<string, ScreenInfo> = {
   '/bi/contabilidade/dre-dinamica': { codigo: 'CONT_DRE_DIN', nome: 'DRE Dinâmica Gerencial' },
   '/bi/contabilidade/dre-dinamica/montador': { codigo: 'CONT_DRE_MONTADOR', nome: 'Montador da DRE Gerencial' },
   '/bi/financeiro/dre-configuravel': { codigo: 'BI_FIN_DRE_CFG', nome: 'BI Financeiro — DRE Configurável' },
+  '/contabilidade/dre-studio':               { codigo: 'DRE_STUDIO_VG',    nome: 'DRE Studio — Visão Geral' },
+  '/contabilidade/dre-studio/modelos':       { codigo: 'DRE_STUDIO_MOD',   nome: 'DRE Studio — Modelos' },
+  '/contabilidade/dre-studio/modelos/novo':  { codigo: 'DRE_STUDIO_NOVO',  nome: 'DRE Studio — Novo Modelo' },
+  '/contabilidade/dre-studio/orcamento':     { codigo: 'DRE_STUDIO_ORC',   nome: 'DRE Studio — Orçamento' },
+  '/contabilidade/dre-studio/resultado':     { codigo: 'DRE_STUDIO_RES',   nome: 'DRE Studio — Resultado' },
   
   '/producao/impressao-op':     { codigo: 'PROD_IMP_OP',  nome: 'Impressão de Ordem de Produção' },
   '/producao/carga':            { codigo: 'PROD_CARGA',   nome: 'Carga de Produção' },
