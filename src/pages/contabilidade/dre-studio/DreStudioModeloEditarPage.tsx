@@ -22,10 +22,10 @@ function EditarModelo() {
           initial={data.modelo}
           submitLabel="Salvar alterações"
           isSubmitting={update.isPending}
-          onCancel={() => navigate(`/contabilidade/dre-studio/modelo/${id}/estrutura`)}
+          onCancel={() => navigate(`/contabilidade/dre-studio/${id}/estrutura`)}
           onSubmit={async (v) => {
             await update.mutateAsync({ id, ...v });
-            navigate(`/contabilidade/dre-studio/modelo/${id}/estrutura`);
+            navigate(`/contabilidade/dre-studio/${id}/estrutura`);
           }}
         />
       )}
