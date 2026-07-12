@@ -1,58 +1,66 @@
-## Problema
+# Modo Demonstração para Investidores
 
-Ao abrir "Configurar gráfico" num bloco canônico do dashboard de Frota (ex.: "Top Veículos"), o diálogo abre com `Tipo de visualização = Gráfico de Barras` e `Série = Evolução mensal · Valor (R$)` — que são apenas os defaults do `ConfigureChartDialog`, não a configuração real do bloco. Isso acontece porque os blocos canônicos (`chart-top-veiculos`, `chart-evolucao-mensal`, `chart-categoria`, etc.) são renderizados com componentes específicos hardcoded no `blocks[...]`, sem `componentId`/`mapping` no widget. Quando `widget.componentId` é `undefined`, o diálogo cai no default.
+Criar em **Configurações** uma nova aba **"Modo Demonstração"** que permite, com um clique, esconder módulos e mascarar dados sensíveis em toda a aplicação — ideal para apresentar o produto a investidores sem expor informações reais da empresa.
 
-## Solução
+## O que o modo faz
 
-Definir, no `FrotaDashboard.tsx`, um mapa `CANONICAL_DEFAULTS` que descreva a configuração real de cada um dos 8 blocos canônicos configuráveis, e usar esse mapa como fallback ao montar `configureTarget.initial`.
+Quando ativado, aplica em tempo real (sem recarregar) três camadas de ofuscação, cada uma configurável individualmente:
 
-## Mudança
+1. **Ocultar módulos** — remove itens escolhidos do menu lateral e bloqueia suas rotas (redireciona para o Dashboard). Você escolhe quais módulos esconder (ex.: Regras Senior, ETL, Gestão SGU, Monitor de Usuários, Contas a Pagar…).
+2. **Ocultar gráficos/mapas específicos** — reaproveita o catálogo já existente (`VISUAL_CATALOG`) para esconder gráficos individuais dentro das páginas visíveis.
+3. **Mascarar dados sensíveis** — substitui em telas de listagem/tabela/BI:
+   - **Nomes** de clientes, fornecedores, revendas, colaboradores, motoristas → nomes fictícios estáveis (ex.: "Cliente Alfa 12", "Fornecedor Beta 03") mantendo consistência entre linhas.
+   - **Valores monetários e quantidades** → opção "manter valores", "escalar por fator" (ex.: ×0,73) ou "mascarar como R$ ●●●".
+   - **Documentos**: CNPJ/CPF/placa/número de nota → padrão `••.•••/••••-••` preservando formato.
+   - **Textos livres customizados** — você cadastra pares "de → para" (ex.: "Empresa X" → "ACME Corp") aplicados globalmente em qualquer render de texto.
 
-Arquivo único: `src/components/frota/FrotaDashboard.tsx`
+Um selo discreto **"MODO DEMO"** aparece no topo da aplicação para lembrar que a ofuscação está ativa (só visível para admins).
 
-1. Adicionar constante (perto de `CONFIGURABLE_CANONICAL`, linha ~91):
+## Escopo do primeiro release
 
-```ts
-const CANONICAL_DEFAULTS: Record<string, Partial<ConfigureChartValue>> = {
-  'chart-evolucao-mensal':  { componentId: 'bar-chart',     mapping: { series: 'mensal__valor' },        customTitle: 'Evolução mensal (R$)' },
-  'chart-categoria':        { componentId: 'donut-chart',   mapping: { series: 'por_categoria__valor' }, customTitle: 'Por Segmento (Categoria)' },
-  'chart-segmento':         { componentId: 'donut-chart',   mapping: { series: 'por_segmento__valor' },  customTitle: 'Distribuição por Segmento (FROTA/GENIUS/OBRA)' },
-  'chart-top-veiculos':     { componentId: 'ranking-chart', mapping: { series: 'por_placa__valor' },       customTitle: 'Placa — Ranking',           options: { topN: 10 } },
-  'chart-top-fornecedores': { componentId: 'ranking-chart', mapping: { series: 'por_fornecedor__valor' },  customTitle: 'Fornecedor — Ranking',      options: { topN: 10 } },
-  'chart-top-cc':           { componentId: 'ranking-chart', mapping: { series: 'por_centro_custo__valor' },customTitle: 'Centro de Custo — Ranking', options: { topN: 10 } },
-  'chart-top-motoristas':   { componentId: 'ranking-chart', mapping: { series: 'por_motorista__valor' },   customTitle: 'Motorista — Ranking',       options: { topN: 10 } },
-  'chart-tipo-veiculo':     { componentId: 'donut-chart',   mapping: { series: 'por_tipo_veiculo__valor' },customTitle: 'Por Tipo de Veículo' },
-};
+- Preferência **por usuário logado** (persistida no Cloud, tabela nova `user_demo_preferences`), com botão "Copiar do meu usuário para o perfil" para reaproveitar.
+- Ativação é **client-side**: dados reais continuam vindo do backend; o mascaramento acontece na UI (rápido, sem risco de quebrar cálculos).
+- Perfis de acesso já existentes continuam funcionando — o Modo Demo é uma camada adicional em cima.
+
+## Estrutura da nova aba
+
+```text
+┌ Configurações › Modo Demonstração ─────────────────────┐
+│ [●] Ativar modo demonstração                           │
+│                                                        │
+│ ▸ Módulos ocultos       [Selecionar do menu lateral…]  │
+│ ▸ Gráficos ocultos      [Selecionar do catálogo BI…]   │
+│ ▸ Mascarar nomes        [ ] Clientes  [ ] Fornecedores │
+│                         [ ] Colaboradores  [ ] Motorist│
+│ ▸ Valores monetários    ( ) manter (●) escalar ×[0.73] │
+│                         ( ) ocultar                    │
+│ ▸ Documentos            [ ] CNPJ/CPF  [ ] Placas  [ ] N│
+│ ▸ Substituições texto   De: [_______] Para: [_______] +│
+│                                                        │
+│ [Pré-visualizar]  [Salvar]                             │
+└────────────────────────────────────────────────────────┘
 ```
 
-2. Ajustar `configureTarget` (linhas ~423–439) para combinar `CANONICAL_DEFAULTS[configureType]` com os overrides salvos no widget:
+## Detalhes técnicos
 
-```ts
-const defaults = CANONICAL_DEFAULTS[configureType] ?? {};
-return {
-  widget,
-  initial: pending !== undefined
-    ? ({ ...defaults, ...(pending ?? {}) }) as Partial<ConfigureChartValue>
-    : ({
-        componentId: widget?.componentId ?? defaults.componentId,
-        mapping:     widget?.mapping     ?? defaults.mapping,
-        customTitle: widget?.customTitle ?? defaults.customTitle,
-        options:     widget?.options     ?? defaults.options,
-      } as Partial<ConfigureChartValue>),
-};
-```
+**Backend (Lovable Cloud):**
+- Nova tabela `public.user_demo_preferences` (user_id PK, enabled bool, hidden_modules text[], hidden_visuals text[], mask_names jsonb, mask_values jsonb, mask_docs jsonb, text_replacements jsonb, updated_at). RLS: cada usuário lê/escreve só o próprio registro. GRANTs padrão para `authenticated`.
 
-O `pending` já representa a customização em andamento; permanece prevalente. Novos gráficos (`custom-*`) continuam usando o `componentId`/`mapping` próprios porque `defaults` fica vazio.
+**Frontend:**
+- Novo `DemoModeContext` + hook `useDemoMode()` (carrega preferências, expõe `enabled`, helpers `maskName(kind, value)`, `maskCurrency(v)`, `maskDoc(kind, v)`, `applyTextReplacements(s)`, `isModuleHidden(path)`, `isVisualHidden(key)`).
+- Integrações:
+  - `AppSidebar.tsx` — filtra itens conforme `isModuleHidden`.
+  - `App.tsx` — wrapper de rota que redireciona rotas ocultas.
+  - `VisualGate` já existente — passa a considerar também `isVisualHidden` do modo demo (união com `useUserVisuals`).
+  - Componentes utilitários novos: `<DemoText kind="cliente">{nome}</DemoText>`, `<DemoMoney value={v} />`, `<DemoDoc kind="cnpj">{v}</DemoDoc>`. Instrumentar primeiro as telas de maior exposição (BI Comercial, Painel de Compras, Contas a Pagar/Receber, RH — Quadro/Resumo Folha, Faturamento Genius). Demais telas mascaradas em ondas seguintes.
+  - Faixa `<DemoBadge />` fixa no topo quando ativo.
+- Nova aba `demo` em `ConfiguracoesPage.tsx` com formulário controlado usando `ALL_SCREENS` e `VISUAL_CATALOG` já existentes para as listagens.
 
-## Fora do escopo
+**Fora de escopo agora:**
+- Mascaramento em PDFs gerados server-side (relatórios executivos) — anotado para próxima iteração.
+- Modo demo por perfil de acesso (só por usuário nesta primeira versão).
+- Reescrita automática de todos os componentes legados; começaremos pelas telas prioritárias listadas acima e expandiremos incrementalmente.
 
-- Passagens Aéreas / Máquinas / RH: mesmo padrão poderia ser aplicado, mas o usuário reportou o problema em Frota. Deixar como follow-up.
-- Nenhuma mudança visual dos blocos renderizados.
-- Nenhuma mudança no `ConfigureChartDialog` — os defaults do dialog continuam intactos.
+## Entrega
 
-## Validação
-
-1. `/frota` → configurar "Top Veículos": diálogo abre com `Tipo = Ranking`, `Série = Placa · Valor (R$)`, `Top N = 10`, título "Placa — Ranking".
-2. Configurar "Evolução Mensal": `Tipo = Gráfico de Barras`, `Série = Evolução mensal · Valor (R$)`.
-3. Configurar "Por Segmento (Categoria)": `Tipo = Donut`, `Série = Categoria · Valor (R$)`.
-4. Após aplicar uma customização e reabrir, a customização (pending ou salva) prevalece sobre o default.
+Se aprovar, implemento em uma rodada: migration + contexto/hook + aba de Configurações + integração no sidebar/rotas/VisualGate + instrumentação das telas prioritárias + badge de demo.
