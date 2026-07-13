@@ -93,6 +93,7 @@ export default function DrePage() {
   const [erro, setErro] = useState<{ message: string; kind?: string } | null>(null);
   const [buscou, setBuscou] = useState(false);
   const [cacheDesatualizado, setCacheDesatualizado] = useState(false);
+  const failCountRef = useRef(0);
 
   const health = useDreApiHealth();
   const apiOnline = health.isLoading ? null : (health.isSuccess ? true : false);
@@ -126,7 +127,7 @@ export default function DrePage() {
     setLoading(true);
     setErro(null);
     setBuscou(true);
-    setCacheDesatualizado(true); // sinaliza cache até chegar payload fresco
+    setCacheDesatualizado(true);
 
     console.log('[DRE] GET matriz →', getContabilBaseUrl(), { ano, mesInicial, mesFinal, unidade });
 
@@ -136,13 +137,26 @@ export default function DrePage() {
         unidade: unidade === 'TODOS' ? undefined : unidade,
       });
       if (controller.signal.aborted) return;
+      failCountRef.current = 0;
       setLinhasRaw(resp.linhas);
       setMeta(resp.meta);
       setCacheDesatualizado(false);
     } catch (e: any) {
       if (controller.signal.aborted) return;
       console.error('[DRE] Falha ao buscar matriz', e);
-      setErro({ message: e?.message ?? String(e), kind: e?.dreKind });
+      const info = describeDreError(e);
+      failCountRef.current += 1;
+      setErro({ message: info.message, kind: info.kind });
+      // Erro persistente ou de infraestrutura: NUNCA continuar mostrando números antigos.
+      if (
+        failCountRef.current >= 2 ||
+        info.kind === 'api_offline' ||
+        info.kind === 'erp_offline' ||
+        info.kind === 'auth'
+      ) {
+        setLinhasRaw([]);
+        setMeta(null);
+      }
     } finally {
       if (abortRef.current === controller) setLoading(false);
     }
