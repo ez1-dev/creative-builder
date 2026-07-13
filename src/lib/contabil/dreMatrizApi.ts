@@ -32,6 +32,7 @@ export interface DreMatrizMeta {
   status: string | null;              // 'atualizado' | 'desatualizado' | 'nao_materializado' | ...
   sync_status?: string | null;         // 'ok' | 'erro' | 'em_andamento'
   status_fechamento?: string | null;
+  status_conciliacao?: 'pendente' | 'conciliada' | 'divergente' | string | null;
   modelo_id: string | null;
   modelo_nome: string | null;
   meses_incompletos?: string[];
@@ -42,6 +43,9 @@ export interface DreMatrizResponse {
   linhas: DreLinhaApi[];
   meta: DreMatrizMeta;
 }
+
+/** Fonte de saldo oficial usada durante a validação DRE × BI. */
+export const FONTE_VALIDACAO_DRE = 'E640RAT';
 
 export interface DreMatrizParams {
   ano: number;
