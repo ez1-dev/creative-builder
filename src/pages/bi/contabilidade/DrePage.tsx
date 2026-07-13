@@ -457,6 +457,17 @@ export default function DrePage() {
 
           <DreMetaBar meta={meta} apiOnline={apiOnline} loading={health.isLoading} />
           {renderEstadoBanner()}
+          {fonteIncorreta && (
+            <Card className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
+              <CardContent className="py-3 text-sm">
+                <div className="font-semibold text-amber-900 dark:text-amber-200">Fonte incorreta</div>
+                <div className="text-amber-900/80 dark:text-amber-200/80">
+                  A fonte ativa (<strong>{meta?.fonte_saldo}</strong>) não corresponde à fonte definida
+                  para validação da DRE (<strong>{FONTE_VALIDACAO_DRE}</strong>).
+                </div>
+              </CardContent>
+            </Card>
+          )}
           <DreIncompletoBanner motivos={motivosIncompletos} />
           {cacheDesatualizado && loading && linhas.length > 0 && (
             <div className="text-xs text-muted-foreground italic">
