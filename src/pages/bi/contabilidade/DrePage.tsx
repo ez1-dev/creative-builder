@@ -216,21 +216,49 @@ export default function DrePage() {
     return (val / base) * 100;
   };
 
-  // Motivos de dados incompletos (a partir do meta).
+  // Motivos de dados incompletos (a partir do meta + inspeção não-recalculante das células).
   const motivosIncompletos = useMemo<string[]>(() => {
-    if (!meta) return [];
     const out: string[] = [];
-    if (meta.meses_incompletos?.length) {
+    if (meta?.meses_incompletos?.length) {
       out.push(`Competências incompletas: ${meta.meses_incompletos.map((m) => anomesToLabel(m) || m).join(', ')}`);
     }
-    if (meta.sync_status === 'erro') out.push('A última sincronização terminou com erro.');
-    if (meta.ultima_sincronizacao && meta.ultima_materializacao
+    if (meta?.sync_status === 'erro') out.push('A última sincronização terminou com erro.');
+    if (meta?.ultima_sincronizacao && meta?.ultima_materializacao
         && new Date(meta.ultima_materializacao) < new Date(meta.ultima_sincronizacao)) {
       out.push('A materialização está mais antiga que a última sincronização.');
     }
-    if (meta.conciliacao_divergente) out.push('O backend indicou divergência de conciliação.');
-    if (meta.status === 'nao_materializado') out.push('A DRE ainda não foi materializada para o período.');
+    if (meta?.conciliacao_divergente) out.push('O backend indicou divergência de conciliação.');
+    if (meta?.status === 'nao_materializado') out.push('A DRE ainda não foi materializada para o período.');
+
+    // Inspeção (não recalcula): mês com Receita Bruta > 0 e linhas recorrentes zeradas.
+    if (receita && linhas.length) {
+      const isRecorrente = (l: DreLinhaApi) => {
+        const d = (l.descricao ?? '').toLowerCase();
+        const c = String(l.codigo_linha ?? '').toUpperCase();
+        return d.includes('custo') || d.includes('despesa') || d.includes('deprecia')
+          || c.startsWith('CUSTO') || c.startsWith('DESPESA') || c.includes('DEPRECIACAO');
+      };
+      const recorrentes = linhas.filter(isRecorrente);
+      for (const mes of meses) {
+        const rb = receita.valores?.[mes]?.realizado ?? null;
+        if (rb == null || rb <= 0) continue;
+        const todasZeradas = recorrentes.length > 0
+          && recorrentes.every((l) => {
+            const v = l.valores?.[mes]?.realizado;
+            return v == null || v === 0;
+          });
+        if (todasZeradas) {
+          out.push(`${anomesToLabel(mes) || mes}: Receita Bruta > 0 mas linhas recorrentes (custos/despesas/depreciação) estão zeradas.`);
+        }
+      }
+    }
     return out;
+  }, [meta, linhas, meses, receita]);
+
+  // Fonte ativa incorreta para validação oficial.
+  const fonteIncorreta = useMemo(() => {
+    const f = (meta?.fonte_saldo ?? '').trim().toUpperCase();
+    return !!f && f !== FONTE_VALIDACAO_DRE.toUpperCase();
   }, [meta]);
 
   // ---- Drill-down (mantido, agora sobre matriz nova) --------------------
