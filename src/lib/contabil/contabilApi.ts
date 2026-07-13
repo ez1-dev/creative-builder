@@ -31,11 +31,14 @@ function warnForbiddenOnce(source: string, badUrl: string) {
 
 export function getContabilBaseUrl(): string {
   if (_contabilBaseUrl) return stripTrailingSlash(_contabilBaseUrl);
-  const envBase = (import.meta as any).env?.VITE_CONTABIL_API_URL;
+  const env: any = (import.meta as any).env ?? {};
+  // Prioridade: VITE_DRE_API_URL (novo, oficial) > VITE_CONTABIL_API_URL (legado) > default.
+  const envBase = env.VITE_DRE_API_URL || env.VITE_CONTABIL_API_URL;
+  const source = env.VITE_DRE_API_URL ? 'VITE_DRE_API_URL' : 'VITE_CONTABIL_API_URL';
   if (envBase) {
     const clean = stripTrailingSlash(String(envBase));
     if (isForbiddenContabilUrl(clean)) {
-      warnForbiddenOnce('VITE_CONTABIL_API_URL', clean);
+      warnForbiddenOnce(source, clean);
       return DEFAULT_CONTABIL_URL;
     }
     return clean;
