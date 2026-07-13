@@ -32,6 +32,7 @@ export interface DreMatrizMeta {
   status: string | null;              // 'atualizado' | 'desatualizado' | 'nao_materializado' | ...
   sync_status?: string | null;         // 'ok' | 'erro' | 'em_andamento'
   status_fechamento?: string | null;
+  status_conciliacao?: 'pendente' | 'conciliada' | 'divergente' | string | null;
   modelo_id: string | null;
   modelo_nome: string | null;
   meses_incompletos?: string[];
@@ -42,6 +43,9 @@ export interface DreMatrizResponse {
   linhas: DreLinhaApi[];
   meta: DreMatrizMeta;
 }
+
+/** Fonte de saldo oficial usada durante a validação DRE × BI. */
+export const FONTE_VALIDACAO_DRE = 'E640RAT';
 
 export interface DreMatrizParams {
   ano: number;
@@ -101,6 +105,7 @@ function normalizarMeta(raw: any): DreMatrizMeta {
     status: m.status ?? null,
     sync_status: m.sync_status ?? null,
     status_fechamento: m.status_fechamento ?? null,
+    status_conciliacao: m.status_conciliacao ?? m.conciliacao_status ?? 'pendente',
     modelo_id: m.modelo_id ?? null,
     modelo_nome: m.modelo_nome ?? m.modelo ?? null,
     meses_incompletos: Array.isArray(m.meses_incompletos) ? m.meses_incompletos.map(String) : [],
@@ -131,12 +136,36 @@ export async function fetchDreMatriz(params: DreMatrizParams): Promise<DreMatriz
   };
 }
 
-export async function postDreSincronizarErp(params: { ano: number; mes_ini: string; mes_fim: string }): Promise<any> {
-  return contabilApi.post('/api/contabil/dre/sincronizar', params);
+export interface SincronizarSaldosPayload {
+  anomes_ini: string;   // AAAAMM
+  anomes_fim: string;   // AAAAMM
+  fonte_saldo: string;  // ex.: 'E640RAT' | 'E650SAL'
+  limpar_periodo?: boolean;
 }
 
-export async function postDreRecalcular(params: { ano: number; mes_ini: string; mes_fim: string; modelo_id?: string | null }): Promise<any> {
-  return contabilApi.post('/api/contabil/dre/recalcular', params);
+export async function postDreSincronizarErp(payload: SincronizarSaldosPayload): Promise<any> {
+  const body: SincronizarSaldosPayload = {
+    anomes_ini: payload.anomes_ini,
+    anomes_fim: payload.anomes_fim,
+    fonte_saldo: payload.fonte_saldo || FONTE_VALIDACAO_DRE,
+    limpar_periodo: payload.limpar_periodo ?? true,
+  };
+  return contabilApi.post('/api/contabil/dre/sincronizar', body);
+}
+
+export interface MaterializarPayload {
+  anomes_ini: string;
+  anomes_fim: string;
+  modelo_id?: string | null;
+}
+
+export async function postDreMaterializar(payload: MaterializarPayload): Promise<any> {
+  return contabilApi.post('/api/contabil/dre/recalcular', payload);
+}
+
+/** @deprecated Use postDreMaterializar. Mantido por compat. */
+export async function postDreRecalcular(payload: MaterializarPayload): Promise<any> {
+  return postDreMaterializar(payload);
 }
 
 export function buildAnomesRange(ano: number, mesIni: string, mesFim: string): string[] {

@@ -26,7 +26,8 @@ import { DRE_DRILL_LABELS, type DreDrillTipo } from '@/lib/bi/dreDrillApi';
 import { isLinhaCalculada } from '@/lib/bi/dreReabrir';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { useDreApiHealth } from '@/lib/bi/dreErrors';
-import { fetchDreMatriz, buildAnomesRange, type DreLinhaApi, type DreMatrizMeta } from '@/lib/contabil/dreMatrizApi';
+import { fetchDreMatriz, buildAnomesRange, FONTE_VALIDACAO_DRE, type DreLinhaApi, type DreMatrizMeta } from '@/lib/contabil/dreMatrizApi';
+import { describeDreError } from '@/lib/bi/dreErrors';
 import { getContabilBaseUrl } from '@/lib/contabil/contabilApi';
 import { anomesToLabel } from '@/lib/contabil/anomes';
 import { DreMetaBar } from '@/components/contabil/DreMetaBar';
@@ -92,6 +93,7 @@ export default function DrePage() {
   const [erro, setErro] = useState<{ message: string; kind?: string } | null>(null);
   const [buscou, setBuscou] = useState(false);
   const [cacheDesatualizado, setCacheDesatualizado] = useState(false);
+  const failCountRef = useRef(0);
 
   const health = useDreApiHealth();
   const apiOnline = health.isLoading ? null : (health.isSuccess ? true : false);
@@ -125,7 +127,7 @@ export default function DrePage() {
     setLoading(true);
     setErro(null);
     setBuscou(true);
-    setCacheDesatualizado(true); // sinaliza cache até chegar payload fresco
+    setCacheDesatualizado(true);
 
     console.log('[DRE] GET matriz →', getContabilBaseUrl(), { ano, mesInicial, mesFinal, unidade });
 
@@ -135,13 +137,26 @@ export default function DrePage() {
         unidade: unidade === 'TODOS' ? undefined : unidade,
       });
       if (controller.signal.aborted) return;
+      failCountRef.current = 0;
       setLinhasRaw(resp.linhas);
       setMeta(resp.meta);
       setCacheDesatualizado(false);
     } catch (e: any) {
       if (controller.signal.aborted) return;
       console.error('[DRE] Falha ao buscar matriz', e);
-      setErro({ message: e?.message ?? String(e), kind: e?.dreKind });
+      const info = describeDreError(e);
+      failCountRef.current += 1;
+      setErro({ message: info.message, kind: info.kind });
+      // Erro persistente ou de infraestrutura: NUNCA continuar mostrando números antigos.
+      if (
+        failCountRef.current >= 2 ||
+        info.kind === 'api_offline' ||
+        info.kind === 'erp_offline' ||
+        info.kind === 'auth'
+      ) {
+        setLinhasRaw([]);
+        setMeta(null);
+      }
     } finally {
       if (abortRef.current === controller) setLoading(false);
     }
@@ -201,21 +216,49 @@ export default function DrePage() {
     return (val / base) * 100;
   };
 
-  // Motivos de dados incompletos (a partir do meta).
+  // Motivos de dados incompletos (a partir do meta + inspeção não-recalculante das células).
   const motivosIncompletos = useMemo<string[]>(() => {
-    if (!meta) return [];
     const out: string[] = [];
-    if (meta.meses_incompletos?.length) {
+    if (meta?.meses_incompletos?.length) {
       out.push(`Competências incompletas: ${meta.meses_incompletos.map((m) => anomesToLabel(m) || m).join(', ')}`);
     }
-    if (meta.sync_status === 'erro') out.push('A última sincronização terminou com erro.');
-    if (meta.ultima_sincronizacao && meta.ultima_materializacao
+    if (meta?.sync_status === 'erro') out.push('A última sincronização terminou com erro.');
+    if (meta?.ultima_sincronizacao && meta?.ultima_materializacao
         && new Date(meta.ultima_materializacao) < new Date(meta.ultima_sincronizacao)) {
       out.push('A materialização está mais antiga que a última sincronização.');
     }
-    if (meta.conciliacao_divergente) out.push('O backend indicou divergência de conciliação.');
-    if (meta.status === 'nao_materializado') out.push('A DRE ainda não foi materializada para o período.');
+    if (meta?.conciliacao_divergente) out.push('O backend indicou divergência de conciliação.');
+    if (meta?.status === 'nao_materializado') out.push('A DRE ainda não foi materializada para o período.');
+
+    // Inspeção (não recalcula): mês com Receita Bruta > 0 e linhas recorrentes zeradas.
+    if (receita && linhas.length) {
+      const isRecorrente = (l: DreLinhaApi) => {
+        const d = (l.descricao ?? '').toLowerCase();
+        const c = String(l.codigo_linha ?? '').toUpperCase();
+        return d.includes('custo') || d.includes('despesa') || d.includes('deprecia')
+          || c.startsWith('CUSTO') || c.startsWith('DESPESA') || c.includes('DEPRECIACAO');
+      };
+      const recorrentes = linhas.filter(isRecorrente);
+      for (const mes of meses) {
+        const rb = receita.valores?.[mes]?.realizado ?? null;
+        if (rb == null || rb <= 0) continue;
+        const todasZeradas = recorrentes.length > 0
+          && recorrentes.every((l) => {
+            const v = l.valores?.[mes]?.realizado;
+            return v == null || v === 0;
+          });
+        if (todasZeradas) {
+          out.push(`${anomesToLabel(mes) || mes}: Receita Bruta > 0 mas linhas recorrentes (custos/despesas/depreciação) estão zeradas.`);
+        }
+      }
+    }
     return out;
+  }, [meta, linhas, meses, receita]);
+
+  // Fonte ativa incorreta para validação oficial.
+  const fonteIncorreta = useMemo(() => {
+    const f = (meta?.fonte_saldo ?? '').trim().toUpperCase();
+    return !!f && f !== FONTE_VALIDACAO_DRE.toUpperCase();
   }, [meta]);
 
   // ---- Drill-down (mantido, agora sobre matriz nova) --------------------
@@ -351,11 +394,16 @@ export default function DrePage() {
       const kind = erro.kind;
       let title = 'Erro ao carregar DRE';
       let msg = erro.message;
-      if (kind === 'api_offline' || kind === 'timeout') {
+      if (kind === 'api_offline' || (kind as any) === 'timeout') {
         title = 'API indisponível';
-        msg = 'Não foi possível acessar a API da DRE.';
+        msg = 'Não foi possível acessar a API integrada da DRE.';
+      } else if (kind === 'erp_offline') {
+        title = 'Banco ERP indisponível';
+        msg = 'A API está online, mas o banco ERP está indisponível.';
       } else if (kind === 'not_found') {
         title = 'Rota não encontrada';
+      } else if (kind === 'auth') {
+        title = 'Sessão expirada';
       }
       return (
         <Card className="border-destructive/50 bg-destructive/5">
@@ -409,6 +457,17 @@ export default function DrePage() {
 
           <DreMetaBar meta={meta} apiOnline={apiOnline} loading={health.isLoading} />
           {renderEstadoBanner()}
+          {fonteIncorreta && (
+            <Card className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
+              <CardContent className="py-3 text-sm">
+                <div className="font-semibold text-amber-900 dark:text-amber-200">Fonte incorreta</div>
+                <div className="text-amber-900/80 dark:text-amber-200/80">
+                  A fonte ativa (<strong>{meta?.fonte_saldo}</strong>) não corresponde à fonte definida
+                  para validação da DRE (<strong>{FONTE_VALIDACAO_DRE}</strong>).
+                </div>
+              </CardContent>
+            </Card>
+          )}
           <DreIncompletoBanner motivos={motivosIncompletos} />
           {cacheDesatualizado && loading && linhas.length > 0 && (
             <div className="text-xs text-muted-foreground italic">
@@ -467,6 +526,7 @@ export default function DrePage() {
                     <DreAcoesAdmin
                       ano={ano} mesIni={mesInicial} mesFim={mesFinal}
                       modeloId={meta?.modelo_id ?? null}
+                      fonteSaldo={meta?.fonte_saldo ?? null}
                       isAdmin={isAdmin}
                       onAtualizarTela={atualizarTela}
                       loading={loading}
