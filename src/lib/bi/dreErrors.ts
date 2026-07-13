@@ -61,7 +61,7 @@ export function describeDreError(err: any): DreErrorInfo {
   if (status === 404) {
     return {
       kind: 'not_found',
-      message: 'Rota da DRE não encontrada na API principal. Verifique se a versão integrada do backend foi reiniciada.',
+      message: 'Este recurso ainda não está disponível na versão publicada do backend contábil.',
     };
   }
 
