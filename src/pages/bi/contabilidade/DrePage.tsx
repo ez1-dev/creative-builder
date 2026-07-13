@@ -34,6 +34,7 @@ import { DreMetaBar } from '@/components/contabil/DreMetaBar';
 import { DreIncompletoBanner } from '@/components/contabil/DreIncompletoBanner';
 import { DreAcoesAdmin } from '@/components/contabil/DreAcoesAdminDialog';
 import { DreConciliacaoBiTab } from '@/components/contabil/DreConciliacaoBiTab';
+import { DreApiDiagnostico } from '@/components/contabil/DreApiDiagnostico';
 
 type Unidade = 'TODOS' | 'GENIUS' | 'ESTRUTURAL' | 'OUTROS';
 
@@ -455,6 +456,7 @@ export default function DrePage() {
             }
           />
 
+          <DreApiDiagnostico />
           <DreMetaBar meta={meta} apiOnline={apiOnline} loading={health.isLoading} />
           {renderEstadoBanner()}
           {fonteIncorreta && (
