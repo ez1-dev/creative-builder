@@ -20,6 +20,8 @@ import {
   AlertTriangle,
   RotateCcw,
   Info,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useImpressaoOrdemProducao } from "@/hooks/useImpressaoOrdemProducao";
