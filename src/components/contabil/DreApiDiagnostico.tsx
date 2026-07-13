@@ -1,45 +1,107 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { CheckCircle2, RefreshCw, WifiOff, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getContabilBaseUrl, pingContabilHealth, type ContabilHealthResult } from '@/lib/contabil/contabilApi';
+import {
+  getContabilBaseUrl,
+  pingContabilHealth,
+  contabilApi,
+  type ContabilHealthResult,
+} from '@/lib/contabil/contabilApi';
 
-function describe(result: ContabilHealthResult | undefined): {
-  tone: 'ok' | 'warn' | 'error' | 'idle';
-  message: string;
-} {
-  if (!result) return { tone: 'idle', message: 'Verificando conexão…' };
-  if (result.ok) return { tone: 'ok', message: 'API contábil conectada' };
-  const s = result.status;
-  if (s === 404) {
+type ProbeResult = { ok: boolean; status: number | 'network' | 'timeout'; details?: string };
+
+async function probeRoute(path: string): Promise<ProbeResult> {
+  try {
+    await contabilApi.get(path);
+    return { ok: true, status: 200 };
+  } catch (e: any) {
+    const status =
+      e?.dreKind === 'timeout' ? 'timeout'
+      : e?.statusCode === 0 ? 'network'
+      : (e?.statusCode ?? 'network');
+    return { ok: false, status, details: e?.bodyText ?? e?.message };
+  }
+}
+
+const PROBED_ROUTES = ['/api/contabil/agendamentos', '/api/contabil/snapshots'];
+
+type Tone = 'ok' | 'warn' | 'error' | 'idle';
+
+function looksLikeDbError(text?: string): boolean {
+  if (!text) return false;
+  return /(sql\s?server|1433|pymssql|pyodbc|senior|vpn|172\.16\.137\.100)/i.test(text);
+}
+
+function classify(
+  health: ContabilHealthResult | undefined,
+  probes: ProbeResult[],
+): { tone: Tone; message: string } {
+  if (!health) return { tone: 'idle', message: 'Verificando conexão…' };
+
+  // Health falhou: só aqui podemos falar em "API offline" / auth / health não publicado.
+  if (!health.ok) {
+    const s = health.status;
+    if (s === 401) return { tone: 'warn', message: 'Sessão expirada — refaça o login.' };
+    if (s === 404) {
+      return {
+        tone: 'warn',
+        message: 'Rota /api/contabil/health não encontrada nesta versão do backend.',
+      };
+    }
+    if (s === 'network' || s === 'timeout' || s === 0) {
+      return { tone: 'error', message: 'API contábil indisponível.' };
+    }
+    return { tone: 'error', message: `API contábil retornou HTTP ${s}.` };
+  }
+
+  // Health OK — a partir daqui NUNCA dizemos "API offline".
+  const anyNotFound = probes.some((p) => p.status === 404);
+  const dbFailure = probes.find(
+    (p) => !p.ok && typeof p.status === 'number' && p.status >= 500 && looksLikeDbError(p.details),
+  );
+
+  if (dbFailure) {
+    return { tone: 'warn', message: 'API online, mas sem conexão com o banco ERP.' };
+  }
+  if (anyNotFound) {
     return {
       tone: 'warn',
-      message:
-        'O domínio está online, mas a rota contábil não foi encontrada. Verifique se o túnel está apontando para a API integrada da porta 8070.',
+      message: 'API conectada, mas o recurso solicitado ainda não foi publicado no backend.',
     };
   }
-  if (s === 401) return { tone: 'warn', message: 'Sessão expirada — refaça o login.' };
-  if (s === 'network' || s === 'timeout' || s === 0) {
-    return {
-      tone: 'error',
-      message: 'API contábil indisponível. Verifique o túnel ngrok e a execução do backend.',
-    };
-  }
-  return { tone: 'error', message: `HTTP ${s}${result.details ? ` — ${String(result.details).slice(0, 200)}` : ''}` };
+  return { tone: 'ok', message: 'API contábil conectada.' };
 }
 
 export function DreApiDiagnostico() {
   const baseUrl = getContabilBaseUrl();
   const qc = useQueryClient();
-  const { data, isFetching, refetch } = useQuery({
-    queryKey: ['contabil-api-health', baseUrl],
-    queryFn: pingContabilHealth,
-    staleTime: 60_000,
-    refetchOnWindowFocus: false,
+
+  const results = useQueries({
+    queries: [
+      {
+        queryKey: ['contabil-api-health', baseUrl],
+        queryFn: pingContabilHealth,
+        staleTime: 60_000,
+        refetchOnWindowFocus: false,
+      },
+      ...PROBED_ROUTES.map((path) => ({
+        queryKey: ['contabil-api-probe', baseUrl, path],
+        queryFn: () => probeRoute(path),
+        staleTime: 60_000,
+        refetchOnWindowFocus: false,
+        retry: false,
+      })),
+    ],
   });
 
-  const { tone, message } = describe(data);
+  const [healthQ, ...probeQs] = results;
+  const health = healthQ.data as ContabilHealthResult | undefined;
+  const probes = probeQs.map((q) => q.data).filter(Boolean) as ProbeResult[];
+  const isFetching = results.some((r) => r.isFetching);
+
+  const { tone, message } = classify(health, probes);
   const Icon =
     tone === 'ok' ? CheckCircle2
     : tone === 'warn' ? AlertTriangle
@@ -53,7 +115,7 @@ export function DreApiDiagnostico() {
     : 'text-muted-foreground';
 
   const handleTest = async () => {
-    await refetch();
+    await Promise.all(results.map((r) => r.refetch()));
     qc.invalidateQueries({ queryKey: ['dre-matriz'] });
   };
 

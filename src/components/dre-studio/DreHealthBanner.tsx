@@ -26,7 +26,7 @@ export function DreHealthBanner({ className }: { className?: string }) {
     const isOffline = status === 0 || kind === 'api_offline';
 
     const title = isNotFound
-      ? 'Endpoint /api/contabil/health não encontrado'
+      ? 'Recurso contábil ainda não publicado no backend'
       : isTimeout
       ? 'API contábil não respondeu (timeout)'
       : isOffline
