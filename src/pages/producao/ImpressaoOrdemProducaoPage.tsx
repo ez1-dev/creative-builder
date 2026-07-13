@@ -20,6 +20,8 @@ import {
   AlertTriangle,
   RotateCcw,
   Info,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useImpressaoOrdemProducao } from "@/hooks/useImpressaoOrdemProducao";
@@ -1640,11 +1642,36 @@ export default function ImpressaoOrdemProducaoPage() {
                 <div className="rounded-md border border-destructive bg-destructive/10 p-3 text-xs text-destructive">
                   <div className="flex items-start gap-2">
                     <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                    <div>
-                      <strong>Pasta de desenhos inacessível no servidor.</strong> Verifique a variável{" "}
-                      <code>PASTA_DESENHOS_OP</code> no backend. Se o FastAPI roda em Linux/Docker, o caminho UNC{" "}
-                      <code>\\EZORTEA-SRVSENI\Senior\Sapiens\Pasta de Desenho\02-JPG_OP</code> precisa ser montado
-                      (ex.: <code>/mnt/desenhos_op</code>) e a env atualizada para apontar para o mount.
+                    <div className="space-y-2">
+                      <div>
+                        <strong>Pasta de desenhos inacessível no servidor.</strong>
+                        {typeof (diagData as any).observacao === "string" && (diagData as any).observacao.trim() && (
+                          <div className="mt-1 whitespace-pre-wrap">{(diagData as any).observacao}</div>
+                        )}
+                      </div>
+                      {Array.isArray((diagData as any).pastas_candidatas) && (diagData as any).pastas_candidatas.length > 0 && (
+                        <div>
+                          <div className="mb-1 font-semibold">Caminhos testados pelo backend:</div>
+                          <ul className="space-y-0.5">
+                            {((diagData as any).pastas_candidatas as Array<{ caminho: string; acessivel: boolean }>).map((p, i) => (
+                              <li key={i} className="flex items-start gap-1.5">
+                                {p.acessivel ? (
+                                  <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-green-600" />
+                                ) : (
+                                  <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive" />
+                                )}
+                                <code className="break-all">{p.caminho}</code>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      <div>
+                        Defina a variável <code>PASTA_DESENHOS_OP</code> no host Windows da API apontando para
+                        um caminho acessível — por exemplo{" "}
+                        <code>C:\Senior\Sapiens\Pasta de Desenho\02-JPG_OP</code> (local) ou{" "}
+                        <code>{`\\\\EZORTEA-SRVSENI\\Senior\\Sapiens\\Pasta de Desenho\\02-JPG_OP`}</code> (UNC).
+                      </div>
                     </div>
                   </div>
                 </div>
