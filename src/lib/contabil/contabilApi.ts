@@ -58,6 +58,10 @@ export function getContabilBaseUrl(): string {
       warnForbiddenOnce(source, clean);
       return DEFAULT_CONTABIL_URL;
     }
+    if (isLegacyDreUrl(clean)) {
+      warnLegacyPortOnce(source, clean);
+      return DEFAULT_CONTABIL_URL;
+    }
     return clean;
   }
   return DEFAULT_CONTABIL_URL;
@@ -71,6 +75,11 @@ export function setContabilBaseUrl(url: string | null | undefined) {
   const clean = stripTrailingSlash(String(url));
   if (isForbiddenContabilUrl(clean)) {
     warnForbiddenOnce('setContabilBaseUrl', clean);
+    _contabilBaseUrl = null;
+    return;
+  }
+  if (isLegacyDreUrl(clean)) {
+    warnLegacyPortOnce('setContabilBaseUrl', clean);
     _contabilBaseUrl = null;
     return;
   }
