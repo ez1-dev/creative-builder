@@ -1,31 +1,62 @@
-O erro `HTTP 404 Not Found` em `GET https://dreconfiguravel.ngrok.app/api/contabil/dre/matriz?anomes_ini=202601&anomes_fim=202612&...` vem do backend FastAPI (porta 8070), não do frontend.
+Ajustar frontend da página **Contabilidade — DRE** para usar `VITE_CONTABIL_API_URL` como variável oficial e adicionar diagnóstico visível de conexão. Nenhuma alteração de lógica de negócio.
 
-O cliente do frontend já está correto:
-- Base URL: `https://dreconfiguravel.ngrok.app` (via `getContabilBaseUrl`)
-- Path: `/api/contabil/dre/matriz`
-- Headers: `Authorization: Bearer <jwt>` + `ngrok-skip-browser-warning: true`
-- Query params conforme o contrato documentado em `docs/backend-dre-api-integrada.md`
+## 1. Variável de ambiente
 
-Backend respondeu `{"detail":"Not Found"}` — sinal clássico do FastAPI quando a rota não foi registrada no app ativo.
+- Oficial: **`VITE_CONTABIL_API_URL=https://dreconfiguravel.ngrok.app`**
+- Fallback (compat): `VITE_DRE_API_URL` continua sendo lido, mas com prioridade menor.
+- Não editar `.env` (auto-gerado). A configuração fica em `.env.local` do usuário; o cliente já cai no default se ausente.
 
-## Ação (backend, fora do escopo do frontend)
+Em `src/lib/contabil/contabilApi.ts`:
+- Inverter prioridade em `getContabilBaseUrl()`: `VITE_CONTABIL_API_URL` primeiro, `VITE_DRE_API_URL` depois, `DEFAULT_CONTABIL_URL` por último.
+- Adicionar guarda extra: se a URL final apontar para `*.supabase.co`, ignorar e logar `console.warn` (Supabase nunca é a API contábil).
+- Guardas existentes de `:8090` e `api-erp-renato.ngrok.app` já estão implementadas — manter.
 
-1. Reiniciar a aplicação FastAPI unificada na porta local 8070.
-2. Confirmar que o túnel `dreconfiguravel.ngrok.app` está apontado para a porta 8070 (não para a antiga 8090).
-3. Validar que os endpoints da DRE estão registrados no `app` principal, todos com prefixo `/api/contabil`:
-   - `GET  /api/contabil/health`
-   - `GET  /api/contabil/dre/matriz`
-   - `POST /api/contabil/dre/sincronizar`
-   - `POST /api/contabil/dre/recalcular`
-   - `GET  /api/contabil/dre/conciliacao-bi`
-4. Testes rápidos após reiniciar:
-   ```
-   curl -H "ngrok-skip-browser-warning: true" https://dreconfiguravel.ngrok.app/api/contabil/health
-   curl -H "ngrok-skip-browser-warning: true" -H "Authorization: Bearer <jwt>" \
-     "https://dreconfiguravel.ngrok.app/api/contabil/dre/matriz?anomes_ini=202601&anomes_fim=202612"
-   ```
-   Ambos devem responder 200. Se `/health` responde 200 mas `/dre/matriz` continua 404, a rota específica não foi incluída no router — revisar o `include_router` do módulo DRE no `main.py` da API integrada.
+## 2. Diagnóstico visível na página
 
-## Frontend
+Criar `src/components/contabil/DreApiDiagnostico.tsx` renderizado no topo do `DrePage` (acima do `DreMetaBar`), usando `pingContabilHealth()` já existente + `useDreApiHealth` estilo `useQuery`.
 
-Nenhuma alteração. A tela já sinaliza corretamente o 404 com a mensagem “Rota da DRE não encontrada na API principal. Verifique se a versão integrada do backend foi reiniciada.” (via `describeDreError` → `kind: 'not_found'`). Após o backend voltar, basta clicar em **Atualizar tela** que os dados carregam.
+Layout (uma faixa fina, tokens semânticos, sem cor hardcoded):
+
+```
+API contábil: https://dreconfiguravel.ngrok.app   [ícone status]  <mensagem>   [Testar conexão]
+```
+
+Mensagens fixas conforme resultado do `pingContabilHealth()`:
+
+| Estado | Mensagem |
+|---|---|
+| `ok:true` | **API contábil conectada** |
+| `status === 404` | **O domínio está online, mas a rota contábil não foi encontrada. Verifique se o túnel está apontando para a API integrada da porta 8070.** |
+| `status === 'network' \| 'timeout' \| 0` | **API contábil indisponível. Verifique o túnel ngrok e a execução do backend.** |
+| `status === 401` | **Sessão expirada — refaça o login.** |
+| outros | mostrar `HTTP <status>` cru + `details` |
+
+Botão "Testar conexão" refaz o health check e invalida `['dre-matriz']`.
+
+## 3. Limpeza (search)
+
+Confirmado por `rg`: nenhuma referência ativa a `:8090`, `localhost:8090` ou `api-erp-renato.ngrok.app` em código de runtime da DRE (apenas guardas defensivas em `contabilApi.ts` e mensagem de toast em `ConfiguracoesPage.tsx` alertando o usuário — mantém-se). Nada a remover.
+
+## 4. Documentação
+
+Atualizar `docs/backend-dre-api-integrada.md`:
+- Variável oficial passa a ser `VITE_CONTABIL_API_URL`; `VITE_DRE_API_URL` marcado como legado/aceito por compat.
+
+## 5. Segurança (verificação, sem código)
+
+Rodar `rg "SERVICE_ROLE|JWT_SECRET|SENIOR_DB_PASSWORD" src` para garantir que nenhuma chave privada está no bundle. `VITE_SUPABASE_*` (auto-geradas, publishable) permanecem — são necessárias para o Auth e não são chaves privadas.
+
+## Fora de escopo
+
+- Backend FastAPI (rota 404 já reportada anteriormente é responsabilidade do backend).
+- Editar `.env` (arquivo auto-gerado pelo Cloud).
+- Qualquer mudança em cálculo, matriz, conciliação ou modelos.
+
+## Critérios de aceite
+
+- `VITE_CONTABIL_API_URL` é a variável primária lida pelo cliente contábil.
+- Nenhuma chamada da DRE vai para porta 8090, `api-erp-renato.ngrok.app` ou `*.supabase.co`.
+- Página exibe faixa com URL ativa, ícone de status e uma das três mensagens padronizadas.
+- Botão "Testar conexão" refaz o health check.
+- Nenhuma chave privada (`SERVICE_ROLE`, `JWT_SECRET`, `SENIOR_DB_PASSWORD`) aparece em `VITE_*` ou no bundle.
+- `tsgo` continua verde.

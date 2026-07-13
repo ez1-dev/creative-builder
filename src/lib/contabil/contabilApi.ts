@@ -49,11 +49,19 @@ function warnForbiddenOnce(source: string, badUrl: string) {
 export function getContabilBaseUrl(): string {
   if (_contabilBaseUrl) return stripTrailingSlash(_contabilBaseUrl);
   const env: any = (import.meta as any).env ?? {};
-  // Prioridade: VITE_DRE_API_URL (novo, oficial) > VITE_CONTABIL_API_URL (legado) > default.
-  const envBase = env.VITE_DRE_API_URL || env.VITE_CONTABIL_API_URL;
-  const source = env.VITE_DRE_API_URL ? 'VITE_DRE_API_URL' : 'VITE_CONTABIL_API_URL';
+  // Prioridade: VITE_CONTABIL_API_URL (oficial) > VITE_DRE_API_URL (legado) > default.
+  const envBase = env.VITE_CONTABIL_API_URL || env.VITE_DRE_API_URL;
+  const source = env.VITE_CONTABIL_API_URL ? 'VITE_CONTABIL_API_URL' : 'VITE_DRE_API_URL';
   if (envBase) {
     const clean = stripTrailingSlash(String(envBase));
+    if (/\.supabase\.co/i.test(clean)) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[contabilApi] URL "${clean}" (via ${source}) aponta para o Supabase, ` +
+        `que não é a API contábil FastAPI. Usando fallback ${DEFAULT_CONTABIL_URL}.`,
+      );
+      return DEFAULT_CONTABIL_URL;
+    }
     if (isForbiddenContabilUrl(clean)) {
       warnForbiddenOnce(source, clean);
       return DEFAULT_CONTABIL_URL;
@@ -66,6 +74,7 @@ export function getContabilBaseUrl(): string {
   }
   return DEFAULT_CONTABIL_URL;
 }
+
 
 export function setContabilBaseUrl(url: string | null | undefined) {
   if (!url) {
