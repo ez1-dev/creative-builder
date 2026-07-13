@@ -7,9 +7,12 @@ DRE materializada pelo backend contábil unificado.
 
 - **Oficial:** `https://dreconfiguravel.ngrok.app` (túnel público para a
   aplicação FastAPI que roda localmente na porta **8070**).
-- **Variável de ambiente:** `VITE_DRE_API_URL`. Se ausente, o cliente cai no
+- **Variável de ambiente:** `VITE_CONTABIL_API_URL` (oficial). `VITE_DRE_API_URL`
+  ainda é aceita como fallback legado. Se ambas ausentes, o cliente cai no
   default acima. O `.env` do projeto é auto-gerado pelo Cloud — para override
   em desenvolvimento local use `.env.local`.
+- **Bloqueado:** URLs contendo `.supabase.co` são ignoradas com `console.warn`
+  (Supabase Auth ≠ API contábil).
 - **Legado bloqueado:** qualquer URL contendo `:8090` é ignorada e o cliente
   loga `console.warn` — a API antiga da porta 8090 foi removida.
 - **Legado bloqueado:** `api-erp-renato.ngrok.app` **não** atende
