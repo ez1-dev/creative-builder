@@ -34,6 +34,7 @@ import { DreMetaBar } from '@/components/contabil/DreMetaBar';
 import { DreIncompletoBanner } from '@/components/contabil/DreIncompletoBanner';
 import { DreAcoesAdmin } from '@/components/contabil/DreAcoesAdminDialog';
 import { DreConciliacaoBiTab } from '@/components/contabil/DreConciliacaoBiTab';
+import { DreApiDiagnostico } from '@/components/contabil/DreApiDiagnostico';
 
 type Unidade = 'TODOS' | 'GENIUS' | 'ESTRUTURAL' | 'OUTROS';
 
