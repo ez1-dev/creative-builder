@@ -1,65 +1,36 @@
 ## Objetivo
 
-Ajustar o diagnóstico da DRE para diferenciar corretamente três estados, sem alterar URL, sem criar fallback e sem recalcular valores no frontend.
+Remover o texto hardcoded de Linux/Docker do banner "Pasta de desenhos inacessível" no diálogo de Diagnóstico de desenhos e passar a exibir o diagnóstico real vindo do backend Windows.
 
-## Contexto confirmado
+## Arquivo alterado
 
-- `VITE_CONTABIL_API_URL=https://dreconfiguravel.ngrok.app` — **manter**.
-- Nenhuma mudança em `contabilApi.ts` (URL, guardas de `:8090`, `api-erp-renato`, `.supabase.co` permanecem).
-- Nenhum mock, fallback ou recálculo será introduzido.
+`src/pages/producao/ImpressaoOrdemProducaoPage.tsx` — apenas o bloco do banner de erro (linhas ~1639–1651), dentro do `Dialog` de Diagnóstico. Restante do diálogo (grid com `cod_emp`/`cod_ori`/`num_orp`/`cod_pro`, contagem, amostra, `candidatos_testados`) fica intocado.
 
-## Mudanças (frontend apenas, camada de apresentação)
+## Mudanças no banner
 
-### 1. `src/components/contabil/DreApiDiagnostico.tsx`
+1. Título continua: **"Pasta de desenhos inacessível no servidor."**
+2. Se o backend retornar `diagData.observacao` (string), renderizar esse texto em vez do parágrafo fixo atual.
+3. Se o backend retornar `diagData.pastas_candidatas` (array `{ caminho: string; acessivel: boolean }`), renderizar uma lista compacta abaixo da observação:
+   - Cada item: ícone ✓/✗ (usando `CheckCircle2` verde / `XCircle` vermelho já disponíveis no lucide), seguido de `<code>{caminho}</code>`.
+   - Rótulo: "Caminhos testados pelo backend".
+4. Dica final (fallback e complemento) — sempre em Windows, sem menção a Linux/Docker/`/mnt/`:
+   > Defina a variável `PASTA_DESENHOS_OP` no host Windows da API apontando para um caminho acessível — por exemplo `C:\Senior\Sapiens\Pasta de Desenho\02-JPG_OP` (local) ou `\\EZORTEA-SRVSENI\Senior\Sapiens\Pasta de Desenho\02-JPG_OP` (UNC).
+5. Se `observacao` estiver ausente, exibir apenas o título + dica + lista (sem texto genérico Linux/Docker).
 
-Passar a fazer **dois** health checks em paralelo via `useQueries`:
+## O que NÃO muda
 
-- `pingContabilHealth()` → estado da API (`/api/contabil/health`).
-- Um "probe" leve das rotas críticas ainda-não-publicadas (`/api/contabil/agendamentos` e `/api/contabil/snapshots`) — apenas para classificar o banner. Não altera nenhuma tela de dados.
+- Nenhuma alteração em `useImpressaoPdfJob.ts`, `opImpressaoPdfJob.ts`, backend, `.env`, guardas de URL, ou em qualquer outro banner (progresso, avisos, resumo de desenhos).
+- Não alterar o restante do diálogo de diagnóstico (grid de metadados, `candidatos_testados`, amostra de desenhos).
+- Não introduzir novas dependências.
 
-Matriz de mensagens exibidas na faixa:
+## Tipos
 
-| Health | Probe recursos | Mensagem | Tom |
-|---|---|---|---|
-| ok | ok | "API contábil conectada." | ok (verde) |
-| ok | 404 | "API conectada, mas o recurso solicitado ainda não foi publicado no backend." | warn (âmbar) |
-| ok | 5xx com indício de banco (`sql`, `1433`, `pymssql`, `vpn`, `senior`) | "API online, mas sem conexão com o banco ERP." | warn (âmbar) |
-| 404 no próprio health | — | "Rota `/api/contabil/health` não encontrada nesta versão do backend." | warn |
-| network / timeout / 0 | — | "API contábil indisponível." | error (vermelho) |
-| 401 | — | "Sessão expirada — refaça o login." | warn |
+Estender localmente (cast leve, já que `diagData` é `any` no componente) para incluir `observacao?: string` e `pastas_candidatas?: Array<{ caminho: string; acessivel: boolean }>`. Sem mudança de tipo global.
 
-Regra crítica: **quando `health = ok`, nunca renderizar "API offline"**, mesmo que o probe falhe.
+## Aceite
 
-Botão "Testar conexão" refaz os dois probes e invalida `['dre-matriz']`.
-
-### 2. `src/pages/bi/contabilidade/DrePage.tsx`
-
-Nenhuma mudança estrutural. O `<DreApiDiagnostico />` já está no topo; passará a exibir a nova matriz automaticamente.
-
-### 3. Mensagens de erro nos hooks de dados (`dreMatrizApi`, `dreConfiguravelApi`, `dreStudioApi`)
-
-Ajustar apenas o **texto** do erro para 404, sem lógica nova:
-
-- 404 hoje: "Rota da DRE não encontrada na API principal. Verifique se a versão integrada do backend foi reiniciada."
-- 404 novo: "Este recurso ainda não está disponível na versão publicada do backend contábil."
-
-Isso remove qualquer sugestão de "API offline" quando o problema é rota inexistente.
-
-### 4. `DreHealthBanner.tsx` (DRE Studio)
-
-Mesmo ajuste textual do item 3 para o caso `isNotFound`, para manter coerência entre módulos.
-
-## O que NÃO será feito
-
-- Não alterar URL, `.env`, guardas de host, nem apontar para `api-erp-renato.ngrok.app`.
-- Não criar rotas simuladas nem mocks para `/agendamentos` ou `/snapshots`.
-- Não recalcular, corrigir ou derivar valores contábeis no frontend.
-- Não tocar em backend, ETL, Cloud ou Supabase.
-
-## Critérios de aceite
-
-- Com `health = 200` e `agendamentos = 404`: banner âmbar com "API conectada, mas o recurso solicitado ainda não foi publicado no backend."
-- Com `health` inacessível: banner vermelho "API contábil indisponível."
-- Com `health = 200` e erro sinalizando banco ERP: banner âmbar "API online, mas sem conexão com o banco ERP."
-- Após deploy do backend, as rotas novas passam a responder 200 automaticamente sem qualquer mudança no frontend.
-- `tsgo` verde; nenhum valor hardcoded ou mock adicionado.
+- Banner nunca cita Linux, Docker ou `/mnt/`.
+- Quando o backend envia `observacao`, ela aparece literalmente.
+- Quando envia `pastas_candidatas`, cada caminho aparece com indicador de acessível/inacessível.
+- Dica final orienta configuração no Windows (caminho local ou UNC).
+- Resto da tela idêntico.
