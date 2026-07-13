@@ -394,11 +394,16 @@ export default function DrePage() {
       const kind = erro.kind;
       let title = 'Erro ao carregar DRE';
       let msg = erro.message;
-      if (kind === 'api_offline' || kind === 'timeout') {
+      if (kind === 'api_offline' || (kind as any) === 'timeout') {
         title = 'API indisponível';
-        msg = 'Não foi possível acessar a API da DRE.';
+        msg = 'Não foi possível acessar a API integrada da DRE.';
+      } else if (kind === 'erp_offline') {
+        title = 'Banco ERP indisponível';
+        msg = 'A API está online, mas o banco ERP está indisponível.';
       } else if (kind === 'not_found') {
         title = 'Rota não encontrada';
+      } else if (kind === 'auth') {
+        title = 'Sessão expirada';
       }
       return (
         <Card className="border-destructive/50 bg-destructive/5">
