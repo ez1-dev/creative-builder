@@ -456,6 +456,7 @@ export default function DrePage() {
             }
           />
 
+          <DreApiDiagnostico />
           <DreMetaBar meta={meta} apiOnline={apiOnline} loading={health.isLoading} />
           {renderEstadoBanner()}
           {fonteIncorreta && (
