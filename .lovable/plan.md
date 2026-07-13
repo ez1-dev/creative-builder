@@ -1,62 +1,65 @@
-Ajustar frontend da página **Contabilidade — DRE** para usar `VITE_CONTABIL_API_URL` como variável oficial e adicionar diagnóstico visível de conexão. Nenhuma alteração de lógica de negócio.
+## Objetivo
 
-## 1. Variável de ambiente
+Ajustar o diagnóstico da DRE para diferenciar corretamente três estados, sem alterar URL, sem criar fallback e sem recalcular valores no frontend.
 
-- Oficial: **`VITE_CONTABIL_API_URL=https://dreconfiguravel.ngrok.app`**
-- Fallback (compat): `VITE_DRE_API_URL` continua sendo lido, mas com prioridade menor.
-- Não editar `.env` (auto-gerado). A configuração fica em `.env.local` do usuário; o cliente já cai no default se ausente.
+## Contexto confirmado
 
-Em `src/lib/contabil/contabilApi.ts`:
-- Inverter prioridade em `getContabilBaseUrl()`: `VITE_CONTABIL_API_URL` primeiro, `VITE_DRE_API_URL` depois, `DEFAULT_CONTABIL_URL` por último.
-- Adicionar guarda extra: se a URL final apontar para `*.supabase.co`, ignorar e logar `console.warn` (Supabase nunca é a API contábil).
-- Guardas existentes de `:8090` e `api-erp-renato.ngrok.app` já estão implementadas — manter.
+- `VITE_CONTABIL_API_URL=https://dreconfiguravel.ngrok.app` — **manter**.
+- Nenhuma mudança em `contabilApi.ts` (URL, guardas de `:8090`, `api-erp-renato`, `.supabase.co` permanecem).
+- Nenhum mock, fallback ou recálculo será introduzido.
 
-## 2. Diagnóstico visível na página
+## Mudanças (frontend apenas, camada de apresentação)
 
-Criar `src/components/contabil/DreApiDiagnostico.tsx` renderizado no topo do `DrePage` (acima do `DreMetaBar`), usando `pingContabilHealth()` já existente + `useDreApiHealth` estilo `useQuery`.
+### 1. `src/components/contabil/DreApiDiagnostico.tsx`
 
-Layout (uma faixa fina, tokens semânticos, sem cor hardcoded):
+Passar a fazer **dois** health checks em paralelo via `useQueries`:
 
-```
-API contábil: https://dreconfiguravel.ngrok.app   [ícone status]  <mensagem>   [Testar conexão]
-```
+- `pingContabilHealth()` → estado da API (`/api/contabil/health`).
+- Um "probe" leve das rotas críticas ainda-não-publicadas (`/api/contabil/agendamentos` e `/api/contabil/snapshots`) — apenas para classificar o banner. Não altera nenhuma tela de dados.
 
-Mensagens fixas conforme resultado do `pingContabilHealth()`:
+Matriz de mensagens exibidas na faixa:
 
-| Estado | Mensagem |
-|---|---|
-| `ok:true` | **API contábil conectada** |
-| `status === 404` | **O domínio está online, mas a rota contábil não foi encontrada. Verifique se o túnel está apontando para a API integrada da porta 8070.** |
-| `status === 'network' \| 'timeout' \| 0` | **API contábil indisponível. Verifique o túnel ngrok e a execução do backend.** |
-| `status === 401` | **Sessão expirada — refaça o login.** |
-| outros | mostrar `HTTP <status>` cru + `details` |
+| Health | Probe recursos | Mensagem | Tom |
+|---|---|---|---|
+| ok | ok | "API contábil conectada." | ok (verde) |
+| ok | 404 | "API conectada, mas o recurso solicitado ainda não foi publicado no backend." | warn (âmbar) |
+| ok | 5xx com indício de banco (`sql`, `1433`, `pymssql`, `vpn`, `senior`) | "API online, mas sem conexão com o banco ERP." | warn (âmbar) |
+| 404 no próprio health | — | "Rota `/api/contabil/health` não encontrada nesta versão do backend." | warn |
+| network / timeout / 0 | — | "API contábil indisponível." | error (vermelho) |
+| 401 | — | "Sessão expirada — refaça o login." | warn |
 
-Botão "Testar conexão" refaz o health check e invalida `['dre-matriz']`.
+Regra crítica: **quando `health = ok`, nunca renderizar "API offline"**, mesmo que o probe falhe.
 
-## 3. Limpeza (search)
+Botão "Testar conexão" refaz os dois probes e invalida `['dre-matriz']`.
 
-Confirmado por `rg`: nenhuma referência ativa a `:8090`, `localhost:8090` ou `api-erp-renato.ngrok.app` em código de runtime da DRE (apenas guardas defensivas em `contabilApi.ts` e mensagem de toast em `ConfiguracoesPage.tsx` alertando o usuário — mantém-se). Nada a remover.
+### 2. `src/pages/bi/contabilidade/DrePage.tsx`
 
-## 4. Documentação
+Nenhuma mudança estrutural. O `<DreApiDiagnostico />` já está no topo; passará a exibir a nova matriz automaticamente.
 
-Atualizar `docs/backend-dre-api-integrada.md`:
-- Variável oficial passa a ser `VITE_CONTABIL_API_URL`; `VITE_DRE_API_URL` marcado como legado/aceito por compat.
+### 3. Mensagens de erro nos hooks de dados (`dreMatrizApi`, `dreConfiguravelApi`, `dreStudioApi`)
 
-## 5. Segurança (verificação, sem código)
+Ajustar apenas o **texto** do erro para 404, sem lógica nova:
 
-Rodar `rg "SERVICE_ROLE|JWT_SECRET|SENIOR_DB_PASSWORD" src` para garantir que nenhuma chave privada está no bundle. `VITE_SUPABASE_*` (auto-geradas, publishable) permanecem — são necessárias para o Auth e não são chaves privadas.
+- 404 hoje: "Rota da DRE não encontrada na API principal. Verifique se a versão integrada do backend foi reiniciada."
+- 404 novo: "Este recurso ainda não está disponível na versão publicada do backend contábil."
 
-## Fora de escopo
+Isso remove qualquer sugestão de "API offline" quando o problema é rota inexistente.
 
-- Backend FastAPI (rota 404 já reportada anteriormente é responsabilidade do backend).
-- Editar `.env` (arquivo auto-gerado pelo Cloud).
-- Qualquer mudança em cálculo, matriz, conciliação ou modelos.
+### 4. `DreHealthBanner.tsx` (DRE Studio)
+
+Mesmo ajuste textual do item 3 para o caso `isNotFound`, para manter coerência entre módulos.
+
+## O que NÃO será feito
+
+- Não alterar URL, `.env`, guardas de host, nem apontar para `api-erp-renato.ngrok.app`.
+- Não criar rotas simuladas nem mocks para `/agendamentos` ou `/snapshots`.
+- Não recalcular, corrigir ou derivar valores contábeis no frontend.
+- Não tocar em backend, ETL, Cloud ou Supabase.
 
 ## Critérios de aceite
 
-- `VITE_CONTABIL_API_URL` é a variável primária lida pelo cliente contábil.
-- Nenhuma chamada da DRE vai para porta 8090, `api-erp-renato.ngrok.app` ou `*.supabase.co`.
-- Página exibe faixa com URL ativa, ícone de status e uma das três mensagens padronizadas.
-- Botão "Testar conexão" refaz o health check.
-- Nenhuma chave privada (`SERVICE_ROLE`, `JWT_SECRET`, `SENIOR_DB_PASSWORD`) aparece em `VITE_*` ou no bundle.
-- `tsgo` continua verde.
+- Com `health = 200` e `agendamentos = 404`: banner âmbar com "API conectada, mas o recurso solicitado ainda não foi publicado no backend."
+- Com `health` inacessível: banner vermelho "API contábil indisponível."
+- Com `health = 200` e erro sinalizando banco ERP: banner âmbar "API online, mas sem conexão com o banco ERP."
+- Após deploy do backend, as rotas novas passam a responder 200 automaticamente sem qualquer mudança no frontend.
+- `tsgo` verde; nenhum valor hardcoded ou mock adicionado.
