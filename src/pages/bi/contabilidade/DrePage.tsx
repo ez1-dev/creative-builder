@@ -394,13 +394,13 @@ export default function DrePage() {
   };
 
   return (
-    <PageDataProvider>
+    <PageDataProvider pageKey="bi.contabilidade.dre">
       <TooltipProvider>
         <div className="space-y-4 p-4">
           <PageHeader
             title="Contabilidade — DRE"
-            subtitle="Demonstração do Resultado materializada pelo backend contábil unificado."
-            right={
+            description="Demonstração do Resultado materializada pelo backend contábil unificado."
+            actions={
               <Button asChild size="sm" variant="outline">
                 <Link to="/bi/contabilidade/dre-excecoes"><Flag className="h-4 w-4 mr-1" />Exceções</Link>
               </Button>
