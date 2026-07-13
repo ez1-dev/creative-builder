@@ -22,10 +22,11 @@ export interface DreMetaBarProps {
 }
 
 export function DreMetaBar({ meta, apiOnline, loading }: DreMetaBarProps) {
-  const fonte = meta?.fonte_saldo ?? '—';
+  const fonte = meta?.fonte_saldo?.trim() || null;
   const modelo = meta?.modelo_nome ?? meta?.modelo_id ?? '—';
   const periodo = meta?.periodo ?? '—';
   const status = (meta?.status ?? '').toLowerCase();
+  const conciliacao = (meta?.status_conciliacao ?? 'pendente').toString().toLowerCase();
 
   const statusVariant =
     status === 'atualizado' ? 'default'
@@ -33,12 +34,24 @@ export function DreMetaBar({ meta, apiOnline, loading }: DreMetaBarProps) {
     : status === 'nao_materializado' ? 'destructive'
     : 'outline';
 
+  const conciliacaoVariant: 'default' | 'secondary' | 'destructive' | 'outline' =
+    conciliacao === 'conciliada' ? 'default'
+    : conciliacao === 'divergente' ? 'destructive'
+    : 'secondary';
+
   return (
     <Card>
       <CardContent className="py-3">
         <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs">
-          <MetaItem icon={<Database className="h-3.5 w-3.5" />} label="Fonte">
-            <Badge variant="outline" className="font-mono">{fonte}</Badge>
+          <MetaItem icon={<Database className="h-3.5 w-3.5" />} label="Fonte dos saldos">
+            {fonte ? (
+              <Badge variant="outline" className="font-mono">{fonte}</Badge>
+            ) : (
+              <Badge variant="secondary" className="text-[10px] gap-1">
+                <AlertTriangle className="h-3 w-3 text-amber-600" />
+                Fonte contábil não informada
+              </Badge>
+            )}
             {meta?.fonte_temporaria && (
               <Badge variant="secondary" className="ml-1 text-[10px]">temporária</Badge>
             )}
@@ -75,6 +88,11 @@ export function DreMetaBar({ meta, apiOnline, loading }: DreMetaBarProps) {
             {meta?.status_fechamento && (
               <span className="ml-1 text-muted-foreground">· fechamento: {meta.status_fechamento}</span>
             )}
+          </MetaItem>
+          <MetaItem icon={<CheckCircle2 className="h-3.5 w-3.5" />} label="Status da conciliação">
+            <Badge variant={conciliacaoVariant} className="text-[10px]">
+              {conciliacao}
+            </Badge>
           </MetaItem>
         </div>
       </CardContent>
