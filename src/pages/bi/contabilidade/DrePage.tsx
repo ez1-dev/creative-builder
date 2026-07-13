@@ -526,6 +526,7 @@ export default function DrePage() {
                     <DreAcoesAdmin
                       ano={ano} mesIni={mesInicial} mesFim={mesFinal}
                       modeloId={meta?.modelo_id ?? null}
+                      fonteSaldo={meta?.fonte_saldo ?? null}
                       isAdmin={isAdmin}
                       onAtualizarTela={atualizarTela}
                       loading={loading}
