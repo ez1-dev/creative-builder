@@ -179,6 +179,10 @@ export interface ComparativoLinhaV2 {
   linha_virtual?: boolean | null;
   descricao_linha?: string | null;
 
+  // ---- Drill-down agregado (novo backend) ----
+  drillavel?: boolean;
+  drills?: string[];
+  codigo_linha?: string | null;
 }
 
 // ---- Resultado pronto / materialização assíncrona ----
