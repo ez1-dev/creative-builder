@@ -23,6 +23,9 @@ import { ConciliacaoSeniorMensalTable } from "@/components/contabil/ConciliacaoS
 import { useConciliacaoSeniorMensal } from "@/hooks/contabil/useConciliacaoSeniorMensal";
 
 import { DrillDrawer, type DrillArgs } from "@/components/contabil/DrillDrawer";
+import { DrillMenu } from "@/components/dre-studio/DrillMenu";
+import { DrillResultadoPanel, type DrillResultadoContext } from "@/components/dre-studio/DrillResultadoPanel";
+import type { DrillDimensao } from "@/lib/contabil/drillDreApi";
 import {
   useCentrosCusto,
   useModelo,
