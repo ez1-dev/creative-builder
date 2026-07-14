@@ -2463,7 +2463,31 @@ function Visualizacao() {
                       {is000 && (
                         <AlertTriangle className="h-3.5 w-3.5 inline mr-1 align-middle text-sky-600" />
                       )}
-                      {descricaoExibida}
+                      <span className="inline-flex items-center gap-1">
+                        <span>{descricaoExibida}</span>
+                        {l.drillavel === true && Array.isArray(l.drills) && l.drills.length > 0 && (
+                          <DrillMenu
+                            drills={l.drills}
+                            onSelect={(dim: DrillDimensao) =>
+                              setDrillCtx({
+                                modeloId: id,
+                                linhaId: l.linha_id,
+                                codigoLinha: l.codigo_linha ?? l.codigo ?? null,
+                                linhaDescricao: descricaoExibida,
+                                agrupar_por: dim,
+                                filtros: {
+                                  codemp: modelo?.modelo?.codemp ?? 1,
+                                  codfil: codfilNum,
+                                  anomes_ini: ini,
+                                  anomes_fim: fim,
+                                  centro_custo: codccu === "todos" ? null : codccu,
+                                  modo_balanco: modoBalancoEfetivo ?? null,
+                                },
+                              })
+                            }
+                          />
+                        )}
+                      </span>
 
                     </td>
 
