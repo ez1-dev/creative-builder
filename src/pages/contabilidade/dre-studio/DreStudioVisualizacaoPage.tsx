@@ -2576,6 +2576,11 @@ function Visualizacao() {
         </AlertDialogContent>
       </AlertDialog>
       <DrillDrawer open={!!drill} onOpenChange={(o) => !o && setDrill(null)} args={drill} />
+      <DrillResultadoPanel
+        open={!!drillCtx}
+        onOpenChange={(o) => !o && setDrillCtx(null)}
+        ctx={drillCtx}
+      />
 
       <HistoricoCacheDialog
         open={openHistoricoCache}
