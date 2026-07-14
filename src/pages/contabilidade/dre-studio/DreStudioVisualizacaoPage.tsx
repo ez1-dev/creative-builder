@@ -23,6 +23,9 @@ import { ConciliacaoSeniorMensalTable } from "@/components/contabil/ConciliacaoS
 import { useConciliacaoSeniorMensal } from "@/hooks/contabil/useConciliacaoSeniorMensal";
 
 import { DrillDrawer, type DrillArgs } from "@/components/contabil/DrillDrawer";
+import { DrillMenu } from "@/components/dre-studio/DrillMenu";
+import { DrillResultadoPanel, type DrillResultadoContext } from "@/components/dre-studio/DrillResultadoPanel";
+import type { DrillDimensao } from "@/lib/contabil/drillDreApi";
 import {
   useCentrosCusto,
   useModelo,
@@ -226,6 +229,7 @@ function Visualizacao() {
   const [codfil, setCodfil] = useState<string>("todas");
   const [visao, setVisao] = useState<Visao>("REAL");
   const [drill, setDrill] = useState<DrillArgs | null>(null);
+  const [drillCtx, setDrillCtx] = useState<DrillResultadoContext | null>(null);
   
   const [openHistoricoCache, setOpenHistoricoCache] = useState(false);
   const [dataIni, setDataIni] = useState<string>(() => firstDayOfAnomes(ini));
@@ -2459,7 +2463,31 @@ function Visualizacao() {
                       {is000 && (
                         <AlertTriangle className="h-3.5 w-3.5 inline mr-1 align-middle text-sky-600" />
                       )}
-                      {descricaoExibida}
+                      <span className="inline-flex items-center gap-1">
+                        <span>{descricaoExibida}</span>
+                        {l.drillavel === true && Array.isArray(l.drills) && l.drills.length > 0 && (
+                          <DrillMenu
+                            drills={l.drills}
+                            onSelect={(dim: DrillDimensao) =>
+                              setDrillCtx({
+                                modeloId: id,
+                                linhaId: l.linha_id,
+                                codigoLinha: l.codigo_linha ?? l.codigo ?? null,
+                                linhaDescricao: descricaoExibida,
+                                agrupar_por: dim,
+                                filtros: {
+                                  codemp: modelo?.modelo?.codemp ?? 1,
+                                  codfil: codfilNum,
+                                  anomes_ini: ini,
+                                  anomes_fim: fim,
+                                  centro_custo: codccu === "todos" ? null : codccu,
+                                  modo_balanco: modoBalancoEfetivo ?? null,
+                                },
+                              })
+                            }
+                          />
+                        )}
+                      </span>
 
                     </td>
 
@@ -2548,6 +2576,11 @@ function Visualizacao() {
         </AlertDialogContent>
       </AlertDialog>
       <DrillDrawer open={!!drill} onOpenChange={(o) => !o && setDrill(null)} args={drill} />
+      <DrillResultadoPanel
+        open={!!drillCtx}
+        onOpenChange={(o) => !o && setDrillCtx(null)}
+        ctx={drillCtx}
+      />
 
       <HistoricoCacheDialog
         open={openHistoricoCache}
