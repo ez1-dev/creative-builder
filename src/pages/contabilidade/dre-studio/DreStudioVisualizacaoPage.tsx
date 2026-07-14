@@ -229,6 +229,7 @@ function Visualizacao() {
   const [codfil, setCodfil] = useState<string>("todas");
   const [visao, setVisao] = useState<Visao>("REAL");
   const [drill, setDrill] = useState<DrillArgs | null>(null);
+  const [drillCtx, setDrillCtx] = useState<DrillResultadoContext | null>(null);
   
   const [openHistoricoCache, setOpenHistoricoCache] = useState(false);
   const [dataIni, setDataIni] = useState<string>(() => firstDayOfAnomes(ini));
