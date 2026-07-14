@@ -49,6 +49,10 @@ const ALL_SCREENS = [
   { path: '/contas-receber', name: 'Contas a Receber' },
   { path: '/contabilidade/balanco', name: 'Contabilidade — Balanço Patrimonial' },
   { path: '/bi/contabilidade/dre', name: 'Contabilidade — DRE' },
+  { path: '/contabilidade/dre-studio', name: 'DRE Studio — Visão Geral' },
+  { path: '/contabilidade/dre-studio/modelos', name: 'DRE Studio — Modelos' },
+  { path: '/contabilidade/dre-studio/modelos/novo', name: 'DRE Studio — Novo Modelo' },
+  
   
   { path: '/numero-serie', name: 'Reserva Nº Série' },
   { path: '/producao/dashboard', name: 'Produção - Dashboard' },
