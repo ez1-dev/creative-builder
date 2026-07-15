@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { cargaApi } from '@/lib/producao/cargaApi';
 import { num, statusFrom, type Periodo, type ModStatus } from './shared';
+import { CargaCentrosResponseSchema, EMPTY_CENTROS, CargaRecursosResponseSchema, EMPTY_RECURSOS } from '@/lib/dashboardGeral/schemas/producao';
+import { parseOrEmpty } from '@/lib/dashboardGeral/schemas/_utils';
 
 export interface ProducaoData {
   kpis: {
