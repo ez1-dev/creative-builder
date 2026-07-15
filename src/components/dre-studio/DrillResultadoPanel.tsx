@@ -281,20 +281,27 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-4xl overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>Drill — {ctx?.linhaDescricao}</SheetTitle>
+          <SheetTitle>
+            {ctx?.acao === 'reabrir' ? 'Reabrir — ' : 'Drill — '}
+            {ctx?.linhaDescricao}
+          </SheetTitle>
           <SheetDescription>
-            <span className="font-medium">{ctx ? DRILL_LABELS[ctx.agrupar_por] : ''}</span>
+            <span className="font-medium">
+              {ctx?.itemLabel ?? (ctx ? DRILL_LABELS[ctx.agrupar_por] : '')}
+            </span>
             {' · '}Período: {periodoLabel}
             {ctx?.codigoLinha && <> · Código: <code className="text-xs">{ctx.codigoLinha}</code></>}
             <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
               {ctx?.filtros.codemp != null && <span>codemp {ctx.filtros.codemp}</span>}
               {ctx?.filtros.codfil != null && <span>codfil {ctx.filtros.codfil}</span>}
+              {ctx?.filtros.consolidado && <span>consolidado</span>}
               {ctx?.filtros.centro_custo && <span>CCU {ctx.filtros.centro_custo}</span>}
               {ctx?.filtros.unidade && <span>UN {ctx.filtros.unidade}</span>}
               {ctx?.filtros.modo_balanco && <span>modo {ctx.filtros.modo_balanco}</span>}
             </div>
           </SheetDescription>
         </SheetHeader>
+
 
         <div className="mt-4">
           {isLoading ? (
