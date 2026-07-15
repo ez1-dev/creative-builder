@@ -120,12 +120,23 @@ export default function BalancoPatrimonialPage() {
         title="Contabilidade — Balanço Patrimonial"
         description="Consulta da view V_BALANCO_PATRIMONIAL com filtros por período, empresa, filial, conta e grupo."
         actions={
-          <ExportButton
-            endpoint="/api/export/contabilidade/balanco"
-            params={exportParams}
-            label="Exportar Excel"
-          />
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => setEditorOpen(true)}>
+              <Pencil className="h-3.5 w-3.5 mr-1" />Editar estrutura
+            </Button>
+            <ExportButton
+              endpoint="/api/export/contabilidade/balanco"
+              params={exportParams}
+              label="Exportar Excel"
+            />
+          </div>
         }
+      />
+
+      <BalancoEstruturaEditor
+        open={editorOpen}
+        onClose={() => setEditorOpen(false)}
+        onPublicado={() => fetchData(pagina)}
       />
 
       <FilterPresetBar
