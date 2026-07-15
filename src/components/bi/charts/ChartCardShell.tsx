@@ -3,10 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Maximize2, Download } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { LoadingState } from '../states/LoadingState';
+import { LoadingState, type LoadingVariant } from '../states/LoadingState';
 import { ErrorState } from '../states/ErrorState';
 import { NoDataState } from '../states/NoDataState';
 import { InlineEmpty } from '../states/InlineEmpty';
+import { InlineError } from '../states/InlineError';
 import {
   type VisualConfig,
   type DescriptionVars,
@@ -38,6 +39,12 @@ export interface ChartCardShellProps {
   emptyVariant?: 'full' | 'inline';
   /** Mensagem custom para estado vazio. */
   emptyMessage?: string;
+  /** 'inline' (default) usa faixa amber que preserva o card; 'full' usa ErrorState clássico. */
+  errorVariant?: 'full' | 'inline';
+  /** Handler para o botão "Tentar" no InlineError e ErrorState. */
+  onRetry?: () => void;
+  /** Formato do skeleton — bars/line/donut/kpi ficam mais parecidos com o conteúdo. */
+  loadingVariant?: LoadingVariant;
 }
 
 const ALIGN_CLASS: Record<'left' | 'center' | 'right', string> = {
@@ -50,6 +57,7 @@ export function ChartCardShell({
   title, subtitle, icon, count, loading, error, isEmpty, height = 280,
   expandable = true, exportable = false, onExportData, children,
   visualConfig, descriptionVars, emptyVariant = 'full', emptyMessage,
+  errorVariant = 'inline', onRetry, loadingVariant = 'skeleton',
 }: ChartCardShellProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -75,9 +83,11 @@ export function ChartCardShell({
   ) : null;
 
   const body = loading
-    ? <LoadingState height={effHeight} variant="skeleton" />
+    ? <LoadingState height={effHeight} variant={loadingVariant} />
     : error
-    ? <ErrorState message={error} height={effHeight} />
+    ? (errorVariant === 'inline'
+        ? <InlineError message={error} onRetry={onRetry} minHeight={Math.min(effHeight, 120)} />
+        : <ErrorState message={error} height={effHeight} onRetry={onRetry} />)
     : isEmpty
     ? (emptyVariant === 'inline'
         ? <InlineEmpty message={emptyMessage} />
