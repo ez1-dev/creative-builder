@@ -47,7 +47,8 @@ import { ConciliacaoDREBalancoPanel } from "@/components/contabil/ConciliacaoDRE
 import { cn } from "@/lib/utils";
 import { useCriarBalancoPadraoSenior } from "@/hooks/contabil/useCriarBalancoPadraoSenior";
 import { useVincularContasBalancoSenior } from "@/hooks/contabil/useVincularContasBalancoSenior";
-import { Link2 } from "lucide-react";
+import { Link2, Pencil } from "lucide-react";
+import { DreEstruturaEditor } from "@/components/contabil/edicao/DreEstruturaEditor";
 import {
   AlertDialog,
   AlertDialogAction,
