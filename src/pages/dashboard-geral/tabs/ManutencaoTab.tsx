@@ -17,7 +17,7 @@ export function ManutencaoTab({ periodo, enabled }: { periodo: Periodo; enabled:
         <Button asChild variant="link" size="sm"><Link to="/manutencao-maquinas">Máquinas →</Link></Button>
       </div>
       <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <KpiCard title="Custo total" value={data.kpis.custo_total} format="currency" icon={<Wallet className="h-4 w-4" />} variant="info" loading={loading} />
+        <KpiCard title="Custo total" value={data.kpis.custo_total} format="currency" icon={<Wallet className="h-4 w-4" />} variant="info" loading={loading} partial={data.status === 'parcial'} />
         <KpiCard title="Custo frota" value={data.kpis.custo_frota} format="currency" icon={<Truck className="h-4 w-4" />} loading={loading} variant="warning" />
         <KpiCard title="Registros frota" value={data.kpis.total_frota} format="quantity" icon={<Wrench className="h-4 w-4" />} loading={loading} />
         <KpiCard title="Custo máquinas" value={data.kpis.custo_maquinas} format="currency" icon={<Cog className="h-4 w-4" />} loading={loading} variant="warning" />

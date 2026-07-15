@@ -16,7 +16,7 @@ export function ComercialTab({ periodo, enabled }: { periodo: Periodo; enabled: 
         <Button asChild variant="link" size="sm"><Link to="/bi/comercial">Abrir BI Comercial →</Link></Button>
       </div>
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard title="Faturamento" value={data.kpis.faturamento} format="currency" icon={<DollarSign className="h-4 w-4" />} variant="info" loading={loading}
+        <KpiCard title="Faturamento" value={data.kpis.faturamento} format="currency" icon={<DollarSign className="h-4 w-4" />} variant="info" loading={loading} partial={data.status === 'parcial'}
           trend={data.kpis.delta_pct ? { value: data.kpis.delta_pct, label: 'vs mês ant.' } : undefined} />
         <KpiCard title="Meta atingida" value={data.kpis.meta_pct} format="percent" icon={<Target className="h-4 w-4" />} loading={loading}
           variant={data.kpis.meta_pct >= 100 ? 'success' : data.kpis.meta_pct >= 80 ? 'warning' : 'danger'} />

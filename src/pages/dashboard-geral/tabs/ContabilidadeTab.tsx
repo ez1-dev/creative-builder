@@ -17,7 +17,7 @@ export function ContabilidadeTab({ periodo, enabled }: { periodo: Periodo; enabl
         <Button asChild variant="link" size="sm"><Link to="/contabilidade/dre-studio">DRE Studio →</Link></Button>
       </div>
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard title="Ativo Total" value={data.kpis.ativo} format="currency" icon={<Landmark className="h-4 w-4" />} variant="info" loading={loading} />
+        <KpiCard title="Ativo Total" value={data.kpis.ativo} format="currency" icon={<Landmark className="h-4 w-4" />} variant="info" loading={loading} partial={data.status === 'parcial'} />
         <KpiCard title="Passivo" value={data.kpis.passivo} format="currency" icon={<Wallet className="h-4 w-4" />} variant="warning" loading={loading} />
         <KpiCard title="Patrim. Líquido" value={data.kpis.pl} format="currency" icon={<PiggyBank className="h-4 w-4" />} loading={loading} />
         <KpiCard title="Resultado exerc." value={data.kpis.resultado_exercicio} format="currency" icon={<TrendingUp className="h-4 w-4" />} loading={loading}

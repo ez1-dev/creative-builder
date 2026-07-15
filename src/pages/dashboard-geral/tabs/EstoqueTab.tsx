@@ -15,7 +15,7 @@ export function EstoqueTab({ enabled }: { enabled: boolean }) {
         <Button asChild variant="link" size="sm"><Link to="/estoque-min-max">Min/Máx →</Link></Button>
       </div>
       <section className="grid grid-cols-2 md:grid-cols-6 gap-3">
-        <KpiCard title="Total itens" value={data.kpis.total_itens} format="quantity" icon={<Package className="h-4 w-4" />} variant="info" loading={loading} />
+        <KpiCard title="Total itens" value={data.kpis.total_itens} format="quantity" icon={<Package className="h-4 w-4" />} variant="info" loading={loading} partial={data.status === 'parcial'} />
         <KpiCard title="OK" value={data.kpis.itens_ok} format="quantity" icon={<CheckCircle2 className="h-4 w-4" />} loading={loading} variant="success" />
         <KpiCard title="Abaixo do mínimo" value={data.kpis.itens_abaixo_min} format="quantity" icon={<AlertTriangle className="h-4 w-4" />} loading={loading}
           variant={data.kpis.itens_abaixo_min > 0 ? 'danger' : 'success'} />
