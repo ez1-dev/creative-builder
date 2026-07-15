@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { api, type PainelComprasDashboardResponse } from '@/lib/api';
 import { rangeFor, num, labelAnomes, anomesToDate, safeDiv, statusFrom, type Periodo, type ModStatus } from './shared';
+import { PainelComprasResponseSchema, EMPTY_COMPRAS } from '@/lib/dashboardGeral/schemas/compras';
+import { parseOrEmpty } from '@/lib/dashboardGeral/schemas/_utils';
 
 export interface ComprasData {
   kpis: {
