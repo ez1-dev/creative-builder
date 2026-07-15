@@ -3,10 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Maximize2, Download } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { LoadingState } from '../states/LoadingState';
+import { LoadingState, type LoadingVariant } from '../states/LoadingState';
 import { ErrorState } from '../states/ErrorState';
 import { NoDataState } from '../states/NoDataState';
 import { InlineEmpty } from '../states/InlineEmpty';
+import { InlineError } from '../states/InlineError';
 import {
   type VisualConfig,
   type DescriptionVars,
