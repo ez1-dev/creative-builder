@@ -275,6 +275,8 @@ export function DrillDrawer({
 
   const proximoLimite = LIMITE_STEPS.find((n) => n > limite) ?? null;
 
+  const razaoScrollRef = useRef<HTMLDivElement>(null);
+
   const cellNum = (v: number | null | undefined, opts?: { zeroBlank?: boolean }) => {
     if (v == null) return "";
     const n = Number(v);
