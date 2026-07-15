@@ -250,6 +250,7 @@ function Visualizacao() {
   const [drillCtx, setDrillCtx] = useState<DrillResultadoContext | null>(null);
   
   const [openHistoricoCache, setOpenHistoricoCache] = useState(false);
+  const [editorEstruturaOpen, setEditorEstruturaOpen] = useState(false);
   const [dataIni, setDataIni] = useState<string>(() => firstDayOfAnomes(ini));
   const [dataFim, setDataFim] = useState<string>(() => defaultDataFim(fim));
   useEffect(() => {
