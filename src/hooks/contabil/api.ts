@@ -432,8 +432,14 @@ export function normalizeComparativo(raw: unknown, modeloId: string): Comparativ
         ...c,
         descta: fixMojibake(c?.descta ?? ""),
       })),
+      // Drill Senior — repassa como veio, sem inferência.
+      drillavel: typeof linha.drillavel === "boolean" ? linha.drillavel : undefined,
+      drills: Array.isArray(linha.drills) ? linha.drills : undefined,
+      drills_menu: Array.isArray(linha.drills_menu) ? linha.drills_menu : undefined,
+      codigo_linha: linha.codigo_linha ?? null,
     };
   };
+
 
   // Formato novo do endpoint /resultado-cache OU "Already V2" — ambos têm
   // colunas/periodos + linhas. Normalizamos sempre para garantir que linhas
