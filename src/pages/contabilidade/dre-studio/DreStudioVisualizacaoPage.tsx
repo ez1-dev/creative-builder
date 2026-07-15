@@ -63,6 +63,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { FilterPresetBar } from "@/components/filters/FilterPresetBar";
 import { useFilterPresets } from "@/hooks/useFilterPresets";
+import { truncateLabel } from "@/lib/textTruncate";
 
 const DRE_VIS_PAGE_KEY = "dre-studio-visualizacao";
 interface DreVisFilterPreset {
