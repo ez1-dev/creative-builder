@@ -175,8 +175,8 @@ export function DrillDrawer({
                     <TableHead>Data</TableHead>
                     <TableHead>Lote</TableHead>
                     <TableHead>Número</TableHead>
-                    <TableHead>Débito</TableHead>
-                    <TableHead>Crédito</TableHead>
+                    <TableHead className="text-right">Débito</TableHead>
+                    <TableHead className="text-right">Crédito</TableHead>
                     <TableHead>CCU</TableHead>
                     <TableHead>Histórico</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
@@ -188,13 +188,11 @@ export function DrillDrawer({
                       <TableCell className="whitespace-nowrap">{fmtDataBR(r.data)}</TableCell>
                       <TableCell className="text-xs whitespace-nowrap">{r.lote ?? ""}</TableCell>
                       <TableCell className="text-xs whitespace-nowrap">{r.numero ?? ""}</TableCell>
-                      <TableCell className="text-xs">
-                        <div>{r.conta_debito}</div>
-                        <div className="text-slate-500">{r.desc_debito}</div>
+                      <TableCell className="text-xs text-right tabular-nums">
+                        {(r as any).debito != null ? fmtBRL(Number((r as any).debito)) : ""}
                       </TableCell>
-                      <TableCell className="text-xs">
-                        <div>{r.conta_credito}</div>
-                        <div className="text-slate-500">{r.desc_credito}</div>
+                      <TableCell className="text-xs text-right tabular-nums">
+                        {(r as any).credito != null ? fmtBRL(Number((r as any).credito)) : ""}
                       </TableCell>
                       <TableCell className="text-xs">
                         <div>{r.codccu}</div>
