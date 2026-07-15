@@ -506,6 +506,18 @@ export function DrillDrawer({
                   label="Centro de custo"
                   value={detalhe.codccu ? `${toDisplay(detalhe.codccu)} ${toDisplay(detalhe.desccu)}`.trim() : ""}
                 />
+                {Array.isArray(detalhe.multiplos) && detalhe.multiplos.length > 1 && (
+                  <div className="col-span-2">
+                    <div className="text-muted-foreground">Centros de custo da contrapartida</div>
+                    <ul className="mt-0.5 space-y-0.5">
+                      {detalhe.multiplos.map((m: any, idx: number) => (
+                        <li key={idx} className="tabular-nums">
+                          {toDisplay(m?.codccu)}{m?.desccu ? ` — ${toDisplay(m.desccu)}` : ""}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 <Info label="Documento" value={toDisplay(detalhe.documento)} />
                 <Info label="Origem" value={detalhe.origem_codigo ? `${toDisplay(detalhe.origem_codigo)} - ${toDisplay(detalhe.origem_descricao)}` : ""} />
                 <Info label="Usuário origem" value={toDisplay(detalhe.usuario_origem)} />
