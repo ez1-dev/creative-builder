@@ -56,7 +56,16 @@ export default function BalancoPatrimonialPage() {
     }
   };
 
-  const onSearch = () => { setPagina(1); fetchData(1); };
+  const { defaultPreset, lastFilters, saveLastFilters, loading: presetsLoading } = useFilterPresets<BalancoPatrimonialFilters>(PAGE_KEY);
+  const bootstrapped = useRef(false);
+  useEffect(() => {
+    if (bootstrapped.current || presetsLoading) return;
+    bootstrapped.current = true;
+    const initial = defaultPreset?.filtros ?? lastFilters;
+    if (initial) setFilters((prev) => ({ ...prev, ...initial }));
+  }, [presetsLoading, defaultPreset, lastFilters]);
+
+  const onSearch = () => { saveLastFilters(filters); setPagina(1); fetchData(1); };
   const onClear = () => {
     setFilters({
       anomes_ini: `${currentYear}01`,
