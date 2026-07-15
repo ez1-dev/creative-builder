@@ -119,8 +119,7 @@ export async function fetchDrillDre(params: DrillDreParams): Promise<DrillDreRes
 
   return {
     modelo_id: data?.modelo_id ?? params.modelo_id,
-    linha_id: data?.linha_id ?? params.linha_id ?? undefined,
-    codigo_linha: data?.codigo_linha ?? params.codigo_linha ?? undefined,
+    linha_id: data?.linha_id ?? params.linha_id,
     agrupar_por: (data?.agrupar_por as DrillDimensao) ?? params.agrupar_por,
     columns,
     rows,
