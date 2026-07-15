@@ -712,7 +712,7 @@ export function useResultadoCache(
   enabled = true,
 ) {
   return useQuery<unknown, Error, ComparativoResponseV2>({
-    queryKey: ["contabil", "resultado-cache", "v2", modeloId, filtros],
+    queryKey: ["contabil", "resultado-cache", "v3-drills", modeloId, filtros],
     queryFn: () =>
       api.get<unknown>(`/api/contabil/modelos/${modeloId}/resultado-cache`, {
         codemp: CODEMP,
@@ -724,6 +724,9 @@ export function useResultadoCache(
         data_corte: filtros.data_corte ?? undefined,
         aplicar_referencia_senior: filtros.aplicar_referencia_senior ? true : undefined,
         expandir_resultado_exercicio: filtros.expandir_resultado_exercicio ? true : undefined,
+        consolidado: filtros.consolidado ? true : undefined,
+        // Padrão Senior: pede o menu de drills (REABRIR/CONSULTA) por linha.
+        incluir_drills: true,
       }),
 
     enabled: enabled && isValidId(modeloId),
@@ -733,6 +736,7 @@ export function useResultadoCache(
     select: (raw) => normalizeComparativo(raw, modeloId),
   });
 }
+
 
 // ============================================================
 // Diagnóstico CTARED 0 (lançamentos sem conta contábil)
