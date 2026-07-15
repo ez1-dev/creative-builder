@@ -183,7 +183,6 @@ export interface ComparativoLinhaV2 {
   drillavel?: boolean;
   drills?: Array<string | { chave: string; label?: string | null }>;
   codigo_linha?: string | null;
-  linha_id?: string;
 }
 
 // ---- Resultado pronto / materialização assíncrona ----
