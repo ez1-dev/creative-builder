@@ -42,15 +42,15 @@ export const zArr = <T extends z.ZodTypeAny>(item: T) =>
  * safeParse com fallback e log único por módulo/path. Nunca lança.
  * Retorna também um flag `partial` quando o parse falhou e caiu no fallback.
  */
-export function parseOrEmpty<T>(
-  schema: z.ZodType<T>,
+export function parseOrEmpty<S extends z.ZodTypeAny>(
+  schema: S,
   data: unknown,
-  fallback: T,
+  fallback: z.infer<S>,
   moduleName: string,
-): { data: T; partial: boolean } {
+): { data: z.infer<S>; partial: boolean } {
   if (data == null) return { data: fallback, partial: false };
   const r = schema.safeParse(data);
-  if (r.success) return { data: r.data, partial: false };
+  if (r.success) return { data: r.data as z.infer<S>, partial: false };
   const firstIssue = r.error.issues[0];
   const key = `${moduleName}:${firstIssue?.path?.join('.') ?? '?'}:${firstIssue?.code ?? ''}`;
   if (!warned.has(key)) {
