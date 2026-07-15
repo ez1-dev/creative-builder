@@ -91,21 +91,34 @@ export function KpiCard({
         {icon && <span className="text-muted-foreground 3xl:[&>svg]:h-5 3xl:[&>svg]:w-5">{icon}</span>}
       </CardHeader>
       <CardContent className="space-y-1 3xl:space-y-2">
-        {loading ? (
-          <Skeleton className="h-7 3xl:h-10 w-24" />
+        {error && !hasStale ? (
+          <div className="flex items-center gap-1.5 text-xs text-[hsl(var(--warning))]">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            <span className="truncate text-foreground/80">Falha ao carregar</span>
+            {onRetry && (
+              <Button size="sm" variant="ghost" className="ml-auto h-5 gap-1 px-1.5 text-[10px]" onClick={(e) => { e.stopPropagation(); onRetry(); }}>
+                <RefreshCw className="h-2.5 w-2.5" />
+              </Button>
+            )}
+          </div>
+        ) : loading && !hasStale ? (
+          showSkeleton ? <Skeleton className="h-7 3xl:h-10 w-24" /> : <div className="h-7 3xl:h-10" aria-hidden />
         ) : (() => {
+          // Se está carregando mas temos valor anterior, exibe o stale com leve opacidade.
+          const displayValue = (loading || (error && hasStale)) ? staleValue : value;
           const isNumericFmt = format === 'currency' || format === 'number' || format === 'quantity';
-          const numeric = typeof value === 'number' ? value : null;
+          const numeric = typeof displayValue === 'number' ? displayValue : null;
           const invalid = numeric !== null && !Number.isFinite(numeric);
           const negative = !invalid && isNumericFmt && numeric !== null && numeric < 0;
-          const shownValue = invalid ? '—' : negative ? Math.abs(numeric as number) : (value as any);
+          const shownValue = invalid ? '—' : negative ? Math.abs(numeric as number) : (displayValue as any);
           return (
             <div
               data-widget-value
               className={cn(
-                'text-xl 3xl:text-3xl 4xl:text-4xl 5xl:text-5xl font-bold tabular-nums tracking-tight',
+                'text-xl 3xl:text-3xl 4xl:text-4xl 5xl:text-5xl font-bold tabular-nums tracking-tight transition-opacity',
                 negative && 'text-[hsl(var(--destructive))]',
                 invalid && 'text-muted-foreground',
+                (loading || error) && hasStale && 'opacity-60',
               )}
             >
               {invalid ? '—' : formatByKind(shownValue, format)}
