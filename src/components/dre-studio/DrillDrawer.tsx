@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
   Sheet,
   SheetContent,
@@ -39,6 +39,71 @@ function toDisplay(v: unknown): string {
     try { return JSON.stringify(v); } catch { return ""; }
   }
   return String(v);
+}
+
+/** Barra de rolagem horizontal flutuante que espelha o scroll de um container.
+ *  Fica visível na base do painel enquanto a tabela estiver rolável no eixo X. */
+function FloatingHScrollbar({ targetRef }: { targetRef: RefObject<HTMLDivElement> }) {
+  const proxyRef = useRef<HTMLDivElement>(null);
+  const [scrollWidth, setScrollWidth] = useState(0);
+  const [clientWidth, setClientWidth] = useState(0);
+  const syncingRef = useRef<"none" | "target" | "proxy">("none");
+
+  useEffect(() => {
+    const el = targetRef.current;
+    if (!el) return;
+
+    const update = () => {
+      setScrollWidth(el.scrollWidth);
+      setClientWidth(el.clientWidth);
+    };
+    update();
+
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    // Observa também mudanças de conteúdo interno (novas linhas)
+    const mo = new MutationObserver(update);
+    mo.observe(el, { childList: true, subtree: true, characterData: true });
+
+    const onTargetScroll = () => {
+      if (syncingRef.current === "proxy") { syncingRef.current = "none"; return; }
+      const p = proxyRef.current;
+      if (!p) return;
+      syncingRef.current = "target";
+      p.scrollLeft = el.scrollLeft;
+    };
+    el.addEventListener("scroll", onTargetScroll, { passive: true });
+
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+      el.removeEventListener("scroll", onTargetScroll);
+    };
+  }, [targetRef]);
+
+  const onProxyScroll = () => {
+    if (syncingRef.current === "target") { syncingRef.current = "none"; return; }
+    const el = targetRef.current;
+    const p = proxyRef.current;
+    if (!el || !p) return;
+    syncingRef.current = "proxy";
+    el.scrollLeft = p.scrollLeft;
+  };
+
+  const precisa = scrollWidth > clientWidth + 1;
+  if (!precisa) return null;
+
+  return (
+    <div className="sticky bottom-0 left-0 right-0 z-20 pointer-events-none">
+      <div
+        ref={proxyRef}
+        onScroll={onProxyScroll}
+        className="pointer-events-auto overflow-x-auto h-3.5 bg-background/90 backdrop-blur border-t border-border shadow-[0_-2px_6px_-2px_rgba(0,0,0,0.15)]"
+      >
+        <div style={{ width: scrollWidth, height: 1 }} />
+      </div>
+    </div>
+  );
 }
 
 /** Assinatura preservada — usada por DreStudioVisualizacaoPage. */
@@ -210,6 +275,8 @@ export function DrillDrawer({
 
   const proximoLimite = LIMITE_STEPS.find((n) => n > limite) ?? null;
 
+  const razaoScrollRef = useRef<HTMLDivElement>(null);
+
   const cellNum = (v: number | null | undefined, opts?: { zeroBlank?: boolean }) => {
     if (v == null) return "";
     const n = Number(v);
@@ -348,7 +415,7 @@ export function DrillDrawer({
                 )}
               </div>
 
-              <div className="overflow-x-auto rounded border">
+              <div ref={razaoScrollRef} className="overflow-x-auto rounded border">
                 <Table className="text-xs">
                   <TableHeader className="bg-primary sticky top-0 z-10">
                     <TableRow className="hover:bg-primary">
@@ -450,6 +517,7 @@ export function DrillDrawer({
                   </TableBody>
                 </Table>
               </div>
+              <FloatingHScrollbar targetRef={razaoScrollRef} />
             </>
           )}
         </div>

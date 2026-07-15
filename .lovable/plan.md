@@ -1,32 +1,26 @@
-## Verificação do frontend x novos comportamentos do backend
+## Barra de rolagem horizontal flutuante no Drill
 
-Auditei o `DrillDrawer.tsx` e o tipo `DrillLancamentoItem` contra os 3 ajustes que você fez no `dreconfiguravel.py`.
+**Problema:** A tabela do razão no `DrillDrawer` tem overflow horizontal (`overflow-x-auto` na linha 351), mas a barra de rolagem só aparece no rodapé do container. Com muitos lançamentos, o usuário precisa rolar verticalmente até o fim para poder rolar horizontalmente.
 
-### Resultado
+**Solução:** Adicionar uma barra de rolagem horizontal "flutuante" que fica sempre visível na base do viewport enquanto a tabela estiver visível, espelhando o scroll do container real.
 
-| Ajuste backend | Onde aparece no front | Status |
-|---|---|---|
-| 1. `usuario_origem` (vem do E640LOT) | Coluna "Usuário origem" da tabela do razão (linha 416) + campo no dialog de detalhe (linha 511) | ✅ Já renderiza — sem mudança necessária |
-| 2. `saldo_anterior` corrente por linha | Coluna "Saldo Anterior" da tabela do razão (linha 419) | ✅ Já renderiza — sem mudança necessária |
-| 3. `codccu`/`desccu` puxados da contrapartida em contas de Balanço | Campo "Centro de custo" do dialog de detalhe (linhas 506-508) | ⚠️ Renderiza `codccu`/`desccu` corretamente, mas **não trata o caso `"Vários (N)"` + array `multiplos`** |
+### Alterações — apenas `src/components/dre-studio/DrillDrawer.tsx`
 
-### Único ajuste proposto — muito pequeno
+1. Criar um pequeno componente interno `FloatingHScrollbar` que:
+   - Recebe uma `ref` do container rolável real (o `<div className="overflow-x-auto ...">` da linha 351).
+   - Renderiza um `<div>` fixo (position sticky no bottom do painel) com altura ~14px e um filho com a mesma `scrollWidth` do container real.
+   - Sincroniza `scrollLeft` nos dois sentidos (proxy → real e real → proxy) via listeners `onScroll`.
+   - Usa `ResizeObserver` para atualizar a largura quando o conteúdo/tabela mudar.
+   - Só aparece quando `scrollWidth > clientWidth` (não há necessidade de barra se a tabela couber).
 
-No dialog "Lançamento {numero}" do `DrillDrawer.tsx`, quando o backend devolver `codccu === "Vários (N)"` (ou vier acompanhado do array `multiplos`), listar cada CC da contrapartida em vez de mostrar só o rótulo agregado.
+2. Envolver o container da tabela num wrapper `relative`, prender uma `ref` no `<div className="overflow-x-auto ...">` e renderizar `<FloatingHScrollbar targetRef={ref} />` logo acima do rodapé fixo (linha 458), como `sticky bottom-[48px]` para não sobrepor a barra azul de totais.
 
-Alterações:
-
-1. `src/lib/contabil/drillLancamentosApi.ts` — acrescentar campo opcional `multiplos?: Array<{ codccu: string; desccu?: string | null }> | null` na interface `DrillLancamentoItem`.
-2. `src/components/dre-studio/DrillDrawer.tsx` — no bloco do dialog (linhas 505-508), se `detalhe.multiplos?.length > 1`, renderizar uma pequena lista `codccu — desccu` (uma por linha) abaixo do rótulo "Vários (N)"; caso contrário, manter comportamento atual.
-
-Nada mais muda: nenhuma queryKey, nenhum recálculo, nenhuma linha de DRE, nenhum outro componente. Backend continua sendo a única fonte de verdade dos valores.
+3. Nada é alterado no visual da tabela, colunas, dados, cálculos, filtros, queries ou backend.
 
 ### Fora de escopo
 
-- Backend Python (`dreconfiguravel.py`), testes do backend, restart da 8070.
-- Estrutura da DRE, cálculos, fórmulas, chaves de cache, filtros.
-- Coluna de CC na grade principal do razão (hoje só existe no dialog — manter assim).
+- Outras tabelas do sistema (só a do Drill do DRE Studio, conforme pedido).
+- Layout do rodapé de totais, colunas, ordenação.
+- Backend, cache, tipos.
 
-### Confirmação pedida
-
-Quer que eu implemente esse único ajuste do `multiplos`, ou deixamos exatamente como está (o campo já mostra `"Vários (N)"` como texto puro, sem detalhar quais CCs)?
+Ao final, testo com Playwright abrindo o drill de uma linha com muitos lançamentos para confirmar que a barra flutuante aparece e sincroniza com a rolagem real.
