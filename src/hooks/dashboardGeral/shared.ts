@@ -24,3 +24,20 @@ export function anomesToDate(a: string, end = false): string {
   const last = new Date(Number(y), Number(m), 0).getDate();
   return `${y}-${m}-${String(last).padStart(2, '0')}`;
 }
+
+/** Divisão segura: retorna 0 quando denominador zerado ou resultado não finito. */
+export function safeDiv(a: number, b: number): number {
+  if (!b || !Number.isFinite(a) || !Number.isFinite(b)) return 0;
+  const r = a / b;
+  return Number.isFinite(r) ? r : 0;
+}
+
+/**
+ * Normaliza percentuais que podem vir em escala 0–1 (decimal) ou 0–100.
+ * Se |v| <= 1.5 assume decimal e multiplica por 100; senão devolve como está.
+ */
+export function pctDisplay(v: number | null | undefined): number {
+  const n = num(v);
+  if (!Number.isFinite(n)) return 0;
+  return Math.abs(n) <= 1.5 ? n * 100 : n;
+}
