@@ -117,6 +117,7 @@ export function DrillDrawer({
 }) {
   const [limite, setLimite] = useState<number>(500);
   const [detalhe, setDetalhe] = useState<RazaoItem | null>(null);
+  const [expandido, setExpandido] = useState(false);
 
   useEffect(() => {
     if (open) {
