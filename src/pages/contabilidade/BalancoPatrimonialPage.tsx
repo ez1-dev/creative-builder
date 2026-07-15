@@ -114,6 +114,12 @@ export default function BalancoPatrimonialPage() {
         }
       />
 
+      <FilterPresetBar
+        pageKey={PAGE_KEY}
+        currentFilters={filters}
+        onApply={(f) => setFilters((prev) => ({ ...prev, ...f }))}
+      />
+
       <FilterPanel onSearch={onSearch} onClear={onClear}>
         <div>
           <Label className="text-xs">Anomes Início (AAAAMM)</Label>
