@@ -28,6 +28,7 @@ export interface DrillLancamentoItem {
   codccu?: string | null;
   desccu?: string | null;
   ccu?: string | null;
+  multiplos?: Array<{ codccu: string; desccu?: string | null }> | null;
   // Documento / origem
   documento?: string | null;
   origem_codigo?: string | null;
