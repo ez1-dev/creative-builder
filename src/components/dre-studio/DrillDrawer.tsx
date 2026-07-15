@@ -117,6 +117,7 @@ export function DrillDrawer({
 }) {
   const [limite, setLimite] = useState<number>(500);
   const [detalhe, setDetalhe] = useState<RazaoItem | null>(null);
+  const [expandido, setExpandido] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -205,11 +206,27 @@ export function DrillDrawer({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-[1400px] p-0 flex flex-col"
+        className={cn(
+          "p-0 flex flex-col transition-[max-width] duration-200",
+          expandido
+            ? "w-screen sm:!max-w-none"
+            : "w-full sm:max-w-[1400px]",
+        )}
       >
         {/* Cabeçalho */}
         <SheetHeader className="px-6 pt-6 pb-4 border-b bg-primary text-primary-foreground">
-          <SheetTitle className="text-primary-foreground">Lançamentos</SheetTitle>
+          <div className="flex items-start justify-between gap-2">
+            <SheetTitle className="text-primary-foreground">Lançamentos</SheetTitle>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={() => setExpandido((v) => !v)}
+              className="h-7 px-2 text-xs"
+            >
+              {expandido ? "Recolher" : "Expandir"}
+            </Button>
+          </div>
           <SheetDescription className="text-primary-foreground/80 space-y-0.5">
             {ctaredNum != null && (
               <div>
