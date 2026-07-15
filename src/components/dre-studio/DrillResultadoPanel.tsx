@@ -151,6 +151,9 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
           modelo_id: ctx.modeloId,
           linha_id: ctx.linhaId,
           agrupar_por: ctx.agrupar_por,
+          agrupar_por_raw: ctx.agrupar_por_raw ?? undefined,
+          endpoint: ctx.endpoint ?? undefined,
+          acao: ctx.acao ?? undefined,
           anomes_ini: ctx.filtros.anomes_ini,
           anomes_fim: ctx.filtros.anomes_fim,
           codemp: ctx.filtros.codemp ?? undefined,
@@ -158,12 +161,14 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
           unidade: ctx.filtros.unidade ?? undefined,
           centro_custo: ctx.filtros.centro_custo ?? undefined,
           modo_balanco: ctx.filtros.modo_balanco ?? undefined,
+          consolidado: ctx.filtros.consolidado ?? undefined,
           page,
           page_size: pageSize,
         }
       : null,
     open,
   );
+
 
   const qLct = useDrillLancamentos(
     ctx && isLancamento
