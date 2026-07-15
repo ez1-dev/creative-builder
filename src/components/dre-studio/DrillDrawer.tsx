@@ -536,11 +536,13 @@ function ResumoCard({
   );
 }
 
-function Info({ label, value }: { label: string; value: any }) {
+function Info({ label, value, strong }: { label: string; value: any; strong?: boolean }) {
   return (
     <div>
       <div className="text-muted-foreground">{label}</div>
-      <div className="mt-0.5">{value != null && value !== "" ? String(value) : "—"}</div>
+      <div className={cn("mt-0.5", strong && "font-semibold")}>
+        {value != null && value !== "" ? String(value) : "—"}
+      </div>
     </div>
   );
 }
