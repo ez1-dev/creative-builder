@@ -12,8 +12,10 @@ export function statusFrom(
   partial = false,
 ): ModStatus {
   if (!enabled) return 'idle';
-  if (q.isLoading || q.isFetching) return 'carregando';
-  if (q.isError) return 'erro';
+  // Só considera "carregando" na primeira carga (sem data). Refetch em background
+  // mantém o status atual para evitar flicker de skeletons/cards.
+  if (q.isLoading && !q.data) return 'carregando';
+  if (q.isError && !q.data) return 'erro';
   if (!q.data) return 'erro';
   if (partial) return 'parcial';
   return 'ok';
