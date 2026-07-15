@@ -343,6 +343,40 @@ function Visualizacao() {
   const vincular = useVincularContasBalancoSenior(id);
   const qc = useQueryClient();
 
+  // ===== Presets de filtros salvos =====
+  const currentPresetFilters: DreVisFilterPreset = {
+    anoSelecionado, mesesVisiveis, codccu, codfil, visao,
+    dataIni, dataFim, modoBalanco, dataCorte, aplicarRefSenior,
+  };
+  const applyPresetFilters = (f: DreVisFilterPreset) => {
+    if (f.anoSelecionado != null) setAnoSelecionado(f.anoSelecionado);
+    if (f.mesesVisiveis) setMesesVisiveis(f.mesesVisiveis);
+    if (f.codccu != null) setCodccu(f.codccu);
+    if (f.codfil != null) setCodfil(f.codfil);
+    if (f.visao) setVisao(f.visao);
+    if (f.dataIni) setDataIni(f.dataIni);
+    if (f.dataFim) setDataFim(f.dataFim);
+    if (f.modoBalanco) setModoBalanco(f.modoBalanco);
+    if (f.dataCorte != null) setDataCorte(f.dataCorte);
+    if (typeof f.aplicarRefSenior === "boolean") setAplicarRefSenior(f.aplicarRefSenior);
+  };
+  const presetHook = useFilterPresets<DreVisFilterPreset>(DRE_VIS_PAGE_KEY);
+  const [presetsBootstrapped, setPresetsBootstrapped] = useState(false);
+  useEffect(() => {
+    if (presetsBootstrapped || presetHook.loading) return;
+    setPresetsBootstrapped(true);
+    const initial = presetHook.defaultPreset?.filtros ?? presetHook.lastFilters;
+    if (initial) applyPresetFilters(initial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presetHook.loading, presetHook.defaultPreset, presetHook.lastFilters]);
+  useEffect(() => {
+    if (!presetsBootstrapped) return;
+    presetHook.saveLastFilters(currentPresetFilters);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anoSelecionado, mesesVisiveis, codccu, codfil, visao, dataIni, dataFim, modoBalanco, dataCorte, aplicarRefSenior]);
+
+
+
 
 
   const totalContas = modelo?.contas?.length ?? 0;
