@@ -17,7 +17,7 @@ export function RhTab({ periodo, enabled }: { periodo: Periodo; enabled: boolean
         <Button asChild variant="link" size="sm"><Link to="/rh">Módulo RH →</Link></Button>
       </div>
       <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <KpiCard title="Headcount" value={data.kpis.headcount} format="quantity" icon={<Users className="h-4 w-4" />} variant="info" loading={loading} />
+        <KpiCard title="Headcount" value={data.kpis.headcount} format="quantity" icon={<Users className="h-4 w-4" />} variant="info" loading={loading} partial={data.status === 'parcial'} />
         <KpiCard title="Admissões" value={data.kpis.admissoes} format="quantity" icon={<UserPlus className="h-4 w-4" />} loading={loading} variant="success" />
         <KpiCard title="Demissões" value={data.kpis.demissoes} format="quantity" icon={<UserMinus className="h-4 w-4" />} loading={loading} variant="warning" />
         <KpiCard title="Turnover" value={data.kpis.turnover_pct} format="percent" icon={<TrendingDown className="h-4 w-4" />} loading={loading}

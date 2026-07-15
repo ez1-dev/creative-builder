@@ -4,6 +4,8 @@ import { api, type ContasPagarResponse, type ContasReceberResponse } from '@/lib
 import { fetchDreRealizadoResumo } from '@/lib/bi/dreConfiguravelApi';
 import { MODELO_DRE_OFICIAL_ID } from '@/lib/contabilConfig';
 import { rangeFor, num, labelAnomes, anomesToDate, statusFrom, type Periodo, type ModStatus } from './shared';
+import { DreResumoResponseSchema, EMPTY_DRE, ContasResponseSchema, EMPTY_CONTAS } from '@/lib/dashboardGeral/schemas/financeiro';
+import { parseOrEmpty } from '@/lib/dashboardGeral/schemas/_utils';
 
 export interface FinanceiroData {
   kpis: {
@@ -63,33 +65,30 @@ export function useFinanceiro(periodo: Periodo, enabled: boolean) {
   const [qDre, qPagar, qReceber] = queries;
 
   const data: FinanceiroData = useMemo(() => {
-    const dre: any = qDre.data ?? {};
-    const totais = dre.totais ?? {};
-    const mensal: any[] = Array.isArray(dre.mensal) ? dre.mensal : [];
-    const resultado_mes = mensal.slice(-12).map((r) => ({
-      label: labelAnomes(String(r.anomes ?? '').slice(0, 6)),
-      valor: num(r.resultado_dre ?? r.resultado),
-      receita: num(r.receita_operacional ?? r.receita),
+    const dreP = parseOrEmpty(DreResumoResponseSchema, qDre.data, EMPTY_DRE, 'financeiro/dre');
+    const cpP = parseOrEmpty(ContasResponseSchema, qPagar.data, EMPTY_CONTAS, 'financeiro/pagar');
+    const crP = parseOrEmpty(ContasResponseSchema, qReceber.data, EMPTY_CONTAS, 'financeiro/receber');
+    const totais = dreP.data.totais;
+    const resultado_mes = dreP.data.mensal.slice(-12).map((r) => ({
+      label: labelAnomes(String(r.anomes).slice(0, 6)),
+      valor: r.resultado_dre,
+      receita: r.receita_operacional,
     }));
-    const cp: any = qPagar.data ?? {};
-    const cr: any = qReceber.data ?? {};
-    const rp = cp.resumo ?? {};
-    const rr = cr.resumo ?? {};
     return {
       kpis: {
-        receita: num(totais.receita_operacional ?? totais.receita),
-        custos: num(totais.custos),
-        despesas: num(totais.despesas),
-        resultado: num(totais.resultado_dre ?? totais.resultado),
-        margem_pct: num(totais.margem_pct ?? totais.margem),
-        a_pagar: num(rp.valor_aberto_total ?? rp.valor_original_total),
-        a_receber: num(rr.valor_aberto_total ?? rr.valor_original_total),
-        inadimplencia: num(rr.valor_vencido_total),
+        receita: totais.receita_operacional,
+        custos: totais.custos,
+        despesas: totais.despesas,
+        resultado: totais.resultado_dre,
+        margem_pct: totais.margem_pct,
+        a_pagar: cpP.data.resumo.valor_aberto_total,
+        a_receber: crP.data.resumo.valor_aberto_total,
+        inadimplencia: crP.data.resumo.valor_vencido_total,
       },
       series: { resultado_mes },
-      status: statusFrom(qDre, enabled),
+      status: statusFrom(qDre, enabled, dreP.partial),
     };
-  }, [qDre.data, qPagar.data, qReceber.data, qDre.isLoading, qDre.isError, enabled]);
+  }, [qDre.data, qPagar.data, qReceber.data, qDre.isLoading, qDre.isFetching, qDre.isError, enabled]);
 
   return { data: enabled ? data : EMPTY, loading: enabled && queries.some((q) => q.isLoading), refetch: () => Promise.all(queries.map((q) => q.refetch())), range };
 }

@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { api, type PainelComprasDashboardResponse } from '@/lib/api';
 import { rangeFor, num, labelAnomes, anomesToDate, safeDiv, statusFrom, type Periodo, type ModStatus } from './shared';
+import { PainelComprasResponseSchema, EMPTY_COMPRAS } from '@/lib/dashboardGeral/schemas/compras';
+import { parseOrEmpty } from '@/lib/dashboardGeral/schemas/_utils';
 
 export interface ComprasData {
   kpis: {
@@ -45,53 +47,52 @@ export function useCompras(periodo: Periodo, enabled: boolean) {
   });
 
   const data: ComprasData = useMemo(() => {
-    const d: any = q.data ?? {};
-    const k = d.kpis ?? {};
-    const g = d.graficos ?? {};
+    const parsed = parseOrEmpty(PainelComprasResponseSchema, q.data, EMPTY_COMPRAS, 'compras');
+    const d = parsed.data;
+    const k = d.kpis;
+    const g = d.graficos;
 
-    const compras_mes = ((g.por_mes ?? []) as any[]).slice(-12).map((r) => ({
-      label: labelAnomes(String(r.mes ?? r.anomes ?? '').replace(/\D/g, '').slice(0, 6)),
-      valor: num(r.valor ?? r.valor_total ?? r.valor_liquido),
+    const compras_mes = g.por_mes.slice(-12).map((r) => ({
+      label: labelAnomes(String(r.mes || r.anomes).replace(/\D/g, '').slice(0, 6)),
+      valor: r.valor,
     }));
 
-    const por_tipo = ((g.por_tipo_despesa ?? []) as any[])
-      .map((r) => ({ label: String(r.tipo_despesa ?? r.tipo ?? r.label ?? '—').slice(0, 22), valor: num(r.valor ?? r.valor_total ?? r.valor_liquido) }))
+    const por_tipo = g.por_tipo_despesa
+      .map((r) => ({ label: String(r.tipo_despesa || r.tipo || r.label || '—').slice(0, 22), valor: r.valor }))
       .sort((a, b) => b.valor - a.valor).slice(0, 8);
 
-    const top_fornecedores = ((g.por_fornecedor ?? []) as any[])
-      .map((r) => ({ label: String(r.fornecedor ?? r.nome ?? r.razao_social ?? '—').slice(0, 28), valor: num(r.valor ?? r.valor_total ?? r.valor_liquido) }))
+    const top_fornecedores = g.por_fornecedor
+      .map((r) => ({ label: String(r.fornecedor || r.nome || r.razao_social || '—').slice(0, 28), valor: r.valor }))
       .sort((a, b) => b.valor - a.valor).slice(0, 10);
 
-    const itensAtrasados = num(k.itens_atrasados);
-    const itensPendentes = num(k.itens_pendentes);
+    const itensAtrasados = k.itens_atrasados;
+    const itensPendentes = k.itens_pendentes;
     const itensOnTime = Math.max(0, itensPendentes - itensAtrasados);
-    // Sempre inclui as duas fatias (mesmo 0) para preservar contexto do donut.
     const situacao: Array<{ label: string; valor: number }> = [
       { label: 'Atrasadas', valor: itensAtrasados },
       { label: 'No prazo', valor: itensOnTime },
     ];
 
-    const valorPendente = num(k.valor_pendente_total ?? k.valor_pendente);
-    const ocsAtrasadas = num(k.ocs_atrasadas);
-    const totalOcs = num(k.total_ocs ?? k.quantidade_ocs);
-    // Aproximação: valor atrasado ~ pendente * (ocs_atrasadas / total_ocs)
+    const valorPendente = k.valor_pendente_total;
+    const ocsAtrasadas = k.ocs_atrasadas;
+    const totalOcs = k.total_ocs;
     const valorAtrasado = valorPendente * safeDiv(ocsAtrasadas, totalOcs);
 
     return {
       kpis: {
-        valor_comprado: num(k.valor_liquido_total ?? k.valor_comprado),
+        valor_comprado: k.valor_comprado,
         valor_pendente: valorPendente,
         valor_atrasado: valorAtrasado,
         total_ocs: totalOcs,
         ocs_atrasadas: ocsAtrasadas,
-        fornecedores: num(k.total_fornecedores ?? k.quantidade_fornecedores),
-        ticket_medio_oc: num(k.ticket_medio_oc),
+        fornecedores: k.total_fornecedores,
+        ticket_medio_oc: k.ticket_medio_oc,
       },
       series: { compras_mes },
       breakdowns: { por_tipo, top_fornecedores, situacao },
-      status: statusFrom(q, enabled),
+      status: statusFrom(q, enabled, parsed.partial),
     };
-  }, [q.data, q.isLoading, q.isError, enabled]);
+  }, [q.data, q.isLoading, q.isFetching, q.isError, enabled]);
 
   return { data: enabled ? data : EMPTY, loading: enabled && q.isLoading, refetch: () => q.refetch(), range };
 }

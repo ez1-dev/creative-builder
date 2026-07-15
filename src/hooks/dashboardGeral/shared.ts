@@ -4,13 +4,18 @@
  */
 import { rangeFor, num, delta, labelAnomes, type Periodo } from '@/lib/dashboardGeral/aggregator';
 
-export type ModStatus = 'ok' | 'erro' | 'carregando' | 'idle';
+export type ModStatus = 'ok' | 'erro' | 'carregando' | 'idle' | 'parcial';
 
-export function statusFrom(q: { isLoading: boolean; isError: boolean; isFetching: boolean; data: unknown }, enabled = true): ModStatus {
+export function statusFrom(
+  q: { isLoading: boolean; isError: boolean; isFetching: boolean; data: unknown },
+  enabled = true,
+  partial = false,
+): ModStatus {
   if (!enabled) return 'idle';
   if (q.isLoading || q.isFetching) return 'carregando';
   if (q.isError) return 'erro';
   if (!q.data) return 'erro';
+  if (partial) return 'parcial';
   return 'ok';
 }
 

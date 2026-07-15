@@ -17,7 +17,7 @@ export function ProducaoTab({ periodo, enabled }: { periodo: Periodo; enabled: b
         <Button asChild variant="link" size="sm"><Link to="/producao/carga">Carga →</Link></Button>
       </div>
       <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <KpiCard title="OPs em carga" value={data.kpis.ops_total} format="quantity" icon={<Factory className="h-4 w-4" />} variant="info" loading={loading} />
+        <KpiCard title="OPs em carga" value={data.kpis.ops_total} format="quantity" icon={<Factory className="h-4 w-4" />} variant="info" loading={loading} partial={data.status === 'parcial'} />
         <KpiCard title="Recursos" value={data.kpis.recursos} format="quantity" icon={<Wrench className="h-4 w-4" />} loading={loading} />
         <KpiCard title="Carga (h)" value={data.kpis.carga_horas} format="quantity" icon={<Clock className="h-4 w-4" />} loading={loading} variant="warning" />
         <KpiCard title="Linhas de operação" value={data.kpis.linhas_operacao} format="quantity" icon={<Layers className="h-4 w-4" />} loading={loading} />

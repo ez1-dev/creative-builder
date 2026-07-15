@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TrendingUp, TrendingDown, Minus, Info } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Info, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatByKind, KpiFormat, formatPercent } from '../utils/formatters';
 import { StatusBadge, BiStatus } from '../badges/StatusBadge';
@@ -30,11 +30,13 @@ export interface KpiCardProps {
   tooltip?: string;
   onClick?: () => void;
   className?: string;
+  /** Sinaliza que o payload da API veio parcial — mostra badge de aviso. */
+  partial?: boolean;
 }
 
 export function KpiCard({
   title, value, format = 'raw', subtitle, icon, variant = 'default',
-  trend, status, loading, tooltip, onClick, className,
+  trend, status, loading, tooltip, onClick, className, partial,
 }: KpiCardProps) {
   const clickable = !!onClick;
   const trendUp = trend ? trend.value > 0 : false;
@@ -57,6 +59,16 @@ export function KpiCard({
             <TooltipProvider><UITooltip>
               <TooltipTrigger asChild><Info className="h-3 w-3 3xl:h-4 3xl:w-4 opacity-60" /></TooltipTrigger>
               <TooltipContent><p className="max-w-xs text-xs">{tooltip}</p></TooltipContent>
+            </UITooltip></TooltipProvider>
+          )}
+          {partial && (
+            <TooltipProvider><UITooltip>
+              <TooltipTrigger asChild>
+                <AlertTriangle className="h-3 w-3 3xl:h-4 3xl:w-4 text-[hsl(var(--warning))]" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="max-w-xs text-xs">Alguns campos vieram incompletos da API — exibindo o que foi reconhecido.</p>
+              </TooltipContent>
             </UITooltip></TooltipProvider>
           )}
         </CardTitle>

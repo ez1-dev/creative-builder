@@ -17,7 +17,7 @@ export function ComprasTab({ periodo, enabled }: { periodo: Periodo; enabled: bo
         <Button asChild variant="link" size="sm"><Link to="/painel-compras">Abrir Painel de Compras →</Link></Button>
       </div>
       <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <KpiCard title="Valor comprado" value={data.kpis.valor_comprado} format="currency" icon={<ShoppingCart className="h-4 w-4" />} variant="info" loading={loading} />
+        <KpiCard title="Valor comprado" value={data.kpis.valor_comprado} format="currency" icon={<ShoppingCart className="h-4 w-4" />} variant="info" loading={loading} partial={data.status === 'parcial'} />
         <KpiCard title="Pendente OC" value={data.kpis.valor_pendente} format="currency" icon={<Clock className="h-4 w-4" />} loading={loading}
           variant={data.kpis.valor_pendente > 0 ? 'warning' : 'default'} />
         <KpiCard title="Atrasado" value={data.kpis.valor_atrasado} format="currency" icon={<AlertTriangle className="h-4 w-4" />} loading={loading}

@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { rangeFor, num, anomesToDate, type Periodo, type ModStatus } from './shared';
+import { ManutencaoRowsSchema, EMPTY_MANUT } from '@/lib/dashboardGeral/schemas/manutencao';
+import { parseOrEmpty } from '@/lib/dashboardGeral/schemas/_utils';
 
 export interface ManutencaoData {
   kpis: {
@@ -54,33 +56,40 @@ export function useManutencao(periodo: Periodo, enabled: boolean) {
   const [qF, qM] = queries;
 
   const data: ManutencaoData = useMemo(() => {
-    const frota: any[] = qF.data ?? [];
-    const maq: any[] = qM.data ?? [];
-    const custoFrota = frota.reduce((s, r) => s + num(r.valor), 0);
-    const custoMaq = maq.reduce((s, r) => s + num(r.valor), 0);
+    const frotaP = parseOrEmpty(ManutencaoRowsSchema, qF.data, EMPTY_MANUT, 'manutencao/frota');
+    const maqP = parseOrEmpty(ManutencaoRowsSchema, qM.data, EMPTY_MANUT, 'manutencao/maquinas');
+    const frota = frotaP.data;
+    const maq = maqP.data;
+    const custoFrota = frota.reduce((s, r) => s + r.valor, 0);
+    const custoMaq = maq.reduce((s, r) => s + r.valor, 0);
 
     const veicMap: Record<string, number> = {};
     frota.forEach((r) => {
-      const k = String(r.placa ?? r.veiculo_descricao ?? '—');
-      veicMap[k] = (veicMap[k] || 0) + num(r.valor);
+      const k = r.placa || r.veiculo_descricao || '—';
+      veicMap[k] = (veicMap[k] || 0) + r.valor;
     });
     const por_veiculo = Object.entries(veicMap).map(([label, valor]) => ({ label, valor })).sort((a, b) => b.valor - a.valor).slice(0, 10);
 
     const maqMap: Record<string, number> = {};
     maq.forEach((r) => {
-      const k = String(r.maquina ?? '—');
-      maqMap[k] = (maqMap[k] || 0) + num(r.valor);
+      const k = r.maquina || '—';
+      maqMap[k] = (maqMap[k] || 0) + r.valor;
     });
     const por_maquina = Object.entries(maqMap).map(([label, valor]) => ({ label, valor })).sort((a, b) => b.valor - a.valor).slice(0, 10);
 
     const catMap: Record<string, number> = {};
     frota.forEach((r) => {
-      const k = String(r.categoria ?? 'MANUTENCAO');
-      catMap[k] = (catMap[k] || 0) + num(r.valor);
+      const k = r.categoria || 'MANUTENCAO';
+      catMap[k] = (catMap[k] || 0) + r.valor;
     });
     const por_categoria = Object.entries(catMap).map(([label, valor]) => ({ label, valor })).sort((a, b) => b.valor - a.valor);
 
-    const st: ModStatus = !enabled ? 'idle' : (qF.isLoading || qM.isLoading) ? 'carregando' : (qF.isError || qM.isError) ? 'erro' : 'ok';
+    const partial = frotaP.partial || maqP.partial;
+    const st: ModStatus = !enabled
+      ? 'idle'
+      : (qF.isLoading || qM.isLoading) ? 'carregando'
+      : (qF.isError || qM.isError) ? 'erro'
+      : partial ? 'parcial' : 'ok';
 
     return {
       kpis: {

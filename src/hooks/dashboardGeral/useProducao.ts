@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { cargaApi } from '@/lib/producao/cargaApi';
 import { num, statusFrom, type Periodo, type ModStatus } from './shared';
+import { CargaCentrosResponseSchema, EMPTY_CENTROS, CargaRecursosResponseSchema, EMPTY_RECURSOS } from '@/lib/dashboardGeral/schemas/producao';
+import { parseOrEmpty } from '@/lib/dashboardGeral/schemas/_utils';
 
 export interface ProducaoData {
   kpis: {
@@ -42,17 +44,14 @@ export function useProducao(_periodo: Periodo, enabled: boolean) {
   const [qCentros, qRecursos] = queries;
 
   const data: ProducaoData = useMemo(() => {
-    const cRes: any = qCentros.data ?? {};
-    const rRes: any = qRecursos.data ?? {};
-    const centros: any[] = cRes.dados ?? [];
-    const recursos: any[] = rRes.dados ?? [];
-    const resumo = cRes.resumo ?? {};
+    const cP = parseOrEmpty(CargaCentrosResponseSchema, qCentros.data, EMPTY_CENTROS, 'producao/centros');
+    const rP = parseOrEmpty(CargaRecursosResponseSchema, qRecursos.data, EMPTY_RECURSOS, 'producao/recursos');
+    const resumo = cP.data.resumo;
 
-    // Agrupa por descrição do centro (soma horas de múltiplas operações)
     const centroMap: Record<string, number> = {};
-    centros.forEach((r) => {
-      const label = String(r.descre ?? r.codcre ?? '—').slice(0, 24);
-      centroMap[label] = (centroMap[label] || 0) + num(r.carga_prevista_horas);
+    cP.data.dados.forEach((r) => {
+      const label = (r.descre || '—').slice(0, 24);
+      centroMap[label] = (centroMap[label] || 0) + r.carga_prevista_horas;
     });
     const carga_centro = Object.entries(centroMap)
       .map(([label, valor]) => ({ label, valor }))
@@ -60,9 +59,9 @@ export function useProducao(_periodo: Periodo, enabled: boolean) {
       .sort((a, b) => b.valor - a.valor).slice(0, 10);
 
     const unidadeMap: Record<string, number> = {};
-    recursos.forEach((r) => {
-      const label = String(r.unidade_negocio ?? '—');
-      unidadeMap[label] = (unidadeMap[label] || 0) + num(r.carga_prevista_horas);
+    rP.data.dados.forEach((r) => {
+      const label = r.unidade_negocio || '—';
+      unidadeMap[label] = (unidadeMap[label] || 0) + r.carga_prevista_horas;
     });
     const por_unidade = Object.entries(unidadeMap)
       .map(([label, valor]) => ({ label, valor }))
@@ -71,16 +70,16 @@ export function useProducao(_periodo: Periodo, enabled: boolean) {
 
     return {
       kpis: {
-        ops_total: num(resumo.qtd_ops),
-        recursos: num(resumo.qtd_recursos),
-        carga_horas: num(resumo.carga_prevista_horas),
-        linhas_operacao: num(resumo.qtd_linhas_operacao),
-        sem_mapeamento: num(resumo.linhas_sem_mapeamento),
+        ops_total: resumo.qtd_ops,
+        recursos: resumo.qtd_recursos,
+        carga_horas: resumo.carga_prevista_horas,
+        linhas_operacao: resumo.qtd_linhas_operacao,
+        sem_mapeamento: resumo.linhas_sem_mapeamento,
       },
       breakdowns: { carga_centro, por_unidade },
-      status: statusFrom(qCentros, enabled),
+      status: statusFrom(qCentros, enabled, cP.partial || rP.partial),
     };
-  }, [qCentros.data, qRecursos.data, qCentros.isLoading, qCentros.isError, enabled]);
+  }, [qCentros.data, qRecursos.data, qCentros.isLoading, qCentros.isFetching, qCentros.isError, enabled]);
 
   return { data: enabled ? data : EMPTY, loading: enabled && queries.some((q) => q.isLoading), refetch: () => Promise.all(queries.map((q) => q.refetch())) };
 }
