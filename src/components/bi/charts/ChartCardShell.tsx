@@ -45,6 +45,7 @@ export interface ChartCardShellProps {
   onRetry?: () => void;
   /** Formato do skeleton — bars/line/donut/kpi ficam mais parecidos com o conteúdo. */
   loadingVariant?: LoadingVariant;
+}
 
 const ALIGN_CLASS: Record<'left' | 'center' | 'right', string> = {
   left: 'text-left items-start',
@@ -56,6 +57,7 @@ export function ChartCardShell({
   title, subtitle, icon, count, loading, error, isEmpty, height = 280,
   expandable = true, exportable = false, onExportData, children,
   visualConfig, descriptionVars, emptyVariant = 'full', emptyMessage,
+  errorVariant = 'inline', onRetry, loadingVariant = 'skeleton',
 }: ChartCardShellProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
