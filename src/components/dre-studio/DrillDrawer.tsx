@@ -164,7 +164,8 @@ export function DrillDrawer({
                 <TableHeader>
                   <TableRow>
                     <TableHead>Data</TableHead>
-                    <TableHead>Lote/Nº</TableHead>
+                    <TableHead>Lote</TableHead>
+                    <TableHead>Número</TableHead>
                     <TableHead>Débito</TableHead>
                     <TableHead>Crédito</TableHead>
                     <TableHead>CCU</TableHead>
@@ -176,7 +177,8 @@ export function DrillDrawer({
                   {rows.map((r, i) => (
                     <TableRow key={i}>
                       <TableCell className="whitespace-nowrap">{r.data}</TableCell>
-                      <TableCell className="text-xs">{r.lote ?? ""} / {r.numero ?? ""}</TableCell>
+                      <TableCell className="text-xs whitespace-nowrap">{r.lote ?? ""}</TableCell>
+                      <TableCell className="text-xs whitespace-nowrap">{r.numero ?? ""}</TableCell>
                       <TableCell className="text-xs">
                         <div>{r.conta_debito}</div>
                         <div className="text-slate-500">{r.desc_debito}</div>
