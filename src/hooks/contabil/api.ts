@@ -1260,7 +1260,23 @@ export interface DrillLancamentosResponse {
   qtd_exibida?: number | null;
   truncado?: boolean | null;
   fonte?: string | null;
+  // ---- Novos campos do Razão / Extrato Contábil (opcionais até backend expor) ----
+  meta?: {
+    modelo_id?: string;
+    linha_id?: string;
+    ctared?: number | null;
+    clacta?: string | null;
+    descricao_conta?: string | null;
+    data_ini?: string | null;
+    data_fim?: string | null;
+  } | null;
+  saldo_inicial?: number | null;
+  saldo_final?: number | null;
+  total_debito?: number | null;
+  total_credito?: number | null;
+  itens?: any[] | null;
 }
+
 
 export function useDrillLancamentos(
   params: DrillLancamentosParams | null,
@@ -1322,16 +1338,28 @@ export function useDrillLancamentos(
             ? raw.lancamentos
             : [];
       const src = (raw && typeof raw === "object" && !Array.isArray(raw)) ? raw : {};
+      const itens = Array.isArray(src.itens) ? src.itens : null;
       return {
-        dados,
+        dados: itens && itens.length ? (itens as DrillLancamento[]) : dados,
         movimento_liquido:
           src.movimento_liquido ?? src.movimentoLiquido ?? null,
         qtd_total: src.qtd_total ?? src.qtdTotal ?? null,
-        qtd_exibida: src.qtd_exibida ?? src.qtdExibida ?? dados.length,
+        qtd_exibida: src.qtd_exibida ?? src.qtdExibida ?? (itens ?? dados).length,
         truncado: src.truncado ?? null,
         fonte: src.fonte ?? null,
+        meta: src.meta ?? null,
+        saldo_inicial:
+          typeof src.saldo_inicial === "number" ? src.saldo_inicial : null,
+        saldo_final:
+          typeof src.saldo_final === "number" ? src.saldo_final : null,
+        total_debito:
+          typeof src.total_debito === "number" ? src.total_debito : null,
+        total_credito:
+          typeof src.total_credito === "number" ? src.total_credito : null,
+        itens,
       };
     },
+
     enabled:
       enabled &&
       !!params &&
