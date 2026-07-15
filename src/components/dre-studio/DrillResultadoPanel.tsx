@@ -35,6 +35,14 @@ export interface DrillResultadoContext {
   codigoLinha?: string | null;
   linhaDescricao: string;
   agrupar_por: DrillDimensao;
+  /** Valor bruto do backend (`item.agrupar_por`), preservado para a query. */
+  agrupar_por_raw?: string | null;
+  /** Ação do item do menu (`reabrir` | `consulta`). */
+  acao?: string | null;
+  /** Endpoint retornado no item do menu. Default: /api/contabil/drill-dre. */
+  endpoint?: string | null;
+  /** Label vindo do backend, para o título do drawer. */
+  itemLabel?: string | null;
   filtros: {
     codemp?: number | null;
     codfil?: number | null;
@@ -43,10 +51,12 @@ export interface DrillResultadoContext {
     unidade?: string | null;
     centro_custo?: string | null;
     modo_balanco?: string | null;
+    consolidado?: boolean | null;
   };
   /** Total oficial da linha na DRE (para conferência visual). */
   totalLinhaDre?: number | null;
 }
+
 
 interface Props {
   open: boolean;
