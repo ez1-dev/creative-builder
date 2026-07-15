@@ -437,11 +437,15 @@ export async function fetchProgramacaoFeriasDashboard(
       ferias_total: num(k.ferias_total),
       de_ferias: num(k.de_ferias),
     },
+    ativos_total: num(resp?.ativos_total),
+    ferias_vencidas_diagnostico: resp?.ferias_vencidas_diagnostico,
     limite_ferias_pivot: pivotNorm,
     programacao_proximos_90_dias: Array.isArray(resp?.programacao_proximos_90_dias)
       ? resp.programacao_proximos_90_dias
       : [],
     primeiro_vencimento_sem_programacao: sem,
+    detalhe: Array.isArray(resp?.detalhe) ? resp.detalhe : [],
+    de_ferias_detalhe: Array.isArray(resp?.de_ferias_detalhe) ? resp.de_ferias_detalhe : [],
   };
 }
 
