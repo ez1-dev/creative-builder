@@ -2521,16 +2521,22 @@ function Visualizacao() {
                       )}
                       <span className="inline-flex items-center gap-1 align-middle">
                         <span className="truncate inline-block align-middle max-w-[40ch]" title={String(descricaoExibida ?? "")}>{truncateLabel(descricaoExibida, 40)}</span>
-                        {l.drillavel === true && Array.isArray(l.drills) && l.drills.length > 0 && l.linha_id && (
-                          <DrillMenu
-                            drills={l.drills}
-                            onSelect={(dim: DrillDimensao) =>
+                        {possuiDrill(l) && l.linha_id && (
+                          <DrillsMenu
+                            linha={l}
+                            onSelect={(item: DrillMenuItem) =>
                               setDrillCtx({
                                 modeloId: id,
                                 linhaId: l.linha_id,
                                 codigoLinha: l.codigo_linha ?? l.codigo ?? null,
                                 linhaDescricao: descricaoExibida,
-                                agrupar_por: dim,
+                                agrupar_por:
+                                  normalizarDrillDimensao(String(item.agrupar_por ?? "")) ??
+                                  "conta_contabil",
+                                agrupar_por_raw: item.agrupar_por ?? null,
+                                acao: item.acao ?? null,
+                                endpoint: item.endpoint ?? null,
+                                itemLabel: item.label ?? null,
                                 filtros: {
                                   codemp: modelo?.modelo?.codemp ?? 1,
                                   codfil: codfilNum,
@@ -2543,6 +2549,7 @@ function Visualizacao() {
                             }
                           />
                         )}
+
                       </span>
 
                     </td>
