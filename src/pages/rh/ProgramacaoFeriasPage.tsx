@@ -229,53 +229,12 @@ export default function ProgramacaoFeriasPage() {
         </div>
       </div>
     ),
-    "pivot-ferias": (
-      <Card className="h-full">
-        <CardContent className="pt-6">
-          <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Limite Férias</h2>
-          <div className="max-h-[calc(100%-2rem)] overflow-auto">
-            <Table>
-              <TableHeader className="sticky top-0 bg-background z-10">
-                <TableRow>
-                  <TableHead>Ano</TableHead>
-                  {MESES.map((m) => <TableHead key={m} className="text-right">{m}</TableHead>)}
-                  <TableHead className="text-right">TOTAL</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading && Array.from({ length: 3 }).map((_, i) => (
-                  <TableRow key={i}><TableCell colSpan={14}><Skeleton className="h-6" /></TableCell></TableRow>
-                ))}
-                {!isLoading && pivot.length === 0 && (
-                  <TableRow><TableCell colSpan={14} className="text-center text-muted-foreground py-6">Sem dados</TableCell></TableRow>
-                )}
-                {pivot.map((r) => (
-                  <TableRow key={r.ano}>
-                    <TableCell className="font-medium">{r.ano}</TableCell>
-                    {M_KEYS.map((k, idx) => {
-                      const v = (r as any)[k] as number;
-                      const clickable = Number(v) > 0;
-                      return (
-                        <TableCell key={k}
-                          className={`text-right tabular-nums ${clickable ? "cursor-pointer hover:underline text-primary" : ""}`}
-                          onClick={clickable ? () => openPivotCell(r.ano, idx + 1) : undefined}>
-                          {fmtPivot(v)}
-                        </TableCell>
-                      );
-                    })}
-                    <TableCell
-                      className={`text-right tabular-nums font-semibold ${Number(r.total) > 0 ? "cursor-pointer hover:underline text-primary" : ""}`}
-                      onClick={Number(r.total) > 0 ? () => openPivotTotal(r.ano) : undefined}>
-                      {fmtPivot(r.total)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-    ),
+    "pivot-ferias": <LimiteFeriasCard
+      pivot={pivot}
+      isLoading={isLoading}
+      onCell={openPivotCell}
+      onTotal={openPivotTotal}
+    />,
     "prox90-ferias": (
       <Card className="h-full">
         <CardContent className="pt-6">
