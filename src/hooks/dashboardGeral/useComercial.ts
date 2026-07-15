@@ -1,6 +1,7 @@
 /**
  * Hook da aba Comercial no Dashboard Geral.
  * Reusa /api/faturamento-genius-dashboard (atual + mês anterior).
+ * ATENÇÃO: backend rejeita 'codemp' (erro SQL "1 marker, 3 params").
  */
 import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
@@ -35,20 +36,20 @@ const EMPTY: ComercialData = {
   status: 'idle',
 };
 
-export function useComercial(periodo: Periodo, enabled: boolean, codemp = 1) {
+export function useComercial(periodo: Periodo, enabled: boolean) {
   const range = useMemo(() => rangeFor(periodo), [periodo]);
   const rangeAnt = useMemo(() => rangeFor('mes_anterior'), []);
 
   const queries = useQueries({
     queries: [
       {
-        queryKey: ['dg-com', 'fat', range.ini, range.fim, codemp],
-        queryFn: () => api.get<any>('/api/faturamento-genius-dashboard', { anomes_ini: range.ini, anomes_fim: range.fim, codemp }),
+        queryKey: ['dg-com', 'fat', range.ini, range.fim],
+        queryFn: () => api.get<any>('/api/faturamento-genius-dashboard', { anomes_ini: range.ini, anomes_fim: range.fim }),
         enabled, retry: 0, staleTime: 5 * 60 * 1000,
       },
       {
-        queryKey: ['dg-com', 'fat-ant', rangeAnt.ini, codemp],
-        queryFn: () => api.get<any>('/api/faturamento-genius-dashboard', { anomes_ini: rangeAnt.ini, anomes_fim: rangeAnt.fim, codemp }),
+        queryKey: ['dg-com', 'fat-ant', rangeAnt.ini, rangeAnt.fim],
+        queryFn: () => api.get<any>('/api/faturamento-genius-dashboard', { anomes_ini: rangeAnt.ini, anomes_fim: rangeAnt.fim }),
         enabled, retry: 0, staleTime: 5 * 60 * 1000,
       },
     ],
@@ -61,16 +62,16 @@ export function useComercial(periodo: Periodo, enabled: boolean, codemp = 1) {
     const k = fat?.kpis ?? {};
     const kAnt = fatAnt?.kpis ?? {};
 
-    const faturamento = num(k.valor_total ?? k.fat_liquido ?? k.faturamento);
-    const faturamentoAnt = num(kAnt.valor_total ?? kAnt.fat_liquido ?? kAnt.faturamento);
+    const faturamento = num(k.valor_total ?? k.fat_liquido ?? k.faturamento_liquido ?? k.faturamento);
+    const faturamentoAnt = num(kAnt.valor_total ?? kAnt.fat_liquido ?? kAnt.faturamento_liquido ?? kAnt.faturamento);
     const meta = num(k.meta_faturamento ?? k.meta ?? k.meta_total);
-    const notas = num(k.quantidade_notas);
-    const desconto = num(k.valor_desconto);
+    const notas = num(k.quantidade_notas ?? k.qtd_notas ?? k.count_notas);
+    const desconto = num(k.valor_desconto ?? k.desconto_total);
 
     const serie: any[] = fat?.por_mes ?? fat?.graficos?.por_mes ?? [];
     const faturamento_meta = serie.slice(-12).map((r: any) => ({
       label: labelAnomes(String(r.anomes ?? r.mes ?? '').replace(/\D/g, '').slice(0, 6)),
-      valor: num(r.valor_total ?? r.valor ?? r.fat_liquido),
+      valor: num(r.valor_total ?? r.valor ?? r.fat_liquido ?? r.faturamento_total),
       meta: num(r.meta ?? r.meta_faturamento),
     }));
 

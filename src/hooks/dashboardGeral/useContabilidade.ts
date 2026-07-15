@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { getBalancoPatrimonial } from '@/lib/api';
 import { fetchDreRealizadoResumo } from '@/lib/bi/dreConfiguravelApi';
+import { MODELO_DRE_OFICIAL_ID } from '@/lib/contabilConfig';
 import { rangeFor, num, anomesToDate, statusFrom, type Periodo, type ModStatus } from './shared';
 
 export interface ContabilidadeData {
@@ -27,18 +28,24 @@ const EMPTY: ContabilidadeData = {
 
 export function useContabilidade(periodo: Periodo, enabled: boolean) {
   const range = useMemo(() => rangeFor(periodo), [periodo]);
+  const dataIni = anomesToDate(range.ini);
   const dataFim = anomesToDate(range.fim, true);
 
   const queries = useQueries({
     queries: [
       {
-        queryKey: ['dg-cont', 'balanco', dataFim],
-        queryFn: () => getBalancoPatrimonial({ data_fim: dataFim, pagina: 1, por_pagina: 500 } as any),
+        queryKey: ['dg-cont', 'balanco', range.ini, range.fim],
+        queryFn: () => getBalancoPatrimonial({
+          anomes_ini: range.ini,
+          anomes_fim: range.fim,
+          pagina: 1,
+          por_pagina: 500,
+        }),
         enabled, retry: 0, staleTime: 5 * 60 * 1000,
       },
       {
-        queryKey: ['dg-cont', 'dre', anomesToDate(range.ini), dataFim],
-        queryFn: () => fetchDreRealizadoResumo({ data_ini: anomesToDate(range.ini), data_fim: dataFim, tipo: 'ACUMULADO' }),
+        queryKey: ['dg-cont', 'dre', dataIni, dataFim, MODELO_DRE_OFICIAL_ID],
+        queryFn: () => fetchDreRealizadoResumo({ data_ini: dataIni, data_fim: dataFim, tipo: 'ACUMULADO', modelo_id: MODELO_DRE_OFICIAL_ID }),
         enabled, retry: 0, staleTime: 5 * 60 * 1000,
       },
     ],
@@ -48,14 +55,21 @@ export function useContabilidade(periodo: Periodo, enabled: boolean) {
   const data: ContabilidadeData = useMemo(() => {
     const bal: any = qBal.data ?? {};
     const linhas: any[] = bal.dados ?? bal.linhas ?? [];
-    // Agrupamento heurístico por descrição / código topo (nivel 1-2).
-    const topo = linhas.filter((l) => (l.nivel ?? l.nivel_estrutura ?? 99) <= 2);
-    const balancoAgg: Array<{ grupo: string; valor: number; tipo: 'A' | 'P' | 'PL' }> = topo.slice(0, 12).map((l) => {
-      const desc = String(l.descricao ?? l.linha ?? l.nome ?? '—');
-      const val = num(l.saldo_atual ?? l.valor ?? l.saldo);
-      const tp: 'A' | 'P' | 'PL' = /patrim/i.test(desc) ? 'PL' : /passiv/i.test(desc) ? 'P' : 'A';
-      return { grupo: desc, valor: val, tipo: tp };
+
+    // Agrupa pelo campo `grupo` (Ativo/Passivo/Patrimônio Líquido).
+    const grupoMap: Record<string, { valor: number; tipo: 'A' | 'P' | 'PL' }> = {};
+    linhas.forEach((l) => {
+      const grupo = String(l.grupo ?? l.descricao_grupo ?? '—').trim();
+      if (!grupo || grupo === '—') return;
+      const val = num(l.saldo_atual ?? l.saldo ?? l.valor);
+      const up = grupo.toUpperCase();
+      const tp: 'A' | 'P' | 'PL' = up.includes('PATRIM') ? 'PL' : up.startsWith('PASSIV') ? 'P' : 'A';
+      if (!grupoMap[grupo]) grupoMap[grupo] = { valor: 0, tipo: tp };
+      grupoMap[grupo].valor += val;
     });
+    const balancoAgg = Object.entries(grupoMap)
+      .map(([grupo, v]) => ({ grupo, valor: v.valor, tipo: v.tipo }))
+      .sort((a, b) => Math.abs(b.valor) - Math.abs(a.valor));
 
     const ativo = balancoAgg.filter((b) => b.tipo === 'A').reduce((s, b) => s + b.valor, 0);
     const passivo = balancoAgg.filter((b) => b.tipo === 'P').reduce((s, b) => s + b.valor, 0);
@@ -64,10 +78,10 @@ export function useContabilidade(periodo: Periodo, enabled: boolean) {
     const dre: any = qDre.data ?? {};
     const totais = dre.totais ?? {};
     const dre_top = [
-      { label: 'Receita', valor: num(totais.receita_operacional) },
+      { label: 'Receita', valor: num(totais.receita_operacional ?? totais.receita) },
       { label: 'Custos', valor: -Math.abs(num(totais.custos)) },
       { label: 'Despesas', valor: -Math.abs(num(totais.despesas)) },
-      { label: 'Resultado', valor: num(totais.resultado_dre) },
+      { label: 'Resultado', valor: num(totais.resultado_dre ?? totais.resultado) },
     ];
 
     return {
@@ -75,11 +89,11 @@ export function useContabilidade(periodo: Periodo, enabled: boolean) {
         ativo,
         passivo,
         pl,
-        resultado_exercicio: num(totais.resultado_dre),
-        receita: num(totais.receita_operacional),
-        margem_pct: num(totais.margem_pct),
+        resultado_exercicio: num(totais.resultado_dre ?? totais.resultado),
+        receita: num(totais.receita_operacional ?? totais.receita),
+        margem_pct: num(totais.margem_pct ?? totais.margem),
       },
-      balanco: balancoAgg,
+      balanco: balancoAgg.slice(0, 12),
       dre_top,
       status: statusFrom(qBal, enabled),
     };

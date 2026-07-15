@@ -5,18 +5,19 @@ import { statusFrom, num, type ModStatus } from './shared';
 
 export interface EstoqueData {
   kpis: {
-    valor_estocado: number;
+    total_itens: number;
     itens_abaixo_min: number;
     itens_acima_max: number;
-    total_itens: number;
+    sem_politica: number;
+    itens_ok: number;
     ruptura_pct: number;
   };
-  rupturas: Array<{ codigo: string; descricao: string; saldo: number; minimo: number }>;
+  rupturas: Array<{ codigo: string; descricao: string; saldo: number; minimo: number; falta: number }>;
   status: ModStatus;
 }
 
 const EMPTY: EstoqueData = {
-  kpis: { valor_estocado: 0, itens_abaixo_min: 0, itens_acima_max: 0, total_itens: 0, ruptura_pct: 0 },
+  kpis: { total_itens: 0, itens_abaixo_min: 0, itens_acima_max: 0, sem_politica: 0, itens_ok: 0, ruptura_pct: 0 },
   rupturas: [],
   status: 'idle',
 };
@@ -31,29 +32,38 @@ export function useEstoque(enabled: boolean) {
   const data: EstoqueData = useMemo(() => {
     const d: any = q.data ?? {};
     const rows: any[] = d.dados ?? [];
-    let abaixo = 0, acima = 0, valor = 0;
+    const resumo: any = d.resumo ?? {};
+
     const rup: EstoqueData['rupturas'] = [];
     rows.forEach((r) => {
-      const saldo = num(r.saldo ?? r.saldo_atual ?? r.estoque);
-      const min = num(r.minimo ?? r.min);
-      const max = num(r.maximo ?? r.max);
-      const custo = num(r.custo_unitario ?? r.custo);
-      valor += saldo * custo;
+      const saldo = num(r.saldo_atual ?? r.saldo);
+      const min = num(r.estoque_minimo ?? r.minimo);
       if (min > 0 && saldo < min) {
-        abaixo++;
-        rup.push({ codigo: String(r.codigo ?? r.codpro ?? '—'), descricao: String(r.descricao ?? r.despro ?? '—').slice(0, 40), saldo, minimo: min });
+        rup.push({
+          codigo: String(r.codigo ?? r.codpro ?? '—'),
+          descricao: String(r.descricao ?? r.despro ?? '—').slice(0, 40),
+          saldo,
+          minimo: min,
+          falta: min - saldo,
+        });
       }
-      if (max > 0 && saldo > max) acima++;
     });
-    rup.sort((a, b) => (a.saldo - a.minimo) - (b.saldo - b.minimo));
+    rup.sort((a, b) => b.falta - a.falta);
+
+    const total = num(d.total_registros ?? rows.length);
+    const abaixo = num(resumo.abaixo_minimo ?? rup.length);
+    const acima = num(resumo.acima_maximo);
+    const semPol = num(resumo.sem_politica);
+    const ok = num(resumo.ok);
 
     return {
       kpis: {
-        valor_estocado: valor,
+        total_itens: total,
         itens_abaixo_min: abaixo,
         itens_acima_max: acima,
-        total_itens: rows.length,
-        ruptura_pct: rows.length ? (abaixo / rows.length) * 100 : 0,
+        sem_politica: semPol,
+        itens_ok: ok,
+        ruptura_pct: total ? (abaixo / total) * 100 : 0,
       },
       rupturas: rup.slice(0, 10),
       status: statusFrom(q, enabled),
