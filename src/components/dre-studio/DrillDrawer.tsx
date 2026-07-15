@@ -31,6 +31,15 @@ export interface DrillArgs {
 
 const LIMITE_STEPS = [500, 2000, 5000];
 
+function fmtDataBR(v: unknown): string {
+  if (v == null || v === "") return "";
+  const s = String(v);
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? s : d.toLocaleDateString("pt-BR");
+}
+
 export function DrillDrawer({
   open,
   onOpenChange,
@@ -176,7 +185,7 @@ export function DrillDrawer({
                 <TableBody>
                   {rows.map((r, i) => (
                     <TableRow key={i}>
-                      <TableCell className="whitespace-nowrap">{r.data}</TableCell>
+                      <TableCell className="whitespace-nowrap">{fmtDataBR(r.data)}</TableCell>
                       <TableCell className="text-xs whitespace-nowrap">{r.lote ?? ""}</TableCell>
                       <TableCell className="text-xs whitespace-nowrap">{r.numero ?? ""}</TableCell>
                       <TableCell className="text-xs">
