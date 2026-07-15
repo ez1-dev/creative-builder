@@ -864,7 +864,7 @@ export async function fetchContratoExperienciaDashboardCached(
 export async function fetchProgramacaoFeriasDashboardCached(
   codemp: number = 1,
 ): Promise<import("./types").ProgramacaoFeriasDashboard> {
-  const key = `rh:programacao-ferias:${codemp}`;
+  const key = `rh:programacao-ferias:v2:${codemp}`;
   return withRhCache(key, RH_CACHE_DEFAULT_TTL_MS, () => fetchProgramacaoFeriasDashboard(codemp));
 }
 
