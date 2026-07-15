@@ -472,8 +472,16 @@ export function DrillDrawer({
                 <Info label="Número" value={detalhe.numero ?? detalhe.lancamento} />
                 <Info label="Data" value={fmtDataBR(detalhe.data)} />
                 <Info label="Lado (D/C)" value={detalhe.debcre} />
-                <Info label="Conta Débito" value={detalhe.conta_debito} />
-                <Info label="Conta Crédito" value={detalhe.conta_credito} />
+                <Info
+                  label="Conta Débito"
+                  value={detalhe.conta_debito}
+                  strong={String(detalhe.debcre ?? '').toUpperCase() === 'D'}
+                />
+                <Info
+                  label="Conta Crédito"
+                  value={detalhe.conta_credito}
+                  strong={String(detalhe.debcre ?? '').toUpperCase() === 'C'}
+                />
                 <Info
                   label="Conta selecionada"
                   value={`${detalhe.ctared ?? ""} ${detalhe.conta_descricao ?? ""}`}
