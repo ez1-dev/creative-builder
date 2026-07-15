@@ -1636,29 +1636,11 @@ function Visualizacao() {
         return (
           <>
             <div className="mb-3 flex flex-wrap items-center gap-3 text-xs text-slate-600">
-              {isBalanco && (
-                <>
-                  <span className="rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 px-2 py-0.5 text-[10px] uppercase tracking-wider">
-                    Fonte: {modoBalancoEfetivo === "MENSAL_E650SAL" ? (resultadoFonteTecnica ?? "E650SAL.SALMES") : modoBalancoEfetivo === "CCCC106_E640LCT_ACUMULADO" ? "CCCC106 / E640LCT" : "Conciliação Senior"}
-                  </span>
-                  <span className="rounded-full bg-slate-50 border border-slate-200 text-slate-700 px-2 py-0.5 text-[10px] uppercase tracking-wider">
-                    Modo: {modoBalancoEfetivo}
-                  </span>
-                </>
-              )}
               <span>
                 <strong>Última atualização:</strong>{" "}
                 {q.meta.atualizado_em
                   ? new Date(q.meta.atualizado_em).toLocaleString("pt-BR")
                   : "—"}
-              </span>
-              <span>
-                <strong>Origem:</strong>{" "}
-                {q.meta.origem === "SENIOR_ERP"
-                  ? "Senior ERP"
-                  : q.meta.origem === "SUPABASE_CACHE" || q.meta.origem === "SNAPSHOT_SUPABASE"
-                    ? "Snapshot Supabase"
-                    : (q.meta.origem ?? "—")}
               </span>
               {isBalancoOficial && (
                 <>
@@ -1684,15 +1666,7 @@ function Visualizacao() {
                   )}
                 </>
               )}
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] uppercase tracking-wider text-slate-600">
-                {q.meta.status}
-              </span>
             </div>
-            {q.meta.status === "CONCLUIDO" && (
-              <div className="mb-3 text-[11px] text-slate-500">
-                O snapshot é mantido em cache. Use <strong>Atualizar Resultado</strong> para buscar lançamentos novos do ERP.
-              </div>
-            )}
             {semReferencia && (
               <div className="mb-3 flex items-start gap-3 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-900">
                 <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
