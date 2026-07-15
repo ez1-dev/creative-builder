@@ -25,8 +25,8 @@ export function ProducaoTab({ periodo, enabled }: { periodo: Periodo; enabled: b
           variant={data.kpis.sem_mapeamento > 0 ? 'danger' : 'success'} />
       </section>
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <HorizontalBarChartCard title="Carga por centro (h) — Top 10" data={data.breakdowns.carga_centro} valueFormatter={formatNumber} height={320} />
-        <DonutChartCard title="Carga por unidade de negócio (h)" data={data.breakdowns.por_unidade} valueFormatter={formatNumber} height={320} />
+        <HorizontalBarChartCard title="Carga por centro (h) — Top 10" data={data.breakdowns.carga_centro} valueFormatter={formatNumber} height={320} emptyVariant="inline" emptyMessage="Sem carga por centro" />
+        <DonutChartCard title="Carga por unidade de negócio (h)" data={data.breakdowns.por_unidade} valueFormatter={formatNumber} height={320} emptyVariant="inline" emptyMessage="Sem carga por unidade" />
       </section>
     </div>
   );

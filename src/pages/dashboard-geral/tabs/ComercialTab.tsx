@@ -27,11 +27,11 @@ export function ComercialTab({ periodo, enabled }: { periodo: Periodo; enabled: 
         <KpiCard title="Desconto médio" value={data.kpis.desconto_pct} format="percent" icon={<Percent className="h-4 w-4" />} loading={loading} />
         <KpiCard title="Meta período" value={data.kpis.meta} format="currency" icon={<Target className="h-4 w-4" />} loading={loading} />
       </section>
-      <LineChartCard title="Faturamento vs Meta — 12 meses" data={data.series.faturamento_meta} valueFormatter={formatCurrency} height={280} />
+      <LineChartCard title="Faturamento vs Meta — 12 meses" data={data.series.faturamento_meta} valueFormatter={formatCurrency} height={280} emptyVariant="inline" emptyMessage="Sem faturamento no período" />
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <HorizontalBarChartCard title="Top revendas" data={data.breakdowns.revendas} valueFormatter={formatCurrency} height={300} />
-        <HorizontalBarChartCard title="Top produtos" data={data.breakdowns.produtos} valueFormatter={formatCurrency} color="hsl(var(--success))" height={300} />
-        <HorizontalBarChartCard title="Faturamento por UF" data={data.breakdowns.ufs} valueFormatter={formatCurrency} color="hsl(var(--warning))" height={300} />
+        <HorizontalBarChartCard title="Top revendas" data={data.breakdowns.revendas} valueFormatter={formatCurrency} height={300} emptyVariant="inline" emptyMessage="Sem revendas no período" />
+        <HorizontalBarChartCard title="Top produtos" data={data.breakdowns.produtos} valueFormatter={formatCurrency} color="hsl(var(--success))" height={300} emptyVariant="inline" emptyMessage="Sem produtos no período" />
+        <HorizontalBarChartCard title="Faturamento por UF" data={data.breakdowns.ufs} valueFormatter={formatCurrency} color="hsl(var(--warning))" height={300} emptyVariant="inline" emptyMessage="Sem dados por UF" />
       </section>
     </div>
   );

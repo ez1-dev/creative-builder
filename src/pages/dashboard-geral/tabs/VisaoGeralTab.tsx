@@ -56,8 +56,8 @@ export function VisaoGeralTab({ periodo, enabled }: { periodo: Periodo; enabled:
 
       {/* Gráficos signature */}
       <section aria-label="Tendências" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <LineChartCard title="Faturamento — 12 meses" data={data.series.faturamento_meta} valueFormatter={formatCurrency} height={240} />
-        <BarChartCard title="Compras — 12 meses" data={data.series.compras_mes} valueFormatter={formatCurrency} height={240} />
+        <LineChartCard title="Faturamento — 12 meses" data={data.series.faturamento_meta} valueFormatter={formatCurrency} height={240} emptyVariant="inline" emptyMessage="Sem faturamento no período" />
+        <BarChartCard title="Compras — 12 meses" data={data.series.compras_mes} valueFormatter={formatCurrency} height={240} emptyVariant="inline" emptyMessage="Sem compras no período" />
       </section>
 
       {/* Insights IA */}

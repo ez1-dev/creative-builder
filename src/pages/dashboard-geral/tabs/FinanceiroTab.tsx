@@ -29,7 +29,7 @@ export function FinanceiroTab({ periodo, enabled }: { periodo: Periodo; enabled:
         <KpiCard title="Inadimplência" value={data.kpis.inadimplencia} format="currency" loading={loading}
           variant={data.kpis.inadimplencia > 0 ? 'danger' : 'default'} />
       </section>
-      <LineChartCard title="Resultado DRE — últimos 12 meses" data={data.series.resultado_mes} valueFormatter={formatCurrency} height={300} />
+      <LineChartCard title="Resultado DRE — últimos 12 meses" data={data.series.resultado_mes} valueFormatter={formatCurrency} height={300} emptyVariant="inline" emptyMessage="Sem lançamentos de DRE no período" />
     </div>
   );
 }

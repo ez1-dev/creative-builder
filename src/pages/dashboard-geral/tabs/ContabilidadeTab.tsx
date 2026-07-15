@@ -26,12 +26,22 @@ export function ContabilidadeTab({ periodo, enabled }: { periodo: Periodo; enabl
         <KpiCard title="Margem %" value={data.kpis.margem_pct} format="percent" icon={<Percent className="h-4 w-4" />} loading={loading} />
       </section>
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <HorizontalBarChartCard title="DRE — visão consolidada" data={data.dre_top} valueFormatter={formatCurrency} height={280} />
+        <HorizontalBarChartCard
+          title="DRE — visão consolidada"
+          data={data.dre_top.map((d) => ({ label: d.label, valor: Math.abs(d.valor) }))}
+          valueFormatter={formatCurrency}
+          height={280}
+          emptyVariant="inline"
+          emptyMessage="Sem lançamentos de DRE no período"
+        />
         <Card>
-          <CardHeader><CardTitle className="text-base">Balanço — grupos principais</CardTitle></CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base">Balanço — grupos principais</CardTitle>
+            <span className="text-xs text-muted-foreground">{data.balanco.length} grupos</span>
+          </CardHeader>
           <CardContent>
             {data.balanco.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Sem dados para exibir.</p>
+              <p className="text-sm text-muted-foreground py-6 text-center">Sem grupos de balanço no período.</p>
             ) : (
               <ul className="divide-y divide-border text-sm">
                 {data.balanco.map((b, i) => (
