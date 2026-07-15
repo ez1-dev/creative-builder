@@ -6,14 +6,46 @@
 import { contabilApi } from './contabilApi';
 
 export interface DrillLancamentoItem {
-  data?: string | null;
-  lote?: string | number | null;
+  // Identificação
+  lancamento?: string | number | null;
   numero?: string | number | null;
+  lote?: string | number | null;
+  data?: string | null;
+  // Empresa / filial
+  codemp?: number | string | null;
+  codfil?: number | string | null;
+  // Lado do lançamento
+  debcre?: 'D' | 'C' | string | null;
   debito?: number | null;
   credito?: number | null;
+  // Contas
+  conta_debito?: string | null;
+  conta_credito?: string | null;
+  ctared?: string | number | null;
+  clacta?: string | null;
+  conta_descricao?: string | null;
+  // Centro de custo
+  codccu?: string | null;
+  desccu?: string | null;
   ccu?: string | null;
-  historico?: string | null;
+  // Documento / origem
+  documento?: string | null;
+  origem_codigo?: string | null;
+  origem_descricao?: string | null;
+  // Usuários
+  usuario_origem?: string | null;
+  usuario_lancamento?: string | null;
+  // Valores
   valor?: number | null;
+  valor_integral?: number | null;
+  valor_rateado?: number | null;
+  mov_debito?: number | null;
+  mov_credito?: number | null;
+  saldo_anterior?: number | null;
+  saldo?: number | null;
+  // Histórico
+  historico?: string | null;
+  observacao?: string | null;
   [k: string]: any;
 }
 
