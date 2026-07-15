@@ -2627,6 +2627,13 @@ function Visualizacao() {
         codfil={codfilNum}
       />
 
+      <DreEstruturaEditor
+        open={editorEstruturaOpen}
+        modeloId={id}
+        onClose={() => setEditorEstruturaOpen(false)}
+        onPublicado={() => q.refetch()}
+      />
+
 
       {/* Mantido por compatibilidade — não usado aqui. */}
       {false && (
