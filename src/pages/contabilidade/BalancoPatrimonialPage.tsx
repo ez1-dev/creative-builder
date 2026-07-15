@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { Landmark, Scale, Wallet, Hash } from 'lucide-react';
 import { FilterPresetBar } from '@/components/filters/FilterPresetBar';
 import { useFilterPresets } from '@/hooks/useFilterPresets';
+import { truncateLabel } from '@/lib/textTruncate';
 
 const currentYear = new Date().getFullYear();
 const PAGE_KEY = 'balanco-patrimonial';
