@@ -61,6 +61,22 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { FilterPresetBar } from "@/components/filters/FilterPresetBar";
+import { useFilterPresets } from "@/hooks/useFilterPresets";
+
+const DRE_VIS_PAGE_KEY = "dre-studio-visualizacao";
+interface DreVisFilterPreset {
+  anoSelecionado?: number;
+  mesesVisiveis?: number[];
+  codccu?: string;
+  codfil?: string;
+  visao?: Visao;
+  dataIni?: string;
+  dataFim?: string;
+  modoBalanco?: ModoBalanco;
+  dataCorte?: string;
+  aplicarRefSenior?: boolean;
+}
 
 
 type Visao = "REAL" | "ORC" | "VARV" | "VARP" | "COMP";
