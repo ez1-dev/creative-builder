@@ -31,6 +31,7 @@ export default function BalancoPatrimonialPage() {
     grupo: '',
     subgrupo: '',
   });
+  const [editorOpen, setEditorOpen] = useState(false);
   const [pagina, setPagina] = useState(1);
   const [loading, setLoading] = useState(false);
   const [itens, setItens] = useState<BalancoPatrimonialItem[]>([]);
