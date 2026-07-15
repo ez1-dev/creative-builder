@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PageHeader } from '@/components/erp/PageHeader';
@@ -11,8 +11,11 @@ import { getBalancoPatrimonial, BalancoPatrimonialItem, BalancoPatrimonialFilter
 import { formatCurrency } from '@/lib/format';
 import { toast } from 'sonner';
 import { Landmark, Scale, Wallet, Hash } from 'lucide-react';
+import { FilterPresetBar } from '@/components/filters/FilterPresetBar';
+import { useFilterPresets } from '@/hooks/useFilterPresets';
 
 const currentYear = new Date().getFullYear();
+const PAGE_KEY = 'balanco-patrimonial';
 
 export default function BalancoPatrimonialPage() {
   const [filters, setFilters] = useState<BalancoPatrimonialFilters>({
