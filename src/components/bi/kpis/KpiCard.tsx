@@ -1,8 +1,10 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TrendingUp, TrendingDown, Minus, Info, AlertTriangle } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Info, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useDelayedFlag } from '@/hooks/useDelayedFlag';
 import { cn } from '@/lib/utils';
 import { formatByKind, KpiFormat, formatPercent } from '../utils/formatters';
 import { StatusBadge, BiStatus } from '../badges/StatusBadge';
