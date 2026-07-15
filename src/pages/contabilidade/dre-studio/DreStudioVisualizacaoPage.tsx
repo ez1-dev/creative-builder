@@ -2441,6 +2441,21 @@ function Visualizacao() {
                     : depth;
                 const paddingLeftDesc = (Number.isFinite(nivelVisual) ? nivelVisual : depth) * 16 + 12;
 
+                const descNormBold = String(descricaoExibida ?? "")
+                  .normalize("NFD")
+                  .replace(/[\u0300-\u036f]/g, "")
+                  .toUpperCase()
+                  .replace(/\s+/g, " ")
+                  .trim();
+                const LINHAS_NEGRITO_FORCADO = new Set([
+                  "RECEITAS FINANCEIRAS",
+                  "DESPESAS FINANCEIRAS",
+                  "OUTRAS RECEITAS",
+                  "OUTRAS DESPESAS",
+                  "IRPJ / CSLL (PROVISAO)",
+                ]);
+                const isLinhaNegritoForcado = LINHAS_NEGRITO_FORCADO.has(descNormBold);
+
                 return (
                   <tr
                     key={l.linha_id}
@@ -2456,8 +2471,10 @@ function Visualizacao() {
                       isVirtualTotal && "bg-amber-50 font-semibold",
                       isVirtualAjuste && "italic text-slate-700",
                       isVirtualConta && "text-xs text-slate-700",
+                      isLinhaNegritoForcado && "font-bold",
                     )}
                   >
+
                     {(() => {
                       const cs = contasPorLinha.get(l.linha_id) ?? [];
                       const title =
