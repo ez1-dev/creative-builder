@@ -95,8 +95,8 @@ interface RazaoItem {
   codemp?: number | null;
   codfil?: number | null;
   numero?: number | string | null;
-  conta_debito?: string | null;
-  conta_credito?: string | null;
+  conta_debito?: string | number | Record<string, any> | null;
+  conta_credito?: string | number | Record<string, any> | null;
   codccu?: string | null;
   desccu?: string | null;
   documento?: string | null;
