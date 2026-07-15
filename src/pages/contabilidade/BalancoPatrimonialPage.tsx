@@ -14,6 +14,9 @@ import { Landmark, Scale, Wallet, Hash } from 'lucide-react';
 import { FilterPresetBar } from '@/components/filters/FilterPresetBar';
 import { useFilterPresets } from '@/hooks/useFilterPresets';
 import { truncateLabel } from '@/lib/textTruncate';
+import { Button } from '@/components/ui/button';
+import { Pencil } from 'lucide-react';
+import { BalancoEstruturaEditor } from '@/components/contabil/edicao/BalancoEstruturaEditor';
 
 const currentYear = new Date().getFullYear();
 const PAGE_KEY = 'balanco-patrimonial';
@@ -28,6 +31,7 @@ export default function BalancoPatrimonialPage() {
     grupo: '',
     subgrupo: '',
   });
+  const [editorOpen, setEditorOpen] = useState(false);
   const [pagina, setPagina] = useState(1);
   const [loading, setLoading] = useState(false);
   const [itens, setItens] = useState<BalancoPatrimonialItem[]>([]);
@@ -116,12 +120,23 @@ export default function BalancoPatrimonialPage() {
         title="Contabilidade — Balanço Patrimonial"
         description="Consulta da view V_BALANCO_PATRIMONIAL com filtros por período, empresa, filial, conta e grupo."
         actions={
-          <ExportButton
-            endpoint="/api/export/contabilidade/balanco"
-            params={exportParams}
-            label="Exportar Excel"
-          />
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => setEditorOpen(true)}>
+              <Pencil className="h-3.5 w-3.5 mr-1" />Editar estrutura
+            </Button>
+            <ExportButton
+              endpoint="/api/export/contabilidade/balanco"
+              params={exportParams}
+              label="Exportar Excel"
+            />
+          </div>
         }
+      />
+
+      <BalancoEstruturaEditor
+        open={editorOpen}
+        onClose={() => setEditorOpen(false)}
+        onPublicado={() => fetchData(pagina)}
       />
 
       <FilterPresetBar

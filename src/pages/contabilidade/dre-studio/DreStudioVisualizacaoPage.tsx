@@ -47,7 +47,8 @@ import { ConciliacaoDREBalancoPanel } from "@/components/contabil/ConciliacaoDRE
 import { cn } from "@/lib/utils";
 import { useCriarBalancoPadraoSenior } from "@/hooks/contabil/useCriarBalancoPadraoSenior";
 import { useVincularContasBalancoSenior } from "@/hooks/contabil/useVincularContasBalancoSenior";
-import { Link2 } from "lucide-react";
+import { Link2, Pencil } from "lucide-react";
+import { DreEstruturaEditor } from "@/components/contabil/edicao/DreEstruturaEditor";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -249,6 +250,7 @@ function Visualizacao() {
   const [drillCtx, setDrillCtx] = useState<DrillResultadoContext | null>(null);
   
   const [openHistoricoCache, setOpenHistoricoCache] = useState(false);
+  const [editorEstruturaOpen, setEditorEstruturaOpen] = useState(false);
   const [dataIni, setDataIni] = useState<string>(() => firstDayOfAnomes(ini));
   const [dataFim, setDataFim] = useState<string>(() => defaultDataFim(fim));
   useEffect(() => {
@@ -1864,6 +1866,10 @@ function Visualizacao() {
               <History className="h-4 w-4 mr-1.5" />
               Histórico
             </Button>
+            <Button size="sm" variant="outline" onClick={() => setEditorEstruturaOpen(true)}>
+              <Pencil className="h-4 w-4 mr-1.5" />
+              Editar estrutura
+            </Button>
           </div>
 
           {/* Grupo: Visualização (à direita) */}
@@ -2619,6 +2625,13 @@ function Visualizacao() {
         onOpenChange={setOpenHistoricoCache}
         modeloId={id}
         codfil={codfilNum}
+      />
+
+      <DreEstruturaEditor
+        open={editorEstruturaOpen}
+        modeloId={id}
+        onClose={() => setEditorEstruturaOpen(false)}
+        onPublicado={() => q.refetch()}
       />
 
 

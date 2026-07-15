@@ -56,6 +56,69 @@ export type Database = {
         }
         Relationships: []
       }
+      bi_balanco_estrutura_rascunho: {
+        Row: {
+          created_at: string
+          depara: Json
+          id: string
+          linhas: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          depara?: Json
+          id?: string
+          linhas?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          depara?: Json
+          id?: string
+          linhas?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      bi_balanco_snapshots: {
+        Row: {
+          created_at: string
+          criado_por: string | null
+          depara: Json
+          descricao: string | null
+          escopo: string
+          id: string
+          linhas: Json
+          nome: string
+          owner_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          criado_por?: string | null
+          depara?: Json
+          descricao?: string | null
+          escopo: string
+          id?: string
+          linhas: Json
+          nome: string
+          owner_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          criado_por?: string | null
+          depara?: Json
+          descricao?: string | null
+          escopo?: string
+          id?: string
+          linhas?: Json
+          nome?: string
+          owner_id?: string | null
+        }
+        Relationships: []
+      }
       bi_centros_custo: {
         Row: {
           codigo: string
@@ -392,6 +455,39 @@ export type Database = {
         }
         Relationships: []
       }
+      bi_dre_estrutura_rascunho: {
+        Row: {
+          base_versao: number | null
+          created_at: string
+          depara: Json
+          id: string
+          linhas: Json
+          modelo_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          base_versao?: number | null
+          created_at?: string
+          depara?: Json
+          id?: string
+          linhas?: Json
+          modelo_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          base_versao?: number | null
+          created_at?: string
+          depara?: Json
+          id?: string
+          linhas?: Json
+          modelo_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bi_dre_estrutura_v2: {
         Row: {
           ativo: boolean
@@ -666,6 +762,48 @@ export type Database = {
           status?: string
           updated_at?: string
           versao?: number
+        }
+        Relationships: []
+      }
+      bi_dre_snapshots: {
+        Row: {
+          created_at: string
+          criado_por: string | null
+          depara: Json
+          descricao: string | null
+          escopo: string
+          id: string
+          linhas: Json
+          modelo_id: string
+          nome: string
+          owner_id: string | null
+          versao_origem: number | null
+        }
+        Insert: {
+          created_at?: string
+          criado_por?: string | null
+          depara?: Json
+          descricao?: string | null
+          escopo: string
+          id?: string
+          linhas: Json
+          modelo_id: string
+          nome: string
+          owner_id?: string | null
+          versao_origem?: number | null
+        }
+        Update: {
+          created_at?: string
+          criado_por?: string | null
+          depara?: Json
+          descricao?: string | null
+          escopo?: string
+          id?: string
+          linhas?: Json
+          modelo_id?: string
+          nome?: string
+          owner_id?: string | null
+          versao_origem?: number | null
         }
         Relationships: []
       }
@@ -3813,6 +3951,22 @@ export type Database = {
       }
     }
     Functions: {
+      balanco_publicar_rascunho: { Args: never; Returns: string }
+      balanco_restaurar_snapshot: {
+        Args: { _destino: string; _snapshot_id: string }
+        Returns: undefined
+      }
+      balanco_serializar_oficial: {
+        Args: never
+        Returns: {
+          depara: Json
+          linhas: Json
+        }[]
+      }
+      balanco_snapshot_do_oficial: {
+        Args: { _descricao?: string; _nome: string }
+        Returns: string
+      }
       bi_dre_matriz_anual: {
         Args: { p_ano: string; p_unidade_negocio?: string }
         Returns: {
@@ -3864,11 +4018,13 @@ export type Database = {
         }[]
       }
       can_delete_frota: { Args: { _uid: string }; Returns: boolean }
+      can_edit_balanco_oficial: { Args: { _uid: string }; Returns: boolean }
       can_edit_bi_meta: { Args: { _uid: string }; Returns: boolean }
       can_edit_dashboard: {
         Args: { _dashboard_id: string; _uid: string }
         Returns: boolean
       }
+      can_edit_dre_oficial: { Args: { _uid: string }; Returns: boolean }
       can_edit_frota: { Args: { _uid: string }; Returns: boolean }
       can_edit_maquinas: { Args: { _uid: string }; Returns: boolean }
       can_edit_passagens: { Args: { _uid: string }; Returns: boolean }
@@ -3930,6 +4086,26 @@ export type Database = {
       delete_dashboard_cache_prefix: {
         Args: { _prefix: string }
         Returns: undefined
+      }
+      dre_publicar_rascunho: {
+        Args: { _base_versao?: number; _modelo_id: string }
+        Returns: string
+      }
+      dre_restaurar_snapshot: {
+        Args: { _destino: string; _snapshot_id: string }
+        Returns: undefined
+      }
+      dre_serializar_oficial: {
+        Args: { _modelo_id: string }
+        Returns: {
+          depara: Json
+          linhas: Json
+          versao: number
+        }[]
+      }
+      dre_snapshot_do_oficial: {
+        Args: { _descricao?: string; _modelo_id: string; _nome: string }
+        Returns: string
       }
       ensure_default_block: { Args: { _dashboard_id: string }; Returns: string }
       etl_agendamento_calcular_proxima: {
