@@ -66,7 +66,7 @@ export function KpiCard({
         {loading ? (
           <Skeleton className="h-7 3xl:h-10 w-24" />
         ) : (() => {
-          const isNumericFmt = format === 'currency' || format === 'number' || format === 'quantity' || format === 'percent';
+          const isNumericFmt = format === 'currency' || format === 'number' || format === 'quantity';
           const numeric = typeof value === 'number' ? value : null;
           const invalid = numeric !== null && !Number.isFinite(numeric);
           const negative = !invalid && isNumericFmt && numeric !== null && numeric < 0;
