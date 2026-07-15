@@ -49,7 +49,7 @@ export function MaterializacaoDialog({ open, modeloId, jobId, onClose, onRetry }
     if (!open) return;
     if (concluido) {
       qc.invalidateQueries({ queryKey: ["contabil", "resultado-pronto", modeloId] });
-      qc.invalidateQueries({ queryKey: ["contabil", "resultado-cache", modeloId] });
+      qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === "contabil" && q.queryKey[1] === "resultado-cache" && q.queryKey.includes(modeloId) });
       toast.success("Resultado atualizado.");
       onClose();
     }

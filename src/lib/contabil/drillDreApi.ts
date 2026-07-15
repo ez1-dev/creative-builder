@@ -40,6 +40,12 @@ export interface DrillDreParams {
   modelo_id: string;
   linha_id: string;
   agrupar_por: DrillDimensao;
+  /** Valor bruto do backend (`item.agrupar_por`), quando diferente da dimensão normalizada. */
+  agrupar_por_raw?: string | null;
+  /** Endpoint retornado pelo item do menu. Default: /api/contabil/drill-dre. */
+  endpoint?: string | null;
+  /** Ação do item (reabrir/consulta). Encaminhado ao backend quando presente. */
+  acao?: string | null;
   codemp?: number | null;
   codfil?: number | null;
   anomes_ini: number | string;
@@ -47,9 +53,11 @@ export interface DrillDreParams {
   unidade?: string | null;
   centro_custo?: string | null;
   modo_balanco?: string | null;
+  consolidado?: boolean | null;
   page?: number;
   page_size?: number;
 }
+
 
 export interface DrillDreColumn {
   key: string;
@@ -96,7 +104,8 @@ function inferirColunas(rows: Array<Record<string, any>>): DrillDreColumn[] {
 export async function fetchDrillDre(params: DrillDreParams): Promise<DrillDreResponse> {
   const query: Record<string, any> = {
     modelo_id: params.modelo_id,
-    agrupar_por: params.agrupar_por,
+    // Prioriza o valor bruto do backend (ex.: "conta"); se ausente, usa o normalizado.
+    agrupar_por: params.agrupar_por_raw ?? params.agrupar_por,
     anomes_ini: params.anomes_ini,
     anomes_fim: params.anomes_fim,
   };
@@ -106,10 +115,13 @@ export async function fetchDrillDre(params: DrillDreParams): Promise<DrillDreRes
   if (params.unidade) query.unidade = params.unidade;
   if (params.centro_custo) query.centro_custo = params.centro_custo;
   if (params.modo_balanco) query.modo_balanco = params.modo_balanco;
+  if (params.consolidado) query.consolidado = true;
+  if (params.acao) query.acao = params.acao;
   if (params.page != null) query.page = params.page;
   if (params.page_size != null) query.page_size = params.page_size;
 
-  const data = await contabilApi.get<any>('/api/contabil/drill-dre', query);
+  const endpoint = params.endpoint || '/api/contabil/drill-dre';
+  const data = await contabilApi.get<any>(endpoint, query);
   const rows = Array.isArray(data?.rows) ? data.rows
     : Array.isArray(data?.dados) ? data.dados
     : Array.isArray(data) ? data : [];
@@ -130,3 +142,4 @@ export async function fetchDrillDre(params: DrillDreParams): Promise<DrillDreRes
     has_more: data?.has_more ?? false,
   };
 }
+

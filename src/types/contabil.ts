@@ -179,11 +179,25 @@ export interface ComparativoLinhaV2 {
   linha_virtual?: boolean | null;
   descricao_linha?: string | null;
 
-  // ---- Drill-down agregado (novo backend) ----
+  // ---- Drill-down agregado (backend contábil) ----
   drillavel?: boolean;
+  /** Legado: lista simples de dimensões. */
   drills?: Array<string | { chave: string; label?: string | null }>;
+  /** Novo contrato Senior: itens agrupados por grupo/label/acao. */
+  drills_menu?: Array<{
+    grupo?: string;
+    label?: string;
+    chave?: string;
+    acao?: string;
+    agrupar_por?: string;
+    endpoint?: string;
+    icone?: string;
+    ordem?: number;
+    [k: string]: any;
+  }>;
   codigo_linha?: string | null;
 }
+
 
 // ---- Resultado pronto / materialização assíncrona ----
 export type ResultadoProntoStatus =

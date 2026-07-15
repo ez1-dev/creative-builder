@@ -102,7 +102,7 @@ export function useVincularContasDRESenior(modeloId: string) {
       qc.invalidateQueries({ queryKey: ["contabil", "modelo", modeloId] });
       qc.invalidateQueries({ queryKey: ["linhas", modeloId] });
       qc.invalidateQueries({ queryKey: ["contas-vinculadas", modeloId] });
-      qc.invalidateQueries({ queryKey: ["contabil", "resultado-cache", modeloId] });
+      qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === "contabil" && q.queryKey[1] === "resultado-cache" && q.queryKey.includes(modeloId) });
       qc.invalidateQueries({ queryKey: ["contabil", "resultado-pronto", modeloId] });
       const partes = [
         `Contas lidas: ${r.contas_lidas}`,

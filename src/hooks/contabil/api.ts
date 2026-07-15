@@ -432,8 +432,14 @@ export function normalizeComparativo(raw: unknown, modeloId: string): Comparativ
         ...c,
         descta: fixMojibake(c?.descta ?? ""),
       })),
+      // Drill Senior — repassa como veio, sem inferência.
+      drillavel: typeof linha.drillavel === "boolean" ? linha.drillavel : undefined,
+      drills: Array.isArray(linha.drills) ? linha.drills : undefined,
+      drills_menu: Array.isArray(linha.drills_menu) ? linha.drills_menu : undefined,
+      codigo_linha: linha.codigo_linha ?? null,
     };
   };
+
 
   // Formato novo do endpoint /resultado-cache OU "Already V2" — ambos têm
   // colunas/periodos + linhas. Normalizamos sempre para garantir que linhas
@@ -712,7 +718,7 @@ export function useResultadoCache(
   enabled = true,
 ) {
   return useQuery<unknown, Error, ComparativoResponseV2>({
-    queryKey: ["contabil", "resultado-cache", "v2", modeloId, filtros],
+    queryKey: ["contabil", "resultado-cache", "v3-drills", modeloId, filtros],
     queryFn: () =>
       api.get<unknown>(`/api/contabil/modelos/${modeloId}/resultado-cache`, {
         codemp: CODEMP,
@@ -724,6 +730,9 @@ export function useResultadoCache(
         data_corte: filtros.data_corte ?? undefined,
         aplicar_referencia_senior: filtros.aplicar_referencia_senior ? true : undefined,
         expandir_resultado_exercicio: filtros.expandir_resultado_exercicio ? true : undefined,
+        consolidado: filtros.consolidado ? true : undefined,
+        // Padrão Senior: pede o menu de drills (REABRIR/CONSULTA) por linha.
+        incluir_drills: true,
       }),
 
     enabled: enabled && isValidId(modeloId),
@@ -733,6 +742,7 @@ export function useResultadoCache(
     select: (raw) => normalizeComparativo(raw, modeloId),
   });
 }
+
 
 // ============================================================
 // Diagnóstico CTARED 0 (lançamentos sem conta contábil)

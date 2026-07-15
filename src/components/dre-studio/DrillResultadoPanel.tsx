@@ -35,6 +35,14 @@ export interface DrillResultadoContext {
   codigoLinha?: string | null;
   linhaDescricao: string;
   agrupar_por: DrillDimensao;
+  /** Valor bruto do backend (`item.agrupar_por`), preservado para a query. */
+  agrupar_por_raw?: string | null;
+  /** Ação do item do menu (`reabrir` | `consulta`). */
+  acao?: string | null;
+  /** Endpoint retornado no item do menu. Default: /api/contabil/drill-dre. */
+  endpoint?: string | null;
+  /** Label vindo do backend, para o título do drawer. */
+  itemLabel?: string | null;
   filtros: {
     codemp?: number | null;
     codfil?: number | null;
@@ -43,10 +51,12 @@ export interface DrillResultadoContext {
     unidade?: string | null;
     centro_custo?: string | null;
     modo_balanco?: string | null;
+    consolidado?: boolean | null;
   };
   /** Total oficial da linha na DRE (para conferência visual). */
   totalLinhaDre?: number | null;
 }
+
 
 interface Props {
   open: boolean;
@@ -141,6 +151,9 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
           modelo_id: ctx.modeloId,
           linha_id: ctx.linhaId,
           agrupar_por: ctx.agrupar_por,
+          agrupar_por_raw: ctx.agrupar_por_raw ?? undefined,
+          endpoint: ctx.endpoint ?? undefined,
+          acao: ctx.acao ?? undefined,
           anomes_ini: ctx.filtros.anomes_ini,
           anomes_fim: ctx.filtros.anomes_fim,
           codemp: ctx.filtros.codemp ?? undefined,
@@ -148,12 +161,14 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
           unidade: ctx.filtros.unidade ?? undefined,
           centro_custo: ctx.filtros.centro_custo ?? undefined,
           modo_balanco: ctx.filtros.modo_balanco ?? undefined,
+          consolidado: ctx.filtros.consolidado ?? undefined,
           page,
           page_size: pageSize,
         }
       : null,
     open,
   );
+
 
   const qLct = useDrillLancamentos(
     ctx && isLancamento
@@ -266,20 +281,27 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-4xl overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>Drill — {ctx?.linhaDescricao}</SheetTitle>
+          <SheetTitle>
+            {ctx?.acao === 'reabrir' ? 'Reabrir — ' : 'Drill — '}
+            {ctx?.linhaDescricao}
+          </SheetTitle>
           <SheetDescription>
-            <span className="font-medium">{ctx ? DRILL_LABELS[ctx.agrupar_por] : ''}</span>
+            <span className="font-medium">
+              {ctx?.itemLabel ?? (ctx ? DRILL_LABELS[ctx.agrupar_por] : '')}
+            </span>
             {' · '}Período: {periodoLabel}
             {ctx?.codigoLinha && <> · Código: <code className="text-xs">{ctx.codigoLinha}</code></>}
             <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
               {ctx?.filtros.codemp != null && <span>codemp {ctx.filtros.codemp}</span>}
               {ctx?.filtros.codfil != null && <span>codfil {ctx.filtros.codfil}</span>}
+              {ctx?.filtros.consolidado && <span>consolidado</span>}
               {ctx?.filtros.centro_custo && <span>CCU {ctx.filtros.centro_custo}</span>}
               {ctx?.filtros.unidade && <span>UN {ctx.filtros.unidade}</span>}
               {ctx?.filtros.modo_balanco && <span>modo {ctx.filtros.modo_balanco}</span>}
             </div>
           </SheetDescription>
         </SheetHeader>
+
 
         <div className="mt-4">
           {isLoading ? (
