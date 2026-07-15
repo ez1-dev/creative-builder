@@ -6,7 +6,7 @@
 import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { rangeFor, num, delta, labelAnomes, statusFrom, type Periodo, type ModStatus } from './shared';
+import { rangeFor, num, delta, labelAnomes, safeDiv, statusFrom, type Periodo, type ModStatus } from './shared';
 
 export interface ComercialData {
   kpis: {
@@ -76,11 +76,8 @@ export function useComercial(periodo: Periodo, enabled: boolean) {
     }));
 
     const revendas = ((fat?.por_revenda ?? fat?.graficos?.por_revenda ?? []) as any[])
-      .filter((r) => {
-        const nome = String(r.revenda ?? r.nome ?? '').toUpperCase();
-        return nome && nome !== 'OUTROS' && nome !== 'LANCTO MANUAL';
-      })
       .map((r) => ({ label: String(r.revenda ?? r.nome ?? '—').slice(0, 24), valor: num(r.valor_total ?? r.valor ?? r.fat_liquido) }))
+      .filter((r) => r.valor !== 0)
       .sort((a, b) => b.valor - a.valor).slice(0, 8);
 
     const produtos = ((fat?.por_produto ?? fat?.graficos?.por_produto ?? []) as any[])
@@ -96,10 +93,10 @@ export function useComercial(periodo: Periodo, enabled: boolean) {
         faturamento,
         delta_pct: delta(faturamento, faturamentoAnt) * 100,
         meta,
-        meta_pct: meta ? (faturamento / meta) * 100 : 0,
-        ticket_medio: num(k.ticket_medio ?? (notas ? faturamento / notas : 0)),
+        meta_pct: safeDiv(faturamento, meta) * 100,
+        ticket_medio: num(k.ticket_medio ?? safeDiv(faturamento, notas)),
         qtd_notas: notas,
-        desconto_pct: faturamento ? (desconto / (faturamento + desconto)) * 100 : 0,
+        desconto_pct: safeDiv(desconto, faturamento + desconto) * 100,
       },
       series: { faturamento_meta },
       breakdowns: { revendas, produtos, ufs },
