@@ -4,6 +4,13 @@ import {
   fetchResumoFolhaDashboard, fetchTurnoverDashboard, fetchAbsenteismoDashboard, fetchQuadroColaboradores,
 } from '@/lib/rh/api';
 import { rangeFor, num, labelAnomes, statusFrom, type Periodo, type ModStatus } from './shared';
+import {
+  TurnoverResponseSchema, EMPTY_TURNOVER,
+  AbsenteismoResponseSchema, EMPTY_ABS,
+  FolhaResponseSchema, EMPTY_FOLHA,
+  QuadroColaboradoresSchema, EMPTY_QUADRO,
+} from '@/lib/dashboardGeral/schemas/rh';
+import { parseOrEmpty } from '@/lib/dashboardGeral/schemas/_utils';
 
 export interface RhData {
   kpis: {
@@ -46,50 +53,53 @@ export function useRh(periodo: Periodo, enabled: boolean, codemp = 1) {
   const [qFolha, qTurn, qAbs, qQuadro] = queries;
 
   const data: RhData = useMemo(() => {
-    const folha: any = qFolha.data ?? {};
-    const turn: any = qTurn.data ?? {};
-    const abs: any = qAbs.data ?? {};
-    const quadro: any[] = Array.isArray(qQuadro.data) ? qQuadro.data : [];
+    const folhaP = parseOrEmpty(FolhaResponseSchema, qFolha.data, EMPTY_FOLHA, 'rh/folha');
+    const turnP = parseOrEmpty(TurnoverResponseSchema, qTurn.data, EMPTY_TURNOVER, 'rh/turnover');
+    const absP = parseOrEmpty(AbsenteismoResponseSchema, qAbs.data, EMPTY_ABS, 'rh/absenteismo');
+    const quadroP = parseOrEmpty(QuadroColaboradoresSchema, qQuadro.data, EMPTY_QUADRO, 'rh/quadro');
+    const quadro = quadroP.data;
 
     const ativos = quadro.filter((c) => {
-      const sit = String(c.situacao ?? c.status ?? c.ds_situacao ?? '').toLowerCase();
+      const sit = c.situacao.toLowerCase();
       return sit.includes('ativ') || sit === '' || sit === 't' || sit === 'a';
     }).length || quadro.length;
 
-    const headcount = ((turn?.por_mes ?? []) as any[]).slice(-12).map((r) => ({
-      label: labelAnomes(String(r.anomes ?? r.mes ?? '').replace(/\D/g, '').slice(0, 6)),
-      valor: num(r.headcount_fim ?? r.headcount ?? r.headcount_medio),
+    const headcount = turnP.data.por_mes.slice(-12).map((r) => ({
+      label: labelAnomes(String(r.anomes).replace(/\D/g, '').slice(0, 6)),
+      valor: r.headcount_fim,
     }));
-    const turnover_mes = ((turn?.por_mes ?? []) as any[]).slice(-12).map((r) => ({
-      label: labelAnomes(String(r.anomes ?? r.mes ?? '').replace(/\D/g, '').slice(0, 6)),
-      valor: num(r.taxa_rotatividade_pct ?? r.turnover_pct ?? r.taxa),
+    const turnover_mes = turnP.data.por_mes.slice(-12).map((r) => ({
+      label: labelAnomes(String(r.anomes).replace(/\D/g, '').slice(0, 6)),
+      valor: r.taxa_rotatividade_pct,
     }));
-    const absenteismo_motivo = ((abs?.por_motivo ?? []) as any[])
-      .map((r) => ({ label: String(r.motivo ?? r.descricao ?? '—').slice(0, 24), valor: num(r.dias_perdidos ?? r.dias ?? r.qtd) }))
+    const absenteismo_motivo = absP.data.por_motivo
+      .map((r) => ({ label: r.motivo || '—', valor: r.dias_perdidos }))
       .sort((a, b) => b.valor - a.valor).slice(0, 8);
 
     const setorMap: Record<string, number> = {};
     quadro.forEach((c) => {
-      const s = String(c.setor ?? c.departamento ?? c.ds_setor ?? '—');
+      const s = c.setor || '—';
       setorMap[s] = (setorMap[s] || 0) + 1;
     });
     const setor = Object.entries(setorMap).map(([label, valor]) => ({ label, valor: valor as number }))
       .sort((a, b) => b.valor - a.valor).slice(0, 8);
 
+    const anyPartial = folhaP.partial || turnP.partial || absP.partial || quadroP.partial;
+
     return {
       kpis: {
         headcount: ativos,
-        admissoes: num(turn?.kpis?.admitidos ?? turn?.kpis?.admissoes),
-        demissoes: num(turn?.kpis?.demitidos ?? turn?.kpis?.demissoes),
-        turnover_pct: num(turn?.kpis?.taxa_rotatividade_pct ?? turn?.kpis?.turnover_pct),
-        absenteismo_pct: num(abs?.kpis?.taxa_absenteismo_pct ?? abs?.kpis?.absenteismo_pct),
-        custo_folha: num(folha?.kpis?.custo_total),
+        admissoes: turnP.data.kpis.admitidos,
+        demissoes: turnP.data.kpis.demitidos,
+        turnover_pct: turnP.data.kpis.taxa_rotatividade_pct,
+        absenteismo_pct: absP.data.kpis.taxa_absenteismo_pct,
+        custo_folha: folhaP.data.kpis.custo_total,
       },
       series: { headcount, turnover_mes },
       breakdowns: { absenteismo_motivo, setor },
-      status: statusFrom(qFolha, enabled),
+      status: statusFrom(qFolha, enabled, anyPartial),
     };
-  }, [qFolha.data, qTurn.data, qAbs.data, qQuadro.data, qFolha.isLoading, qFolha.isError, enabled]);
+  }, [qFolha.data, qTurn.data, qAbs.data, qQuadro.data, qFolha.isLoading, qFolha.isFetching, qFolha.isError, enabled]);
 
   return { data: enabled ? data : EMPTY, loading: enabled && queries.some((q) => q.isLoading), refetch: () => Promise.all(queries.map((q) => q.refetch())), range };
 }
