@@ -38,8 +38,7 @@ export const DRILL_LABELS: Record<DrillDimensao, string> = {
 
 export interface DrillDreParams {
   modelo_id: string;
-  linha_id?: string | null;
-  codigo_linha?: string | null;
+  linha_id: string;
   agrupar_por: DrillDimensao;
   codemp?: number | null;
   codfil?: number | null;
@@ -62,7 +61,6 @@ export interface DrillDreColumn {
 export interface DrillDreResponse {
   modelo_id?: string;
   linha_id?: string;
-  codigo_linha?: string;
   agrupar_por: DrillDimensao;
   columns: DrillDreColumn[];
   rows: Array<Record<string, any>>;
