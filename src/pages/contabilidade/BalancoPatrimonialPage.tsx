@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PageHeader } from '@/components/erp/PageHeader';
@@ -11,8 +11,11 @@ import { getBalancoPatrimonial, BalancoPatrimonialItem, BalancoPatrimonialFilter
 import { formatCurrency } from '@/lib/format';
 import { toast } from 'sonner';
 import { Landmark, Scale, Wallet, Hash } from 'lucide-react';
+import { FilterPresetBar } from '@/components/filters/FilterPresetBar';
+import { useFilterPresets } from '@/hooks/useFilterPresets';
 
 const currentYear = new Date().getFullYear();
+const PAGE_KEY = 'balanco-patrimonial';
 
 export default function BalancoPatrimonialPage() {
   const [filters, setFilters] = useState<BalancoPatrimonialFilters>({
@@ -53,7 +56,16 @@ export default function BalancoPatrimonialPage() {
     }
   };
 
-  const onSearch = () => { setPagina(1); fetchData(1); };
+  const { defaultPreset, lastFilters, saveLastFilters, loading: presetsLoading } = useFilterPresets<BalancoPatrimonialFilters>(PAGE_KEY);
+  const bootstrapped = useRef(false);
+  useEffect(() => {
+    if (bootstrapped.current || presetsLoading) return;
+    bootstrapped.current = true;
+    const initial = defaultPreset?.filtros ?? lastFilters;
+    if (initial) setFilters((prev) => ({ ...prev, ...initial }));
+  }, [presetsLoading, defaultPreset, lastFilters]);
+
+  const onSearch = () => { saveLastFilters(filters); setPagina(1); fetchData(1); };
   const onClear = () => {
     setFilters({
       anomes_ini: `${currentYear}01`,
@@ -100,6 +112,12 @@ export default function BalancoPatrimonialPage() {
             label="Exportar Excel"
           />
         }
+      />
+
+      <FilterPresetBar
+        pageKey={PAGE_KEY}
+        currentFilters={filters}
+        onApply={(f) => setFilters((prev) => ({ ...prev, ...f }))}
       />
 
       <FilterPanel onSearch={onSearch} onClear={onClear}>

@@ -61,6 +61,22 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { FilterPresetBar } from "@/components/filters/FilterPresetBar";
+import { useFilterPresets } from "@/hooks/useFilterPresets";
+
+const DRE_VIS_PAGE_KEY = "dre-studio-visualizacao";
+interface DreVisFilterPreset {
+  anoSelecionado?: number;
+  mesesVisiveis?: number[];
+  codccu?: string;
+  codfil?: string;
+  visao?: Visao;
+  dataIni?: string;
+  dataFim?: string;
+  modoBalanco?: ModoBalanco;
+  dataCorte?: string;
+  aplicarRefSenior?: boolean;
+}
 
 
 type Visao = "REAL" | "ORC" | "VARV" | "VARP" | "COMP";
@@ -326,6 +342,40 @@ function Visualizacao() {
   const [materOpen, setMaterOpen] = useState(false);
   const vincular = useVincularContasBalancoSenior(id);
   const qc = useQueryClient();
+
+  // ===== Presets de filtros salvos =====
+  const currentPresetFilters: DreVisFilterPreset = {
+    anoSelecionado, mesesVisiveis, codccu, codfil, visao,
+    dataIni, dataFim, modoBalanco, dataCorte, aplicarRefSenior,
+  };
+  const applyPresetFilters = (f: DreVisFilterPreset) => {
+    if (f.anoSelecionado != null) setAnoSelecionado(f.anoSelecionado);
+    if (f.mesesVisiveis) setMesesVisiveis(f.mesesVisiveis);
+    if (f.codccu != null) setCodccu(f.codccu);
+    if (f.codfil != null) setCodfil(f.codfil);
+    if (f.visao) setVisao(f.visao);
+    if (f.dataIni) setDataIni(f.dataIni);
+    if (f.dataFim) setDataFim(f.dataFim);
+    if (f.modoBalanco) setModoBalanco(f.modoBalanco);
+    if (f.dataCorte != null) setDataCorte(f.dataCorte);
+    if (typeof f.aplicarRefSenior === "boolean") setAplicarRefSenior(f.aplicarRefSenior);
+  };
+  const presetHook = useFilterPresets<DreVisFilterPreset>(DRE_VIS_PAGE_KEY);
+  const [presetsBootstrapped, setPresetsBootstrapped] = useState(false);
+  useEffect(() => {
+    if (presetsBootstrapped || presetHook.loading) return;
+    setPresetsBootstrapped(true);
+    const initial = presetHook.defaultPreset?.filtros ?? presetHook.lastFilters;
+    if (initial) applyPresetFilters(initial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presetHook.loading, presetHook.defaultPreset, presetHook.lastFilters]);
+  useEffect(() => {
+    if (!presetsBootstrapped) return;
+    presetHook.saveLastFilters(currentPresetFilters);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anoSelecionado, mesesVisiveis, codccu, codfil, visao, dataIni, dataFim, modoBalanco, dataCorte, aplicarRefSenior]);
+
+
 
 
 
@@ -1256,6 +1306,13 @@ function Visualizacao() {
   return (
     <MoneyDisplayProvider noCents={semCasasDecimais}>
     <div className="p-6">
+      <div className="mb-3">
+        <FilterPresetBar<DreVisFilterPreset>
+          pageKey={DRE_VIS_PAGE_KEY}
+          currentFilters={currentPresetFilters}
+          onApply={applyPresetFilters}
+        />
+      </div>
       {deveAvisarRefSeniorNaoAplicada && !!q.data && (
           <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm text-amber-900">
             <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
