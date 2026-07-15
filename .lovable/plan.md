@@ -1,27 +1,19 @@
-## Alteração
+Formatar a coluna **Data** dos drills em pt-BR (dd/mm/yyyy).
 
-Em `src/components/dre-studio/DrillDrawer.tsx` (drawer de auditoria "Drill — (-)Devoluções" mostrado no print), separar a coluna combinada **Lote/Nº** em duas colunas independentes: **Lote** e **Número**.
+### Alteração em `src/components/dre-studio/DrillDrawer.tsx`
 
-### Mudanças pontuais
+1. Adicionar helper local:
+```ts
+function fmtDataBR(v: unknown): string {
+  if (v == null || v === "") return "";
+  const s = String(v);
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? s : d.toLocaleDateString("pt-BR");
+}
+```
 
-1. No `<TableHeader>` (linha ~167), trocar:
-   ```
-   <TableHead>Lote/Nº</TableHead>
-   ```
-   por dois cabeçalhos:
-   ```
-   <TableHead>Lote</TableHead>
-   <TableHead>Número</TableHead>
-   ```
+2. Trocar `{r.data}` na célula da coluna Data por `{fmtDataBR(r.data)}`.
 
-2. No `<TableBody>` (linha ~179), trocar a célula única:
-   ```
-   <TableCell>{r.lote ?? ""} / {r.numero ?? ""}</TableCell>
-   ```
-   por duas células:
-   ```
-   <TableCell className="text-xs whitespace-nowrap">{r.lote ?? ""}</TableCell>
-   <TableCell className="text-xs whitespace-nowrap">{r.numero ?? ""}</TableCell>
-   ```
-
-Nenhuma outra alteração: os demais drills (`DrillResultadoPanel`) já usam colunas separadas de Lote e Número.
+`DrillResultadoPanel.tsx` já usa `fmtData` no formato pt-BR — não precisa mudar.
