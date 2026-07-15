@@ -56,19 +56,18 @@ export function useContabilidade(periodo: Periodo, enabled: boolean) {
   const [qBal, qDre] = queries;
 
   const data: ContabilidadeData = useMemo(() => {
-    const bal: any = qBal.data ?? {};
-    const linhas: any[] = bal.dados ?? bal.linhas ?? [];
+    const balP = parseOrEmpty(BalancoResponseSchema, qBal.data, EMPTY_BALANCO, 'contabilidade/balanco');
+    const dreP = parseOrEmpty(DreResumoResponseSchema, qDre.data, EMPTY_DRE, 'contabilidade/dre');
+    const linhas = balP.data.dados;
 
-    // Agrupa pelo campo `grupo` (Ativo/Passivo/Patrimônio Líquido).
     const grupoMap: Record<string, { valor: number; tipo: 'A' | 'P' | 'PL' }> = {};
     linhas.forEach((l) => {
-      const grupo = String(l.grupo ?? l.descricao_grupo ?? '—').trim();
-      if (!grupo || grupo === '—') return;
-      const val = num(l.saldo_atual ?? l.saldo ?? l.valor);
+      const grupo = l.grupo.trim();
+      if (!grupo) return;
       const up = grupo.toUpperCase();
       const tp: 'A' | 'P' | 'PL' = up.includes('PATRIM') ? 'PL' : up.startsWith('PASSIV') ? 'P' : 'A';
       if (!grupoMap[grupo]) grupoMap[grupo] = { valor: 0, tipo: tp };
-      grupoMap[grupo].valor += val;
+      grupoMap[grupo].valor += l.saldo_atual;
     });
     const balancoAgg = Object.entries(grupoMap)
       .map(([grupo, v]) => ({ grupo, valor: v.valor, tipo: v.tipo }))
@@ -78,13 +77,12 @@ export function useContabilidade(periodo: Periodo, enabled: boolean) {
     const passivo = balancoAgg.filter((b) => b.tipo === 'P').reduce((s, b) => s + b.valor, 0);
     const pl = balancoAgg.filter((b) => b.tipo === 'PL').reduce((s, b) => s + b.valor, 0);
 
-    const dre: any = qDre.data ?? {};
-    const totais = dre.totais ?? {};
+    const totais = dreP.data.totais;
     const dre_top = [
-      { label: 'Receita', valor: num(totais.receita_operacional ?? totais.receita) },
-      { label: 'Custos', valor: -Math.abs(num(totais.custos)) },
-      { label: 'Despesas', valor: -Math.abs(num(totais.despesas)) },
-      { label: 'Resultado', valor: num(totais.resultado_dre ?? totais.resultado) },
+      { label: 'Receita', valor: totais.receita_operacional },
+      { label: 'Custos', valor: -Math.abs(totais.custos) },
+      { label: 'Despesas', valor: -Math.abs(totais.despesas) },
+      { label: 'Resultado', valor: totais.resultado_dre },
     ];
 
     return {
@@ -92,15 +90,15 @@ export function useContabilidade(periodo: Periodo, enabled: boolean) {
         ativo,
         passivo,
         pl,
-        resultado_exercicio: num(totais.resultado_dre ?? totais.resultado),
-        receita: num(totais.receita_operacional ?? totais.receita),
-        margem_pct: num(totais.margem_pct ?? totais.margem),
+        resultado_exercicio: totais.resultado_dre,
+        receita: totais.receita_operacional,
+        margem_pct: totais.margem_pct,
       },
       balanco: balancoAgg.slice(0, 12),
       dre_top,
-      status: statusFrom(qBal, enabled),
+      status: statusFrom(qBal, enabled, balP.partial || dreP.partial),
     };
-  }, [qBal.data, qDre.data, qBal.isLoading, qBal.isError, enabled]);
+  }, [qBal.data, qDre.data, qBal.isLoading, qBal.isFetching, qBal.isError, enabled]);
 
   return { data: enabled ? data : EMPTY, loading: enabled && queries.some((q) => q.isLoading), refetch: () => Promise.all(queries.map((q) => q.refetch())), range };
 }
