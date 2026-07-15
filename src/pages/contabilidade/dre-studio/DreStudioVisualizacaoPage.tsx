@@ -1306,6 +1306,13 @@ function Visualizacao() {
   return (
     <MoneyDisplayProvider noCents={semCasasDecimais}>
     <div className="p-6">
+      <div className="mb-3">
+        <FilterPresetBar<DreVisFilterPreset>
+          pageKey={DRE_VIS_PAGE_KEY}
+          currentFilters={currentPresetFilters}
+          onApply={applyPresetFilters}
+        />
+      </div>
       {deveAvisarRefSeniorNaoAplicada && !!q.data && (
           <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm text-amber-900">
             <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
