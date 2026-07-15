@@ -25,6 +25,22 @@ import {
 import { useDrillLancamentos } from "@/hooks/contabil/api";
 import { cn } from "@/lib/utils";
 
+/** Converte qualquer valor em texto legível. Evita "[object Object]" quando o
+ *  backend envia campos estruturados (ex.: conta_debito como { ctared, descta }). */
+function toDisplay(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") return String(v);
+  if (typeof v === "object") {
+    const o = v as Record<string, any>;
+    const codigo = o.ctared ?? o.codigo ?? o.clacta ?? o.code ?? o.id;
+    const desc = o.descta ?? o.descricao ?? o.nome ?? o.name ?? o.label;
+    const parts = [codigo, desc].filter((p) => p !== undefined && p !== null && String(p).trim() !== "");
+    if (parts.length) return parts.map(String).join(" - ");
+    try { return JSON.stringify(v); } catch { return ""; }
+  }
+  return String(v);
+}
+
 /** Assinatura preservada — usada por DreStudioVisualizacaoPage. */
 export interface DrillArgs {
   modeloId: string;
@@ -95,8 +111,8 @@ interface RazaoItem {
   codemp?: number | null;
   codfil?: number | null;
   numero?: number | string | null;
-  conta_debito?: string | null;
-  conta_credito?: string | null;
+  conta_debito?: string | number | Record<string, any> | null;
+  conta_credito?: string | number | Record<string, any> | null;
   codccu?: string | null;
   desccu?: string | null;
   documento?: string | null;
@@ -474,26 +490,26 @@ export function DrillDrawer({
                 <Info label="Lado (D/C)" value={detalhe.debcre} />
                 <Info
                   label="Conta Débito"
-                  value={detalhe.conta_debito}
+                  value={toDisplay(detalhe.conta_debito)}
                   strong={String(detalhe.debcre ?? '').toUpperCase() === 'D'}
                 />
                 <Info
                   label="Conta Crédito"
-                  value={detalhe.conta_credito}
+                  value={toDisplay(detalhe.conta_credito)}
                   strong={String(detalhe.debcre ?? '').toUpperCase() === 'C'}
                 />
                 <Info
                   label="Conta selecionada"
-                  value={`${detalhe.ctared ?? ""} ${detalhe.conta_descricao ?? ""}`}
+                  value={`${toDisplay(detalhe.ctared)} ${toDisplay(detalhe.conta_descricao)}`.trim()}
                 />
                 <Info
                   label="Centro de custo"
-                  value={detalhe.codccu ? `${detalhe.codccu} ${detalhe.desccu ?? ""}` : ""}
+                  value={detalhe.codccu ? `${toDisplay(detalhe.codccu)} ${toDisplay(detalhe.desccu)}`.trim() : ""}
                 />
-                <Info label="Documento" value={detalhe.documento} />
-                <Info label="Origem" value={detalhe.origem_codigo ? `${detalhe.origem_codigo} - ${detalhe.origem_descricao ?? ""}` : ""} />
-                <Info label="Usuário origem" value={detalhe.usuario_origem} />
-                <Info label="Usuário lançamento" value={detalhe.usuario_lancamento} />
+                <Info label="Documento" value={toDisplay(detalhe.documento)} />
+                <Info label="Origem" value={detalhe.origem_codigo ? `${toDisplay(detalhe.origem_codigo)} - ${toDisplay(detalhe.origem_descricao)}` : ""} />
+                <Info label="Usuário origem" value={toDisplay(detalhe.usuario_origem)} />
+                <Info label="Usuário lançamento" value={toDisplay(detalhe.usuario_lancamento)} />
                 <Info
                   label="Valor integral"
                   value={detalhe.valor_integral != null ? fmtBRL(Number(detalhe.valor_integral)) : ""}

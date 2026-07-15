@@ -1,30 +1,30 @@
-## Objetivo
+## Problema
 
-Exibir a descrição das linhas em **uma única linha** nas telas de visualização da **DRE Studio** e do **Balanço Patrimonial**, truncando com `…` quando ultrapassar **40 caracteres**, e mostrar o texto completo em **tooltip** ao passar o mouse.
+O modal do lançamento está exibindo `[object Object]` em **Conta Débito** e **Conta Crédito** porque o backend passou a devolver esses campos como objeto estruturado (`{ ctared, clacta, descta, ... }` ou similar) — a tipagem atual em `DrillLancamentoItem` declara `string`, e o `Info` renderiza direto com `String(value)`.
 
-## Mudanças
+## Solução
 
-### 1. Utilitário compartilhado
-- Criar `src/lib/textTruncate.ts` com função `truncateLabel(text, max = 40)` que corta em 40 chars e adiciona `…`, preservando o texto original para tooltip.
+Tornar o front tolerante a **qualquer formato** que o backend enviar para `conta_debito` / `conta_credito` (string simples, número, ou objeto com campos como `ctared` / `codigo` / `clacta` / `descta` / `descricao` / `nome`), formatando sempre como texto legível `"<código> - <descrição>"`.
 
-### 2. DRE Studio — Visualização
-- Em `src/pages/contabilidade/dre-studio/DreStudioVisualizacaoPage.tsx` (e/ou no componente de matriz/tabela que renderiza a coluna "Descrição"):
-  - Envolver a célula de descrição com `whitespace-nowrap overflow-hidden text-ellipsis` + `max-w-[<n>ch]` (largura equivalente a ~40 caracteres).
-  - Aplicar `title={descricaoOriginal}` (tooltip nativo) para revelar o texto completo.
-  - Manter indentação por nível e negrito das totalizadoras.
+### Mudanças
 
-### 3. Balanço Patrimonial
-- Em `src/pages/contabilidade/BalancoPatrimonialPage.tsx`, ajustar a coluna `conta` (e `grupo`/`subgrupo` se longos) na `DataTableBI`:
-  - Usar `render` custom que aplica `truncateLabel` + `title` com o valor original.
-  - Classe `whitespace-nowrap` para forçar linha única.
+1. **`src/lib/contabil/drillLancamentosApi.ts`**
+   - Ampliar o tipo `DrillLancamentoItem` para aceitar objeto ou string:
+     ```ts
+     conta_debito?: string | number | { ctared?: number|string; codigo?: string|number; clacta?: string; descta?: string; descricao?: string; nome?: string } | null;
+     conta_credito?: /* mesma união */;
+     ```
 
-### 4. Sem impacto em
-- Export para Excel (mantém texto completo).
-- Drill-down (mantém descrição completa nos modais).
-- Lógica de cálculo, filtros ou API.
+2. **`src/components/dre-studio/DrillDrawer.tsx`**
+   - Criar helper local `formatConta(v)` que:
+     - retorna `""` se nulo/vazio;
+     - se string/number, retorna o valor como está;
+     - se objeto, monta `"<codigo> - <descricao>"` a partir de `ctared||codigo||clacta` e `descta||descricao||nome` (ignorando partes vazias).
+   - Substituir `value={detalhe.conta_debito}` → `value={formatConta(detalhe.conta_debito)}` (idem para crédito).
 
-## Detalhes técnicos
+3. **Robustez extra (mesmo helper)**
+   - Aplicar defensivamente em `conta_descricao`, `desccu`, `origem_descricao`, `usuario_origem`, `usuario_lancamento`, `documento` — se o backend eventualmente enviar objeto num deles, evitamos novo `[object Object]`. Um utilitário genérico `toDisplay(v)` no topo do arquivo cobre esse caso (retorna string para primitivos, aplica `formatConta` para objetos com forma de conta, e `JSON`-safe fallback caso contrário — nunca `[object Object]`).
 
-- Truncamento sempre pelo comprimento de caracteres (40), sem quebra por palavra, para garantir padrão visual uniforme.
-- Tooltip via atributo `title` nativo (leve, acessível, sem dependência extra).
-- CSS: `truncate max-w-[40ch]` do Tailwind já cobre o caso; complementar com `title` para acessibilidade.
+### Fora de escopo
+- Nenhuma alteração de layout, lógica de drill, ou chamadas de API.
+- O "Lado (D/C)" continua vindo do campo `debcre` do backend; se estiver ausente permanece `—` (comportamento correto até o backend preencher).
