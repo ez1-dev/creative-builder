@@ -25,6 +25,22 @@ import {
 import { useDrillLancamentos } from "@/hooks/contabil/api";
 import { cn } from "@/lib/utils";
 
+/** Converte qualquer valor em texto legível. Evita "[object Object]" quando o
+ *  backend envia campos estruturados (ex.: conta_debito como { ctared, descta }). */
+function toDisplay(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") return String(v);
+  if (typeof v === "object") {
+    const o = v as Record<string, any>;
+    const codigo = o.ctared ?? o.codigo ?? o.clacta ?? o.code ?? o.id;
+    const desc = o.descta ?? o.descricao ?? o.nome ?? o.name ?? o.label;
+    const parts = [codigo, desc].filter((p) => p !== undefined && p !== null && String(p).trim() !== "");
+    if (parts.length) return parts.map(String).join(" - ");
+    try { return JSON.stringify(v); } catch { return ""; }
+  }
+  return String(v);
+}
+
 /** Assinatura preservada — usada por DreStudioVisualizacaoPage. */
 export interface DrillArgs {
   modeloId: string;
