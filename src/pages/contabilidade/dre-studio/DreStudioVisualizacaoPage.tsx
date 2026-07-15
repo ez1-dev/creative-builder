@@ -2465,7 +2465,7 @@ function Visualizacao() {
                       )}
                       <span className="inline-flex items-center gap-1">
                         <span>{descricaoExibida}</span>
-                        {l.drillavel === true && Array.isArray(l.drills) && l.drills.length > 0 && (
+                        {l.drillavel === true && Array.isArray(l.drills) && l.drills.length > 0 && l.linha_id && (
                           <DrillMenu
                             drills={l.drills}
                             onSelect={(dim: DrillDimensao) =>

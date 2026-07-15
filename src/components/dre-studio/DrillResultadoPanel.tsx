@@ -16,20 +16,22 @@ import {
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Download, Copy, ChevronDown, AlertCircle } from 'lucide-react';
+import { Download, Copy, ChevronDown, AlertCircle, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { useDrillDre } from '@/hooks/contabil/useDrillDre';
+import { useDrillLancamentos } from '@/hooks/contabil/useDrillLancamentos';
 import {
   DRILL_LABELS,
   type DrillDimensao,
   type DrillDreColumn,
 } from '@/lib/contabil/drillDreApi';
+import type { DrillLancamentoItem } from '@/lib/contabil/drillLancamentosApi';
 
 export interface DrillResultadoContext {
   modeloId: string;
-  linhaId?: string | null;
+  linhaId: string;
   codigoLinha?: string | null;
   linhaDescricao: string;
   agrupar_por: DrillDimensao;
@@ -60,6 +62,7 @@ const num = new Intl.NumberFormat('pt-BR', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
+const intFmt = new Intl.NumberFormat('pt-BR');
 
 function fmtMoeda(v: unknown): string {
   const n = typeof v === 'number' ? v : Number(v);
@@ -80,7 +83,6 @@ function fmtNum(v: unknown): string {
 function fmtData(v: unknown): string {
   if (v == null || v === '') return '—';
   const s = String(v);
-  // aceita YYYY-MM-DD ou ISO
   const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (m) return `${m[3]}/${m[2]}/${m[1]}`;
   const d = new Date(s);
@@ -112,6 +114,18 @@ function slug(s: string): string {
     .slice(0, 60);
 }
 
+// ============== Colunas do drill de lançamentos ==============
+const LCT_COLUMNS: DrillDreColumn[] = [
+  { key: 'data', label: 'Data', format: 'date' },
+  { key: 'lote', label: 'Lote', format: 'text' },
+  { key: 'numero', label: 'Número', format: 'text' },
+  { key: 'debito', label: 'Débito', format: 'currency' },
+  { key: 'credito', label: 'Crédito', format: 'currency' },
+  { key: 'ccu', label: 'Centro de Custo', format: 'text' },
+  { key: 'historico', label: 'Histórico', format: 'text' },
+  { key: 'valor', label: 'Valor', format: 'currency' },
+];
+
 export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(500);
@@ -119,12 +133,13 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
   // reset page when ctx changes
   useMemo(() => setPage(1), [ctx?.linhaId, ctx?.agrupar_por]);
 
-  const q = useDrillDre(
-    ctx
+  const isLancamento = ctx?.agrupar_por === 'lancamento';
+
+  const qAgg = useDrillDre(
+    ctx && !isLancamento
       ? {
           modelo_id: ctx.modeloId,
-          linha_id: ctx.linhaId ?? undefined,
-          codigo_linha: ctx.codigoLinha ?? undefined,
+          linha_id: ctx.linhaId,
           agrupar_por: ctx.agrupar_por,
           anomes_ini: ctx.filtros.anomes_ini,
           anomes_fim: ctx.filtros.anomes_fim,
@@ -140,19 +155,52 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
     open,
   );
 
-  const columns = q.data?.columns ?? [];
-  const rows = q.data?.rows ?? [];
+  const qLct = useDrillLancamentos(
+    ctx && isLancamento
+      ? {
+          modelo_id: ctx.modeloId,
+          linha_id: ctx.linhaId,
+          anomes_ini: ctx.filtros.anomes_ini,
+          anomes_fim: ctx.filtros.anomes_fim,
+          codemp: ctx.filtros.codemp ?? undefined,
+          codfil: ctx.filtros.codfil ?? undefined,
+          unidade: ctx.filtros.unidade ?? undefined,
+          centro_custo: ctx.filtros.centro_custo ?? undefined,
+          limite: 5000,
+        }
+      : null,
+    open,
+  );
+
+  const isLoading = isLancamento ? qLct.isLoading : qAgg.isLoading;
+  const isError = isLancamento ? qLct.isError : qAgg.isError;
+  const error = (isLancamento ? qLct.error : qAgg.error) as Error | null;
+  const isFetching = isLancamento ? qLct.isFetching : qAgg.isFetching;
+
+  const columns: DrillDreColumn[] = isLancamento
+    ? LCT_COLUMNS
+    : (qAgg.data?.columns ?? []);
+  const rows: Array<Record<string, any>> = isLancamento
+    ? ((qLct.data?.itens ?? []) as DrillLancamentoItem[])
+    : (qAgg.data?.rows ?? []);
+
+  const truncado = isLancamento ? Boolean(qLct.data?.truncado) : false;
+  const qtdTotal = isLancamento ? (qLct.data?.qtd_total ?? 0) : 0;
 
   const totalDrill = useMemo(() => {
-    if (q.data?.total != null) return q.data.total;
-    // heurística: primeira coluna currency
-    const c = columns.find((x) => x.format === 'currency' && /valor|total|saldo/i.test(x.key)) ??
-              columns.find((x) => x.format === 'currency');
+    if (isLancamento) {
+      if (typeof qLct.data?.total_valor === 'number') return qLct.data.total_valor;
+      return rows.reduce((s, r) => s + (Number(r.valor) || 0), 0);
+    }
+    if (qAgg.data?.total != null) return qAgg.data.total;
+    const c =
+      columns.find((x) => x.format === 'currency' && /valor|total|saldo/i.test(x.key)) ??
+      columns.find((x) => x.format === 'currency');
     if (!c) return null;
     return rows.reduce((s, r) => s + (Number(r[c.key]) || 0), 0);
-  }, [q.data, rows, columns]);
+  }, [isLancamento, qLct.data, qAgg.data, rows, columns]);
 
-  const totalLinha = ctx?.totalLinhaDre ?? q.data?.total_linha ?? null;
+  const totalLinha = ctx?.totalLinhaDre ?? qAgg.data?.total_linha ?? null;
   const diferenca =
     totalLinha != null && totalDrill != null ? totalLinha - totalDrill : null;
 
@@ -234,24 +282,36 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
         </SheetHeader>
 
         <div className="mt-4">
-          {q.isLoading ? (
+          {isLoading ? (
             <div className="space-y-2">
+              <div className="text-xs text-muted-foreground mb-1">Carregando drill...</div>
               {Array.from({ length: 8 }).map((_, i) => (
                 <Skeleton key={i} className="h-8 w-full" />
               ))}
             </div>
-          ) : q.isError ? (
-            <ErroBloco err={q.error as Error} />
+          ) : isError ? (
+            <ErroBloco err={error as Error} />
           ) : rows.length === 0 ? (
             <div className="rounded-lg border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
-              Nenhum lançamento encontrado para esta linha e período.
+              Nenhum dado encontrado para esta linha e período.
             </div>
           ) : (
             <>
+              {truncado && (
+                <div className="mb-3 flex items-start gap-2 rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+                  <Info className="h-4 w-4 shrink-0 mt-0.5" />
+                  <div>
+                    Foram exibidos os primeiros {intFmt.format(rows.length)} lançamentos
+                    de um total de {intFmt.format(qtdTotal)} registros. Refine o período
+                    ou os filtros para visualizar menos registros.
+                  </div>
+                </div>
+              )}
+
               <div className="mb-3 flex items-center justify-between gap-2">
                 <div className="text-xs text-muted-foreground">
                   {rows.length} {rows.length === 1 ? 'registro' : 'registros'}
-                  {q.data?.has_more && ' · há mais resultados'}
+                  {!isLancamento && qAgg.data?.has_more && ' · há mais resultados'}
                 </div>
                 <div className="flex gap-1">
                   <Button size="sm" variant="outline" className="gap-1" onClick={copiar}>
@@ -313,13 +373,13 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
                 </Table>
               </div>
 
-              {q.data?.has_more && (
+              {!isLancamento && qAgg.data?.has_more && (
                 <div className="mt-3 flex justify-center">
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => setPage((p) => p + 1)}
-                    disabled={q.isFetching}
+                    disabled={isFetching}
                   >
                     Carregar mais
                   </Button>
@@ -371,7 +431,7 @@ function ErroBloco({ err }: { err: Error }) {
     <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm">
       <div className="flex items-center gap-2 font-medium text-destructive">
         <AlertCircle className="h-4 w-4" />
-        Não foi possível carregar o drill desta linha.
+        Não foi possível carregar o drill.
       </div>
       <button
         type="button"

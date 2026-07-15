@@ -22,20 +22,38 @@ const ICONS: Record<DrillDimensao, React.ComponentType<{ className?: string }>> 
   unidade_negocio: Landmark,
 };
 
+export type DrillMenuItem = string | { chave: string; label?: string | null };
+
 interface Props {
-  drills: string[];
+  drills: DrillMenuItem[];
   onSelect: (d: DrillDimensao) => void;
   disabled?: boolean;
 }
 
+interface Normalized {
+  dim: DrillDimensao;
+  label: string;
+}
+
+function normalize(items: DrillMenuItem[]): Normalized[] {
+  const seen = new Set<DrillDimensao>();
+  const out: Normalized[] = [];
+  for (const it of items ?? []) {
+    const chave = typeof it === 'string' ? it : it?.chave;
+    const dim = normalizarDrillDimensao(String(chave ?? ''));
+    if (!dim || seen.has(dim)) continue;
+    seen.add(dim);
+    const label =
+      typeof it === 'object' && it && it.label
+        ? String(it.label)
+        : DRILL_LABELS[dim];
+    out.push({ dim, label });
+  }
+  return out;
+}
+
 export function DrillMenu({ drills, onSelect, disabled }: Props) {
-  const dims = Array.from(
-    new Set(
-      (drills ?? [])
-        .map(normalizarDrillDimensao)
-        .filter((d): d is DrillDimensao => d !== null),
-    ),
-  );
+  const dims = normalize(drills ?? []);
   if (dims.length === 0) return null;
 
   return (
@@ -58,19 +76,19 @@ export function DrillMenu({ drills, onSelect, disabled }: Props) {
           Lista de Drills
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {dims.map((d) => {
-          const Icon = ICONS[d];
+        {dims.map(({ dim, label }) => {
+          const Icon = ICONS[dim];
           return (
             <DropdownMenuItem
-              key={d}
+              key={dim}
               onClick={(e) => {
                 e.stopPropagation();
-                onSelect(d);
+                onSelect(dim);
               }}
               className="gap-2 text-sm"
             >
               <Icon className="h-4 w-4 text-muted-foreground" />
-              {DRILL_LABELS[d]}
+              {label}
             </DropdownMenuItem>
           );
         })}

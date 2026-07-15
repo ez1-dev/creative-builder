@@ -181,7 +181,7 @@ export interface ComparativoLinhaV2 {
 
   // ---- Drill-down agregado (novo backend) ----
   drillavel?: boolean;
-  drills?: string[];
+  drills?: Array<string | { chave: string; label?: string | null }>;
   codigo_linha?: string | null;
 }
 

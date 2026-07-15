@@ -38,8 +38,7 @@ export const DRILL_LABELS: Record<DrillDimensao, string> = {
 
 export interface DrillDreParams {
   modelo_id: string;
-  linha_id?: string | null;
-  codigo_linha?: string | null;
+  linha_id: string;
   agrupar_por: DrillDimensao;
   codemp?: number | null;
   codfil?: number | null;
@@ -62,7 +61,6 @@ export interface DrillDreColumn {
 export interface DrillDreResponse {
   modelo_id?: string;
   linha_id?: string;
-  codigo_linha?: string;
   agrupar_por: DrillDimensao;
   columns: DrillDreColumn[];
   rows: Array<Record<string, any>>;
@@ -102,8 +100,7 @@ export async function fetchDrillDre(params: DrillDreParams): Promise<DrillDreRes
     anomes_ini: params.anomes_ini,
     anomes_fim: params.anomes_fim,
   };
-  if (params.linha_id) query.linha_id = params.linha_id;
-  if (!params.linha_id && params.codigo_linha) query.codigo_linha = params.codigo_linha;
+  query.linha_id = params.linha_id;
   if (params.codemp != null) query.codemp = params.codemp;
   if (params.codfil != null) query.codfil = params.codfil;
   if (params.unidade) query.unidade = params.unidade;
@@ -122,8 +119,7 @@ export async function fetchDrillDre(params: DrillDreParams): Promise<DrillDreRes
 
   return {
     modelo_id: data?.modelo_id ?? params.modelo_id,
-    linha_id: data?.linha_id ?? params.linha_id ?? undefined,
-    codigo_linha: data?.codigo_linha ?? params.codigo_linha ?? undefined,
+    linha_id: data?.linha_id ?? params.linha_id,
     agrupar_por: (data?.agrupar_por as DrillDimensao) ?? params.agrupar_por,
     columns,
     rows,
