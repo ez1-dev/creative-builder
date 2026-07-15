@@ -32,45 +32,39 @@ export function useEstoque(enabled: boolean) {
   });
 
   const data: EstoqueData = useMemo(() => {
-    const d: any = q.data ?? {};
-    const rows: any[] = d.dados ?? [];
-    const resumo: any = d.resumo ?? {};
+    const parsed = parseOrEmpty(EstoqueMinMaxResponseSchema, q.data, EMPTY_ESTOQUE, 'estoque');
+    const d = parsed.data;
 
     const rup: EstoqueData['rupturas'] = [];
-    rows.forEach((r) => {
-      const saldo = num(r.saldo_atual ?? r.saldo);
-      const min = num(r.estoque_minimo ?? r.minimo);
-      if (min > 0 && saldo < min) {
+    d.dados.forEach((r) => {
+      if (r.estoque_minimo > 0 && r.saldo_atual < r.estoque_minimo) {
         rup.push({
-          codigo: String(r.codigo ?? r.codpro ?? '—'),
-          descricao: String(r.descricao ?? r.despro ?? '—').slice(0, 40),
-          saldo,
-          minimo: min,
-          falta: min - saldo,
+          codigo: r.codigo || '—',
+          descricao: r.descricao || '—',
+          saldo: r.saldo_atual,
+          minimo: r.estoque_minimo,
+          falta: r.estoque_minimo - r.saldo_atual,
         });
       }
     });
     rup.sort((a, b) => b.falta - a.falta);
 
-    const total = num(d.total_registros ?? rows.length);
-    const abaixo = num(resumo.abaixo_minimo ?? rup.length);
-    const acima = num(resumo.acima_maximo);
-    const semPol = num(resumo.sem_politica);
-    const ok = num(resumo.ok);
+    const total = d.total_registros || d.dados.length;
+    const abaixo = d.resumo.abaixo_minimo || rup.length;
 
     return {
       kpis: {
         total_itens: total,
         itens_abaixo_min: abaixo,
-        itens_acima_max: acima,
-        sem_politica: semPol,
-        itens_ok: ok,
+        itens_acima_max: d.resumo.acima_maximo,
+        sem_politica: d.resumo.sem_politica,
+        itens_ok: d.resumo.ok,
         ruptura_pct: safeDiv(abaixo, total) * 100,
       },
       rupturas: rup.slice(0, 10),
-      status: statusFrom(q, enabled),
+      status: statusFrom(q, enabled, parsed.partial),
     };
-  }, [q.data, q.isLoading, q.isError, enabled]);
+  }, [q.data, q.isLoading, q.isFetching, q.isError, enabled]);
 
   return { data: enabled ? data : EMPTY, loading: enabled && q.isLoading, refetch: () => q.refetch() };
 }
