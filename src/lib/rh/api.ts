@@ -437,11 +437,15 @@ export async function fetchProgramacaoFeriasDashboard(
       ferias_total: num(k.ferias_total),
       de_ferias: num(k.de_ferias),
     },
+    ativos_total: num(resp?.ativos_total),
+    ferias_vencidas_diagnostico: resp?.ferias_vencidas_diagnostico,
     limite_ferias_pivot: pivotNorm,
     programacao_proximos_90_dias: Array.isArray(resp?.programacao_proximos_90_dias)
       ? resp.programacao_proximos_90_dias
       : [],
     primeiro_vencimento_sem_programacao: sem,
+    detalhe: Array.isArray(resp?.detalhe) ? resp.detalhe : [],
+    de_ferias_detalhe: Array.isArray(resp?.de_ferias_detalhe) ? resp.de_ferias_detalhe : [],
   };
 }
 
@@ -860,7 +864,7 @@ export async function fetchContratoExperienciaDashboardCached(
 export async function fetchProgramacaoFeriasDashboardCached(
   codemp: number = 1,
 ): Promise<import("./types").ProgramacaoFeriasDashboard> {
-  const key = `rh:programacao-ferias:${codemp}`;
+  const key = `rh:programacao-ferias:v2:${codemp}`;
   return withRhCache(key, RH_CACHE_DEFAULT_TTL_MS, () => fetchProgramacaoFeriasDashboard(codemp));
 }
 
