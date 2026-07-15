@@ -14,6 +14,9 @@ import { Landmark, Scale, Wallet, Hash } from 'lucide-react';
 import { FilterPresetBar } from '@/components/filters/FilterPresetBar';
 import { useFilterPresets } from '@/hooks/useFilterPresets';
 import { truncateLabel } from '@/lib/textTruncate';
+import { Button } from '@/components/ui/button';
+import { Pencil } from 'lucide-react';
+import { BalancoEstruturaEditor } from '@/components/contabil/edicao/BalancoEstruturaEditor';
 
 const currentYear = new Date().getFullYear();
 const PAGE_KEY = 'balanco-patrimonial';
