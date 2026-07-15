@@ -1260,7 +1260,23 @@ export interface DrillLancamentosResponse {
   qtd_exibida?: number | null;
   truncado?: boolean | null;
   fonte?: string | null;
+  // ---- Novos campos do Razão / Extrato Contábil (opcionais até backend expor) ----
+  meta?: {
+    modelo_id?: string;
+    linha_id?: string;
+    ctared?: number | null;
+    clacta?: string | null;
+    descricao_conta?: string | null;
+    data_ini?: string | null;
+    data_fim?: string | null;
+  } | null;
+  saldo_inicial?: number | null;
+  saldo_final?: number | null;
+  total_debito?: number | null;
+  total_credito?: number | null;
+  itens?: any[] | null;
 }
+
 
 export function useDrillLancamentos(
   params: DrillLancamentosParams | null,
