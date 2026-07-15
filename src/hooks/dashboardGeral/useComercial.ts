@@ -7,6 +7,8 @@ import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { rangeFor, num, delta, labelAnomes, safeDiv, statusFrom, type Periodo, type ModStatus } from './shared';
+import { FaturamentoGeniusResponseSchema, EMPTY_FATURAMENTO } from '@/lib/dashboardGeral/schemas/comercial';
+import { parseOrEmpty } from '@/lib/dashboardGeral/schemas/_utils';
 
 export interface ComercialData {
   kpis: {
@@ -57,35 +59,36 @@ export function useComercial(periodo: Periodo, enabled: boolean) {
   const [qFat, qFatAnt] = queries;
 
   const data: ComercialData = useMemo(() => {
-    const fat: any = qFat.data ?? {};
-    const fatAnt: any = qFatAnt.data ?? {};
-    const k = fat?.kpis ?? {};
-    const kAnt = fatAnt?.kpis ?? {};
+    const fatP = parseOrEmpty(FaturamentoGeniusResponseSchema, qFat.data, EMPTY_FATURAMENTO, 'comercial');
+    const fatAntP = parseOrEmpty(FaturamentoGeniusResponseSchema, qFatAnt.data, EMPTY_FATURAMENTO, 'comercial');
+    const fat = fatP.data;
+    const fatAnt = fatAntP.data;
+    const k = fat.kpis;
+    const kAnt = fatAnt.kpis;
 
-    const faturamento = num(k.valor_total ?? k.fat_liquido ?? k.faturamento_liquido ?? k.faturamento);
-    const faturamentoAnt = num(kAnt.valor_total ?? kAnt.fat_liquido ?? kAnt.faturamento_liquido ?? kAnt.faturamento);
-    const meta = num(k.meta_faturamento ?? k.meta ?? k.meta_total);
-    const notas = num(k.quantidade_notas ?? k.qtd_notas ?? k.count_notas);
-    const desconto = num(k.valor_desconto ?? k.desconto_total);
+    const faturamento = k.valor_total;
+    const faturamentoAnt = kAnt.valor_total;
+    const meta = k.meta_faturamento;
+    const notas = k.quantidade_notas;
+    const desconto = k.valor_desconto;
 
-    const serie: any[] = fat?.por_mes ?? fat?.graficos?.por_mes ?? [];
-    const faturamento_meta = serie.slice(-12).map((r: any) => ({
-      label: labelAnomes(String(r.anomes ?? r.mes ?? '').replace(/\D/g, '').slice(0, 6)),
-      valor: num(r.valor_total ?? r.valor ?? r.fat_liquido ?? r.faturamento_total),
-      meta: num(r.meta ?? r.meta_faturamento),
+    const faturamento_meta = fat.por_mes.slice(-12).map((r) => ({
+      label: labelAnomes(String(r.anomes || r.mes).replace(/\D/g, '').slice(0, 6)),
+      valor: r.valor_total,
+      meta: r.meta,
     }));
 
-    const revendas = ((fat?.por_revenda ?? fat?.graficos?.por_revenda ?? []) as any[])
-      .map((r) => ({ label: String(r.revenda ?? r.nome ?? '—').slice(0, 24), valor: num(r.valor_total ?? r.valor ?? r.fat_liquido) }))
+    const revendas = fat.por_revenda
+      .map((r) => ({ label: String(r.revenda || r.nome || '—').slice(0, 24), valor: r.valor_total }))
       .filter((r) => r.valor !== 0)
       .sort((a, b) => b.valor - a.valor).slice(0, 8);
 
-    const produtos = ((fat?.por_produto ?? fat?.graficos?.por_produto ?? []) as any[])
-      .map((r) => ({ label: String(r.produto ?? r.descricao ?? r.nome ?? '—').slice(0, 32), valor: num(r.valor_total ?? r.valor) }))
+    const produtos = fat.por_produto
+      .map((r) => ({ label: String(r.produto || r.descricao || r.nome || '—').slice(0, 32), valor: r.valor_total }))
       .sort((a, b) => b.valor - a.valor).slice(0, 8);
 
-    const ufs = ((fat?.por_uf ?? fat?.por_estado ?? fat?.graficos?.por_uf ?? []) as any[])
-      .map((r) => ({ label: String(r.uf ?? r.estado ?? '—'), valor: num(r.valor_total ?? r.valor) }))
+    const ufs = fat.por_uf
+      .map((r) => ({ label: String(r.uf || r.estado || '—'), valor: r.valor_total }))
       .sort((a, b) => b.valor - a.valor).slice(0, 12);
 
     return {
@@ -94,15 +97,15 @@ export function useComercial(periodo: Periodo, enabled: boolean) {
         delta_pct: delta(faturamento, faturamentoAnt) * 100,
         meta,
         meta_pct: safeDiv(faturamento, meta) * 100,
-        ticket_medio: num(k.ticket_medio ?? safeDiv(faturamento, notas)),
+        ticket_medio: k.ticket_medio || safeDiv(faturamento, notas),
         qtd_notas: notas,
         desconto_pct: safeDiv(desconto, faturamento + desconto) * 100,
       },
       series: { faturamento_meta },
       breakdowns: { revendas, produtos, ufs },
-      status: statusFrom(qFat, enabled),
+      status: statusFrom(qFat, enabled, fatP.partial),
     };
-  }, [qFat.data, qFatAnt.data, qFat.isLoading, qFat.isError, enabled]);
+  }, [qFat.data, qFatAnt.data, qFat.isLoading, qFat.isFetching, qFat.isError, enabled]);
 
   return {
     data: enabled ? data : EMPTY,
