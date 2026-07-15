@@ -185,7 +185,7 @@ export function DrillDrawer({
                 <TableBody>
                   {rows.map((r, i) => (
                     <TableRow key={i}>
-                      <TableCell className="whitespace-nowrap">{r.data}</TableCell>
+                      <TableCell className="whitespace-nowrap">{fmtDataBR(r.data)}</TableCell>
                       <TableCell className="text-xs whitespace-nowrap">{r.lote ?? ""}</TableCell>
                       <TableCell className="text-xs whitespace-nowrap">{r.numero ?? ""}</TableCell>
                       <TableCell className="text-xs">
