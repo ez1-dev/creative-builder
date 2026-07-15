@@ -34,15 +34,29 @@ export interface KpiCardProps {
   className?: string;
   /** Sinaliza que o payload da API veio parcial — mostra badge de aviso. */
   partial?: boolean;
+  /** Mensagem de erro compacta — substitui o valor sem colapsar o card. */
+  error?: string | null;
+  /** Handler do botão "Tentar" no estado de erro. */
+  onRetry?: () => void;
 }
 
 export function KpiCard({
   title, value, format = 'raw', subtitle, icon, variant = 'default',
-  trend, status, loading, tooltip, onClick, className, partial,
+  trend, status, loading, tooltip, onClick, className, partial, error, onRetry,
 }: KpiCardProps) {
   const clickable = !!onClick;
   const trendUp = trend ? trend.value > 0 : false;
   const trendDown = trend ? trend.value < 0 : false;
+
+  // Delay para evitar flash de skeleton em cache-hits rápidos.
+  const showSkeleton = useDelayedFlag(!!loading, 200);
+  // Mantém o último valor válido para reexibir enquanto refetch (stale-while-revalidate).
+  const lastValueRef = useRef<number | string | null | undefined>(value);
+  useEffect(() => {
+    if (!loading && value != null && value !== '') lastValueRef.current = value;
+  }, [loading, value]);
+  const staleValue = lastValueRef.current;
+  const hasStale = staleValue != null && staleValue !== '';
 
   return (
     <Card
