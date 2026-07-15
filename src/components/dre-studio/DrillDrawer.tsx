@@ -517,6 +517,7 @@ export function DrillDrawer({
                   </TableBody>
                 </Table>
               </div>
+              <FloatingHScrollbar targetRef={razaoScrollRef} />
             </>
           )}
         </div>
