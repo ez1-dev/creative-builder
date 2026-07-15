@@ -83,9 +83,11 @@ export function ChartCardShell({
   ) : null;
 
   const body = loading
-    ? <LoadingState height={effHeight} variant="skeleton" />
+    ? <LoadingState height={effHeight} variant={loadingVariant} />
     : error
-    ? <ErrorState message={error} height={effHeight} />
+    ? (errorVariant === 'inline'
+        ? <InlineError message={error} onRetry={onRetry} minHeight={Math.min(effHeight, 120)} />
+        : <ErrorState message={error} height={effHeight} onRetry={onRetry} />)
     : isEmpty
     ? (emptyVariant === 'inline'
         ? <InlineEmpty message={emptyMessage} />
