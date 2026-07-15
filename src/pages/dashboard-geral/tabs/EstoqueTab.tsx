@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom';
-import { Package, AlertTriangle, ArrowUp, Percent } from 'lucide-react';
+import { Package, AlertTriangle, ArrowUp, Percent, CheckCircle2, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { KpiCard } from '@/components/bi/kpis/KpiCard';
-import { formatCurrency, formatNumber } from '@/components/bi/utils/formatters';
+import { formatNumber } from '@/components/bi/utils/formatters';
 import { useEstoque } from '@/hooks/dashboardGeral/useEstoque';
 
 export function EstoqueTab({ enabled }: { enabled: boolean }) {
@@ -14,14 +14,16 @@ export function EstoqueTab({ enabled }: { enabled: boolean }) {
         <Button asChild variant="link" size="sm"><Link to="/estoque">Estoque →</Link></Button>
         <Button asChild variant="link" size="sm"><Link to="/estoque-min-max">Min/Máx →</Link></Button>
       </div>
-      <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <KpiCard title="Valor estocado" value={data.kpis.valor_estocado} format="currency" icon={<Package className="h-4 w-4" />} variant="info" loading={loading} />
-        <KpiCard title="Total itens" value={data.kpis.total_itens} format="quantity" loading={loading} />
+      <section className="grid grid-cols-2 md:grid-cols-6 gap-3">
+        <KpiCard title="Total itens" value={data.kpis.total_itens} format="quantity" icon={<Package className="h-4 w-4" />} variant="info" loading={loading} />
+        <KpiCard title="OK" value={data.kpis.itens_ok} format="quantity" icon={<CheckCircle2 className="h-4 w-4" />} loading={loading} variant="success" />
         <KpiCard title="Abaixo do mínimo" value={data.kpis.itens_abaixo_min} format="quantity" icon={<AlertTriangle className="h-4 w-4" />} loading={loading}
           variant={data.kpis.itens_abaixo_min > 0 ? 'danger' : 'success'} />
         <KpiCard title="Acima do máximo" value={data.kpis.itens_acima_max} format="quantity" icon={<ArrowUp className="h-4 w-4" />} loading={loading}
           variant={data.kpis.itens_acima_max > 0 ? 'warning' : 'default'} />
-        <KpiCard title="Ruptura" value={data.kpis.ruptura_pct} format="percent" icon={<Percent className="h-4 w-4" />} loading={loading}
+        <KpiCard title="Sem política" value={data.kpis.sem_politica} format="quantity" icon={<HelpCircle className="h-4 w-4" />} loading={loading}
+          variant={data.kpis.sem_politica > 0 ? 'warning' : 'default'} />
+        <KpiCard title="Ruptura %" value={data.kpis.ruptura_pct} format="percent" icon={<Percent className="h-4 w-4" />} loading={loading}
           variant={data.kpis.ruptura_pct >= 10 ? 'danger' : data.kpis.ruptura_pct > 0 ? 'warning' : 'success'} />
       </section>
       <Card>

@@ -48,8 +48,8 @@ export function VisaoGeralTab({ periodo, enabled }: { periodo: Periodo; enabled:
         <KpiCard title="Turnover" value={data.kpis.turnover_pct * 100} format="percent" loading={loading}
           variant={data.kpis.turnover_pct < 0.05 ? 'success' : data.kpis.turnover_pct < 0.1 ? 'warning' : 'danger'} />
         <KpiCard title="Absenteísmo" value={data.kpis.absenteismo_pct * 100} format="percent" icon={<Activity className="h-4 w-4" />} loading={loading} />
-        <KpiCard title="OPs abertas" value={prod.kpis.ops_abertas} format="quantity" icon={<Factory className="h-4 w-4" />} loading={prodL} />
-        <KpiCard title="Estoque (R$)" value={est.kpis.valor_estocado} format="currency" icon={<Package className="h-4 w-4" />} loading={estL} />
+        <KpiCard title="OPs em carga" value={prod.kpis.ops_total} format="quantity" icon={<Factory className="h-4 w-4" />} loading={prodL} />
+        <KpiCard title="Itens estoque" value={est.kpis.total_itens} format="quantity" icon={<Package className="h-4 w-4" />} loading={estL} />
         <KpiCard title="Rupturas" value={est.kpis.itens_abaixo_min} format="quantity" loading={estL}
           variant={est.kpis.itens_abaixo_min > 0 ? 'danger' : 'success'} />
       </section>

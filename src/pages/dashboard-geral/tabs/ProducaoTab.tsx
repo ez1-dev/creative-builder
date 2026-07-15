@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Factory, AlertTriangle, Clock, CheckCircle2, Timer } from 'lucide-react';
+import { Factory, Wrench, Clock, Layers, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { KpiCard } from '@/components/bi/kpis/KpiCard';
 import { HorizontalBarChartCard } from '@/components/bi/charts/HorizontalBarChartCard';
@@ -17,17 +17,16 @@ export function ProducaoTab({ periodo, enabled }: { periodo: Periodo; enabled: b
         <Button asChild variant="link" size="sm"><Link to="/producao/carga">Carga →</Link></Button>
       </div>
       <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <KpiCard title="OPs abertas" value={data.kpis.ops_abertas} format="quantity" icon={<Factory className="h-4 w-4" />} variant="info" loading={loading} />
-        <KpiCard title="OPs atrasadas" value={data.kpis.ops_atrasadas} format="quantity" icon={<AlertTriangle className="h-4 w-4" />} loading={loading}
-          variant={data.kpis.ops_atrasadas > 0 ? 'danger' : 'success'} />
-        <KpiCard title="Carga (h)" value={data.kpis.carga_horas} format="quantity" icon={<Clock className="h-4 w-4" />} loading={loading} />
-        <KpiCard title="Lead time médio" value={data.kpis.lead_time_medio} format="quantity" icon={<Timer className="h-4 w-4" />} loading={loading} />
-        <KpiCard title="% no prazo" value={data.kpis.pct_no_prazo} format="percent" icon={<CheckCircle2 className="h-4 w-4" />} loading={loading}
-          variant={data.kpis.pct_no_prazo >= 90 ? 'success' : data.kpis.pct_no_prazo >= 70 ? 'warning' : 'danger'} />
+        <KpiCard title="OPs em carga" value={data.kpis.ops_total} format="quantity" icon={<Factory className="h-4 w-4" />} variant="info" loading={loading} />
+        <KpiCard title="Recursos" value={data.kpis.recursos} format="quantity" icon={<Wrench className="h-4 w-4" />} loading={loading} />
+        <KpiCard title="Carga (h)" value={data.kpis.carga_horas} format="quantity" icon={<Clock className="h-4 w-4" />} loading={loading} variant="warning" />
+        <KpiCard title="Linhas de operação" value={data.kpis.linhas_operacao} format="quantity" icon={<Layers className="h-4 w-4" />} loading={loading} />
+        <KpiCard title="Sem mapeamento" value={data.kpis.sem_mapeamento} format="quantity" icon={<AlertTriangle className="h-4 w-4" />} loading={loading}
+          variant={data.kpis.sem_mapeamento > 0 ? 'danger' : 'success'} />
       </section>
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <HorizontalBarChartCard title="Carga por centro de recurso (h)" data={data.breakdowns.carga_centro} valueFormatter={formatNumber} height={320} />
-        <DonutChartCard title="OPs por status" data={data.breakdowns.status_ops} valueFormatter={formatNumber} height={320} />
+        <HorizontalBarChartCard title="Carga por centro (h) — Top 10" data={data.breakdowns.carga_centro} valueFormatter={formatNumber} height={320} />
+        <DonutChartCard title="Carga por unidade de negócio (h)" data={data.breakdowns.por_unidade} valueFormatter={formatNumber} height={320} />
       </section>
     </div>
   );
