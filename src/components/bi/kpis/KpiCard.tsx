@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TrendingUp, TrendingDown, Minus, Info } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Info, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatByKind, KpiFormat, formatPercent } from '../utils/formatters';
 import { StatusBadge, BiStatus } from '../badges/StatusBadge';
@@ -30,11 +30,13 @@ export interface KpiCardProps {
   tooltip?: string;
   onClick?: () => void;
   className?: string;
+  /** Sinaliza que o payload da API veio parcial — mostra badge de aviso. */
+  partial?: boolean;
 }
 
 export function KpiCard({
   title, value, format = 'raw', subtitle, icon, variant = 'default',
-  trend, status, loading, tooltip, onClick, className,
+  trend, status, loading, tooltip, onClick, className, partial,
 }: KpiCardProps) {
   const clickable = !!onClick;
   const trendUp = trend ? trend.value > 0 : false;
