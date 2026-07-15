@@ -116,7 +116,7 @@ export function useModelos(filters?: {
   ativo?: "true" | "false" | "todos";
 }) {
   return useQuery({
-    queryKey: ["contabil", "modelos", filters],
+    queryKey: ["contabil", "modelos", "v2", filters],
     queryFn: () =>
       store.listModelos({
         tipo_modelo:
@@ -138,7 +138,7 @@ export function useModelo(
   options?: Partial<UseQueryOptions<ModeloDetalhe>>,
 ) {
   return useQuery<ModeloDetalhe>({
-    queryKey: ["contabil", "modelo", modeloId],
+    queryKey: ["contabil", "modelo", "v2", modeloId],
     queryFn: () => store.getModeloDetalhe(modeloId!),
     enabled: isValidId(modeloId),
     ...options,
@@ -309,7 +309,7 @@ export function useDrillLinha(
   args: { linhaId: string; anomes: number; codccu?: string; codfil?: number } | null,
 ) {
   return useQuery<{ dados: DrillLancamento[] } | DrillLancamento[]>({
-    queryKey: ["contabil", "drill-linha", modeloId, args],
+    queryKey: ["contabil", "drill-linha", "v2", modeloId, args],
     queryFn: () =>
       api.get<{ dados: DrillLancamento[] } | DrillLancamento[]>(
         `/api/contabil/modelos/${modeloId}/linhas/${args!.linhaId}/drill`,
@@ -712,7 +712,7 @@ export function useResultadoCache(
   enabled = true,
 ) {
   return useQuery<unknown, Error, ComparativoResponseV2>({
-    queryKey: ["contabil", "resultado-cache", modeloId, filtros],
+    queryKey: ["contabil", "resultado-cache", "v2", modeloId, filtros],
     queryFn: () =>
       api.get<unknown>(`/api/contabil/modelos/${modeloId}/resultado-cache`, {
         codemp: CODEMP,
@@ -1050,7 +1050,7 @@ export function useResultadoPronto(
     Error,
     { meta: ResultadoProntoMeta; payload: _CRV2 | undefined }
   >({
-    queryKey: ["contabil", "resultado-pronto", modeloId, filtros],
+    queryKey: ["contabil", "resultado-pronto", "v2", modeloId, filtros],
     queryFn: () => {
       return api.get<unknown>(`/api/contabil/modelos/${modeloId}/resultado-pronto`, {
         codemp: CODEMP,
@@ -1306,6 +1306,7 @@ export function useDrillLancamentos(
     queryKey: [
       "contabil",
       "drill-lancamentos",
+      "v2",
       {
         codemp,
         codfil,

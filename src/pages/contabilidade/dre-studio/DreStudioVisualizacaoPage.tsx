@@ -526,21 +526,8 @@ function Visualizacao() {
   // A pendência real é detectada via endpoint /diagnostico/ctared-zero e
   // mostrada em uma seção separada (PendenciasCtaredZeroPanel).
 
-  const linhasApiRaw: ComparativoLinhaV2[] = q.data?.linhas ?? [];
-  // Salvaguarda: descarta linhas 8.2 e 9.9 (e variantes virtuais) caso a API ou cache antigo ainda devolva.
-  const linhasApi: ComparativoLinhaV2[] = useMemo(
-    () =>
-      linhasApiRaw.filter((l) => {
-        const c = String(l.codigo ?? "").toUpperCase();
-        const exib = String(l.codigo_exibicao ?? "").toUpperCase();
-        const bloqueada = (code: string) =>
-          code === "8.2" || code === "9.9" ||
-          code === "VINCULAR.8.2" || code === "VINCULAR.9.9" ||
-          code.endsWith(".8.2") || code.endsWith(".9.9");
-        return !bloqueada(c) && !bloqueada(exib);
-      }),
-    [linhasApiRaw],
-  );
+  // Consome a estrutura tal como retornada pela API — nenhum filtro por código.
+  const linhasApi: ComparativoLinhaV2[] = q.data?.linhas ?? [];
   const linhas: ComparativoLinhaV2[] = useMemo(() => {
     if (linhasApi.length === 0) return linhasApi;
     const isBalanco = tipoModelo === "BALANCO";
@@ -2384,7 +2371,7 @@ function Visualizacao() {
                 } else if (isVirtualAjuste) {
                   descricaoExibida = l.descricao_conta || l.descricao || l.descricao_linha || "Ajuste";
                 } else if (isVirtualTotal) {
-                  descricaoExibida = "Resultado Líquido";
+                  descricaoExibida = l.descricao || l.descricao_linha || "";
                 } else if (isVirtualDRE) {
                   descricaoExibida = descricaoVirtualPadrao;
                 } else {

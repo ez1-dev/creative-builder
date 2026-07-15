@@ -40,8 +40,6 @@ function formatAnomesLabel(anomes: string | number): string {
 }
 
 function rotuloDescricao(l: ComposicaoVincularLinha): string {
-  const code = String(l.codigo_linha ?? "").trim();
-  if (code === "9") return "Resultado Líquido";
   return fixMojibake(String(l.descricao_linha ?? ""));
 }
 
@@ -171,7 +169,7 @@ export function ComposicaoDREDialog({
                     const code = String(l.codigo_linha ?? "").trim();
                     const isConta = tipo === "CONTA_CONTABIL";
                     const isAjuste = tipo === "AJUSTE";
-                    const isTotal = tipo === "TOTAL" || code === "9";
+                    const isTotal = tipo === "TOTAL";
                     const isSubtotal = tipo === "SUBTOTAL";
                     const isGrupo = tipo === "GRUPO";
 
