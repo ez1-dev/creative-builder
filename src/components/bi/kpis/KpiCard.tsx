@@ -61,6 +61,16 @@ export function KpiCard({
               <TooltipContent><p className="max-w-xs text-xs">{tooltip}</p></TooltipContent>
             </UITooltip></TooltipProvider>
           )}
+          {partial && (
+            <TooltipProvider><UITooltip>
+              <TooltipTrigger asChild>
+                <AlertTriangle className="h-3 w-3 3xl:h-4 3xl:w-4 text-[hsl(var(--warning))]" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="max-w-xs text-xs">Alguns campos vieram incompletos da API — exibindo o que foi reconhecido.</p>
+              </TooltipContent>
+            </UITooltip></TooltipProvider>
+          )}
         </CardTitle>
         {icon && <span className="text-muted-foreground 3xl:[&>svg]:h-5 3xl:[&>svg]:w-5">{icon}</span>}
       </CardHeader>
