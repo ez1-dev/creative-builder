@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { Landmark, Scale, Wallet, Hash } from 'lucide-react';
 import { FilterPresetBar } from '@/components/filters/FilterPresetBar';
 import { useFilterPresets } from '@/hooks/useFilterPresets';
+import { truncateLabel } from '@/lib/textTruncate';
 
 const currentYear = new Date().getFullYear();
 const PAGE_KEY = 'balanco-patrimonial';
@@ -89,9 +90,18 @@ export default function BalancoPatrimonialPage() {
     { key: 'anomes', header: 'Ano/Mês', align: 'center' },
     { key: 'codigo_empresa', header: 'Empresa', align: 'center' },
     { key: 'codigo_filial', header: 'Filial', align: 'center' },
-    { key: 'conta', header: 'Conta' },
-    { key: 'grupo', header: 'Grupo' },
-    { key: 'subgrupo', header: 'Subgrupo' },
+    {
+      key: 'conta', header: 'Conta',
+      render: (v) => <span className="whitespace-nowrap truncate inline-block max-w-[40ch] align-middle" title={String(v ?? '')}>{truncateLabel(v as any, 40)}</span>,
+    },
+    {
+      key: 'grupo', header: 'Grupo',
+      render: (v) => <span className="whitespace-nowrap truncate inline-block max-w-[40ch] align-middle" title={String(v ?? '')}>{truncateLabel(v as any, 40)}</span>,
+    },
+    {
+      key: 'subgrupo', header: 'Subgrupo',
+      render: (v) => <span className="whitespace-nowrap truncate inline-block max-w-[40ch] align-middle" title={String(v ?? '')}>{truncateLabel(v as any, 40)}</span>,
+    },
     {
       key: 'saldo', header: 'Saldo', align: 'right',
       render: (v) => <span className="font-mono">{formatCurrency(Number(v) || 0)}</span>,

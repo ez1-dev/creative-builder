@@ -63,6 +63,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { FilterPresetBar } from "@/components/filters/FilterPresetBar";
 import { useFilterPresets } from "@/hooks/useFilterPresets";
+import { truncateLabel } from "@/lib/textTruncate";
 
 const DRE_VIS_PAGE_KEY = "dre-studio-visualizacao";
 interface DreVisFilterPreset {
@@ -2463,7 +2464,7 @@ function Visualizacao() {
                     })()}
                     <td
                       className={cn(
-                        "border-l px-3 py-1.5 sticky z-20",
+                        "border-l px-3 py-1.5 sticky z-20 whitespace-nowrap",
                         stickyBg,
                       )}
                       style={{ paddingLeft: paddingLeftDesc, width: 320, minWidth: 320, left: 140 }}
@@ -2472,7 +2473,7 @@ function Visualizacao() {
                           ? "Lançamentos sem conta contábil (CTARED 0). Use para diagnóstico."
                           : isVincular
                             ? "Valores não vinculados à máscara do Balanço."
-                            : undefined
+                            : String(descricaoExibida ?? "")
                       }
                     >
                       {temFilhos ? (
@@ -2494,8 +2495,8 @@ function Visualizacao() {
                       {is000 && (
                         <AlertTriangle className="h-3.5 w-3.5 inline mr-1 align-middle text-sky-600" />
                       )}
-                      <span className="inline-flex items-center gap-1">
-                        <span>{descricaoExibida}</span>
+                      <span className="inline-flex items-center gap-1 align-middle">
+                        <span className="truncate inline-block align-middle max-w-[40ch]" title={String(descricaoExibida ?? "")}>{truncateLabel(descricaoExibida, 40)}</span>
                         {l.drillavel === true && Array.isArray(l.drills) && l.drills.length > 0 && l.linha_id && (
                           <DrillMenu
                             drills={l.drills}
