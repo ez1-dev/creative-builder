@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, type EstoqueMinMaxResponse } from '@/lib/api';
 import { statusFrom, num, safeDiv, type ModStatus } from './shared';
+import { EstoqueMinMaxResponseSchema, EMPTY_ESTOQUE } from '@/lib/dashboardGeral/schemas/estoque';
+import { parseOrEmpty } from '@/lib/dashboardGeral/schemas/_utils';
 
 export interface EstoqueData {
   kpis: {
