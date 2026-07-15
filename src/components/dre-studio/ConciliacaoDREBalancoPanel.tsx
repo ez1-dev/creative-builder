@@ -8,15 +8,12 @@ import { MoneyCell } from "@/components/contabil/MoneyCell";
 import type { ComparativoLinhaV2, ComparativoResponseV2 } from "@/types/contabil";
 
 function findResultadoLiquido(linhas: ComparativoLinhaV2[]): ComparativoLinhaV2 | undefined {
-  return (
-    linhas.find((l) => String(l.codigo ?? "").trim() === "9") ??
-    linhas.find((l) =>
-      String(l.descricao ?? "")
-        .trim()
-        .toUpperCase()
-        .startsWith("RESULTADO LÍQUIDO"),
-    )
+  // Preferência: linha TOTAL raiz retornada pela API. Fallback: última TOTAL.
+  const totais = linhas.filter(
+    (l) => String((l as any).tipo_linha ?? (l as any).tipo_registro ?? "").toUpperCase() === "TOTAL",
   );
+  const raiz = totais.find((l) => !(l as any).linha_pai_id);
+  return raiz ?? totais[totais.length - 1];
 }
 
 function findVincular(linhas: ComparativoLinhaV2[]): ComparativoLinhaV2 | undefined {
@@ -92,7 +89,7 @@ export function ConciliacaoDREBalancoPanel({
             Conciliação DRE × Balanço Senior
           </h3>
           <p className="text-xs text-slate-500">
-            Resultado DRE (linha 9) acumulado vs Balanço (linha VINCULAR, sinal invertido).
+            Resultado DRE (linha total do modelo) acumulado vs Balanço (linha VINCULAR, sinal invertido).
           </p>
         </div>
         {carregando && <Loader2 className="h-4 w-4 animate-spin text-slate-500" />}
