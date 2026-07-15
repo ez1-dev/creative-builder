@@ -40,6 +40,12 @@ export interface DrillDreParams {
   modelo_id: string;
   linha_id: string;
   agrupar_por: DrillDimensao;
+  /** Valor bruto do backend (`item.agrupar_por`), quando diferente da dimensão normalizada. */
+  agrupar_por_raw?: string | null;
+  /** Endpoint retornado pelo item do menu. Default: /api/contabil/drill-dre. */
+  endpoint?: string | null;
+  /** Ação do item (reabrir/consulta). Encaminhado ao backend quando presente. */
+  acao?: string | null;
   codemp?: number | null;
   codfil?: number | null;
   anomes_ini: number | string;
@@ -47,9 +53,11 @@ export interface DrillDreParams {
   unidade?: string | null;
   centro_custo?: string | null;
   modo_balanco?: string | null;
+  consolidado?: boolean | null;
   page?: number;
   page_size?: number;
 }
+
 
 export interface DrillDreColumn {
   key: string;
