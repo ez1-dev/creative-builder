@@ -79,10 +79,10 @@ export function useRh(periodo: Periodo, enabled: boolean, codemp = 1) {
     return {
       kpis: {
         headcount: ativos,
-        admissoes: num(turn?.kpis?.admissoes),
-        demissoes: num(turn?.kpis?.demissoes),
-        turnover_pct: num(turn?.kpis?.taxa_rotatividade_pct),
-        absenteismo_pct: num(abs?.kpis?.taxa_absenteismo_pct),
+        admissoes: num(turn?.kpis?.admitidos ?? turn?.kpis?.admissoes),
+        demissoes: num(turn?.kpis?.demitidos ?? turn?.kpis?.demissoes),
+        turnover_pct: num(turn?.kpis?.taxa_rotatividade_pct ?? turn?.kpis?.turnover_pct),
+        absenteismo_pct: num(abs?.kpis?.taxa_absenteismo_pct ?? abs?.kpis?.absenteismo_pct),
         custo_folha: num(folha?.kpis?.custo_total),
       },
       series: { headcount, turnover_mes },

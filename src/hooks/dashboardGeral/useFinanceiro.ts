@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+import { api, type ContasPagarResponse, type ContasReceberResponse } from '@/lib/api';
 import { fetchDreRealizadoResumo } from '@/lib/bi/dreConfiguravelApi';
+import { MODELO_DRE_OFICIAL_ID } from '@/lib/contabilConfig';
 import { rangeFor, num, labelAnomes, anomesToDate, statusFrom, type Periodo, type ModStatus } from './shared';
 
 export interface FinanceiroData {
@@ -35,18 +36,26 @@ export function useFinanceiro(periodo: Periodo, enabled: boolean) {
   const queries = useQueries({
     queries: [
       {
-        queryKey: ['dg-fin', 'dre', dataIni, dataFim],
-        queryFn: () => fetchDreRealizadoResumo({ data_ini: dataIni, data_fim: dataFim, tipo: 'MENSAL' }),
+        queryKey: ['dg-fin', 'dre', dataIni, dataFim, MODELO_DRE_OFICIAL_ID],
+        queryFn: () => fetchDreRealizadoResumo({ data_ini: dataIni, data_fim: dataFim, tipo: 'MENSAL', modelo_id: MODELO_DRE_OFICIAL_ID }),
         enabled, retry: 0, staleTime: 5 * 60 * 1000,
       },
       {
-        queryKey: ['dg-fin', 'cpagar'],
-        queryFn: () => api.get<any>('/api/contas-pagar', { pagina: 1, tamanho_pagina: 1 }),
+        queryKey: ['dg-fin', 'cpagar', dataIni, dataFim],
+        queryFn: () => api.get<ContasPagarResponse>('/api/contas-pagar', {
+          pagina: 1, tamanho_pagina: 1,
+          data_vencimento_ini: dataIni, data_vencimento_fim: dataFim,
+          excluir_pagos: true,
+        }),
         enabled, retry: 0, staleTime: 5 * 60 * 1000,
       },
       {
-        queryKey: ['dg-fin', 'creceber'],
-        queryFn: () => api.get<any>('/api/contas-receber', { pagina: 1, tamanho_pagina: 1 }),
+        queryKey: ['dg-fin', 'creceber', dataIni, dataFim],
+        queryFn: () => api.get<ContasReceberResponse>('/api/contas-receber', {
+          pagina: 1, tamanho_pagina: 1,
+          data_vencimento_ini: dataIni, data_vencimento_fim: dataFim,
+          excluir_pagos: true,
+        }),
         enabled, retry: 0, staleTime: 5 * 60 * 1000,
       },
     ],
@@ -59,21 +68,23 @@ export function useFinanceiro(periodo: Periodo, enabled: boolean) {
     const mensal: any[] = Array.isArray(dre.mensal) ? dre.mensal : [];
     const resultado_mes = mensal.slice(-12).map((r) => ({
       label: labelAnomes(String(r.anomes ?? '').slice(0, 6)),
-      valor: num(r.resultado_dre),
-      receita: num(r.receita_operacional),
+      valor: num(r.resultado_dre ?? r.resultado),
+      receita: num(r.receita_operacional ?? r.receita),
     }));
     const cp: any = qPagar.data ?? {};
     const cr: any = qReceber.data ?? {};
+    const rp = cp.resumo ?? {};
+    const rr = cr.resumo ?? {};
     return {
       kpis: {
-        receita: num(totais.receita_operacional),
+        receita: num(totais.receita_operacional ?? totais.receita),
         custos: num(totais.custos),
         despesas: num(totais.despesas),
-        resultado: num(totais.resultado_dre),
-        margem_pct: num(totais.margem_pct),
-        a_pagar: num(cp.total_valor ?? cp.valor_total ?? cp.resumo?.valor_total),
-        a_receber: num(cr.total_valor ?? cr.valor_total ?? cr.resumo?.valor_total),
-        inadimplencia: num(cr.valor_vencido ?? cr.resumo?.valor_vencido),
+        resultado: num(totais.resultado_dre ?? totais.resultado),
+        margem_pct: num(totais.margem_pct ?? totais.margem),
+        a_pagar: num(rp.valor_aberto_total ?? rp.valor_original_total),
+        a_receber: num(rr.valor_aberto_total ?? rr.valor_original_total),
+        inadimplencia: num(rr.valor_vencido_total),
       },
       series: { resultado_mes },
       status: statusFrom(qDre, enabled),

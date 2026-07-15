@@ -1,89 +1,61 @@
-# Dashboard Geral — expansão multi-módulo
+# Dashboard Geral — corrigir dados e melhorar visual
 
-Transformar `/dashboard-geral` numa central executiva com **aba "Visão geral" + 1 aba por módulo**, mantendo o seletor de período atual (Mês/Anterior/YTD/12m) e reutilizando os hooks/APIs de cada página.
+## Diagnóstico
 
-## Layout
+Verifiquei o console e a rede da tela e vi por que várias abas aparecem vazias:
 
-```text
-[Header: título + tabs período + Atualizar]
-[Tabs de módulo]
- ├─ Visão geral   (KPIs headline + 1 gráfico por módulo, insights IA)
- ├─ Comercial
- ├─ Compras
- ├─ Financeiro
- ├─ Contabilidade
- ├─ RH
- ├─ Produção
- ├─ Estoque
- └─ Manutenção
-```
+1. **Faturamento (`/api/faturamento-genius-dashboard`) → HTTP 500** — o backend rejeita `codemp` (SQL error "1 parameter marker but 3 supplied"). A `FaturamentoGeniusPage` que funciona envia apenas `anomes_ini` + `anomes_fim`.
+2. **RH → nomes errados** — usei `admissoes`/`demissoes`, mas o endpoint devolve `admitidos`/`demitidos`. `turnover_pct` já vem em % (41.93), o hook divide por 100 duas vezes.
+3. **Compras → alguns painéis vazios** — os campos reais são `por_fornecedor`/`por_tipo_despesa` (usei chaves alternativas que não existem, como `top_fornecedores`, `por_situacao`). "Atrasado" precisa vir de `valor_pendente_total` restrito a `ocs_atrasadas`.
+4. **DRE, Balanço, Contas** — chamadas usam parâmetros/campos que o backend não expõe. Preciso alinhar `data_ini/data_fim` do DRE Configurável e o path real do Balanço (`/api/contabilidade/balanco` já existe via `getBalancoPatrimonial`, mas hoje envio `data_fim` em vez de `anomes_fim`). Contas a pagar/receber devolvem `resumo`/`total_valor` variando por página.
+5. **Produção** — `/api/producao/dashboard` provavelmente não existe. Trocar para `cargaApi.centros`/`cargaApi.recursos` (já consumidos em `/producao/carga`) para métricas reais.
+6. **Estoque** — `EstoqueMinMaxResponse` traz `resumo.abaixo_minimo`/`acima_maximo`/`ok`; item usa `saldo_atual`/`estoque_minimo`/`estoque_maximo`, sem custo unitário. Valor estocado precisa vir de outra fonte ou ser removido; usar `resumo` para os KPIs corretos.
 
-Cada aba é lazy (só busca dados quando ativada). Cards de KPI clicáveis levam à página completa do módulo (ex.: `/bi/comercial`, `/painel-compras`, `/contabilidade/dre-studio/...`).
+## Correções por hook
 
-## Conteúdo por aba
+**`useComercial`** — remover `codemp`; mapear também `por_mes.faturamento_total`, `por_revenda`, `por_produto`, `por_uf`. Aceitar shapes já presentes no payload (validar via console log com dados reais).
 
-**Visão geral** (o que já existe hoje, enxugado):
-- KPIs headline: Faturamento, Δ Faturamento, Meta %, Compras, Pendente OC, Headcount, Turnover, Resultado DRE, Ativo Total.
-- 1 gráfico "signature" por módulo (linha faturamento, barras compras, linha headcount, DRE waterfall mini).
-- Painel de Insights IA (já existe).
+**`useCompras`** — trocar chaves de agregação: `top_fornecedores` → `por_fornecedor`, `situacao` → derivar de `itens_atrasados`/`itens_pendentes`, `valor_atrasado` = `valor_pendente_total` quando `ocs_atrasadas > 0` (ou omitir card se sem dado direto). Adicionar KPIs "Atrasadas (qtd)", "Ticket médio OC".
 
-**Comercial** — hook: `useDashboardGeral` já traz `faturamento`; adicionar reuso de `/api/faturamento-genius-dashboard`:
-- KPIs: Faturamento, Meta %, Ticket médio, Qtd notas, Desconto %, Δ vs mês anterior.
-- Gráficos: linha Faturamento vs Meta 12m, top revendas, top produtos, mix por UF.
+**`useFinanceiro`** — DRE Configurável exige `modelo_id`. Buscar o `MODELO_DRE_OFICIAL_ID` de `src/lib/contabilConfig.ts` e passar. Contas a pagar/receber: usar `/api/contas-pagar-arvore` e `/api/contas-receber-arvore` (mesmos endpoints das páginas) e extrair `resumo.valor_total`/`valor_vencido`.
 
-**Compras** — `/api/painel-compras-dashboard`:
-- KPIs: Valor comprado, Pendente OC, Total OCs, Fornecedores, Lead time médio.
-- Gráficos: barras compras 12m, donut por tipo de despesa, top fornecedores, situação das OCs.
+**`useContabilidade`** — chamar `getBalancoPatrimonial({ anomes_ini, anomes_fim, codigo_empresa: 1, codigo_filial: 1 })` (assinatura correta). Somar `saldo_atual` por `grupo` (Ativo/Passivo/PL). DRE também com `MODELO_DRE_OFICIAL_ID`.
 
-**Financeiro** — `fetchDreRealizadoResumo` (bi/dreConfiguravelApi) + endpoints contas a pagar/receber já usados nas páginas:
-- KPIs: Receita, Custos, Despesas, Resultado DRE, Margem %, A receber, A pagar, Inadimplência.
-- Gráficos: linha Receita vs Resultado 12m, barras contas a pagar por vencimento, top devedores.
+**`useRh`** — mapear `admitidos`→admissões, `demitidos`→demissões; `turnover_pct` já é %, remover multiplicação; adicionar KPI "Saldo" (`saldo`) e "Custo médio por colab" (`custo_total / headcount_medio`).
 
-**Contabilidade** — reuso `dreMatrizApi` + `contabilApi` (Balanço):
-- KPIs: Ativo, Passivo, PL, Resultado do exercício.
-- Mini-tabela DRE (nível 1) + Mini-tabela Balanço (grandes grupos) — clique abre página completa.
+**`useProducao`** — substituir `/api/producao/dashboard` por `cargaApi.centros({})` + `cargaApi.recursos({})`. KPIs: OPs total (do `resumo`), horas por unidade, top 10 centros por horas, distribuição por unidade de negócio.
 
-**RH** — hooks já usados no `useDashboardGeral`:
-- KPIs: Headcount ativo, Admissões, Demissões, Turnover, Absenteísmo, Custo folha.
-- Gráficos: linha headcount, barras turnover mensal, motivos de absenteísmo, distribuição por setor.
+**`useEstoque`** — usar `resumo.abaixo_minimo`/`acima_maximo`/`ok`/`sem_politica`. Substituir "valor estocado" por "Sem política" ou "Sugestão mínima total" (`resumo.sugestao_minimo_total`). Ruptura por `estoque_minimo - saldo_atual`, exibir Top 10.
 
-**Produção** — `cargaApi` + endpoints ProducaoDashboardPage:
-- KPIs: OPs abertas, OPs atrasadas, Carga (h) semana atual, Lead time médio, % OPs no prazo.
-- Gráficos: barras carga por centro/recurso, linha produção 12m.
+**`useManutencao`** — já funciona; adicionar KPI "Ticket médio" e agrupar por mês para mini-série.
 
-**Estoque** — endpoints usados em EstoquePage/EstoqueMinMaxPage:
-- KPIs: Valor estocado, Itens abaixo do mínimo, Itens acima do máximo, Giro médio.
-- Tabela top rupturas + gráfico valor por depósito.
+## Melhorias visuais
 
-**Manutenção/Frota** — endpoints usados em ManutencaoFrotaPage/MaquinasPage:
-- KPIs: OS abertas, OS atrasadas, MTBF, Custo manutenção período.
-- Gráficos: OS por status, custo por veículo/máquina.
-
-## Arquitetura
-
-- **Hook orquestrador por aba**: cada módulo ganha um hook próprio (`useDashboardGeralComercial`, `useDashboardGeralCompras`, `useDashboardGeralFinanceiro`, `useDashboardGeralContabilidade`, `useDashboardGeralProducao`, `useDashboardGeralEstoque`, `useDashboardGeralManutencao`). O `useDashboardGeral` atual vira o hook da aba "Visão geral" + RH.
-- Cada hook usa `useQueries` com `enabled: aba === 'x'` para lazy-fetch, `retry: 0`, `staleTime: 5min`.
-- Reaproveita adaptadores em `src/lib/dashboardGeral/aggregator.ts` (`num`, `delta`, `labelAnomes`).
-- Componentes reaproveitam biblioteca BI (`KpiCard`, `LineChartCard`, `BarChartCard`, `HorizontalBarChartCard`, `DonutChartCard`).
+- **Grid mais denso e uniforme**: KPIs em cards menores (h-24) com título xs, valor 2xl, ícone canto sup direito, cor semântica da borda esquerda mantida.
+- **Substituir cards vazios por skeleton dedicado**: quando `status === 'erro'`, mostrar "Sem dados disponíveis" com link para a página do módulo em vez de R$ 0,00 sozinho.
+- **Sparklines nos KPIs principais**: em Faturamento/Compras/Headcount adicionar mini-sparkline com últimos 12 meses (usar componente `KpiCard` estendido ou `LineChartCard` compacto).
+- **Comparativos visuais**: badge de delta ao lado do valor (verde/vermelho) para todos os KPIs com valor mês anterior.
+- **Visão geral enriquecida**: adicionar cards de "Contas a receber", "Contas a pagar", "PL", "Custo manutenção" e organizar em 3 seções nomeadas: *Comercial & Financeiro*, *Operações*, *Pessoas*.
+- **Gráficos com títulos e legendas melhores**: eixos formatados em R$ / % / horas; cores diferenciadas por módulo (info/success/warning/danger) em vez de tudo azul.
 
 ## Arquivos
 
-Criar:
-- `src/hooks/dashboardGeral/useComercial.ts`
-- `src/hooks/dashboardGeral/useCompras.ts`
-- `src/hooks/dashboardGeral/useFinanceiro.ts`
-- `src/hooks/dashboardGeral/useContabilidade.ts`
-- `src/hooks/dashboardGeral/useProducao.ts`
-- `src/hooks/dashboardGeral/useEstoque.ts`
-- `src/hooks/dashboardGeral/useManutencao.ts`
-- `src/pages/dashboard-geral/tabs/` (`VisaoGeralTab.tsx`, `ComercialTab.tsx`, `ComprasTab.tsx`, `FinanceiroTab.tsx`, `ContabilidadeTab.tsx`, `RhTab.tsx`, `ProducaoTab.tsx`, `EstoqueTab.tsx`, `ManutencaoTab.tsx`)
-
 Editar:
-- `src/pages/DashboardGeralPage.tsx` — introduz `Tabs` de módulo, mantém seletor de período no header. Cada `TabsContent` monta o componente correspondente (lazy via `React.lazy` + `Suspense` com skeletons).
-- `src/hooks/useDashboardGeral.ts` — refatorar para expor só o mínimo da visão geral (mantém compatibilidade com insights IA).
+- `src/hooks/dashboardGeral/useComercial.ts` (remover codemp, ampliar mapeamentos)
+- `src/hooks/dashboardGeral/useCompras.ts` (chaves reais + novos KPIs)
+- `src/hooks/dashboardGeral/useFinanceiro.ts` (modelo_id + endpoints -arvore)
+- `src/hooks/dashboardGeral/useContabilidade.ts` (assinatura Balanço + modelo_id)
+- `src/hooks/dashboardGeral/useRh.ts` (admitidos/demitidos + % correto)
+- `src/hooks/dashboardGeral/useProducao.ts` (usar cargaApi)
+- `src/hooks/dashboardGeral/useEstoque.ts` (usar resumo)
+- `src/hooks/dashboardGeral/useManutencao.ts` (ticket médio + série)
+- `src/pages/dashboard-geral/tabs/*` (aplicar melhorias visuais, novas seções em VisãoGeral, sparklines em KpiCard onde couber)
+
+Criar:
+- `src/pages/dashboard-geral/components/KpiCompact.tsx` — card KPI compacto reutilizável com sparkline opcional e badge de delta, todo em tokens semânticos (sem cores hardcoded).
 
 ## Fora do escopo
 
-- Sem novo endpoint agregador no FastAPI (usa hooks/APIs já existentes por página).
-- Sem novos filtros globais além do período atual.
-- Sem alterações em cálculos de negócio de cada módulo — só orquestração/apresentação.
+- Não vou pedir endpoints novos no FastAPI — se algum ainda falhar após as correções, a aba mostrará estado "Sem dados" com link para a página completa.
+- Sem novo backend/edge functions.
+- Sem alterar cálculos internos dos módulos originais.

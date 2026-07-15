@@ -7,9 +7,11 @@ export interface ComprasData {
   kpis: {
     valor_comprado: number;
     valor_pendente: number;
-    total_ocs: number;
-    fornecedores: number;
     valor_atrasado: number;
+    total_ocs: number;
+    ocs_atrasadas: number;
+    fornecedores: number;
+    ticket_medio_oc: number;
   };
   series: { compras_mes: Array<{ label: string; valor: number }> };
   breakdowns: {
@@ -21,7 +23,7 @@ export interface ComprasData {
 }
 
 const EMPTY: ComprasData = {
-  kpis: { valor_comprado: 0, valor_pendente: 0, total_ocs: 0, fornecedores: 0, valor_atrasado: 0 },
+  kpis: { valor_comprado: 0, valor_pendente: 0, valor_atrasado: 0, total_ocs: 0, ocs_atrasadas: 0, fornecedores: 0, ticket_medio_oc: 0 },
   series: { compras_mes: [] },
   breakdowns: { por_tipo: [], top_fornecedores: [], situacao: [] },
   status: 'idle',
@@ -49,28 +51,39 @@ export function useCompras(periodo: Periodo, enabled: boolean) {
 
     const compras_mes = ((g.por_mes ?? []) as any[]).slice(-12).map((r) => ({
       label: labelAnomes(String(r.mes ?? r.anomes ?? '').replace(/\D/g, '').slice(0, 6)),
-      valor: num(r.valor ?? r.valor_total),
+      valor: num(r.valor ?? r.valor_total ?? r.valor_liquido),
     }));
 
     const por_tipo = ((g.por_tipo_despesa ?? []) as any[])
-      .map((r) => ({ label: String(r.tipo_despesa ?? r.tipo ?? r.label ?? '—').slice(0, 22), valor: num(r.valor ?? r.valor_total) }))
+      .map((r) => ({ label: String(r.tipo_despesa ?? r.tipo ?? r.label ?? '—').slice(0, 22), valor: num(r.valor ?? r.valor_total ?? r.valor_liquido) }))
       .sort((a, b) => b.valor - a.valor).slice(0, 8);
 
-    const top_fornecedores = ((g.por_fornecedor ?? g.top_fornecedores ?? []) as any[])
-      .map((r) => ({ label: String(r.fornecedor ?? r.nome ?? '—').slice(0, 28), valor: num(r.valor ?? r.valor_total) }))
-      .sort((a, b) => b.valor - a.valor).slice(0, 8);
+    const top_fornecedores = ((g.por_fornecedor ?? []) as any[])
+      .map((r) => ({ label: String(r.fornecedor ?? r.nome ?? r.razao_social ?? '—').slice(0, 28), valor: num(r.valor ?? r.valor_total ?? r.valor_liquido) }))
+      .sort((a, b) => b.valor - a.valor).slice(0, 10);
 
-    const situacao = ((g.por_situacao ?? g.situacao ?? []) as any[])
-      .map((r) => ({ label: String(r.situacao ?? r.status ?? '—'), valor: num(r.valor ?? r.quantidade ?? r.qtd) }))
-      .sort((a, b) => b.valor - a.valor).slice(0, 6);
+    const itensAtrasados = num(k.itens_atrasados);
+    const itensPendentes = num(k.itens_pendentes);
+    const itensOnTime = Math.max(0, itensPendentes - itensAtrasados);
+    const situacao: Array<{ label: string; valor: number }> = [];
+    if (itensAtrasados) situacao.push({ label: 'Atrasadas', valor: itensAtrasados });
+    if (itensOnTime) situacao.push({ label: 'No prazo', valor: itensOnTime });
+
+    const valorPendente = num(k.valor_pendente_total ?? k.valor_pendente);
+    const ocsAtrasadas = num(k.ocs_atrasadas);
+    const totalOcs = num(k.total_ocs ?? k.quantidade_ocs);
+    // Aproximação: valor atrasado ~ pendente * (ocs_atrasadas / total_ocs)
+    const valorAtrasado = totalOcs > 0 ? valorPendente * (ocsAtrasadas / totalOcs) : 0;
 
     return {
       kpis: {
-        valor_comprado: num(k.valor_comprado),
-        valor_pendente: num(k.valor_pendente),
-        total_ocs: num(k.quantidade_ocs),
-        fornecedores: num(k.quantidade_fornecedores),
-        valor_atrasado: num(k.valor_atrasado ?? k.valor_vencido ?? 0),
+        valor_comprado: num(k.valor_liquido_total ?? k.valor_comprado),
+        valor_pendente: valorPendente,
+        valor_atrasado: valorAtrasado,
+        total_ocs: totalOcs,
+        ocs_atrasadas: ocsAtrasadas,
+        fornecedores: num(k.total_fornecedores ?? k.quantidade_fornecedores),
+        ticket_medio_oc: num(k.ticket_medio_oc),
       },
       series: { compras_mes },
       breakdowns: { por_tipo, top_fornecedores, situacao },
