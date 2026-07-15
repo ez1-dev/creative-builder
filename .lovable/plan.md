@@ -1,73 +1,83 @@
 
 ## Objetivo
 
-Fazer com que cada card do Dashboard Geral **sempre apareça** — mesmo quando a API devolve zero, campo ausente ou payload parcial — sem que um bloco vazio "sequestre" a informação dos vizinhos ou esconda o resto do painel.
+Introduzir uma camada de **validação de schema (Zod)** entre a API e os hooks do Dashboard Geral, para que campos ausentes, tipos incorretos, strings numéricas ("1.234,56"), `null`/`undefined` e chaves alternativas sejam normalizados de forma previsível antes de chegar aos KPIs, gráficos e tabelas.
 
-## Diagnóstico
+## Motivação
 
-1. **Gráficos somem por completo** — `HorizontalBarChartCard`, `BarChartCard`, `LineChartCard`, `DonutChartCard` renderizam `NoDataState` em altura cheia (ex. 300px) quando `data.length === 0`, deixando um bloco vazio grande que domina a aba.
-2. **Séries com todos os valores zero** ainda renderizam o card, mas eixos ficam sem escala útil — melhor exibir microcopy "Sem movimento no período" e manter o card compacto.
-3. **Filtros ocultam dados legítimos**:
-   - `useComercial` remove `OUTROS` e `LANCTO MANUAL` das revendas — se o backend só tiver esses, a lista fica vazia.
-   - `useCompras.situacao` só faz `push` quando > 0 — quando tudo está no prazo, some inteiro.
-4. **KPIs sem tolerância a `undefined`**:
-   - Divisões `faturamento / notas`, `abaixo / total`, `desconto / (fat+desc)` podem dar `NaN` quando denominador = 0 (o `num()` protege parte, mas `NaN` chega ao `KpiCard`).
-   - `data.kpis.faturamento_delta` em `VisaoGeralTab` é multiplicado por 100 mesmo já vindo em %.
-5. **Contabilidade `dre_top`**: valores negativos em `HorizontalBarChartCard` viram barras invertidas confusas — usar `Math.abs` para grandeza + sinal por cor semântica ou usar `WaterfallChartCard`/tabela.
-6. **VisãoGeral**: quando um hook secundário (fin/cont/est/prod) falha, o KPI mostra 0 sem indicar erro; hoje não há tooltip nem badge de status.
+Hoje os 8 hooks em `src/hooks/dashboardGeral/*.ts` fazem *coercion* manual (`num(k.valor_total ?? k.fat_liquido ?? …)`, `String(r.revenda ?? …)`) espalhada por várias linhas. Esse padrão:
 
-## Escopo — SEM mexer em endpoints/cálculos de negócio
+- Perde dados quando o backend renomeia campos ou envia números como string.
+- Não avisa quando o payload muda; o card só some/zera silenciosamente.
+- Duplica lógica de fallback em cada hook, dificultando manutenção.
 
-### 1. Nova camada visual: "empty inline"
+Com schemas Zod centralizados, cada resposta passa por `schema.safeParse` → objeto normalizado com defaults garantidos → hook apenas seleciona/agrega.
 
-- **Adicionar** `src/components/bi/states/InlineEmpty.tsx` — placeholder compacto (altura fixa ~80px, ícone pequeno + texto sutil) para uso quando a série está vazia mas o card deve permanecer visível.
-- **Ajustar** `ChartCardShell.tsx`: aceitar prop opcional `emptyVariant?: 'full' | 'inline'` (default `full` — compat). Quando `inline`, renderiza `InlineEmpty` no lugar do `NoDataState` sem reservar toda a altura, e ainda expõe título/subtítulo para o usuário entender o quê está vazio.
-- **Repassar** `emptyVariant="inline"` em todos os charts do Dashboard Geral (tabs), mantendo os demais dashboards intactos.
+## Escopo
 
-### 2. KPIs resilientes
+### 1. Infra de validação — `src/lib/dashboardGeral/schemas/`
 
-- **Criar helper** `safeDiv(a, b)` em `src/hooks/dashboardGeral/shared.ts` retornando 0 quando `b === 0 || !Number.isFinite(a/b)`. Trocar todas as divisões que hoje podem produzir `NaN`/`Infinity` nos 8 hooks.
-- **KpiCard**: aceitar valor `NaN` e renderizar `—` (traço) em vez de "R$ NaN". Ajuste dentro do próprio `KpiCard.tsx` (fallback via `Number.isFinite`).
-- **VisãoGeralTab**: corrigir `faturamento_delta * 100` (já vem em decimal? confirmar em `useDashboardGeral`) — se necessário, unificar assinatura via helper `pctDisplay(v)` que detecta escala 0-1 vs 0-100.
-- **Adicionar sub-badge de status** por KPI headline (`ok`/`erro`/`carregando`) usando o campo `status` que já vem dos hooks; renderiza um dot discreto em vez de mostrar 0 silencioso.
+Novo diretório com:
 
-### 3. Remover filtros que ocultam dados
+- **`_utils.ts`**
+  - `zNum` — Zod schema que aceita `number | string | null | undefined` e devolve `number` (parseia "1.234,56", trata `NaN`/`Infinity` → 0).
+  - `zStr(maxLen?)` — string tolerante, aplica `trim()` e slice.
+  - `zArr<T>(item)` — coerção defensiva: `null`/objeto → `[]`.
+  - `parseOrEmpty(schema, data, fallback, moduleName)` — executa `safeParse`; em falha, loga uma vez em `console.warn` com o path do primeiro erro e devolve `fallback`; em modo dev registra também no `logger` do projeto para o painel de erros.
 
-- `useComercial`: **remover** o filtro que exclui `OUTROS` e `LANCTO MANUAL` das revendas — deixar aparecer com badge `[Outros]` para transparência.
-- `useCompras`: sempre incluir as duas fatias `Atrasadas`/`No prazo` (mesmo com zero) para o donut manter contexto.
-- `useEstoque`: mesmo tratamento — `itens_ok`, `abaixo`, `acima`, `sem_politica` sempre presentes na composição.
+- **`comercial.ts`**, **`compras.ts`**, **`financeiro.ts`**, **`contabilidade.ts`**, **`rh.ts`**, **`producao.ts`**, **`estoque.ts`**, **`manutencao.ts`**
+  - Um schema por endpoint (ex. `FaturamentoGeniusResponseSchema`, `PainelComprasResponseSchema`, `DreResumoResponseSchema`, `BalancoPatrimonialResponseSchema`, `TurnoverResponseSchema`, `AbsenteismoResponseSchema`, `ResumoFolhaResponseSchema`, `QuadroColaboradoresSchema`, `CargaCentrosResponseSchema`, `CargaRecursosResponseSchema`, `EstoqueMinMaxResponseSchema`, `ManutencaoRowSchema`).
+  - Cada schema já **normaliza aliases** conhecidos (ex. `valor_total ?? valor ?? fat_liquido`) via `z.preprocess` para eliminar as cadeias de `??` dos hooks.
+  - Exporta `type` inferido (`z.infer`) e o `EMPTY` default.
 
-### 4. Gráficos de contabilidade
+### 2. Refatorar hooks
 
-- **ContabilidadeTab**: trocar `HorizontalBarChartCard` do `dre_top` (que tem valores negativos e distorce) por `WaterfallChartCard` já disponível na biblioteca, com fallback `inline` quando totais vierem zerados.
-- Grupos do balanço: quando a lista vier vazia, manter o card visível com placeholder inline + link para "Abrir Balanço Patrimonial" (já existe no topo).
+Cada arquivo em `src/hooks/dashboardGeral/*.ts` passa a:
 
-### 5. Ajustes por aba (padrão único de resiliência)
+1. Chamar `queryFn` como hoje.
+2. Aplicar `parseOrEmpty(SchemaX, rawData, EMPTY_X, 'comercial')` no `useMemo`.
+3. Operar em cima do resultado tipado — remove os `?? ?? ??` intermediários e o `as any`.
+4. O `status` do hook ganha um novo estado `'parcial'` quando o schema devolveu `fallback` (payload ilegível) — hoje é `'erro'` no `statusFrom`.
 
-Para cada uma das 9 abas em `src/pages/dashboard-geral/tabs/*.tsx`:
+Sem mudar interface externa (`data.kpis.faturamento`, etc.), então tabs e `VisãoGeralTab` não precisam de alterações — apenas ganham dados mais estáveis.
 
-- Todos os charts recebem `emptyVariant="inline"` e `height` reduzida quando série vazia (via prop).
-- Toda seção `<section>` mantém a **estrutura de grid mesmo com dados vazios** — o card fica com placeholder inline, o grid não colapsa.
-- Adicionar `subtitle` explicando o período (`"Mês atual · MM/AAAA"`) para o usuário identificar o recorte.
-- Tabelas (`EstoqueTab.rupturas`, `ContabilidadeTab.balanco`) já tratam vazio — apenas polir microcopy e adicionar contagem no header ("0 itens em ruptura ✓").
+### 3. Sinalização de payload parcial nos cards
 
-### 6. Fora de escopo
+- Adicionar prop opcional `status?: 'ok' | 'parcial' | 'erro'` no `KpiCard`.
+  - `'parcial'` desenha um `Info` badge discreto com tooltip "Alguns campos vieram incompletos da API — mostrando o que foi reconhecido".
+- Aplicar apenas nos KPIs headline das abas do Dashboard Geral, reutilizando `data.status` do hook.
+- Nenhuma outra página é afetada (prop é opcional, default = `'ok'`).
 
-- Nenhuma alteração em endpoints, migrations, backend, cálculos de negócio ou navegação.
-- Nenhum novo card/gráfico é adicionado — só reforço da renderização dos existentes.
+### 4. Testes leves de contrato
+
+Adicionar `src/lib/dashboardGeral/schemas/__tests__/parse.spec.ts` cobrindo:
+
+- Payload real (fixture mínima) → parseia OK.
+- Payload com campos como string numérica → normaliza para `number`.
+- Payload com chaves faltando → aplica defaults sem lançar exceção.
+- Payload `null`/`undefined` → devolve `EMPTY`.
+
+Usa `vitest` (já no projeto).
+
+## Fora de escopo
+
+- Endpoints, migrations, backend, cálculos de negócio — nada muda.
+- Não é adicionado nenhum card ou gráfico novo.
+- Nenhum outro dashboard (BI Comercial, Financeiro, etc.) é tocado — apenas o Dashboard Geral.
 
 ## Arquivos afetados
 
 **Novos:**
-- `src/components/bi/states/InlineEmpty.tsx`
+- `src/lib/dashboardGeral/schemas/_utils.ts`
+- `src/lib/dashboardGeral/schemas/{comercial,compras,contabilidade,estoque,financeiro,manutencao,producao,rh}.ts`
+- `src/lib/dashboardGeral/schemas/__tests__/parse.spec.ts`
 
 **Editados:**
-- `src/components/bi/charts/ChartCardShell.tsx` (prop `emptyVariant`)
-- `src/components/bi/kpis/KpiCard.tsx` (fallback `NaN`/`Infinity` → `—`)
-- `src/hooks/dashboardGeral/shared.ts` (`safeDiv`, `pctDisplay`)
-- `src/hooks/dashboardGeral/{useComercial,useCompras,useContabilidade,useEstoque,useFinanceiro,useProducao,useRh,useManutencao}.ts` (usar `safeDiv`, retirar filtros ocultadores, sempre popular categorias)
-- `src/pages/dashboard-geral/tabs/{ComercialTab,ComprasTab,ContabilidadeTab,EstoqueTab,FinanceiroTab,ManutencaoTab,ProducaoTab,RhTab,VisaoGeralTab}.tsx` (props `emptyVariant`, subtitles de período, correções pontuais de escala de %)
+- `src/hooks/dashboardGeral/{useComercial,useCompras,useContabilidade,useEstoque,useFinanceiro,useManutencao,useProducao,useRh}.ts` — passam por `parseOrEmpty`.
+- `src/hooks/dashboardGeral/shared.ts` — `ModStatus` inclui `'parcial'`.
+- `src/components/bi/kpis/KpiCard.tsx` — nova prop opcional `status` + badge.
+- (opcional) `src/pages/dashboard-geral/tabs/*.tsx` — passar `status={data.status}` nos KPIs headline.
 
 ## Resultado esperado
 
-Cada aba do Dashboard Geral **preserva o layout** independentemente da qualidade do payload: KPIs mostram o valor real ou `—` (nunca `NaN`/`Infinity`), gráficos exibem barras/linhas quando há dados e um placeholder compacto quando não há — sem que o card vazio ocupe a tela inteira e sem esconder as informações vizinhas.
+Todos os KPIs e cards do Dashboard Geral renderizam com o valor correto sempre que o payload contiver a informação — mesmo com campos ausentes, tipos trocados, aliases antigos ou strings numéricas. Payloads irreconhecíveis param nos schemas com um `console.warn` claro e um badge "parcial" no card, evitando a falha silenciosa atual.
