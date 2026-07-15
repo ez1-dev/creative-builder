@@ -1,26 +1,40 @@
-## Barra de rolagem horizontal flutuante no Drill
+## Objetivo
 
-**Problema:** A tabela do razão no `DrillDrawer` tem overflow horizontal (`overflow-x-auto` na linha 351), mas a barra de rolagem só aparece no rodapé do container. Com muitos lançamentos, o usuário precisa rolar verticalmente até o fim para poder rolar horizontalmente.
+Corrigir a visualização da DRE (`DreStudioVisualizacaoPage`) para:
 
-**Solução:** Adicionar uma barra de rolagem horizontal "flutuante" que fica sempre visível na base do viewport enquanto a tabela estiver visível, espelhando o scroll do container real.
+1. Aninhar `7.1`/`7.2` dentro de `7`, `8.1`/`8.2` dentro de `8`, `9.1` dentro de `9` (e qualquer outra sublinha `X.Y` dentro da linha pai `X`).
+2. Remover a linha placeholder `__PERSONALIZADO__ / Código personalizado` da tabela.
 
-### Alterações — apenas `src/components/dre-studio/DrillDrawer.tsx`
+Ambas alterações são **apenas de exibição** no front, no arquivo `src/pages/contabilidade/dre-studio/DreStudioVisualizacaoPage.tsx`. Nada é alterado no backend, nas queries, no cache ou nos hooks.
 
-1. Criar um pequeno componente interno `FloatingHScrollbar` que:
-   - Recebe uma `ref` do container rolável real (o `<div className="overflow-x-auto ...">` da linha 351).
-   - Renderiza um `<div>` fixo (position sticky no bottom do painel) com altura ~14px e um filho com a mesma `scrollWidth` do container real.
-   - Sincroniza `scrollLeft` nos dois sentidos (proxy → real e real → proxy) via listeners `onScroll`.
-   - Usa `ResizeObserver` para atualizar a largura quando o conteúdo/tabela mudar.
-   - Só aparece quando `scrollWidth > clientWidth` (não há necessidade de barra se a tabela couber).
+## Alterações — só em `DreStudioVisualizacaoPage.tsx`
 
-2. Envolver o container da tabela num wrapper `relative`, prender uma `ref` no `<div className="overflow-x-auto ...">` e renderizar `<FloatingHScrollbar targetRef={ref} />` logo acima do rodapé fixo (linha 458), como `sticky bottom-[48px]` para não sobrepor a barra azul de totais.
+Bloco do `useMemo` que hoje separa `especiais/normais` e reconcilia virtuais do Balanço (linhas ~540-576):
 
-3. Nada é alterado no visual da tabela, colunas, dados, cálculos, filtros, queries ou backend.
+### 1. Filtrar linha personalizada placeholder
+Ao classificar `linhasApi` em `especiais*/normais`, descartar toda linha cujo `codigo` normalizado (`String(l.codigo).trim().toUpperCase()`) seja `__PERSONALIZADO__` OU cuja `descricao` normalizada seja `Código personalizado`. Ela não entra em nenhuma das listas — desaparece da grade, do export e do total.
 
-### Fora de escopo
+### 2. Reconciliar hierarquia por código também para DRE
+Após o bloco `if (vincular)` (linhas 557-576), adicionar um bloco simétrico para **DRE** (`tipoModelo === "DRE"`, ou simplesmente "quando não há `vincular`"):
 
-- Outras tabelas do sistema (só a do Drill do DRE Studio, conforme pedido).
-- Layout do rodapé de totais, colunas, ordenação.
-- Backend, cache, tipos.
+- Mapear `byCodigo` só com os `normais` cujo `codigo` bate o padrão `^\d+(\.\d+)*$` (evita colidir com `VINCULAR.*` do balanço).
+- Para cada linha `l` com `codigo` do tipo `X.Y` (contém `.`) e `linha_pai_id` ausente ou inválido, derivar `codPai = codigo.slice(0, codigo.lastIndexOf("."))` e, se existir uma linha com esse código no mapa, atribuir `l.linha_pai_id = pai.linha_id`.
+- Não alterar `ordem`, `nivel`, `codigo`, nem nada mais da linha — só o vínculo pai.
 
-Ao final, testo com Playwright abrindo o drill de uma linha com muitos lançamentos para confirmar que a barra flutuante aparece e sincroniza com a rolagem real.
+O restante do pipeline (`filhosPorPai`, `sortSiblings`, `visit`) já lida corretamente com o resultado: 7.1 e 7.2 aparecerão indentadas sob 7 e serão colapsáveis pelo controle de nível existente.
+
+## Fora de escopo
+
+- Backend `/api/contabil/modelos/criar-padrao` e `/estrutura-padrao` (a hierarquia correta idealmente virá de lá; por enquanto reconciliamos no front).
+- Página de edição da estrutura, `LinhaDialog`, criação de linhas.
+- Balanço, DRE Studio de outros modelos, drill, exports.
+- Cálculos, totalizadores, sinais.
+
+## Verificação
+
+Após o build automático, abrir `/contabilidade/dre-studio/{id}/visualizacao` e conferir que:
+- 7.1 e 7.2 estão indentadas sob 7 (com chevron de expansão em 7).
+- 8.1 e 8.2 estão indentadas sob 8.
+- 9.1 está indentada sob 9.
+- A linha `__PERSONALIZADO__ / Código personalizado` sumiu.
+- Nenhum valor mensal muda (a linha placeholder já estava zerada; o aninhamento não altera soma).

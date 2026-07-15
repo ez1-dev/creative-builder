@@ -540,6 +540,11 @@ function Visualizacao() {
     const especiaisTot: ComparativoLinhaV2[] = [];
     const normais: ComparativoLinhaV2[] = [];
     for (const l of linhasApi) {
+      // Filtrar linha placeholder "__PERSONALIZADO__ / Código personalizado".
+      const codNorm = String(l.codigo ?? "").trim().toUpperCase();
+      const descNorm = String(l.descricao ?? "").trim().toLowerCase();
+      if (codNorm === "__PERSONALIZADO__" || descNorm === "código personalizado") continue;
+
       if (isBalanco && isLinhaTotalGeral(l)) especiaisTot.push(l);
       else if (isBalanco && isLinha98(l)) especiais98.push(l);
       else if (isBalanco && isLinha000(l)) especiais000.push(l);
@@ -574,6 +579,35 @@ function Visualizacao() {
         l.linha_pai_id = pai.linha_id;
       }
     }
+
+    // 1c) Reconciliar hierarquia numérica (DRE padrão): sublinhas `X.Y`, `X.Y.Z`
+    //     devem ficar sob a linha pai `X` / `X.Y` quando o backend não envia
+    //     `linha_pai_id`. Só aplica a códigos numéricos puros (evita colidir com
+    //     `VINCULAR.*` do Balanço, já tratado em 1b).
+    {
+      const codNumRe = /^\d+(?:\.\d+)*$/;
+      const idsAtuais = new Set(normais.map((l) => l.linha_id));
+      const byCodigoNum = new Map<string, ComparativoLinhaV2>();
+      for (const l of normais) {
+        const cod = String(l.codigo ?? "").trim();
+        if (cod && codNumRe.test(cod)) byCodigoNum.set(cod, l);
+      }
+      for (const l of normais) {
+        const cod = String(l.codigo ?? "").trim();
+        if (!cod || !codNumRe.test(cod)) continue;
+        const temPaiValido = l.linha_pai_id && idsAtuais.has(l.linha_pai_id);
+        if (temPaiValido) continue;
+        const idx = cod.lastIndexOf(".");
+        if (idx <= 0) continue;
+        const codPai = cod.slice(0, idx);
+        const pai = byCodigoNum.get(codPai);
+        if (pai && pai.linha_id !== l.linha_id) {
+          l.linha_pai_id = pai.linha_id;
+        }
+      }
+    }
+
+
 
 
     // 2) Monta árvore por linha_pai_id; ordena irmãos por `ordem`.
