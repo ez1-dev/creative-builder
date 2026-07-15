@@ -1704,21 +1704,6 @@ function Visualizacao() {
               </span>
               {isBalancoOficial && (
                 <>
-                  <span
-                    className={cn(
-                      "rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wider",
-                      refAplicada
-                        ? "bg-emerald-100 text-emerald-800"
-                        : "bg-red-100 text-red-800",
-                    )}
-                  >
-                    Referência Senior: {refAplicada ? "Sim" : "Não"}
-                  </span>
-                  {refOrigem && (
-                    <span className="text-[11px] text-slate-500">
-                      Origem ref.: <strong>{refOrigem}</strong>
-                    </span>
-                  )}
                   {qtdRef != null && (
                     <span className="text-[11px] text-slate-500">
                       Qtd. referências aplicadas: <strong>{qtdRef}</strong>
@@ -1726,6 +1711,7 @@ function Visualizacao() {
                   )}
                 </>
               )}
+
             </div>
             {semReferencia && (
               <div className="mb-3 flex items-start gap-3 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-900">
