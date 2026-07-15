@@ -105,7 +105,8 @@ export default function ProgramacaoFeriasPage() {
   const detalhe = useMemo(() => data?.detalhe ?? [], [data?.detalhe]);
   const deFeriasDetalhe = useMemo(() => data?.de_ferias_detalhe ?? [], [data?.de_ferias_detalhe]);
   const pivot = useMemo(() => {
-    const arr = [...(data?.limite_ferias_pivot ?? [])];
+    const anoAtual = new Date().getFullYear();
+    const arr = (data?.limite_ferias_pivot ?? []).filter((r) => Number(r.ano) >= anoAtual);
     arr.sort((a, b) => String(a.ano).localeCompare(String(b.ano)));
     return arr;
   }, [data?.limite_ferias_pivot]);
