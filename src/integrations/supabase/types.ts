@@ -1317,6 +1317,39 @@ export type Database = {
         }
         Relationships: []
       }
+      bi_user_filter_presets: {
+        Row: {
+          created_at: string
+          filtros: Json
+          id: string
+          is_default: boolean
+          nome: string
+          page_key: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          filtros?: Json
+          id?: string
+          is_default?: boolean
+          nome: string
+          page_key: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          filtros?: Json
+          id?: string
+          is_default?: boolean
+          nome?: string
+          page_key?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bi_user_widgets: {
         Row: {
           component_id: string
