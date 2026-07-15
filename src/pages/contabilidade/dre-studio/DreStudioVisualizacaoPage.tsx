@@ -621,6 +621,7 @@ function Visualizacao() {
       filhosPorPai.set(pai, arr);
     }
 
+    const codNumSortRe = /^\d+(?:\.\d+)*$/;
     const sortSiblings = (arr: ComparativoLinhaV2[]) =>
       arr.sort((a, b) => {
         // Para virtuais (filhas de VINCULAR), ordenar por `codigo` natural
@@ -633,11 +634,19 @@ function Visualizacao() {
             sensitivity: "base",
           });
         }
+        // Códigos puramente numéricos (1, 2, ..., 9, 10, 7.1, 8.2): ordem natural
+        // por código evita a ordenação lexicográfica "1, 10, 2".
+        const ca = String(a.codigo ?? "").trim();
+        const cb = String(b.codigo ?? "").trim();
+        if (codNumSortRe.test(ca) && codNumSortRe.test(cb)) {
+          return ca.localeCompare(cb, undefined, { numeric: true, sensitivity: "base" });
+        }
         const oa = Number(a.ordem ?? 0);
         const ob = Number(b.ordem ?? 0);
         if (oa !== ob) return oa - ob;
         return String(a.codigo ?? a.linha_id).localeCompare(String(b.codigo ?? b.linha_id));
       });
+
     for (const arr of filhosPorPai.values()) sortSiblings(arr);
 
     // 3) DFS: pai → filhos (recursivo).
