@@ -25,11 +25,11 @@ export function ComprasTab({ periodo, enabled }: { periodo: Periodo; enabled: bo
         <KpiCard title="Total OCs" value={data.kpis.total_ocs} format="quantity" icon={<FileText className="h-4 w-4" />} loading={loading} />
         <KpiCard title="Fornecedores" value={data.kpis.fornecedores} format="quantity" icon={<Truck className="h-4 w-4" />} loading={loading} />
       </section>
-      <BarChartCard title="Compras — últimos 12 meses" data={data.series.compras_mes} valueFormatter={formatCurrency} height={280} />
+      <BarChartCard title="Compras — últimos 12 meses" data={data.series.compras_mes} valueFormatter={formatCurrency} height={280} emptyVariant="inline" emptyMessage="Sem compras no período" />
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <DonutChartCard title="Compras por tipo de despesa" data={data.breakdowns.por_tipo} valueFormatter={formatCurrency} height={300} />
-        <HorizontalBarChartCard title="Top fornecedores" data={data.breakdowns.top_fornecedores} valueFormatter={formatCurrency} height={300} />
-        <HorizontalBarChartCard title="Situação das OCs" data={data.breakdowns.situacao} color="hsl(var(--warning))" height={300} />
+        <DonutChartCard title="Compras por tipo de despesa" data={data.breakdowns.por_tipo} valueFormatter={formatCurrency} height={300} emptyVariant="inline" emptyMessage="Sem despesas classificadas" />
+        <HorizontalBarChartCard title="Top fornecedores" data={data.breakdowns.top_fornecedores} valueFormatter={formatCurrency} height={300} emptyVariant="inline" emptyMessage="Sem fornecedores no período" />
+        <HorizontalBarChartCard title="Situação das OCs" data={data.breakdowns.situacao} color="hsl(var(--warning))" height={300} emptyVariant="inline" emptyMessage="Sem OCs pendentes" />
       </section>
     </div>
   );

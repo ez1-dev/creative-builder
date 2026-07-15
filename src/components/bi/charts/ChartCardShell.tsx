@@ -6,6 +6,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { LoadingState } from '../states/LoadingState';
 import { ErrorState } from '../states/ErrorState';
 import { NoDataState } from '../states/NoDataState';
+import { InlineEmpty } from '../states/InlineEmpty';
 import {
   type VisualConfig,
   type DescriptionVars,
@@ -33,6 +34,10 @@ export interface ChartCardShellProps {
   visualConfig?: Partial<VisualConfig>;
   /** Variáveis para interpolar em resultDescription. */
   descriptionVars?: DescriptionVars;
+  /** 'full' (default) usa NoDataState altura cheia; 'inline' usa placeholder compacto. */
+  emptyVariant?: 'full' | 'inline';
+  /** Mensagem custom para estado vazio. */
+  emptyMessage?: string;
 }
 
 const ALIGN_CLASS: Record<'left' | 'center' | 'right', string> = {
@@ -44,7 +49,7 @@ const ALIGN_CLASS: Record<'left' | 'center' | 'right', string> = {
 export function ChartCardShell({
   title, subtitle, icon, count, loading, error, isEmpty, height = 280,
   expandable = true, exportable = false, onExportData, children,
-  visualConfig, descriptionVars,
+  visualConfig, descriptionVars, emptyVariant = 'full', emptyMessage,
 }: ChartCardShellProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -74,7 +79,9 @@ export function ChartCardShell({
     : error
     ? <ErrorState message={error} height={effHeight} />
     : isEmpty
-    ? <NoDataState height={effHeight} />
+    ? (emptyVariant === 'inline'
+        ? <InlineEmpty message={emptyMessage} />
+        : <NoDataState height={effHeight} message={emptyMessage} />)
     : <div ref={containerRef} style={{ minHeight: effHeight }}>{children}</div>;
 
   const aboveDesc  = vc.resultDescription.position === 'above'        ? descNode : null;

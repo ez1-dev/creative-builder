@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, type EstoqueMinMaxResponse } from '@/lib/api';
-import { statusFrom, num, type ModStatus } from './shared';
+import { statusFrom, num, safeDiv, type ModStatus } from './shared';
 
 export interface EstoqueData {
   kpis: {
@@ -63,7 +63,7 @@ export function useEstoque(enabled: boolean) {
         itens_acima_max: acima,
         sem_politica: semPol,
         itens_ok: ok,
-        ruptura_pct: total ? (abaixo / total) * 100 : 0,
+        ruptura_pct: safeDiv(abaixo, total) * 100,
       },
       rupturas: rup.slice(0, 10),
       status: statusFrom(q, enabled),

@@ -24,9 +24,9 @@ export function ManutencaoTab({ periodo, enabled }: { periodo: Periodo; enabled:
         <KpiCard title="Registros máquinas" value={data.kpis.total_maquinas} format="quantity" icon={<Wrench className="h-4 w-4" />} loading={loading} />
       </section>
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <HorizontalBarChartCard title="Frota — custo por veículo" data={data.breakdowns.por_veiculo} valueFormatter={formatCurrency} height={320} />
-        <HorizontalBarChartCard title="Máquinas — custo por máquina" data={data.breakdowns.por_maquina} valueFormatter={formatCurrency} color="hsl(var(--success))" height={320} />
-        <DonutChartCard title="Frota por categoria" data={data.breakdowns.por_categoria} valueFormatter={formatCurrency} height={320} />
+        <HorizontalBarChartCard title="Frota — custo por veículo" data={data.breakdowns.por_veiculo} valueFormatter={formatCurrency} height={320} emptyVariant="inline" emptyMessage="Sem registros de frota" />
+        <HorizontalBarChartCard title="Máquinas — custo por máquina" data={data.breakdowns.por_maquina} valueFormatter={formatCurrency} color="hsl(var(--success))" height={320} emptyVariant="inline" emptyMessage="Sem registros de máquinas" />
+        <DonutChartCard title="Frota por categoria" data={data.breakdowns.por_categoria} valueFormatter={formatCurrency} height={320} emptyVariant="inline" emptyMessage="Sem categorias no período" />
       </section>
     </div>
   );

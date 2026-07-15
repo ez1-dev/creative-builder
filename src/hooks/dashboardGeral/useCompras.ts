@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { api, type PainelComprasDashboardResponse } from '@/lib/api';
-import { rangeFor, num, labelAnomes, anomesToDate, statusFrom, type Periodo, type ModStatus } from './shared';
+import { rangeFor, num, labelAnomes, anomesToDate, safeDiv, statusFrom, type Periodo, type ModStatus } from './shared';
 
 export interface ComprasData {
   kpis: {
@@ -65,15 +65,17 @@ export function useCompras(periodo: Periodo, enabled: boolean) {
     const itensAtrasados = num(k.itens_atrasados);
     const itensPendentes = num(k.itens_pendentes);
     const itensOnTime = Math.max(0, itensPendentes - itensAtrasados);
-    const situacao: Array<{ label: string; valor: number }> = [];
-    if (itensAtrasados) situacao.push({ label: 'Atrasadas', valor: itensAtrasados });
-    if (itensOnTime) situacao.push({ label: 'No prazo', valor: itensOnTime });
+    // Sempre inclui as duas fatias (mesmo 0) para preservar contexto do donut.
+    const situacao: Array<{ label: string; valor: number }> = [
+      { label: 'Atrasadas', valor: itensAtrasados },
+      { label: 'No prazo', valor: itensOnTime },
+    ];
 
     const valorPendente = num(k.valor_pendente_total ?? k.valor_pendente);
     const ocsAtrasadas = num(k.ocs_atrasadas);
     const totalOcs = num(k.total_ocs ?? k.quantidade_ocs);
     // Aproximação: valor atrasado ~ pendente * (ocs_atrasadas / total_ocs)
-    const valorAtrasado = totalOcs > 0 ? valorPendente * (ocsAtrasadas / totalOcs) : 0;
+    const valorAtrasado = valorPendente * safeDiv(ocsAtrasadas, totalOcs);
 
     return {
       kpis: {

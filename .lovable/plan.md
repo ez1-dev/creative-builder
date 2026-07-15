@@ -1,61 +1,73 @@
-# Dashboard Geral — corrigir dados e melhorar visual
+
+## Objetivo
+
+Fazer com que cada card do Dashboard Geral **sempre apareça** — mesmo quando a API devolve zero, campo ausente ou payload parcial — sem que um bloco vazio "sequestre" a informação dos vizinhos ou esconda o resto do painel.
 
 ## Diagnóstico
 
-Verifiquei o console e a rede da tela e vi por que várias abas aparecem vazias:
+1. **Gráficos somem por completo** — `HorizontalBarChartCard`, `BarChartCard`, `LineChartCard`, `DonutChartCard` renderizam `NoDataState` em altura cheia (ex. 300px) quando `data.length === 0`, deixando um bloco vazio grande que domina a aba.
+2. **Séries com todos os valores zero** ainda renderizam o card, mas eixos ficam sem escala útil — melhor exibir microcopy "Sem movimento no período" e manter o card compacto.
+3. **Filtros ocultam dados legítimos**:
+   - `useComercial` remove `OUTROS` e `LANCTO MANUAL` das revendas — se o backend só tiver esses, a lista fica vazia.
+   - `useCompras.situacao` só faz `push` quando > 0 — quando tudo está no prazo, some inteiro.
+4. **KPIs sem tolerância a `undefined`**:
+   - Divisões `faturamento / notas`, `abaixo / total`, `desconto / (fat+desc)` podem dar `NaN` quando denominador = 0 (o `num()` protege parte, mas `NaN` chega ao `KpiCard`).
+   - `data.kpis.faturamento_delta` em `VisaoGeralTab` é multiplicado por 100 mesmo já vindo em %.
+5. **Contabilidade `dre_top`**: valores negativos em `HorizontalBarChartCard` viram barras invertidas confusas — usar `Math.abs` para grandeza + sinal por cor semântica ou usar `WaterfallChartCard`/tabela.
+6. **VisãoGeral**: quando um hook secundário (fin/cont/est/prod) falha, o KPI mostra 0 sem indicar erro; hoje não há tooltip nem badge de status.
 
-1. **Faturamento (`/api/faturamento-genius-dashboard`) → HTTP 500** — o backend rejeita `codemp` (SQL error "1 parameter marker but 3 supplied"). A `FaturamentoGeniusPage` que funciona envia apenas `anomes_ini` + `anomes_fim`.
-2. **RH → nomes errados** — usei `admissoes`/`demissoes`, mas o endpoint devolve `admitidos`/`demitidos`. `turnover_pct` já vem em % (41.93), o hook divide por 100 duas vezes.
-3. **Compras → alguns painéis vazios** — os campos reais são `por_fornecedor`/`por_tipo_despesa` (usei chaves alternativas que não existem, como `top_fornecedores`, `por_situacao`). "Atrasado" precisa vir de `valor_pendente_total` restrito a `ocs_atrasadas`.
-4. **DRE, Balanço, Contas** — chamadas usam parâmetros/campos que o backend não expõe. Preciso alinhar `data_ini/data_fim` do DRE Configurável e o path real do Balanço (`/api/contabilidade/balanco` já existe via `getBalancoPatrimonial`, mas hoje envio `data_fim` em vez de `anomes_fim`). Contas a pagar/receber devolvem `resumo`/`total_valor` variando por página.
-5. **Produção** — `/api/producao/dashboard` provavelmente não existe. Trocar para `cargaApi.centros`/`cargaApi.recursos` (já consumidos em `/producao/carga`) para métricas reais.
-6. **Estoque** — `EstoqueMinMaxResponse` traz `resumo.abaixo_minimo`/`acima_maximo`/`ok`; item usa `saldo_atual`/`estoque_minimo`/`estoque_maximo`, sem custo unitário. Valor estocado precisa vir de outra fonte ou ser removido; usar `resumo` para os KPIs corretos.
+## Escopo — SEM mexer em endpoints/cálculos de negócio
 
-## Correções por hook
+### 1. Nova camada visual: "empty inline"
 
-**`useComercial`** — remover `codemp`; mapear também `por_mes.faturamento_total`, `por_revenda`, `por_produto`, `por_uf`. Aceitar shapes já presentes no payload (validar via console log com dados reais).
+- **Adicionar** `src/components/bi/states/InlineEmpty.tsx` — placeholder compacto (altura fixa ~80px, ícone pequeno + texto sutil) para uso quando a série está vazia mas o card deve permanecer visível.
+- **Ajustar** `ChartCardShell.tsx`: aceitar prop opcional `emptyVariant?: 'full' | 'inline'` (default `full` — compat). Quando `inline`, renderiza `InlineEmpty` no lugar do `NoDataState` sem reservar toda a altura, e ainda expõe título/subtítulo para o usuário entender o quê está vazio.
+- **Repassar** `emptyVariant="inline"` em todos os charts do Dashboard Geral (tabs), mantendo os demais dashboards intactos.
 
-**`useCompras`** — trocar chaves de agregação: `top_fornecedores` → `por_fornecedor`, `situacao` → derivar de `itens_atrasados`/`itens_pendentes`, `valor_atrasado` = `valor_pendente_total` quando `ocs_atrasadas > 0` (ou omitir card se sem dado direto). Adicionar KPIs "Atrasadas (qtd)", "Ticket médio OC".
+### 2. KPIs resilientes
 
-**`useFinanceiro`** — DRE Configurável exige `modelo_id`. Buscar o `MODELO_DRE_OFICIAL_ID` de `src/lib/contabilConfig.ts` e passar. Contas a pagar/receber: usar `/api/contas-pagar-arvore` e `/api/contas-receber-arvore` (mesmos endpoints das páginas) e extrair `resumo.valor_total`/`valor_vencido`.
+- **Criar helper** `safeDiv(a, b)` em `src/hooks/dashboardGeral/shared.ts` retornando 0 quando `b === 0 || !Number.isFinite(a/b)`. Trocar todas as divisões que hoje podem produzir `NaN`/`Infinity` nos 8 hooks.
+- **KpiCard**: aceitar valor `NaN` e renderizar `—` (traço) em vez de "R$ NaN". Ajuste dentro do próprio `KpiCard.tsx` (fallback via `Number.isFinite`).
+- **VisãoGeralTab**: corrigir `faturamento_delta * 100` (já vem em decimal? confirmar em `useDashboardGeral`) — se necessário, unificar assinatura via helper `pctDisplay(v)` que detecta escala 0-1 vs 0-100.
+- **Adicionar sub-badge de status** por KPI headline (`ok`/`erro`/`carregando`) usando o campo `status` que já vem dos hooks; renderiza um dot discreto em vez de mostrar 0 silencioso.
 
-**`useContabilidade`** — chamar `getBalancoPatrimonial({ anomes_ini, anomes_fim, codigo_empresa: 1, codigo_filial: 1 })` (assinatura correta). Somar `saldo_atual` por `grupo` (Ativo/Passivo/PL). DRE também com `MODELO_DRE_OFICIAL_ID`.
+### 3. Remover filtros que ocultam dados
 
-**`useRh`** — mapear `admitidos`→admissões, `demitidos`→demissões; `turnover_pct` já é %, remover multiplicação; adicionar KPI "Saldo" (`saldo`) e "Custo médio por colab" (`custo_total / headcount_medio`).
+- `useComercial`: **remover** o filtro que exclui `OUTROS` e `LANCTO MANUAL` das revendas — deixar aparecer com badge `[Outros]` para transparência.
+- `useCompras`: sempre incluir as duas fatias `Atrasadas`/`No prazo` (mesmo com zero) para o donut manter contexto.
+- `useEstoque`: mesmo tratamento — `itens_ok`, `abaixo`, `acima`, `sem_politica` sempre presentes na composição.
 
-**`useProducao`** — substituir `/api/producao/dashboard` por `cargaApi.centros({})` + `cargaApi.recursos({})`. KPIs: OPs total (do `resumo`), horas por unidade, top 10 centros por horas, distribuição por unidade de negócio.
+### 4. Gráficos de contabilidade
 
-**`useEstoque`** — usar `resumo.abaixo_minimo`/`acima_maximo`/`ok`/`sem_politica`. Substituir "valor estocado" por "Sem política" ou "Sugestão mínima total" (`resumo.sugestao_minimo_total`). Ruptura por `estoque_minimo - saldo_atual`, exibir Top 10.
+- **ContabilidadeTab**: trocar `HorizontalBarChartCard` do `dre_top` (que tem valores negativos e distorce) por `WaterfallChartCard` já disponível na biblioteca, com fallback `inline` quando totais vierem zerados.
+- Grupos do balanço: quando a lista vier vazia, manter o card visível com placeholder inline + link para "Abrir Balanço Patrimonial" (já existe no topo).
 
-**`useManutencao`** — já funciona; adicionar KPI "Ticket médio" e agrupar por mês para mini-série.
+### 5. Ajustes por aba (padrão único de resiliência)
 
-## Melhorias visuais
+Para cada uma das 9 abas em `src/pages/dashboard-geral/tabs/*.tsx`:
 
-- **Grid mais denso e uniforme**: KPIs em cards menores (h-24) com título xs, valor 2xl, ícone canto sup direito, cor semântica da borda esquerda mantida.
-- **Substituir cards vazios por skeleton dedicado**: quando `status === 'erro'`, mostrar "Sem dados disponíveis" com link para a página do módulo em vez de R$ 0,00 sozinho.
-- **Sparklines nos KPIs principais**: em Faturamento/Compras/Headcount adicionar mini-sparkline com últimos 12 meses (usar componente `KpiCard` estendido ou `LineChartCard` compacto).
-- **Comparativos visuais**: badge de delta ao lado do valor (verde/vermelho) para todos os KPIs com valor mês anterior.
-- **Visão geral enriquecida**: adicionar cards de "Contas a receber", "Contas a pagar", "PL", "Custo manutenção" e organizar em 3 seções nomeadas: *Comercial & Financeiro*, *Operações*, *Pessoas*.
-- **Gráficos com títulos e legendas melhores**: eixos formatados em R$ / % / horas; cores diferenciadas por módulo (info/success/warning/danger) em vez de tudo azul.
+- Todos os charts recebem `emptyVariant="inline"` e `height` reduzida quando série vazia (via prop).
+- Toda seção `<section>` mantém a **estrutura de grid mesmo com dados vazios** — o card fica com placeholder inline, o grid não colapsa.
+- Adicionar `subtitle` explicando o período (`"Mês atual · MM/AAAA"`) para o usuário identificar o recorte.
+- Tabelas (`EstoqueTab.rupturas`, `ContabilidadeTab.balanco`) já tratam vazio — apenas polir microcopy e adicionar contagem no header ("0 itens em ruptura ✓").
 
-## Arquivos
+### 6. Fora de escopo
 
-Editar:
-- `src/hooks/dashboardGeral/useComercial.ts` (remover codemp, ampliar mapeamentos)
-- `src/hooks/dashboardGeral/useCompras.ts` (chaves reais + novos KPIs)
-- `src/hooks/dashboardGeral/useFinanceiro.ts` (modelo_id + endpoints -arvore)
-- `src/hooks/dashboardGeral/useContabilidade.ts` (assinatura Balanço + modelo_id)
-- `src/hooks/dashboardGeral/useRh.ts` (admitidos/demitidos + % correto)
-- `src/hooks/dashboardGeral/useProducao.ts` (usar cargaApi)
-- `src/hooks/dashboardGeral/useEstoque.ts` (usar resumo)
-- `src/hooks/dashboardGeral/useManutencao.ts` (ticket médio + série)
-- `src/pages/dashboard-geral/tabs/*` (aplicar melhorias visuais, novas seções em VisãoGeral, sparklines em KpiCard onde couber)
+- Nenhuma alteração em endpoints, migrations, backend, cálculos de negócio ou navegação.
+- Nenhum novo card/gráfico é adicionado — só reforço da renderização dos existentes.
 
-Criar:
-- `src/pages/dashboard-geral/components/KpiCompact.tsx` — card KPI compacto reutilizável com sparkline opcional e badge de delta, todo em tokens semânticos (sem cores hardcoded).
+## Arquivos afetados
 
-## Fora do escopo
+**Novos:**
+- `src/components/bi/states/InlineEmpty.tsx`
 
-- Não vou pedir endpoints novos no FastAPI — se algum ainda falhar após as correções, a aba mostrará estado "Sem dados" com link para a página completa.
-- Sem novo backend/edge functions.
-- Sem alterar cálculos internos dos módulos originais.
+**Editados:**
+- `src/components/bi/charts/ChartCardShell.tsx` (prop `emptyVariant`)
+- `src/components/bi/kpis/KpiCard.tsx` (fallback `NaN`/`Infinity` → `—`)
+- `src/hooks/dashboardGeral/shared.ts` (`safeDiv`, `pctDisplay`)
+- `src/hooks/dashboardGeral/{useComercial,useCompras,useContabilidade,useEstoque,useFinanceiro,useProducao,useRh,useManutencao}.ts` (usar `safeDiv`, retirar filtros ocultadores, sempre popular categorias)
+- `src/pages/dashboard-geral/tabs/{ComercialTab,ComprasTab,ContabilidadeTab,EstoqueTab,FinanceiroTab,ManutencaoTab,ProducaoTab,RhTab,VisaoGeralTab}.tsx` (props `emptyVariant`, subtitles de período, correções pontuais de escala de %)
+
+## Resultado esperado
+
+Cada aba do Dashboard Geral **preserva o layout** independentemente da qualidade do payload: KPIs mostram o valor real ou `—` (nunca `NaN`/`Infinity`), gráficos exibem barras/linhas quando há dados e um placeholder compacto quando não há — sem que o card vazio ocupe a tela inteira e sem esconder as informações vizinhas.
