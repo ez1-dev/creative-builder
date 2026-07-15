@@ -1,76 +1,49 @@
 ## Objetivo
 
-Eliminar o "piscar" de cards/gráficos do Dashboard Geral quando a API demora ou refaz fetch em segundo plano, e substituir o bloco vermelho de erro por uma faixa discreta que preserva o layout.
+Melhorar a tabela **Limite Férias** em `/rh/programacao-ferias` para dar hierarquia visual, sinalizar urgência e reduzir o ruído das células vazias.
 
-## Diagnóstico
+## Problemas hoje
 
-- Hoje `statusFrom` marca `'carregando'` sempre que `isFetching` é true → cada refetch em background reseta cards para skeleton, causando flicker.
-- `LoadingState` skeleton é genérico (3 barrinhas) e não lembra o formato do gráfico/KPI, gerando salto visual quando os dados chegam.
-- `ErrorState` ocupa a área inteira do gráfico e "sequestra" o dashboard quando um único endpoint falha.
-- Não há delay mínimo: skeletons aparecem/somem em ms, gerando flash em cache-hits rápidos.
+- Tabela ocupa muito espaço com dezenas de "-" repetidos (ruído visual).
+- Não há distinção entre um limite **vencido** (ano < atual) e um **futuro** (ano ≥ atual) — todos os "1" aparecem em azul primário.
+- Sem realce do mês atual nem totais por coluna.
+- Ordem cronológica dos anos oculta os casos mais críticos (mais antigos).
+- Coluna TOTAL não comunica gravidade.
 
-## O que vai mudar
+## O que vai mudar (apenas UI do card `pivot-ferias`)
 
-### 1. Diferenciar primeira carga de refetch em background
+### 1. Densidade e legibilidade
+- Célula vazia deixa de mostrar `-` — vira espaço discreto (`text-muted-foreground/30 · "·"`).
+- Larguras fixas por mês (`w-14`) e tabulação numérica; linha compacta (`h-9`).
+- Coluna Ano ganha destaque tipográfico e ícone de status.
 
-`src/hooks/dashboardGeral/shared.ts`
+### 2. Sinalização por urgência (semântica)
+- **Vencido** (ano < ano atual): badge vermelho suave `bg-[hsl(var(--destructive)/0.12)]`, texto destructive; ícone `AlertTriangle` na coluna Ano.
+- **Vence este ano** (ano == atual): badge amber; ícone `Clock`.
+- **Futuro** (ano > atual): badge azul/primary neutro; sem ícone.
+- Célula com valor recebe fundo tonal (não só texto colorido) para facilitar leitura em telas grandes.
 
-- `statusFrom` deixa de tratar `isFetching` como `'carregando'`. Só `isLoading` (primeira carga sem `data`) devolve `'carregando'`; refetch com `data` presente mantém `'ok'`/`'parcial'`.
-- Novo tipo auxiliar `ModStatus` ganha `refetching?: boolean` opcional exposto pelos hooks (para futuros indicadores sutis, sem trocar o corpo do card).
-- Sem alteração de assinatura pública dos hooks (`data`/`status` seguem iguais); os 8 hooks continuam usando `statusFrom` com o novo comportamento.
+### 3. Ordenação e resumo
+- Ordenar por urgência (vencidos primeiro, depois anos crescentes) por padrão; toggle discreto "Ordenar por ano".
+- Linha `TableFooter` com **totais por mês** e total geral (destaque na cor do agregado dominante).
+- Coluna do **mês atual** com fundo `bg-muted/40` para localização rápida.
 
-### 2. Skeleton anti-flicker (delay mínimo)
+### 4. Cabeçalho do card
+- Título "Limite Férias" ganha subtítulo com o total geral e contagem de vencidos, ex.: `12 no total · 5 vencidos · 4 vencem em 2026`.
+- Badge do ano atual como âncora visual.
 
-Novo hook `src/hooks/useDelayedFlag.ts` — retorna `true` só depois de N ms (default 200 ms) para evitar flash em respostas rápidas.
+### 5. Estados
+- Skeleton mantém formato (linhas com blocos de mês), sem flash — reaproveita padrão anti-flicker já implementado.
+- Empty state amigável ("Nenhum limite de férias no período") em vez de "Sem dados".
 
-`src/components/bi/states/LoadingState.tsx`
+## Fora do escopo
 
-- Novas variantes visuais coerentes com o conteúdo: `'bars'`, `'line'`, `'donut'`, `'kpi'`, `'skeleton'` (mantém default). Cada uma renderiza um esqueleto com a silhueta aproximada do gráfico, evitando "salto" quando os dados chegam.
-- Adiciona `delayMs?: number` (default 200) — usa `useDelayedFlag` para só mostrar o skeleton após o delay.
-
-### 3. Erro discreto sem sequestrar o card
-
-Novo `src/components/bi/states/InlineError.tsx`
-
-- Faixa fina (h ≈ 40 px) com ícone `AlertTriangle` amber, mensagem curta e botão "Tentar novamente" opcional. Não expande para altura cheia.
-
-`src/components/bi/charts/ChartCardShell.tsx`
-
-- Novas props: `errorVariant?: 'full' | 'inline'` (default `'inline'`), `onRetry?: () => void`, `loadingVariant?: 'skeleton'|'bars'|'line'|'donut'`.
-- Se `error && errorVariant === 'inline'`: renderiza `InlineError` sobre uma área com altura `effHeight/2` — mantém o card no grid.
-- Passa `loadingVariant` para `LoadingState`.
-
-`src/components/bi/kpis/KpiCard.tsx`
-
-- Adiciona `error?: string | null` + `onRetry?: () => void`: quando setado, renderiza um bloco compacto (ícone amber + texto curto) no lugar do valor, sem colapsar o card.
-- `loading`: aplica `useDelayedFlag(200)` e, se `value != null` (stale), mantém o valor anterior com uma opacidade sutil (`opacity-70`) em vez de trocar por Skeleton — elimina flicker em refetches.
-
-### 4. Integração nas abas
-
-Nas 9 abas do Dashboard Geral (`src/pages/dashboard-geral/tabs/*.tsx`), sem mudar layout:
-
-- Encaminhar `error={hook.error}` e `onRetry={hook.refetch}` (quando disponíveis) aos `ChartCardShell` e `KpiCard` principais.
-- Escolher `loadingVariant` por tipo de gráfico (bars/line/donut) nos cards de destaque.
-- Nenhuma mudança em lógica de negócio, hooks de dados ou schemas Zod.
-
-### 5. Testes / verificação
-
-- Ampliar `src/lib/dashboardGeral/schemas/__tests__/parse.spec.ts` só se necessário — foco principal é UI, então adicionamos:
-  - `src/components/bi/states/__tests__/useDelayedFlag.spec.ts` cobrindo delay e cancelamento.
-- Verificação manual via Playwright em `/dashboard-geral` com throttling: (a) primeira carga mostra skeletons no formato do gráfico; (b) refetch não pisca; (c) falha de um endpoint mostra faixa amarela discreta sem sumir com o restante.
+- Não altera API, tipos (`LimiteFeriasPivotRow`), filtros, KPIs, PDF, nem a segunda tabela ("Programação Próximos 90 Dias").
+- Cliques nas células continuam abrindo o drawer existente (`openPivotCell` / `openPivotTotal`).
 
 ## Arquivos
 
-Novos:
-- `src/hooks/useDelayedFlag.ts`
-- `src/components/bi/states/InlineError.tsx`
-- `src/components/bi/states/__tests__/useDelayedFlag.spec.ts`
-
 Editados:
-- `src/hooks/dashboardGeral/shared.ts`
-- `src/components/bi/states/LoadingState.tsx`
-- `src/components/bi/charts/ChartCardShell.tsx`
-- `src/components/bi/kpis/KpiCard.tsx`
-- 9 arquivos em `src/pages/dashboard-geral/tabs/`
+- `src/pages/rh/ProgramacaoFeriasPage.tsx` — apenas o bloco `pivot-ferias` (~40 linhas), imports de ícones e helpers locais.
 
-Fora do escopo: schemas Zod, hooks de dados, endpoints, layout das abas.
+Nenhum arquivo novo.

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AlertOctagon, AlarmClock, Clock, CalendarClock, Users, Palmtree, Download, Loader2 } from "lucide-react";
+import { AlertOctagon, AlarmClock, Clock, CalendarClock, Users, Palmtree, Download, Loader2, AlertTriangle, ArrowUpDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -229,53 +229,12 @@ export default function ProgramacaoFeriasPage() {
         </div>
       </div>
     ),
-    "pivot-ferias": (
-      <Card className="h-full">
-        <CardContent className="pt-6">
-          <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Limite Férias</h2>
-          <div className="max-h-[calc(100%-2rem)] overflow-auto">
-            <Table>
-              <TableHeader className="sticky top-0 bg-background z-10">
-                <TableRow>
-                  <TableHead>Ano</TableHead>
-                  {MESES.map((m) => <TableHead key={m} className="text-right">{m}</TableHead>)}
-                  <TableHead className="text-right">TOTAL</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading && Array.from({ length: 3 }).map((_, i) => (
-                  <TableRow key={i}><TableCell colSpan={14}><Skeleton className="h-6" /></TableCell></TableRow>
-                ))}
-                {!isLoading && pivot.length === 0 && (
-                  <TableRow><TableCell colSpan={14} className="text-center text-muted-foreground py-6">Sem dados</TableCell></TableRow>
-                )}
-                {pivot.map((r) => (
-                  <TableRow key={r.ano}>
-                    <TableCell className="font-medium">{r.ano}</TableCell>
-                    {M_KEYS.map((k, idx) => {
-                      const v = (r as any)[k] as number;
-                      const clickable = Number(v) > 0;
-                      return (
-                        <TableCell key={k}
-                          className={`text-right tabular-nums ${clickable ? "cursor-pointer hover:underline text-primary" : ""}`}
-                          onClick={clickable ? () => openPivotCell(r.ano, idx + 1) : undefined}>
-                          {fmtPivot(v)}
-                        </TableCell>
-                      );
-                    })}
-                    <TableCell
-                      className={`text-right tabular-nums font-semibold ${Number(r.total) > 0 ? "cursor-pointer hover:underline text-primary" : ""}`}
-                      onClick={Number(r.total) > 0 ? () => openPivotTotal(r.ano) : undefined}>
-                      {fmtPivot(r.total)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-    ),
+    "pivot-ferias": <LimiteFeriasCard
+      pivot={pivot}
+      isLoading={isLoading}
+      onCell={openPivotCell}
+      onTotal={openPivotTotal}
+    />,
     "prox90-ferias": (
       <Card className="h-full">
         <CardContent className="pt-6">
@@ -461,5 +420,191 @@ export default function ProgramacaoFeriasPage() {
         }}
       />
     </div>
+  );
+}
+
+// ============ Card Limite Férias =============
+type PivotRow = {
+  ano: string | number;
+  total: number;
+  m1?: number; m2?: number; m3?: number; m4?: number; m5?: number; m6?: number;
+  m7?: number; m8?: number; m9?: number; m10?: number; m11?: number; m12?: number;
+};
+
+function LimiteFeriasCard({
+  pivot, isLoading, onCell, onTotal,
+}: {
+  pivot: PivotRow[];
+  isLoading: boolean;
+  onCell: (ano: string | number, mes: number) => void;
+  onTotal: (ano: string | number) => void;
+}) {
+  const anoAtual = new Date().getFullYear();
+  const mesAtual = new Date().getMonth() + 1;
+  const [sortByYear, setSortByYear] = useState(false);
+
+  const rows = useMemo(() => {
+    const arr = [...pivot];
+    if (sortByYear) {
+      arr.sort((a, b) => Number(a.ano) - Number(b.ano));
+    } else {
+      arr.sort((a, b) => {
+        const av = Number(a.ano), bv = Number(b.ano);
+        const aVenc = av < anoAtual, bVenc = bv < anoAtual;
+        if (aVenc && !bVenc) return -1;
+        if (!aVenc && bVenc) return 1;
+        return av - bv;
+      });
+    }
+    return arr;
+  }, [pivot, sortByYear, anoAtual]);
+
+  const totals = useMemo(() => {
+    const t: Record<string, number> = { total: 0 };
+    for (const k of M_KEYS) t[k] = 0;
+    for (const r of pivot) {
+      for (const k of M_KEYS) t[k] += Number((r as any)[k]) || 0;
+      t.total += Number(r.total) || 0;
+    }
+    return t;
+  }, [pivot]);
+
+  const vencidos = pivot.reduce((s, r) => s + (Number(r.ano) < anoAtual ? Number(r.total) || 0 : 0), 0);
+  const vencemAtual = pivot.reduce((s, r) => s + (Number(r.ano) === anoAtual ? Number(r.total) || 0 : 0), 0);
+  const futuros = totals.total - vencidos - vencemAtual;
+
+  const statusOf = (ano: number): "vencido" | "atual" | "futuro" =>
+    ano < anoAtual ? "vencido" : ano === anoAtual ? "atual" : "futuro";
+
+  const cellCls = (v: number, s: "vencido" | "atual" | "futuro", isCurrentMonth: boolean) => {
+    if (!v) return "text-muted-foreground/25";
+    const base = "cursor-pointer font-medium tabular-nums rounded-sm px-1.5 py-0.5 hover:opacity-80 transition";
+    if (s === "vencido") return `${base} bg-[hsl(var(--destructive)/0.12)] text-[hsl(var(--destructive))]`;
+    if (s === "atual")   return `${base} bg-[hsl(var(--warning)/0.14)] text-[hsl(var(--warning))]`;
+    return `${base} bg-primary/10 text-primary${isCurrentMonth ? " ring-1 ring-primary/30" : ""}`;
+  };
+
+  return (
+    <Card className="h-full">
+      <CardContent className="pt-6">
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Limite Férias</h2>
+            {!isLoading && pivot.length > 0 && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">{totals.total.toLocaleString("pt-BR")}</span> no total
+                {vencidos > 0 && <> · <span className="text-[hsl(var(--destructive))] font-medium">{vencidos} vencidos</span></>}
+                {vencemAtual > 0 && <> · <span className="text-[hsl(var(--warning))] font-medium">{vencemAtual} em {anoAtual}</span></>}
+                {futuros > 0 && <> · <span className="text-primary font-medium">{futuros} futuros</span></>}
+              </p>
+            )}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-[11px] gap-1 shrink-0"
+            onClick={() => setSortByYear((v) => !v)}
+            title={sortByYear ? "Ordenar por urgência" : "Ordenar por ano"}
+          >
+            <ArrowUpDown className="h-3 w-3" />
+            {sortByYear ? "Por ano" : "Por urgência"}
+          </Button>
+        </div>
+
+        <div className="max-h-[calc(100%-3.5rem)] overflow-auto">
+          <Table>
+            <TableHeader className="sticky top-0 bg-background z-10">
+              <TableRow className="h-9">
+                <TableHead className="w-20">Ano</TableHead>
+                {MESES.map((m, i) => (
+                  <TableHead
+                    key={m}
+                    className={`text-center w-12 ${i + 1 === mesAtual ? "bg-muted/40 text-foreground" : ""}`}
+                  >
+                    {m}
+                  </TableHead>
+                ))}
+                <TableHead className="text-right w-16">Total</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading && Array.from({ length: 4 }).map((_, i) => (
+                <TableRow key={i}><TableCell colSpan={14}><Skeleton className="h-6" /></TableCell></TableRow>
+              ))}
+              {!isLoading && pivot.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={14} className="text-center text-muted-foreground py-8 text-sm">
+                    Nenhum limite de férias no período.
+                  </TableCell>
+                </TableRow>
+              )}
+              {!isLoading && rows.map((r) => {
+                const anoN = Number(r.ano);
+                const s = statusOf(anoN);
+                return (
+                  <TableRow key={String(r.ano)} className="h-9">
+                    <TableCell className="font-medium">
+                      <span className="inline-flex items-center gap-1.5">
+                        {s === "vencido" && <AlertTriangle className="h-3.5 w-3.5 text-[hsl(var(--destructive))]" />}
+                        {s === "atual"   && <Clock className="h-3.5 w-3.5 text-[hsl(var(--warning))]" />}
+                        <span className={s === "vencido" ? "text-[hsl(var(--destructive))]" : s === "atual" ? "text-[hsl(var(--warning))]" : ""}>
+                          {r.ano}
+                        </span>
+                      </span>
+                    </TableCell>
+                    {M_KEYS.map((k, idx) => {
+                      const v = Number((r as any)[k]) || 0;
+                      const mesN = idx + 1;
+                      const isCurrentMonth = mesN === mesAtual;
+                      return (
+                        <TableCell
+                          key={k}
+                          className={`text-center p-1 ${isCurrentMonth ? "bg-muted/30" : ""}`}
+                          onClick={v ? () => onCell(r.ano, mesN) : undefined}
+                        >
+                          {v ? (
+                            <span className={cellCls(v, s, isCurrentMonth)}>{v.toLocaleString("pt-BR")}</span>
+                          ) : (
+                            <span className="text-muted-foreground/25">·</span>
+                          )}
+                        </TableCell>
+                      );
+                    })}
+                    <TableCell
+                      className={`text-right tabular-nums font-semibold ${Number(r.total) > 0 ? "cursor-pointer hover:underline" : ""} ${
+                        s === "vencido" ? "text-[hsl(var(--destructive))]" : s === "atual" ? "text-[hsl(var(--warning))]" : "text-primary"
+                      }`}
+                      onClick={Number(r.total) > 0 ? () => onTotal(r.ano) : undefined}
+                    >
+                      {Number(r.total) > 0 ? Number(r.total).toLocaleString("pt-BR") : "—"}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+              {!isLoading && pivot.length > 0 && (
+                <TableRow className="h-9 border-t-2 bg-muted/20 font-medium">
+                  <TableCell className="text-xs uppercase tracking-wide text-muted-foreground">Total</TableCell>
+                  {M_KEYS.map((k, idx) => {
+                    const v = totals[k];
+                    const isCurrentMonth = idx + 1 === mesAtual;
+                    return (
+                      <TableCell
+                        key={k}
+                        className={`text-center tabular-nums text-xs ${isCurrentMonth ? "bg-muted/40" : ""} ${v ? "text-foreground" : "text-muted-foreground/40"}`}
+                      >
+                        {v ? v.toLocaleString("pt-BR") : "·"}
+                      </TableCell>
+                    );
+                  })}
+                  <TableCell className="text-right tabular-nums font-semibold">
+                    {totals.total.toLocaleString("pt-BR")}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
