@@ -415,7 +415,7 @@ export function DrillDrawer({
                 )}
               </div>
 
-              <div className="overflow-x-auto rounded border">
+              <div ref={razaoScrollRef} className="overflow-x-auto rounded border">
                 <Table className="text-xs">
                   <TableHeader className="bg-primary sticky top-0 z-10">
                     <TableRow className="hover:bg-primary">
