@@ -4,6 +4,9 @@ import { getBalancoPatrimonial } from '@/lib/api';
 import { fetchDreRealizadoResumo } from '@/lib/bi/dreConfiguravelApi';
 import { MODELO_DRE_OFICIAL_ID } from '@/lib/contabilConfig';
 import { rangeFor, num, anomesToDate, statusFrom, type Periodo, type ModStatus } from './shared';
+import { BalancoResponseSchema, EMPTY_BALANCO } from '@/lib/dashboardGeral/schemas/contabilidade';
+import { DreResumoResponseSchema, EMPTY_DRE } from '@/lib/dashboardGeral/schemas/financeiro';
+import { parseOrEmpty } from '@/lib/dashboardGeral/schemas/_utils';
 
 export interface ContabilidadeData {
   kpis: {
