@@ -39,7 +39,12 @@ export interface ChartCardShellProps {
   emptyVariant?: 'full' | 'inline';
   /** Mensagem custom para estado vazio. */
   emptyMessage?: string;
-}
+  /** 'inline' (default) usa faixa amber que preserva o card; 'full' usa ErrorState clássico. */
+  errorVariant?: 'full' | 'inline';
+  /** Handler para o botão "Tentar" no InlineError e ErrorState. */
+  onRetry?: () => void;
+  /** Formato do skeleton — bars/line/donut/kpi ficam mais parecidos com o conteúdo. */
+  loadingVariant?: LoadingVariant;
 
 const ALIGN_CLASS: Record<'left' | 'center' | 'right', string> = {
   left: 'text-left items-start',
