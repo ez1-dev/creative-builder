@@ -1864,6 +1864,10 @@ function Visualizacao() {
               <History className="h-4 w-4 mr-1.5" />
               Histórico
             </Button>
+            <Button size="sm" variant="outline" onClick={() => setEditorEstruturaOpen(true)}>
+              <Pencil className="h-4 w-4 mr-1.5" />
+              Editar estrutura
+            </Button>
           </div>
 
           {/* Grupo: Visualização (à direita) */}
