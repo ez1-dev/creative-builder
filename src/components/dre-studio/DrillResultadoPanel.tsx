@@ -279,6 +279,7 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
   };
 
   const hasRows = rows.length > 0;
+  const drillScrollRef = useRef<HTMLDivElement>(null);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
