@@ -115,15 +115,40 @@ export function KpiOrMissing({
     );
   }
 
+  // Se há tooltip, usamos wrapper custom para exibir o ícone junto ao título.
+  if (tooltip) {
+    const valueColor =
+      variant === "danger"
+        ? "text-destructive"
+        : variant === "warning"
+        ? "text-warning"
+        : "text-foreground";
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm text-muted-foreground">{titleNode}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className={`text-2xl font-bold tabular-nums ${valueColor}`}>
+            {formatCurrency(Number(value))}
+          </div>
+          {footer && (
+            <div className="text-[10px] text-muted-foreground italic mt-1">{footer}</div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (footer) {
     return (
       <div className="relative">
-        <KpiCard title={titleNode as any} value={value} format="currency" variant={variant} loading={loading} />
+        <KpiCard title={title} value={value} format="currency" variant={variant} loading={loading} />
         <div className="absolute bottom-1.5 right-2 text-[10px] text-muted-foreground italic pointer-events-none">
           {footer}
         </div>
       </div>
     );
   }
-  return <KpiCard title={titleNode as any} value={value} format="currency" variant={variant} loading={loading} />;
+  return <KpiCard title={title} value={value} format="currency" variant={variant} loading={loading} />;
 }
