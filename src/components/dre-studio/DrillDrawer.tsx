@@ -119,6 +119,8 @@ export interface DrillArgs {
   clacta?: string | null;
   /** Opcional: descrição da conta contábil selecionada (mostrada no cabeçalho). */
   contaDescricao?: string | null;
+  /** Tipo do modelo de origem. Quando "DRE", oculta colunas/linhas de Saldo Anterior. */
+  tipoModelo?: "DRE" | "BALANCO";
 }
 
 const LIMITE_STEPS = [500, 2000, 5000];
@@ -238,6 +240,7 @@ export function DrillDrawer({
     return Array.isArray(src) ? src : [];
   }, [q.data]);
 
+  const isDRE = args?.tipoModelo === "DRE";
   const saldoInicial = q.data?.saldo_inicial ?? null;
   const saldoFinal = q.data?.saldo_final ?? null;
   const totalDebito = q.data?.total_debito ?? null;
@@ -323,8 +326,8 @@ export function DrillDrawer({
 
           {/* Resumo */}
           {temContratoRazao && (
-            <div className="mt-3 grid grid-cols-4 gap-3 text-xs">
-              <ResumoCard label="Saldo Anterior" value={saldoInicial} />
+            <div className={cn("mt-3 grid gap-3 text-xs", isDRE ? "grid-cols-3" : "grid-cols-4")}>
+              {!isDRE && <ResumoCard label="Saldo Anterior" value={saldoInicial} />}
               <ResumoCard label="Total Débito" value={totalDebito} />
               <ResumoCard label="Total Crédito" value={totalCredito} />
               <ResumoCard label="Saldo Final" value={saldoFinal} strong />
@@ -432,30 +435,32 @@ export function DrillDrawer({
                       <TableHead className="text-primary-foreground">Origem Lcto.</TableHead>
                       <TableHead className="text-primary-foreground">Usuário Origem</TableHead>
                       <TableHead className="text-primary-foreground">Usuário Lcto.</TableHead>
-                      <TableHead className="text-primary-foreground text-right">Saldo Anterior</TableHead>
+                      {!isDRE && <TableHead className="text-primary-foreground text-right">Saldo Anterior</TableHead>}
                       <TableHead className="text-primary-foreground text-right">Mov. Débito</TableHead>
                       <TableHead className="text-primary-foreground text-right">Mov. Crédito</TableHead>
                       <TableHead className="text-primary-foreground text-right">Saldo</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {/* Linha SALDO INICIAL */}
-                    <TableRow className="bg-muted/40 font-medium">
-                      <TableCell></TableCell>
-                      <TableCell></TableCell>
-                      <TableCell className="whitespace-nowrap">{fmtDataBR(dataIniISO)}</TableCell>
-                      <TableCell></TableCell>
-                      <TableCell></TableCell>
-                      <TableCell></TableCell>
-                      <TableCell></TableCell>
-                      <TableCell>SALDO</TableCell>
-                      <TableCell></TableCell>
-                      <TableCell></TableCell>
-                      <TableCell className="text-right tabular-nums">{cellNum(saldoInicial)}</TableCell>
-                      <TableCell></TableCell>
-                      <TableCell></TableCell>
-                      <TableCell className="text-right tabular-nums">{cellNum(saldoInicial)}</TableCell>
-                    </TableRow>
+                    {/* Linha SALDO INICIAL (só faz sentido em Balanço) */}
+                    {!isDRE && (
+                      <TableRow className="bg-muted/40 font-medium">
+                        <TableCell></TableCell>
+                        <TableCell></TableCell>
+                        <TableCell className="whitespace-nowrap">{fmtDataBR(dataIniISO)}</TableCell>
+                        <TableCell></TableCell>
+                        <TableCell></TableCell>
+                        <TableCell></TableCell>
+                        <TableCell></TableCell>
+                        <TableCell>SALDO</TableCell>
+                        <TableCell></TableCell>
+                        <TableCell></TableCell>
+                        <TableCell className="text-right tabular-nums">{cellNum(saldoInicial)}</TableCell>
+                        <TableCell></TableCell>
+                        <TableCell></TableCell>
+                        <TableCell className="text-right tabular-nums">{cellNum(saldoInicial)}</TableCell>
+                      </TableRow>
+                    )}
 
                     {itens.map((r, i) => (
                       <TableRow
@@ -485,9 +490,11 @@ export function DrillDrawer({
                         <TableCell className="whitespace-nowrap">{r.origem_descricao ?? ""}</TableCell>
                         <TableCell className="whitespace-nowrap">{r.usuario_origem ?? ""}</TableCell>
                         <TableCell className="whitespace-nowrap">{r.usuario_lancamento ?? ""}</TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {r.saldo_anterior != null ? fmtBRL(Number(r.saldo_anterior)) : ""}
-                        </TableCell>
+                        {!isDRE && (
+                          <TableCell className="text-right tabular-nums">
+                            {r.saldo_anterior != null ? fmtBRL(Number(r.saldo_anterior)) : ""}
+                          </TableCell>
+                        )}
                         <TableCell className="text-right tabular-nums">
                           {cellNum(r.mov_debito, { zeroBlank: true })}
                         </TableCell>
@@ -512,7 +519,7 @@ export function DrillDrawer({
                       <TableCell>SALDO</TableCell>
                       <TableCell></TableCell>
                       <TableCell></TableCell>
-                      <TableCell></TableCell>
+                      {!isDRE && <TableCell></TableCell>}
                       <TableCell></TableCell>
                       <TableCell></TableCell>
                       <TableCell className="text-right tabular-nums">{cellNum(saldoFinal)}</TableCell>
