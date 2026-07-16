@@ -2655,7 +2655,11 @@ function Visualizacao() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <DrillDrawer open={!!drill} onOpenChange={(o) => !o && setDrill(null)} args={drill} />
+      <DrillDrawer
+        open={!!drill}
+        onOpenChange={(o) => !o && setDrill(null)}
+        args={drill ? { ...drill, tipoModelo: isBalanco ? "BALANCO" : "DRE" } : drill}
+      />
       <DrillResultadoPanel
         open={!!drillCtx}
         onOpenChange={(o) => !o && setDrillCtx(null)}
