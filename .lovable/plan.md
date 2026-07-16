@@ -1,41 +1,27 @@
-## Problema
+## O que muda
 
-Nos drawers de drill da DRE/Balanço, ao rolar o conteúdo o cabeçalho (título, período, filtros aplicados e barra de ações Copiar/CSV/XLSX) sai da tela, e o usuário perde o contexto do que está olhando.
+No drawer de Drill (Razão) do DRE Studio, ocultar tudo que se refere a **Saldo Anterior** quando o modelo aberto é uma **DRE**. Contas de resultado zeram no início de cada período, então esse dado não faz sentido para DRE (só para Balanço). O comportamento no Balanço continua igual.
 
-Isso acontece principalmente em `DrillResultadoPanel` (drawer aberto pelo menu "LISTA DE DRILLS" → Consulta), cujo `SheetContent` usa `overflow-y-auto` no container inteiro — então TUDO rola junto, inclusive `SheetHeader` e a barra de ações.
+## Alterações
 
-O `DrillDrawer` (Razão) já tem o cabeçalho fora do container rolável, mas a barra de ações/contador de registros ainda precisa ser fixada logo abaixo do header para não sumir ao rolar.
+### 1. `src/pages/contabilidade/dre-studio/DreStudioVisualizacaoPage.tsx`
+- Ao montar `<DrillDrawer args={drill} />`, passar `tipoModelo` dentro de `args` (`"DRE" | "BALANCO"`), usando o `tipoModelo` que a página já calcula.
 
-## Objetivo
+### 2. `src/components/dre-studio/DrillDrawer.tsx`
+- Adicionar campo opcional `tipoModelo?: "DRE" | "BALANCO"` em `DrillArgs`.
+- Derivar `const isDRE = args?.tipoModelo === "DRE"`.
+- Quando `isDRE`:
+  - Cabeçalho: remover o `ResumoCard "Saldo Anterior"` e ajustar o grid para 3 colunas (Total Débito, Total Crédito, Saldo Final).
+  - Tabela do razão:
+    - Remover o `<TableHead>` "Saldo Anterior".
+    - Remover a `<TableCell>` correspondente em cada linha do `itens.map(...)`.
+    - Remover a `<TableCell>` da linha "SALDO INICIAL" e da linha "SALDO FINAL" que ocupam essa coluna.
+    - Remover a própria linha "SALDO INICIAL" (fica sem função sem o saldo anterior).
+  - Rodapé: sem mudança (já não mostra saldo anterior).
 
-Manter sempre visíveis, no topo do drawer, enquanto o usuário rola verticalmente:
+Nenhuma outra mudança de layout, endpoints, hooks ou tipos.
 
-1. Título ("Drill — {linha}" / "Lançamentos") e descrição (período, código da linha, chips de filtros: codemp, codfil, consolidado, CCU, UN, modo).
-2. Barra de ações do drill (contador de registros + botões Copiar / CSV / XLSX) e o aviso amarelo de "truncado", quando existir.
+## Detalhes técnicos
 
-## Alterações (frontend apenas)
-
-### 1) `src/components/dre-studio/DrillResultadoPanel.tsx`
-
-- Trocar o `SheetContent` de `overflow-y-auto` para layout em coluna: `className="w-full sm:max-w-4xl p-0 flex flex-col"`.
-- Envolver `SheetHeader` + o bloco de "truncado" + a barra de contador/ações (linhas ~247–276) em um wrapper único **fixo no topo**: `<div className="shrink-0 border-b bg-background px-6 pt-6 pb-3">`.
-- Envolver a tabela, botão "Carregar mais" e o card de totais em um wrapper rolável: `<div className="flex-1 overflow-auto px-6 py-4">`.
-- Manter o `TableHeader` da tabela com `sticky top-0` já herdado (adicionar `sticky top-0 bg-background z-10` se necessário) para que o cabeçalho da própria tabela também acompanhe.
-- Os estados de loading / erro / vazio ficam dentro do wrapper rolável.
-
-### 2) `src/components/dre-studio/DrillDrawer.tsx`
-
-- O `SheetHeader` (linhas 298–333) já está fora do container rolável — mantém.
-- Mover o bloco de contador "Mostrando X lançamentos" + botão "Aumentar limite" (linhas 391–414) para **fora** do `.flex-1 overflow-auto` (linha 335), renderizando-o como uma **subfaixa fixa** imediatamente abaixo do `SheetHeader`: `<div className="shrink-0 border-b bg-background px-4 py-2">`.
-- Nenhuma alteração no `FloatingHScrollbar`, no rodapé de totais ou no `Dialog` de detalhe do lançamento.
-
-### 3) Nada muda em
-
-- Endpoints, hooks (`useDrillDre`, `useDrillLancamentos`, `useDrillLancamentos` do `api.ts`), tipos ou lógica de negócio.
-- Menu "LISTA DE DRILLS" (`DrillsMenu`) — já é um popover pequeno, não precisa.
-- Layout do drill de Balanço (usa o mesmo `DrillResultadoPanel`, então herda a correção).
-
-## Verificação
-
-- Abrir `/contabilidade/dre-studio/{id}/visualizacao`, clicar em uma linha drillável → menu de drills → escolher "Consulta → Conta Contábil": rolar a lista e confirmar via Playwright + screenshot que título, período, chips de filtros e barra de ações continuam visíveis.
-- Abrir também o drill de Razão (Lançamentos) com muitas linhas e confirmar que "Mostrando N lançamentos" permanece fixo abaixo do cabeçalho azul.
+- `tipoModelo` já é lido em `DreStudioVisualizacaoPage` a partir de `modelo?.modelo?.tipo_modelo`. Basta propagar via prop.
+- No Balanço nada muda: `isDRE` fica `false` (ou `undefined`) e todos os elementos continuam sendo renderizados exatamente como hoje.
