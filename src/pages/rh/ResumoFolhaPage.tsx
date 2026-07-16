@@ -315,25 +315,41 @@ export default function ResumoFolhaPage() {
         <Card className="md:row-span-2 border-l-4 border-l-primary">
           <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Líquido</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            <div>
-              <div className="text-[11px] text-muted-foreground">Provento</div>
-              <div className="text-xl font-bold tabular-nums">
-                <ValueOrMissing value={kpis?.provento} missing={isMissing("provento")} field="provento" />
-              </div>
-            </div>
-            <div>
-              <div className="text-[11px] text-muted-foreground">Desconto</div>
-              <div className="text-xl font-bold tabular-nums text-destructive">
-                <ValueOrMissing value={kpis?.desconto} missing={isMissing("desconto")} field="desconto" />
-              </div>
-            </div>
-            <div className="pt-2 border-t">
-              <div className="text-[11px] text-muted-foreground">Total Líquido</div>
-              <div className="text-2xl font-bold tabular-nums text-primary">
-                <ValueOrMissing value={kpis?.total_liquido} missing={isMissing("total_liquido")} field="total_liquido" />
-              </div>
-            </div>
+            {(["provento", "desconto", "total_liquido"] as const).map((key) => {
+              const label = key === "provento" ? "Provento" : key === "desconto" ? "Desconto" : "Total Líquido";
+              const colorCls =
+                key === "desconto" ? "text-destructive" :
+                key === "total_liquido" ? "text-primary" : "";
+              const sizeCls = key === "total_liquido" ? "text-2xl" : "text-xl";
+              const wrapCls = key === "total_liquido" ? "pt-2 border-t" : "";
+              const drillable = drillsMap.has(key);
+              const inner = (
+                <>
+                  <div className="text-[11px] text-muted-foreground">{label}</div>
+                  <div className={`${sizeCls} font-bold tabular-nums ${colorCls}`}>
+                    <ValueOrMissing value={kpis?.[key]} missing={isMissing(key)} field={key} />
+                  </div>
+                </>
+              );
+              if (!drillable) return <div key={key} className={wrapCls}>{inner}</div>;
+              return (
+                <div
+                  key={key}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Abrir drill de ${label}`}
+                  onClick={() => openDrill(key)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDrill(key); }
+                  }}
+                  className={`${wrapCls} -mx-2 px-2 py-1 rounded cursor-pointer hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
+                >
+                  {inner}
+                </div>
+              );
+            })}
           </CardContent>
+
         </Card>
         <KpiOrMissing title="Salário Base" value={kpis?.salario_base} missing={isMissing("salario_base")} field="salario_base" loading={isLoading} {...kpiDrill("salario_base")} />
         <KpiOrMissing title="Salário Bruto" value={kpis?.salario_bruto} missing={isMissing("salario_bruto")} field="salario_bruto" loading={isLoading} {...kpiDrill("salario_bruto")} />
