@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { FloatingHScrollbar } from './FloatingHScrollbar';
 import {
   Sheet,
   SheetContent,
@@ -278,6 +279,7 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
   };
 
   const hasRows = rows.length > 0;
+  const drillScrollRef = useRef<HTMLDivElement>(null);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -355,7 +357,7 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto rounded-lg border">
+              <div ref={drillScrollRef} className="overflow-x-auto rounded-lg border">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -449,6 +451,9 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
             </>
           )}
         </div>
+
+        {/* Barra de rolagem horizontal flutuante — sempre visível acima do rodapé */}
+        {hasRows && <FloatingHScrollbar targetRef={drillScrollRef} />}
       </SheetContent>
     </Sheet>
   );
