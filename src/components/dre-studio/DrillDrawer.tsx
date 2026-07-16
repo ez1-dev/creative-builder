@@ -388,32 +388,8 @@ export function DrillDrawer({
             </div>
           ) : (
             <>
-              <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
-                <div>
-                  Mostrando <strong>{qtdExib}</strong>
-                  {qtdTotal != null && qtdTotal !== qtdExib && (
-                    <> de <strong>{qtdTotal}</strong></>
-                  )}{" "}
-                  lançamentos
-                  {truncado && (
-                    <span className="ml-2 rounded bg-amber-100 text-amber-900 px-2 py-0.5">
-                      truncado
-                    </span>
-                  )}
-                </div>
-                {truncado && proximoLimite && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setLimite(proximoLimite)}
-                    disabled={q.isFetching}
-                  >
-                    Aumentar limite para {proximoLimite}
-                  </Button>
-                )}
-              </div>
-
               <div ref={razaoScrollRef} className="overflow-x-auto rounded border">
+
                 <Table className="text-xs">
                   <TableHeader className="bg-primary sticky top-0 z-10">
                     <TableRow className="hover:bg-primary">
