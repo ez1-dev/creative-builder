@@ -266,19 +266,24 @@ export interface TurnoverDashboard {
 
 
 export interface ResumoFolhaKpis {
-  provento: number;
-  desconto: number;
-  total_liquido: number;
-  custo_total: number;
-  beneficios: number;
-  inss_total: number;
-  hora_extra: number;
-  provisoes: number;
-  custo_ferias: number;
-  rescisoes: number;
-  fgts: number;
-  salario_base?: number;
-  salario_bruto?: number;
+  provento?: number | null;
+  desconto?: number | null;
+  total_liquido?: number | null;
+  custo_total?: number | null;
+  beneficios?: number | null;
+  inss_total?: number | null;
+  hora_extra?: number | null;
+  provisoes?: number | null;
+  custo_ferias?: number | null;
+  rescisoes?: number | null;
+  fgts?: number | null;
+  salario_base?: number | null;
+  salario_bruto?: number | null;
+  /** Vale-Alimentação — novo (fonte oficial: backend). Null = pendente. */
+  va?: number | null;
+  /** Outras gratificações — composição oficial no backend. */
+  outras_gratificacoes?: number | null;
+  [key: string]: number | string | boolean | null | undefined;
 }
 
 export interface ResumoFolhaEventoAgg {
