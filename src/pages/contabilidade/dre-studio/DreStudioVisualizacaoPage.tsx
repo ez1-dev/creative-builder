@@ -1214,7 +1214,7 @@ function Visualizacao() {
     const next = new Set<string>();
     for (const l of linhas) {
       const d = depthMap.get(l.linha_id) ?? 0;
-      if (d >= nivel && hasChildren(l.linha_id)) next.add(l.linha_id);
+      if (d >= nivel - 1 && hasChildren(l.linha_id)) next.add(l.linha_id);
     }
     setCollapsed(next);
   };
