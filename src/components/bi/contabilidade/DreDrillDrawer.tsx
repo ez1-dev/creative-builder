@@ -417,16 +417,16 @@ export function DreDrillDrawer({
           codigoLinhaOrigem={current.codigo_linha}
           codigosLinha={codigosLinha}
           lancamento={{
-            nr_lancamento: modal.row.nr_lancamento ?? String(modal.row.chave ?? ''),
+            nr_lancamento: String(modal.row.nr_lancamento ?? modal.row.cd_lancamento ?? modal.row.chave ?? ''),
             nr_lote: modal.row.nr_lote,
-            nr_documento: modal.row.nr_documento,
+            nr_documento: modal.row.nr_documento ?? modal.row.cd_documento ?? undefined,
             cd_conta: modal.row.cd_conta,
-            cd_cencus: modal.row.cd_cencus,
+            cd_cencus: modal.row.cd_cencus ?? modal.row.cd_centro_custos ?? undefined,
             cd_origem: modal.row.cd_origem,
             cd_transacao: modal.row.cd_transacao,
             ds_historico: modal.row.ds_historico,
             anomes_referente: modal.row.anomes_referente ?? current.anomes_referente ?? undefined,
-            vl_realizado: Number(modal.row.vl_realizado) || 0,
+            vl_realizado: Number(modal.row.vl_realizado ?? modal.row.total) || 0,
           }}
           onSaved={() => {
             toast.success('Exceção registrada. Recarregue a DRE para refletir o valor.');
