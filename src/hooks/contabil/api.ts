@@ -730,7 +730,13 @@ export function useResultadoCache(
         data_corte: filtros.data_corte ?? undefined,
         aplicar_referencia_senior: filtros.aplicar_referencia_senior ? true : undefined,
         expandir_resultado_exercicio: filtros.expandir_resultado_exercicio ? true : undefined,
-        consolidado: filtros.consolidado ? true : undefined,
+        // Regra Senior: se não há codfil selecionado, força consolidado=true.
+        consolidado:
+          filtros.consolidado === true
+            ? true
+            : filtros.codfil == null
+              ? true
+              : undefined,
         // Padrão Senior: pede o menu de drills (REABRIR/CONSULTA) por linha.
         incluir_drills: true,
       }),
