@@ -679,6 +679,31 @@ export default function ResumoFolhaPage() {
         </CardContent>
       </Card>
 
+      {(() => {
+        const nowYm = (() => {
+          const d = new Date();
+          return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}`;
+        })();
+        const mesAberto = baseParams.anomes_fim && baseParams.anomes_fim >= nowYm;
+        if (!mesAberto && !ultimaSincronizacao) return null;
+        return (
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+            {mesAberto ? (
+              <div className="flex items-center gap-2 rounded-md border border-warning/30 bg-warning/5 px-3 py-1.5">
+                <Info className="h-3.5 w-3.5 text-warning" />
+                <span>Mês em aberto: os valores podem mudar até o fechamento da folha.</span>
+              </div>
+            ) : <span />}
+            {ultimaSincronizacao && (
+              <span className="tabular-nums">
+                Atualizado às {ultimaSincronizacao.toLocaleTimeString("pt-BR")}
+              </span>
+            )}
+          </div>
+        );
+      })()}
+
+
       {indisponivel && (
         <div className="rounded-md border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
           <div className="font-medium">Endpoint de dashboard da folha ainda não disponível.</div>
