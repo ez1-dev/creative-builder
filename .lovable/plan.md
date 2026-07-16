@@ -1,14 +1,14 @@
-## Card "Líquido" — manter comportamento atual
+## Card "V.A." — Campo pendente na API
 
 Nenhuma alteração de código.
 
-**Diagnóstico:** o badge "Pendente" em Provento / Desconto / Total Líquido aparece porque o endpoint `GET /api/rh/resumo-folha/dashboard` está devolvendo `kpis.provento`, `kpis.desconto` e `kpis.total_liquido` como `null`. O frontend está correto — a regra do projeto proíbe recalcular ou somar KPIs no React (nem a partir de `mensal[]`, `filiais[]` ou `proventos_vantagens[]`).
+**Diagnóstico:** o rótulo "Campo pendente na API" (texto amarelo) aparece quando o backend **não envia** a chave `va` dentro de `kpis` no payload de `GET /api/rh/resumo-folha/dashboard`. Diferente de "Pendente" (valor `null`), aqui a chave está totalmente ausente — o frontend registra em `_missing_kpis` e renderiza esse aviso técnico via `KpiOrMissing`.
 
-**Ação:** aguardar o backend preencher esses três campos conforme `docs/backend-rh-resumo-folha-dashboard.md` (`SUM(CALC_VL_PROVENTO_LIQ)`, `SUM(CALC_VL_DESCONTO_LIQ)`, `SUM(VL_LIQUIDO)`). Assim que a API responder com números, o card exibirá os valores automaticamente — sem qualquer mudança no frontend.
+O frontend já está preparado para exibir o valor assim que o backend passar a incluir o campo — sem cálculo local, sem hardcode.
 
-**O que verificar no backend:**
-1. A sincronização (`POST /api/rh/vm-folha-compat/sincronizar`) rodou para o período selecionado?
-2. `diagnostico.vm_folha_status` está `OK` e `qtd_linhas_vm_folha > 0`?
-3. `diagnostico.vm_folha_componentes.calc_vl_provento_liq` / `calc_vl_desconto_liq` / `vl_liquido` estão populados?
+**Ação (backend):**
+1. Incluir `va` em `response.kpis` conforme `docs/backend-rh-resumo-folha-dashboard.md` (fonte oficial: `SUM(VL_VALE_ALIMENTACAO)` da VM_FOLHA, ou o agregador equivalente da folha para Vale-Alimentação).
+2. Se o valor legitimamente for zero/ausente no período, devolver `"va": null` (o card mostrará o badge "Pendente" em vez de "Campo pendente na API").
+3. Verificar `diagnostico.vm_folha_componentes.vl_vale_alimentacao` — se estiver `0` ou ausente, é sinal de que a fonte de recarga do V.A. não foi carregada na VM_FOLHA para o período.
 
-Se sim e ainda vier `null` no `kpis`, é bug do agregador do backend.
+Assim que a chave `va` vier no payload, o card exibirá o valor automaticamente.
