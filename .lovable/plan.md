@@ -1,95 +1,83 @@
-## Diagnóstico
+## Auditoria — Drills da tela "01 — Resumo da Folha"
 
-O Montador da DRE Gerencial (`src/pages/bi/contabilidade/DreMontadorPage.tsx` + `src/lib/bi/dreMontadorApi.ts`) já implementa a maior parte do fluxo pedido:
-- Recebe `centros_custo[]` por conta no plano-contas e renderiza expandido com checkbox, código, descrição, valor, qtd de lançamentos.
-- Marcar/desmarcar centros já implica marcar a conta; desmarcar todos os centros volta ao estado "Todos os centros".
-- Tooltip da listagem mostra `Todos os centros` quando `cd_centro_custos` é nulo, ou o código quando específico.
-- Payload já leva `centros_custo: [{ cd_centro_custos }]` quando marcado.
+Escopo: `src/pages/rh/ResumoFolhaPage.tsx`, `src/components/rh/KpiOrMissing.tsx`, `src/lib/rh/api.ts`, `src/lib/rh/types.ts`, `src/hooks/dashboardGeral/useRh.ts`.
 
-Faltam ajustes de contrato/UX descritos na especificação. Nenhum backend, migration, RPC ou regra contábil será tocado.
+### Veredito global
+**Nenhum drill do Resumo da Folha está implementado no frontend.** A tela hoje é somente leitura de KPIs; não há leitura de `drills_menu`, não há chamada a `/api/rh/resumo-folha/drill`, não há drawer, não há clique nos cards, não há tratamento de `meta.aviso`, `pecas_pendentes`, `meses_sem_planilha` no contexto de drill, e não há tratamento de erro 422 do endpoint de drill.
 
-## Escopo (somente frontend)
+Os únicos "drills" existentes no módulo RH pertencem a outras telas: `TurnoverDrillModal`, `QuadroDrillModal`, `AbsenteismoDrillModal`, `ProgramacaoFeriasDrillModal` — nenhum reutilizado pelo Resumo da Folha.
 
-Arquivos afetados:
-- `src/lib/bi/dreMontadorApi.ts` — tipos, envio explícito de `centros_custo: []`.
-- `src/pages/bi/contabilidade/DreMontadorPage.tsx` — labels, exclusividade explícita, mensagens de estado, toast com singular/plural, `centros_custo: []` no vínculo geral.
+### Evidências
 
-## Alterações
-
-### 1. Tipos (`dreMontadorApi.ts`)
-- Adicionar aliases exportados sem quebrar os existentes:
-  ```ts
-  export type CentroCustoConta = {
-    cd_centro_custos: string;
-    ds_centro_custos?: string | null;
-    valor?: number | null;
-    qtd_lancamentos?: number | null;
-  };
-  export type PlanoContaDre = {
-    cd_conta_contabil: string;
-    ds_conta_contabil?: string | null;
-    qtd_centros?: number;
-    centros_custo?: CentroCustoConta[];
-  };
-  export type ContaParaVinculo = {
-    cd_conta_contabil: string;
-    centros_custo: Array<{ cd_centro_custos: string }>;
-  };
-  ```
-- Manter `PlanoContaCentroCusto` / `PlanoContaErp` / `VincularContasPayload*` como estão (compat interna).
-
-### 2. Payload — `centros_custo: []` explícito
-Em `DreMontadorPage.vincular`, hoje `base.centros_custo` só é setado quando há centros marcados. Alterar para **sempre** popular o campo:
+**1. Endpoint dashboard é chamado, mas `drills_menu` é ignorado**
+`src/lib/rh/api.ts:313`
 ```ts
-const set = centrosSelecionados.get(contaKey(c));
-base.centros_custo = set && set.size > 0
-  ? Array.from(set).map((cd) => ({ cd_centro_custos: cd }))
-  : [];
+const resp = await api.get<any>("/api/rh/resumo-folha/dashboard", params);
+const normalizado = normalizeDashboard(resp ?? {});
+console.log("[RH ResumoFolha] dashboard", {
+  params, kpis_raw: resp?.kpis, kpis_normalizados: normalizado.kpis,
+  _missing_kpis: normalizado._missing_kpis,
+  filiais: resp?.filiais?.length, mensal: resp?.mensal?.length,
+});
 ```
-Isso atende a spec: "Nenhum centro marcado → `centros_custo: []`" (vínculo geral).
+Nenhuma referência a `drills_menu` em `api.ts`, `types.ts`, `useRh.ts` ou na página (`rg -n "drills_menu" src/` = 0 ocorrências).
 
-### 3. Exclusividade explícita
-A lógica atual já é exclusiva por consequência (`n.delete(contaK)` quando `size===0`). Adicionar comentário curto e um teste-visual no rótulo:
-- Quando nenhum centro está marcado para a conta: mostrar rótulo "Todos os centros" (não "Todos os centros desta conta").
-- Quando há centros marcados: mostrar `N centro(s) específico(s)` e desabilitar visualmente o item "Todos os centros" (checkbox permanece — clicar volta ao geral, o que representa a operação "desmarcar todos").
-- Ao clicar em "Todos os centros" com centros marcados → limpa a seleção (já implementado por `marcarTodosCentros`).
+**2. Cards não são clicáveis**
+`src/pages/rh/ResumoFolhaPage.tsx:310-321` — grid de `<KpiOrMissing ...>`. `KpiOrMissing` (`src/components/rh/KpiOrMissing.tsx`) não expõe `onClick`, `role="button"`, dialog ou drawer. `rg -n "onClick|Dialog|Drawer" src/components/rh/KpiOrMissing.tsx` = 0 ocorrências.
 
-### 4. Mensagens de estado
-- Conta sem centros no período (`ccs.length === 0`): substituir por "Esta conta não possui centros de custo no período selecionado. O vínculo valerá para todos os centros." e manter a marcação implícita "Todos os centros".
-- Erro de plano-contas (já existente via `toast.error`): manter, sem duplicar.
-- Estado "Carregando centros de custo…" só é aplicável se um dia forem buscados de forma lazy. Como o backend devolve tudo no plano-contas, não adicionar spinner por conta — o loader global (`loadingContas`) já cobre.
+**3. Endpoint de drill não é consumido em lugar algum**
+`rg -n "resumo-folha/drill" src/` = 0 ocorrências.
 
-### 5. Toast criados/ignorados com singular/plural
-Substituir a linha atual por:
-```ts
-const c = r.criados ?? 0;
-const i = r.ignorados_por_duplicidade ?? 0;
-const parts: string[] = [];
-if (c > 0) parts.push(`${c} vínculo${c === 1 ? '' : 's'} criado${c === 1 ? '' : 's'}.`);
-if (i > 0) parts.push(`${i} vínculo${i === 1 ? '' : 's'} já existia${i === 1 ? '' : 'm'} e foi${i === 1 ? '' : 'ram'} ignorado${i === 1 ? '' : 's'}.`);
-if (parts.length === 0) parts.push('Nenhum vínculo criado.');
-toast.success(parts.join(' '));
-```
+### Checklist item a item
 
-### 6. Estabilidade da seleção durante busca/paginação
-Já funciona porque `contasSelecionadas` e `centrosSelecionados` são chaveados por `contaKey(c) = cd_mascara||cd_conta_contabil`. Confirmar por leitura que `busca` só chama `carregarContas()` e não limpa esses states. Ajuste: quando `contas` muda, **não** limpar seleção. Manter.
+| # | Item | Status | Evidência |
+|---|------|--------|-----------|
+| 1 | Todos os cards de `drills_menu` clicáveis | **AUSENTE** | `KpiOrMissing` sem handler; nenhum wrapper |
+| 2 | Lista drillável vem do backend | **AUSENTE** | `drills_menu` nunca lido |
+| 3 | Agrupamentos vêm de `drills_menu[].agrupamentos` | **AUSENTE** | idem |
+| 4 | Drawer/modal reutilizável para o drill | **AUSENTE** | não existe `ResumoFolhaDrill*` |
+| 5 | Primeiro agrupamento carregado ao abrir | **AUSENTE** | sem drawer |
+| 6 | Trocar de aba refetcha | **AUSENTE** | sem drawer |
+| 7 | `anomes_ini/fim` = filtros ativos | **AUSENTE** | drill não chamado |
+| 8 | `cd_filial` enviado quando aplicável | **AUSENTE** | drill não chamado |
+| 9 | Renderiza `itens[]` (label/valor/qtd) | **AUSENTE** | sem tela |
+| 10 | `total` no rodapé | **AUSENTE** | sem tela |
+| 11 | Comparação `total` × valor do card | **AUSENTE** | sem tela |
+| 12 | `fonte` como legenda | **AUSENTE** | sem tela |
+| 13 | `meta.aviso` exibido | **AUSENTE** | sem tela |
+| 14 | `meta.pecas_pendentes` exibido | **AUSENTE** | sem tela |
+| 15 | `meta.meses_sem_planilha` exibido | **AUSENTE** | sem tela |
+| 16 | HTTP 422 mostra `detail` | **AUSENTE** | sem tela |
+| 17 | V.A. usa apenas agrupamentos do backend | **AUSENTE** | sem tela |
+| 18 | Provisões/Custo Total oferecem "Por componente" quando retornado | **AUSENTE** | sem tela |
+| 19 | Sem listas fixas duplicando cards/agrupamentos | **N/A (limpo)** | nada foi introduzido — não há hardcode porque não há drill |
+| 20 | Filtros/posição preservados ao fechar | **AUSENTE** | sem drawer |
 
-### 7. Listagem de vínculos existentes
-Tooltip atual já mostra `codigo_linha — cd_centro_custos ?? 'Todos os centros'`. Manter. Sem grid separada — a listagem detalhada de vínculos é atribuição do painel de "Modelo/Linhas", que não faz parte desta tarefa.
+### Cards esperados vs cards renderizados hoje
+Renderizados por `ResumoFolhaPage.tsx:310-321`: `salario_base`, `salario_bruto` (extra, não está na lista de drill), `outras_gratificacoes`, `beneficios`, `va`, `inss_total`, `fgts`, `rescisoes`, `custo_total`, `hora_extra`, `provisoes`, `custo_ferias`. **Faltando na UI mesmo antes do drill**: `provento`, `desconto`, `total_liquido`. Precisarão existir (ou serem exibidos de outra forma) para poderem receber clique de drill segundo `drills_menu`.
 
-### 8. Exclusão de vínculos
-Fora do escopo do Montador (a exclusão hoje é feita em outra tela / no backend). Não alterar.
+### Payloads reais
+Não capturados nesta auditoria — o console do preview atualmente está em outra rota (`/rh/resumo-folha` foi aberta pelo usuário mas não há log recente de `[RH ResumoFolha] dashboard` visível na janela). Recomendo capturar em `Fev/2026` após implementar (item na próxima etapa).
 
-## Não alterar
-Backend, migrations, RPC, endpoints, autenticação, modelos/linhas da DRE, cálculo, distribuição de valores por centro.
+### Arquivos/componentes que precisarão mudar
+- `src/lib/rh/types.ts` — tipos `DrillsMenuItem`, `ResumoFolhaDrillResponse`, `ResumoFolhaDrillItem`, `ResumoFolhaDrillMeta` e campo `drills_menu` em `ResumoFolhaDashboard`.
+- `src/lib/rh/api.ts` — propagar `drills_menu` em `normalizeDashboard`; nova `fetchResumoFolhaDrill({ card, agrupar_por, anomes_ini, anomes_fim, cd_filial? })` com tratamento explícito de 422→`detail`.
+- Novo `src/components/rh/ResumoFolhaDrillDrawer.tsx` — drawer reutilizável com abas por agrupamento, tabela (label/valor/qtd), rodapé com `total` + delta versus valor do card, `fonte` como legenda, `meta.aviso/pecas_pendentes/meses_sem_planilha`, empty/loading/error (incluindo 422).
+- `src/components/rh/KpiOrMissing.tsx` — aceitar `onClick`/`drillable` opcional (visual: cursor-pointer, hover, focus ring, `role="button"`, `tabIndex=0`, aria-label).
+- `src/pages/rh/ResumoFolhaPage.tsx` — mapa `card → KpiOrMissing`, marcar drillable a partir de `dashboard.drills_menu`, abrir o drawer passando o `card`, `label` e `agrupamentos` originais + filtros ativos (`anomes_ini`, `anomes_fim`, `filial`) e valor do card para comparação.
+- Adicionar os cards ausentes (`provento`, `desconto`, `total_liquido`) para permitir drill sobre eles.
 
-**Nota sobre endpoint plano-contas**: hoje o Montador usa `GET /api/bi/contabilidade/plano-contas-disponivel`, que já retorna `centros_custo[]`. A spec cita `GET /api/bi/contabilidade/dre-dinamica/plano-contas`. Como o próprio comentário do código declara essa rota como fonte, e a instrução é "não alterar backend", vou manter a URL atual. Se o backend passar a expor a rota canônica, é trocar apenas a constante em `fetchPlanoContasDinamica`.
+## Correções ainda necessárias (para próxima etapa em build mode)
 
-## Validação
-1. Abrir Montador, escolher modelo e linha.
-2. Expandir uma conta com múltiplos centros; marcar 2 → rótulo passa a "2 centros específicos".
-3. Desmarcar tudo → volta a "Todos os centros".
-4. Enviar vínculo geral e capturar payload no console: `centros_custo: []`.
-5. Enviar vínculo específico: `centros_custo: [{ cd_centro_custos: "10780" }, ...]`.
-6. Conferir toast: "N vínculo(s) criado(s). M vínculo(s) já existia(m) e foi(ram) ignorado(s)."
-7. Buscar/filtrar a lista e confirmar que as marcações prévias continuam vivas para as contas que reaparecem.
+1. Adicionar `drills_menu` aos tipos e ao normalizador.
+2. Criar `fetchResumoFolhaDrill` com `card`, `agrupar_por`, `anomes_ini`, `anomes_fim`, `cd_filial?`; tratar 422 com `detail`.
+3. Criar `ResumoFolhaDrillDrawer` reutilizável (abas por agrupamento, tabela, total, delta vs card, fonte, meta.*).
+4. Tornar `KpiOrMissing` clicável quando o card estiver em `drills_menu`.
+5. Renderizar cards que hoje faltam (`provento`, `desconto`, `total_liquido`) para cobrir os cards drilláveis do backend.
+6. Ligar filtros ativos (período + filial) ao drill; preservar posição de rolagem/filtros ao fechar.
+7. Ao trocar de aba refazer o fetch com o `agrupar_por` correspondente.
+8. Toast/error state para 422 mostrando `detail`.
+9. Validação em fevereiro/2026: capturar `[RH ResumoFolha] dashboard` (para conferir `drills_menu`) e o novo log `[RH ResumoFolha] drill` (payload por card) e conferir se o `total` de cada agrupamento bate com o valor do card.
+10. Não introduzir listas fixas de cards nem de agrupamentos — tudo derivado de `drills_menu`.
+
+**Aprovar este plano** para eu implementar as correções acima na próxima etapa (build).
