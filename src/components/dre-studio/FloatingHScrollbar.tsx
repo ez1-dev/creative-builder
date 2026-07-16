@@ -32,11 +32,27 @@ export function FloatingHScrollbar({ targetRef }: { targetRef: RefObject<HTMLDiv
     let raf = 0;
     let scrollEl: HTMLElement | null = null;
 
+    const onTargetScroll = () => {
+      if (syncingRef.current === "proxy") { syncingRef.current = "none"; return; }
+      const p = proxyRef.current;
+      const el = scrollEl ?? resolveScrollable();
+      if (!p || !el) return;
+      syncingRef.current = "target";
+      p.scrollLeft = el.scrollLeft;
+    };
+
     const update = () => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         const nextScrollEl = resolveScrollable();
+        if (scrollEl && scrollEl !== root && scrollEl !== nextScrollEl) {
+          scrollEl.removeEventListener("scroll", onTargetScroll);
+        }
         scrollEl = nextScrollEl;
+        if (scrollEl && scrollEl !== root) {
+          scrollEl.removeEventListener("scroll", onTargetScroll);
+          scrollEl.addEventListener("scroll", onTargetScroll, { passive: true });
+        }
         if (!nextScrollEl) {
           setScrollWidth(0);
           setClientWidth(0);
@@ -66,14 +82,6 @@ export function FloatingHScrollbar({ targetRef }: { targetRef: RefObject<HTMLDiv
     const io = new IntersectionObserver(update);
     io.observe(root);
 
-    const onTargetScroll = () => {
-      if (syncingRef.current === "proxy") { syncingRef.current = "none"; return; }
-      const p = proxyRef.current;
-      const el = scrollEl ?? resolveScrollable();
-      if (!p || !el) return;
-      syncingRef.current = "target";
-      p.scrollLeft = el.scrollLeft;
-    };
     root.addEventListener("scroll", onTargetScroll, { passive: true, capture: true });
     window.addEventListener("resize", update);
 
@@ -83,6 +91,9 @@ export function FloatingHScrollbar({ targetRef }: { targetRef: RefObject<HTMLDiv
       mo.disconnect();
       io.disconnect();
       root.removeEventListener("scroll", onTargetScroll, { capture: true });
+      if (scrollEl && scrollEl !== root) {
+        scrollEl.removeEventListener("scroll", onTargetScroll);
+      }
       window.removeEventListener("resize", update);
     };
   }, [targetRef]);
