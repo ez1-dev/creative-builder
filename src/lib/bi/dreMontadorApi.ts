@@ -192,7 +192,15 @@ export async function fetchPlanoContasDinamica(p: PlanoContasParams): Promise<Pl
       realizado: valorConta,
       ja_vinculada: !!(r.ja_usada ?? r.ja_vinculada ?? r.vinculada),
       linhas_vinculadas: Array.isArray(r.linhas_vinculadas)
-        ? r.linhas_vinculadas
+        ? r.linhas_vinculadas.map((lv: any) => {
+            if (lv && typeof lv === 'object') {
+              return {
+                codigo_linha: String(lv.codigo_linha ?? lv.linha ?? ''),
+                cd_centro_custos: lv.cd_centro_custos != null ? String(lv.cd_centro_custos) : null,
+              } as PlanoContaLinhaVinculada;
+            }
+            return String(lv);
+          })
         : (linhaVinc ? [linhaVinc] : []),
     };
   });
