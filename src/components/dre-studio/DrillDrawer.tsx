@@ -442,23 +442,25 @@ export function DrillDrawer({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {/* Linha SALDO INICIAL */}
-                    <TableRow className="bg-muted/40 font-medium">
-                      <TableCell></TableCell>
-                      <TableCell></TableCell>
-                      <TableCell className="whitespace-nowrap">{fmtDataBR(dataIniISO)}</TableCell>
-                      <TableCell></TableCell>
-                      <TableCell></TableCell>
-                      <TableCell></TableCell>
-                      <TableCell></TableCell>
-                      <TableCell>SALDO</TableCell>
-                      <TableCell></TableCell>
-                      <TableCell></TableCell>
-                      <TableCell className="text-right tabular-nums">{cellNum(saldoInicial)}</TableCell>
-                      <TableCell></TableCell>
-                      <TableCell></TableCell>
-                      <TableCell className="text-right tabular-nums">{cellNum(saldoInicial)}</TableCell>
-                    </TableRow>
+                    {/* Linha SALDO INICIAL (só faz sentido em Balanço) */}
+                    {!isDRE && (
+                      <TableRow className="bg-muted/40 font-medium">
+                        <TableCell></TableCell>
+                        <TableCell></TableCell>
+                        <TableCell className="whitespace-nowrap">{fmtDataBR(dataIniISO)}</TableCell>
+                        <TableCell></TableCell>
+                        <TableCell></TableCell>
+                        <TableCell></TableCell>
+                        <TableCell></TableCell>
+                        <TableCell>SALDO</TableCell>
+                        <TableCell></TableCell>
+                        <TableCell></TableCell>
+                        <TableCell className="text-right tabular-nums">{cellNum(saldoInicial)}</TableCell>
+                        <TableCell></TableCell>
+                        <TableCell></TableCell>
+                        <TableCell className="text-right tabular-nums">{cellNum(saldoInicial)}</TableCell>
+                      </TableRow>
+                    )}
 
                     {itens.map((r, i) => (
                       <TableRow
