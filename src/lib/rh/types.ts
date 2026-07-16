@@ -345,6 +345,10 @@ export interface ResumoFolhaDashboard {
   mensal?: ResumoFolhaMensalAgg[];
   /** Chaves de kpis que NÃO vieram no payload (uso interno da UI). */
   _missing_kpis?: string[];
+  /** Estado global do payload segundo o backend: completo | parcial | pendente. */
+  kpis_status?: string | null;
+  /** Completude percentual/objeto retornado pela API. */
+  kpis_completude?: any;
   fonte?: string;
   debug?: any;
   diagnostico?: any;
