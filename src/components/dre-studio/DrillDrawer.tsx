@@ -407,7 +407,7 @@ export function DrillDrawer({
           </div>
         )}
 
-        <div className="flex-1 overflow-auto px-4 py-3">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-3">
 
           {!hasCtared ? (
             <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
@@ -587,7 +587,11 @@ export function DrillDrawer({
         </div>
 
         {/* Barra de rolagem horizontal flutuante — sempre visível acima do rodapé */}
-        {temContratoRazao && <FloatingHScrollbar targetRef={razaoScrollRef} />}
+        {temContratoRazao && (
+          <div className="shrink-0 sticky bottom-0 z-20">
+            <FloatingHScrollbar targetRef={razaoScrollRef} />
+          </div>
+        )}
 
 
 

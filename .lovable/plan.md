@@ -1,26 +1,30 @@
-## Problema
+# Barra horizontal flutuante — Drawer "Lançamentos"
 
-O `DrillDrawer` (Razão/Lançamentos) já tem barra de rolagem horizontal flutuante (componente `FloatingHScrollbar`, ancorada acima do rodapé). Já o **`DrillResultadoPanel`** — o painel aberto pelo menu **Drills** (Conta Contábil, Cliente, Estado, Produto, etc.) na página `/contabilidade/dre-studio/.../visualizacao` — não tem. Como a tabela do drill fica dentro do `flex-1 overflow-auto` (linha 342), o scrollbar horizontal nativo aparece **só quando o usuário rola até o final vertical da lista**, obrigando descer para navegar entre colunas.
+## Diagnóstico
 
-## Solução
+O `DrillDrawer.tsx` (drawer "Lançamentos", exibido no print) já monta o `FloatingHScrollbar`, mas ele não aparece de forma útil porque:
 
-Reaproveitar o mesmo padrão do `DrillDrawer`: extrair o componente `FloatingHScrollbar` para um arquivo compartilhado e usá-lo também no `DrillResultadoPanel`, ancorado logo abaixo da área rolável (acima do rodapé/limite do painel), com o `targetRef` apontando para o `<div className="overflow-x-auto ...">` que envolve a `<Table>`.
+1. O container que rola horizontalmente (`razaoScrollRef`, `overflow-x-auto`) fica dentro de `flex-1 overflow-auto`. Como o pai já permite rolagem, em muitas larguras o filho não fica "scrollável" — `scrollWidth === clientWidth` — e o proxy retorna `null`.
+2. Quando fica scrollável, a barra nativa aparece no rodapé da tabela (só visível depois de rolar verticalmente até o fim), e o proxy só é medido no mount — sem re-medir quando o Sheet abre ou o layout muda de `expandido`.
+3. O proxy não tem faixa visual clara (só um traço fino), passa despercebido.
 
-## Passos
+## Correção (somente frontend/apresentação)
 
-1. **Extrair `FloatingHScrollbar`** para `src/components/dre-studio/FloatingHScrollbar.tsx` (mover as ~60 linhas do topo de `DrillDrawer.tsx`, com export nomeado).
-2. **Atualizar `DrillDrawer.tsx`** para importar de `./FloatingHScrollbar` (remover a definição local).
-3. **Atualizar `DrillResultadoPanel.tsx`**:
-   - Criar `const drillScrollRef = useRef<HTMLDivElement>(null)`.
-   - Anexar `ref={drillScrollRef}` no `<div className="overflow-x-auto rounded-lg border">` (linha 358).
-   - Renderizar `<FloatingHScrollbar targetRef={drillScrollRef} />` **fora** do `flex-1 overflow-auto` (após o `</div>` da área rolável, linha 451), apenas quando `hasRows` for verdadeiro. Assim a barra fica fixa no rodapé do painel e sempre visível.
+### 1. `DrillDrawer.tsx`
+- Trocar o container do Razão para **rolar horizontalmente no próprio nível do painel**:
+  - `flex-1 overflow-y-auto` (só vertical) no wrapper externo.
+  - `razaoScrollRef` continua com `overflow-x-auto` — agora ele é o único responsável por rolar em X, garantindo `scrollWidth > clientWidth` sempre que a tabela for mais larga que o painel.
+- Mover o `<FloatingHScrollbar targetRef={razaoScrollRef} />` para **fora** do `flex-1`, imediatamente acima do rodapé (posição atual mantida), envolvido por `<div className="shrink-0 sticky bottom-0 z-20">` para reforçar que fica ancorado ao pé do painel.
 
-## Detalhes técnicos
+### 2. `FloatingHScrollbar.tsx`
+- Reagir também à abertura do drawer / troca de dados: adicionar `IntersectionObserver` + `requestAnimationFrame` para re-medir quando o elemento alvo se torna visível ou muda de tamanho.
+- Aumentar a altura para `h-4` e trocar o fundo por `bg-muted` com borda superior mais visível (`border-t-2 border-primary/30`) — assim o usuário identifica a faixa flutuante.
+- Manter a lógica de sincronização bidirecional (`syncingRef`).
 
-- O `FloatingHScrollbar` já sincroniza `scrollLeft` bidirecionalmente via `ResizeObserver` + `MutationObserver`, e só se auto-renderiza quando `scrollWidth > clientWidth`, então some sem custo quando a tabela cabe na tela.
-- Nenhuma mudança de estilo/tema — reutiliza `bg-background/90 backdrop-blur border-t border-border shadow-*` já existente, coerente com o token de design.
-- Nenhuma mudança de dados, API ou lógica de drill — só apresentação.
+### 3. Escopo
+- Apenas `src/components/dre-studio/DrillDrawer.tsx` e `src/components/dre-studio/FloatingHScrollbar.tsx`.
+- Sem mudanças em API, hooks ou dados.
+- `DrillResultadoPanel` já recebeu o mesmo componente na rodada anterior e se beneficia automaticamente da melhora de re-medição.
 
-## Fora de escopo
-
-- Outros drawers (`DreDrillDrawer` de `/bi/contabilidade`, `ComercialDrillDrawer`) — se quiser, faço em um segundo passo.
+## Resultado esperado
+No drawer "Lançamentos" (e em qualquer painel que use `FloatingHScrollbar`), a barra horizontal fica sempre visível na base do painel, com faixa destacada, permitindo arrastar para o lado sem precisar rolar até o fim das linhas.
