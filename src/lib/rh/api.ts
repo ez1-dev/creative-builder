@@ -289,6 +289,8 @@ function normalizeDashboard(raw: any): ResumoFolhaDashboard {
     fonte: raw?.fonte,
     debug: raw?.debug,
     diagnostico: raw?.diagnostico,
+    kpis_status: raw?.kpis_status ?? null,
+    kpis_completude: raw?.kpis_completude ?? null,
   };
 }
 
