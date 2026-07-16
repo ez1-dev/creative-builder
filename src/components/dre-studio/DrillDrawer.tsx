@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { FloatingHScrollbar } from "./FloatingHScrollbar";
 import {
   Sheet,
   SheetContent,
