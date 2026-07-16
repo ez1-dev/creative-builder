@@ -17,11 +17,7 @@ export function toAnomes(v: string | undefined | null): string {
   return digits.slice(0, 6);
 }
 
-const EMPTY_KPIS: ResumoFolhaKpis = {
-  provento: 0, desconto: 0, total_liquido: 0, custo_total: 0,
-  beneficios: 0, inss_total: 0, hora_extra: 0, provisoes: 0,
-  custo_ferias: 0, rescisoes: 0, fgts: 0,
-};
+const EMPTY_KPIS: ResumoFolhaKpis = {};
 
 function num(v: any): number {
   if (v == null || v === "") return 0;
