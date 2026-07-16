@@ -1,83 +1,61 @@
-## Auditoria — Drills da tela "01 — Resumo da Folha"
+## Objetivo
 
-Escopo: `src/pages/rh/ResumoFolhaPage.tsx`, `src/components/rh/KpiOrMissing.tsx`, `src/lib/rh/api.ts`, `src/lib/rh/types.ts`, `src/hooks/dashboardGeral/useRh.ts`.
+Corrigir a tela "01 — Resumo da Folha" para que sempre exiba o payload mais recente do backend e para que o botão "Sincronizar RH" realmente atualize cards, grid e drills após concluir. Sem tocar em regras de cálculo, backend ou composição dos KPIs — o problema é 100% de cache/invalidação no frontend.
 
-### Veredito global
-**Nenhum drill do Resumo da Folha está implementado no frontend.** A tela hoje é somente leitura de KPIs; não há leitura de `drills_menu`, não há chamada a `/api/rh/resumo-folha/drill`, não há drawer, não há clique nos cards, não há tratamento de `meta.aviso`, `pecas_pendentes`, `meses_sem_planilha` no contexto de drill, e não há tratamento de erro 422 do endpoint de drill.
+## Diagnóstico (código atual)
 
-Os únicos "drills" existentes no módulo RH pertencem a outras telas: `TurnoverDrillModal`, `QuadroDrillModal`, `AbsenteismoDrillModal`, `ProgramacaoFeriasDrillModal` — nenhum reutilizado pelo Resumo da Folha.
+1. `src/pages/rh/ResumoFolhaPage.tsx` (linhas 94–115): as duas `useQuery` do dashboard usam `staleTime: 15 * 60_000` e `refetchOnWindowFocus: false`. Ao voltar para a tela, o React Query devolve o cache em memória sem refetch.
+2. `src/lib/rh/api.ts` (linhas 927–933) + `src/lib/rh/rhCache.ts`: `fetchResumoFolhaDashboardCached` envolve a chamada em `withRhCache` com TTL de **6 horas** persistido em `dashboard_cache` (Lovable Cloud). Esse cache sobrevive a refetch e a Ctrl+F5 — é a causa raiz de "V.A. continua Pendente".
+3. `syncMut.onSuccess` (linhas 172–186 e 216–241): só chama `qc.invalidateQueries({ queryKey: ["rh", "resumo-folha-dashboard"] })`. Não invalida o cache Cloud (`invalidateRhCache`), não invalida `["rh", "resumo-folha-drill"]`, nem `["rh", "turnover"]`, nem grid/filiais. Também não força `refetchQueries`, então a UI pode continuar mostrando o snapshot anterior até o próximo mount.
+4. Não há aviso de "mês em aberto" quando o período inclui o mês corrente, nem timestamp visível de última sincronização.
 
-### Evidências
+## Alterações
 
-**1. Endpoint dashboard é chamado, mas `drills_menu` é ignorado**
-`src/lib/rh/api.ts:313`
-```ts
-const resp = await api.get<any>("/api/rh/resumo-folha/dashboard", params);
-const normalizado = normalizeDashboard(resp ?? {});
-console.log("[RH ResumoFolha] dashboard", {
-  params, kpis_raw: resp?.kpis, kpis_normalizados: normalizado.kpis,
-  _missing_kpis: normalizado._missing_kpis,
-  filiais: resp?.filiais?.length, mensal: resp?.mensal?.length,
-});
-```
-Nenhuma referência a `drills_menu` em `api.ts`, `types.ts`, `useRh.ts` ou na página (`rg -n "drills_menu" src/` = 0 ocorrências).
+### 1. `src/pages/rh/ResumoFolhaPage.tsx`
 
-**2. Cards não são clicáveis**
-`src/pages/rh/ResumoFolhaPage.tsx:310-321` — grid de `<KpiOrMissing ...>`. `KpiOrMissing` (`src/components/rh/KpiOrMissing.tsx`) não expõe `onClick`, `role="button"`, dialog ou drawer. `rg -n "onClick|Dialog|Drawer" src/components/rh/KpiOrMissing.tsx` = 0 ocorrências.
+- Trocar as duas `useQuery` do dashboard (`"completo"` e `"mensal"`) para chamar `fetchResumoFolhaDashboard` diretamente (sem o wrapper `Cached`), com:
+  - `staleTime: 0`
+  - `gcTime: 5 * 60_000`
+  - `refetchOnMount: "always"`
+  - `refetchOnWindowFocus: true`
+  - manter `placeholderData: (prev) => prev` só para evitar flicker durante o refetch.
+- Remover o `useEffect` de flag `rh-resumo-folha-invalidated-v2` (linhas 82–92) — vira ruído com `staleTime: 0`.
+- No `syncMut.onSuccess` e no efeito de polling do `statusQuery` (após "OK"):
+  1. `await invalidateRhCache()` (limpa o cache Cloud com prefixo `rh:`).
+  2. `await qc.invalidateQueries({ queryKey: ["rh"] })` (pega dashboard, drills, turnover, quadro, etc. — todas usam prefixo `["rh", ...]` ou `["dg-rh", ...]`; também invalidar `["dg-rh"]` explicitamente).
+  3. `await qc.refetchQueries({ queryKey: ["rh", "resumo-folha-dashboard"], type: "active" })`.
+  4. `await qc.refetchQueries({ queryKey: ["rh", "resumo-folha-drill"], type: "active" })`.
+  5. Salvar timestamp local (`ultimaSincronizacao = new Date()`) e exibir "Atualizado às HH:MM:SS" ao lado do botão.
+- Botão "Sincronizar RH": manter `disabled={syncing}` (já existe), continuar impedindo POST duplicado via `syncMut.isPending`.
+- Adicionar aviso discreto (badge/alerta) quando `baseParams.anomes_fim >= YYYYMM do mês atual`:
+  "Mês em aberto: os valores podem mudar até o fechamento da folha." Não bloqueia consulta.
+- Nenhum valor de referência hardcoded. Nenhuma alteração em `KpiOrMissing`, tooltips já existentes de V.A./Benefícios/Rescisões permanecem.
 
-**3. Endpoint de drill não é consumido em lugar algum**
-`rg -n "resumo-folha/drill" src/` = 0 ocorrências.
+### 2. `src/components/rh/ResumoFolhaDrillDrawer.tsx`
 
-### Checklist item a item
+- Confirmar (e ajustar se necessário) que a `useQuery` do drill usa `staleTime: 0` e `refetchOnMount: "always"` para refletir o refetch pós-sincronização quando o drawer estiver aberto.
 
-| # | Item | Status | Evidência |
-|---|------|--------|-----------|
-| 1 | Todos os cards de `drills_menu` clicáveis | **AUSENTE** | `KpiOrMissing` sem handler; nenhum wrapper |
-| 2 | Lista drillável vem do backend | **AUSENTE** | `drills_menu` nunca lido |
-| 3 | Agrupamentos vêm de `drills_menu[].agrupamentos` | **AUSENTE** | idem |
-| 4 | Drawer/modal reutilizável para o drill | **AUSENTE** | não existe `ResumoFolhaDrill*` |
-| 5 | Primeiro agrupamento carregado ao abrir | **AUSENTE** | sem drawer |
-| 6 | Trocar de aba refetcha | **AUSENTE** | sem drawer |
-| 7 | `anomes_ini/fim` = filtros ativos | **AUSENTE** | drill não chamado |
-| 8 | `cd_filial` enviado quando aplicável | **AUSENTE** | drill não chamado |
-| 9 | Renderiza `itens[]` (label/valor/qtd) | **AUSENTE** | sem tela |
-| 10 | `total` no rodapé | **AUSENTE** | sem tela |
-| 11 | Comparação `total` × valor do card | **AUSENTE** | sem tela |
-| 12 | `fonte` como legenda | **AUSENTE** | sem tela |
-| 13 | `meta.aviso` exibido | **AUSENTE** | sem tela |
-| 14 | `meta.pecas_pendentes` exibido | **AUSENTE** | sem tela |
-| 15 | `meta.meses_sem_planilha` exibido | **AUSENTE** | sem tela |
-| 16 | HTTP 422 mostra `detail` | **AUSENTE** | sem tela |
-| 17 | V.A. usa apenas agrupamentos do backend | **AUSENTE** | sem tela |
-| 18 | Provisões/Custo Total oferecem "Por componente" quando retornado | **AUSENTE** | sem tela |
-| 19 | Sem listas fixas duplicando cards/agrupamentos | **N/A (limpo)** | nada foi introduzido — não há hardcode porque não há drill |
-| 20 | Filtros/posição preservados ao fechar | **AUSENTE** | sem drawer |
+### 3. `src/lib/rh/api.ts`
 
-### Cards esperados vs cards renderizados hoje
-Renderizados por `ResumoFolhaPage.tsx:310-321`: `salario_base`, `salario_bruto` (extra, não está na lista de drill), `outras_gratificacoes`, `beneficios`, `va`, `inss_total`, `fgts`, `rescisoes`, `custo_total`, `hora_extra`, `provisoes`, `custo_ferias`. **Faltando na UI mesmo antes do drill**: `provento`, `desconto`, `total_liquido`. Precisarão existir (ou serem exibidos de outra forma) para poderem receber clique de drill segundo `drills_menu`.
+- Não remover `fetchResumoFolhaDashboardCached` (outros hooks ainda usam), apenas parar de usá-lo na página Resumo da Folha.
+- Nenhuma mudança em `normalizeDashboard`, `buildKpis`, `KPI_ALIASES` — os campos `va`, `outras_gratificacoes`, `beneficios`, `inss_total`, etc. já são lidos direto do payload sem fallback/soma.
 
-### Payloads reais
-Não capturados nesta auditoria — o console do preview atualmente está em outra rota (`/rh/resumo-folha` foi aberta pelo usuário mas não há log recente de `[RH ResumoFolha] dashboard` visível na janela). Recomendo capturar em `Fev/2026` após implementar (item na próxima etapa).
+### 4. Nada muda
 
-### Arquivos/componentes que precisarão mudar
-- `src/lib/rh/types.ts` — tipos `DrillsMenuItem`, `ResumoFolhaDrillResponse`, `ResumoFolhaDrillItem`, `ResumoFolhaDrillMeta` e campo `drills_menu` em `ResumoFolhaDashboard`.
-- `src/lib/rh/api.ts` — propagar `drills_menu` em `normalizeDashboard`; nova `fetchResumoFolhaDrill({ card, agrupar_por, anomes_ini, anomes_fim, cd_filial? })` com tratamento explícito de 422→`detail`.
-- Novo `src/components/rh/ResumoFolhaDrillDrawer.tsx` — drawer reutilizável com abas por agrupamento, tabela (label/valor/qtd), rodapé com `total` + delta versus valor do card, `fonte` como legenda, `meta.aviso/pecas_pendentes/meses_sem_planilha`, empty/loading/error (incluindo 422).
-- `src/components/rh/KpiOrMissing.tsx` — aceitar `onClick`/`drillable` opcional (visual: cursor-pointer, hover, focus ring, `role="button"`, `tabIndex=0`, aria-label).
-- `src/pages/rh/ResumoFolhaPage.tsx` — mapa `card → KpiOrMissing`, marcar drillable a partir de `dashboard.drills_menu`, abrir o drawer passando o `card`, `label` e `agrupamentos` originais + filtros ativos (`anomes_ini`, `anomes_fim`, `filial`) e valor do card para comparação.
-- Adicionar os cards ausentes (`provento`, `desconto`, `total_liquido`) para permitir drill sobre eles.
+- Backend, listas de eventos, RPCs, composição de V.A./Benefícios/Salário/Rescisões, Supabase, edge functions.
+- Nenhum cálculo de card no frontend (auditado: `KpiOrMissing` só formata; a página só soma `kpisValues` para detectar "sem dados", sem exibir esse total como KPI).
 
-## Correções ainda necessárias (para próxima etapa em build mode)
+## Validação
 
-1. Adicionar `drills_menu` aos tipos e ao normalizador.
-2. Criar `fetchResumoFolhaDrill` com `card`, `agrupar_por`, `anomes_ini`, `anomes_fim`, `cd_filial?`; tratar 422 com `detail`.
-3. Criar `ResumoFolhaDrillDrawer` reutilizável (abas por agrupamento, tabela, total, delta vs card, fonte, meta.*).
-4. Tornar `KpiOrMissing` clicável quando o card estiver em `drills_menu`.
-5. Renderizar cards que hoje faltam (`provento`, `desconto`, `total_liquido`) para cobrir os cards drilláveis do backend.
-6. Ligar filtros ativos (período + filial) ao drill; preservar posição de rolagem/filtros ao fechar.
-7. Ao trocar de aba refazer o fetch com o `agrupar_por` correspondente.
-8. Toast/error state para 422 mostrando `detail`.
-9. Validação em fevereiro/2026: capturar `[RH ResumoFolha] dashboard` (para conferir `drills_menu`) e o novo log `[RH ResumoFolha] drill` (payload por card) e conferir se o `total` de cada agrupamento bate com o valor do card.
-10. Não introduzir listas fixas de cards nem de agrupamentos — tudo derivado de `drills_menu`.
-
-**Aprovar este plano** para eu implementar as correções acima na próxima etapa (build).
+- `tsgo` limpo.
+- Playwright headless em `http://localhost:8080` (após login mockado, se disponível) navegando para `/rh/resumo-folha`:
+  1. Screenshot inicial — confirmar que os cards refletem os `kpis` mais recentes do payload real (sem tocar em valores esperados).
+  2. Clicar em "Sincronizar RH" — confirmar spinner, botão desabilitado, um único POST em `network requests`.
+  3. Após toast de sucesso — confirmar via `console logs` que `[RH ResumoFolha] dashboard` reapareceu com novo `kpis`, e que o drill (se aberto) refez o request.
+- Reportar ao usuário:
+  - arquivos alterados;
+  - query keys invalidadas/refetch;
+  - comportamento do botão (spinner, disabled, one-flight);
+  - remoção do cache Cloud dessa rota;
+  - payload real capturado no console (sem gravar no código);
+  - confirmação de que não há cálculo de KPI no frontend.
