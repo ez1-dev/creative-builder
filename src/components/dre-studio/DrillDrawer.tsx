@@ -519,7 +519,7 @@ export function DrillDrawer({
                       <TableCell>SALDO</TableCell>
                       <TableCell></TableCell>
                       <TableCell></TableCell>
-                      <TableCell></TableCell>
+                      {!isDRE && <TableCell></TableCell>}
                       <TableCell></TableCell>
                       <TableCell></TableCell>
                       <TableCell className="text-right tabular-nums">{cellNum(saldoFinal)}</TableCell>
