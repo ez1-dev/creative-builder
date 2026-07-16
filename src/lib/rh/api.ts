@@ -218,7 +218,7 @@ function normalizeFiliais(arr: any) {
 
 
 
-const KPI_ALIASES: Record<keyof ResumoFolhaKpis, string[]> = {
+const KPI_ALIASES: Record<string, string[]> = {
   provento: ["provento"],
   desconto: ["desconto"],
   total_liquido: ["total_liquido", "liquido"],
@@ -232,18 +232,26 @@ const KPI_ALIASES: Record<keyof ResumoFolhaKpis, string[]> = {
   fgts: ["fgts"],
   salario_base: ["salario_base", "salarioBase"],
   salario_bruto: ["salario_bruto", "salarioBruto"],
+  va: ["va"],
+  outras_gratificacoes: ["outras_gratificacoes", "outrasGratificacoes"],
 };
 
 function buildKpis(k: any): { kpis: ResumoFolhaKpis; missing: string[] } {
-  const kpis = { ...EMPTY_KPIS };
+  const kpis: ResumoFolhaKpis = {};
   const missing: string[] = [];
-  for (const [field, aliases] of Object.entries(KPI_ALIASES) as [keyof ResumoFolhaKpis, string[]][]) {
+  for (const [field, aliases] of Object.entries(KPI_ALIASES)) {
     const { hit, value } = pickKey(k ?? {}, aliases);
-    const pendente = typeof value === "string" && value.trim().toLowerCase() === "campo_pendente";
-    if (hit && value !== null && value !== "" && !pendente) {
-      (kpis as any)[field] = num(value);
-    } else {
+    const pendenteStr =
+      typeof value === "string" && value.trim().toLowerCase() === "campo_pendente";
+    if (!hit) {
+      // Campo totalmente ausente do payload → marca como missing (aviso técnico).
       missing.push(field);
+    } else if (value === null || value === "" || pendenteStr) {
+      // Campo presente mas oficialmente nulo/pendente → NÃO é "missing" técnico,
+      // é um estado válido da API. Guarda null para o componente exibir badge "Pendente".
+      (kpis as any)[field] = null;
+    } else {
+      (kpis as any)[field] = num(value);
     }
   }
   return { kpis, missing };
