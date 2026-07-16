@@ -1,30 +1,41 @@
 ## Problema
 
-No drill de Lançamentos (Razão) o cabeçalho é fixo (sticky top), mas a barra de rolagem **horizontal** flutuante (`FloatingHScrollbar`) hoje é renderizada **dentro** do container vertical rolável (`.flex-1 overflow-auto`), logo após a tabela.
+Nos drawers de drill da DRE/Balanço, ao rolar o conteúdo o cabeçalho (título, período, filtros aplicados e barra de ações Copiar/CSV/XLSX) sai da tela, e o usuário perde o contexto do que está olhando.
 
-Resultado: com muitas linhas, ela só aparece quando o usuário rola verticalmente até o fim da tabela — na prática ela "fica sempre no final" e o usuário não consegue rolar horizontalmente sem antes descer todo o conteúdo.
+Isso acontece principalmente em `DrillResultadoPanel` (drawer aberto pelo menu "LISTA DE DRILLS" → Consulta), cujo `SheetContent` usa `overflow-y-auto` no container inteiro — então TUDO rola junto, inclusive `SheetHeader` e a barra de ações.
+
+O `DrillDrawer` (Razão) já tem o cabeçalho fora do container rolável, mas a barra de ações/contador de registros ainda precisa ser fixada logo abaixo do header para não sumir ao rolar.
 
 ## Objetivo
 
-Deixar a barra de rolagem horizontal **sempre visível** enquanto o painel de Lançamentos estiver aberto, independentemente da posição do scroll vertical — ficando ancorada logo acima do rodapé de totais.
+Manter sempre visíveis, no topo do drawer, enquanto o usuário rola verticalmente:
 
-## Alteração (frontend apenas)
+1. Título ("Drill — {linha}" / "Lançamentos") e descrição (período, código da linha, chips de filtros: codemp, codfil, consolidado, CCU, UN, modo).
+2. Barra de ações do drill (contador de registros + botões Copiar / CSV / XLSX) e o aviso amarelo de "truncado", quando existir.
 
-Arquivo único: `src/components/dre-studio/DrillDrawer.tsx`
+## Alterações (frontend apenas)
 
-1. **Mover `<FloatingHScrollbar targetRef={razaoScrollRef} />`** para fora do container `.flex-1 overflow-auto` (hoje na linha 520, dentro do bloco da tabela).
-2. Renderizá-lo como **irmão** desse container, logo antes do "Rodapé fixo com totais" (bloco atual das linhas 526–541). Assim ele fica no layout flex do `SheetContent`, colado acima do rodapé azul, sempre visível.
-3. Ajustar o componente `FloatingHScrollbar` (linhas 96–106):
-   - Remover `sticky bottom-0` (não é mais necessário — o pai deixa de ser rolável).
-   - Manter a mesma detecção de `scrollWidth > clientWidth` para só aparecer quando a tabela realmente exceder a largura.
-   - Manter o espelhamento de `scrollLeft` já existente (funciona igual, o `targetRef` continua sendo o div horizontalmente rolável da tabela).
-4. Sem mudanças em endpoints, hooks, tipos ou lógica de negócio.
+### 1) `src/components/dre-studio/DrillResultadoPanel.tsx`
+
+- Trocar o `SheetContent` de `overflow-y-auto` para layout em coluna: `className="w-full sm:max-w-4xl p-0 flex flex-col"`.
+- Envolver `SheetHeader` + o bloco de "truncado" + a barra de contador/ações (linhas ~247–276) em um wrapper único **fixo no topo**: `<div className="shrink-0 border-b bg-background px-6 pt-6 pb-3">`.
+- Envolver a tabela, botão "Carregar mais" e o card de totais em um wrapper rolável: `<div className="flex-1 overflow-auto px-6 py-4">`.
+- Manter o `TableHeader` da tabela com `sticky top-0` já herdado (adicionar `sticky top-0 bg-background z-10` se necessário) para que o cabeçalho da própria tabela também acompanhe.
+- Os estados de loading / erro / vazio ficam dentro do wrapper rolável.
+
+### 2) `src/components/dre-studio/DrillDrawer.tsx`
+
+- O `SheetHeader` (linhas 298–333) já está fora do container rolável — mantém.
+- Mover o bloco de contador "Mostrando X lançamentos" + botão "Aumentar limite" (linhas 391–414) para **fora** do `.flex-1 overflow-auto` (linha 335), renderizando-o como uma **subfaixa fixa** imediatamente abaixo do `SheetHeader`: `<div className="shrink-0 border-b bg-background px-4 py-2">`.
+- Nenhuma alteração no `FloatingHScrollbar`, no rodapé de totais ou no `Dialog` de detalhe do lançamento.
+
+### 3) Nada muda em
+
+- Endpoints, hooks (`useDrillDre`, `useDrillLancamentos`, `useDrillLancamentos` do `api.ts`), tipos ou lógica de negócio.
+- Menu "LISTA DE DRILLS" (`DrillsMenu`) — já é um popover pequeno, não precisa.
+- Layout do drill de Balanço (usa o mesmo `DrillResultadoPanel`, então herda a correção).
 
 ## Verificação
 
-- Abrir `/contabilidade/dre-studio/{id}/visualizacao`, clicar em uma linha drillável → drill Conta Contábil → abrir Razão com muitos lançamentos.
-- Confirmar (via Playwright + screenshot) que a barra horizontal aparece imediatamente acima do rodapé de totais, mesmo com o scroll vertical no topo, e que arrastá-la move a tabela lateralmente.
-
-## Não faz parte deste plano
-
-- Nenhuma mudança no drill de "Lista de drills" (DrillsMenu), no drawer de detalhe do lançamento, ou nos parâmetros da chamada `resultado-cache`/`drill-lancamentos`.
+- Abrir `/contabilidade/dre-studio/{id}/visualizacao`, clicar em uma linha drillável → menu de drills → escolher "Consulta → Conta Contábil": rolar a lista e confirmar via Playwright + screenshot que título, período, chips de filtros e barra de ações continuam visíveis.
+- Abrir também o drill de Razão (Lançamentos) com muitas linhas e confirmar que "Mostrando N lançamentos" permanece fixo abaixo do cabeçalho azul.
