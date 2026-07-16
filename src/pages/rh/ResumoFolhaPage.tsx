@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer,
+  Legend, Tooltip, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from "recharts";
+import { DonutSideLegendCard } from "@/components/bi/charts/DonutSideLegendCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,15 +50,6 @@ function defaultMonth(offset = 0): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-const PIE_COLORS = [
-  "hsl(var(--primary))",
-  "hsl(var(--info, 215 70% 45%))",
-  "hsl(var(--success))",
-  "hsl(var(--warning))",
-  "hsl(var(--destructive))",
-  "hsl(var(--muted-foreground))",
-  "hsl(var(--accent))",
-];
 
 function fmtCompetencia(v: string): string {
   const s = String(v ?? "").replace(/\D/g, "");
@@ -591,27 +583,13 @@ export default function ResumoFolhaPage() {
       </Card>
     ),
     "tipos-evento": (
-      <Card className="h-full">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-center">Tipos de Evento</CardTitle></CardHeader>
-        <CardContent className="h-[calc(100%-3rem)]">
-          {tiposPie.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-xs text-muted-foreground">Sem dados</div>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={tiposPie} dataKey="valor" nameKey="label" cx="50%" cy="50%" innerRadius={50} outerRadius={90} paddingAngle={2}>
-                  {tiposPie.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                </Pie>
-                <Tooltip formatter={(v: number, _n: any, p: any) => `${formatCurrency(v)} (${((p?.payload?.pct ?? 0) * 100).toFixed(1)}%)`} />
-                <Legend verticalAlign="bottom" iconSize={8} formatter={(value, entry: any) => {
-                  const pct = (entry?.payload?.pct ?? 0) * 100;
-                  return `${value} — ${pct.toFixed(0)}%`;
-                }} />
-              </PieChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
+      <DonutSideLegendCard
+        title="Tipos de Evento"
+        subtitle="% e valor por tipo de evento"
+        data={tiposPie.map((t) => ({ label: String(t.label ?? "—"), valor: Number(t.valor) || 0 }))}
+        loading={isLoading}
+        height={380}
+      />
     ),
   }), [kpis, isMissing, isLoading, isAdmin, data, mensal, proventos, descontos, filiaisData, tiposPie, drillsMap]);
 

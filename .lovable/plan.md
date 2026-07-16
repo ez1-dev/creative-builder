@@ -1,14 +1,28 @@
-## Card "V.A." — Campo pendente na API
+## Modernizar gráfico "Tipos de Evento" (Resumo da Folha)
 
-Nenhuma alteração de código.
+Substituir o donut atual (Recharts direto, legenda embaixo) pelo mesmo componente já usado no dashboard de Manutenção de Frota, e colocá-lo em linha própria.
 
-**Diagnóstico:** o rótulo "Campo pendente na API" (texto amarelo) aparece quando o backend **não envia** a chave `va` dentro de `kpis` no payload de `GET /api/rh/resumo-folha/dashboard`. Diferente de "Pendente" (valor `null`), aqui a chave está totalmente ausente — o frontend registra em `_missing_kpis` e renderiza esse aviso técnico via `KpiOrMissing`.
+**Arquivo 1 — `src/pages/rh/ResumoFolhaPage.tsx`**
+- Importar `DonutSideLegendCard` de `@/components/bi/charts/DonutSideLegendCard`.
+- Substituir o bloco `"tipos-evento"` (linhas 593–615) por:
+  ```tsx
+  "tipos-evento": (
+    <DonutSideLegendCard
+      title="Tipos de Evento"
+      subtitle="% e valor por tipo de evento"
+      data={tiposPie.map(t => ({ label: String(t.label ?? "—"), valor: Number(t.valor) || 0 }))}
+      loading={isLoading}
+      height={380}
+    />
+  ),
+  ```
+- Remover imports não usados (`PieChart`, `Pie`, `Cell`, `Legend`, `PIE_COLORS`) se ficarem órfãos após a troca — validar com grep antes de deletar.
 
-O frontend já está preparado para exibir o valor assim que o backend passar a incluir o campo — sem cálculo local, sem hardcode.
+**Arquivo 2 — `src/lib/rh/widgetCatalogs.ts`**
+- Ajustar o default do bloco para ocupar linha inteira:
+  - `filial`: `w: 12` (linha 34)
+  - `tipos-evento`: `x: 0, y: 44, w: 12, h: 10` (linha 35)
 
-**Ação (backend):**
-1. Incluir `va` em `response.kpis` conforme `docs/backend-rh-resumo-folha-dashboard.md` (fonte oficial: `SUM(VL_VALE_ALIMENTACAO)` da VM_FOLHA, ou o agregador equivalente da folha para Vale-Alimentação).
-2. Se o valor legitimamente for zero/ausente no período, devolver `"va": null` (o card mostrará o badge "Pendente" em vez de "Campo pendente na API").
-3. Verificar `diagnostico.vm_folha_componentes.vl_vale_alimentacao` — se estiver `0` ou ausente, é sinal de que a fonte de recarga do V.A. não foi carregada na VM_FOLHA para o período.
+Isso deixa "Tipos de Evento" sozinho abaixo de "Custo por Filial", com o mesmo layout donut + legenda lateral rica (nome, valor, %) da tela de Manutenção de Frota, cores oficiais da BI_PALETTE, total centralizado e hover cruzado.
 
-Assim que a chave `va` vier no payload, o card exibirá o valor automaticamente.
+Nenhuma mudança de dados, backend ou fórmula. Usuários que já customizaram o layout mantêm o layout salvo (o default só aplica para quem não editou).

@@ -31,8 +31,8 @@ export const RESUMO_FOLHA_DEFAULTS: RhWidget[] = [
   { id: 'mensal-table',  type: 'mensal-table',  title: 'Detalhamento Mensal',         position: 2, layout: { x: 0, y: 18, w: 12, h: 6  } },
   { id: 'proventos',     type: 'proventos',     title: 'Proventos e Vantagens',       position: 3, layout: { x: 0, y: 24, w: 8,  h: 10 } },
   { id: 'descontos',     type: 'descontos',     title: 'Descontos',                   position: 4, layout: { x: 8, y: 24, w: 4,  h: 10 } },
-  { id: 'filial',        type: 'filial',        title: 'Custo por Filial',            position: 5, layout: { x: 0, y: 34, w: 9,  h: 10 } },
-  { id: 'tipos-evento',  type: 'tipos-evento',  title: 'Tipos de Evento',             position: 6, layout: { x: 9, y: 34, w: 3,  h: 10 } },
+  { id: 'filial',        type: 'filial',        title: 'Custo por Filial',            position: 5, layout: { x: 0, y: 34, w: 12, h: 10 } },
+  { id: 'tipos-evento',  type: 'tipos-evento',  title: 'Tipos de Evento',             position: 6, layout: { x: 0, y: 44, w: 12, h: 10 } },
 ];
 
 export const RESUMO_FOLHA_CATALOG: Record<string, RhWidgetDef> = {
