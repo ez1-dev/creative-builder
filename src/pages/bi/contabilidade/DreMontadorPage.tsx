@@ -492,8 +492,11 @@ export default function DreMontadorPage() {
                           sel={sel}
                           ccs={ccs}
                           isOpen={isOpen}
+                          centrosMarcados={centrosSelecionados.get(k) ?? new Set()}
                           onToggleExpand={toggleExpand}
                           onToggleSel={() => toggleConta(k)}
+                          onToggleCentro={(cd) => toggleCentroCusto(k, cd)}
+                          onMarcarTodosCentros={() => marcarTodosCentros(k, ccs)}
                         />
                       );
                     })}
