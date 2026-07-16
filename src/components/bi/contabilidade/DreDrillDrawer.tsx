@@ -270,12 +270,17 @@ export function DreDrillDrawer({
             )}
             {!loading && erro && (
               <div className="text-center text-destructive bg-destructive/10 rounded-md py-3 px-4 text-xs">
-                {erro}
+                {current.tipo_drill === 'LANCAMENTO' && (
+                  <div className="font-medium mb-1">Não foi possível carregar os lançamentos da DRE.</div>
+                )}
+                <div className="opacity-80">{erro}</div>
               </div>
             )}
             {!loading && !erro && data && !hasRows && (
               <div className="text-center text-muted-foreground py-10 text-xs">
-                Sem registros para esta combinação.
+                {current.tipo_drill === 'LANCAMENTO'
+                  ? 'Nenhum lançamento encontrado para os filtros selecionados.'
+                  : 'Sem registros para esta combinação.'}
               </div>
             )}
             {!loading && !erro && data && hasRows && (
