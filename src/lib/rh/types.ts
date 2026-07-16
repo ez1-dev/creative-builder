@@ -306,8 +306,8 @@ export interface ResumoFolhaFilialAgg {
   qtd_hora_extra?: string | number;
   liquido?: number;
   fgts?: number;
-  beneficios?: number;
-  va?: number;
+  beneficios?: number | null;
+  va?: number | null;
   inss?: number;
   custo_ferias?: number;
   prov_ferias?: number;
