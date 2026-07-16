@@ -592,7 +592,7 @@ export default function ResumoFolhaPage() {
         </CardContent>
       </Card>
     ),
-  }), [kpis, isMissing, isLoading, isAdmin, data, mensal, proventos, descontos, filiaisData, tiposPie]);
+  }), [kpis, isMissing, isLoading, isAdmin, data, mensal, proventos, descontos, filiaisData, tiposPie, drillsMap]);
 
   return (
     <div className="container mx-auto px-3 md:px-6 py-4 md:py-6 space-y-3 md:space-y-4">
