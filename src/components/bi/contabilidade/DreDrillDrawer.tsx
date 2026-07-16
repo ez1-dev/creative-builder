@@ -448,17 +448,17 @@ export function DreDrillDrawer({
           }}
           lancamento={{
             anomes_referente: modalClass.row.anomes_referente ?? current.anomes_referente ?? null,
-            nr_lancamento: modalClass.row.nr_lancamento ?? String(modalClass.row.chave ?? ''),
+            nr_lancamento: String(modalClass.row.nr_lancamento ?? modalClass.row.cd_lancamento ?? modalClass.row.chave ?? ''),
             nr_lote: modalClass.row.nr_lote ?? null,
-            nr_documento: modalClass.row.nr_documento ?? null,
+            nr_documento: modalClass.row.nr_documento ?? modalClass.row.cd_documento ?? null,
             cd_mascara: (modalClass.row as any).cd_mascara ?? null,
             cd_conta_contabil: modalClass.row.cd_conta ?? (modalClass.row as any).cd_conta_contabil ?? null,
-            cd_centro_custos: modalClass.row.cd_cencus ?? (modalClass.row as any).cd_centro_custos ?? null,
-            cd_centro_custos_3: (modalClass.row as any).cd_centro_custos_3 ?? null,
+            cd_centro_custos: modalClass.row.cd_cencus ?? modalClass.row.cd_centro_custos ?? null,
+            cd_centro_custos_3: modalClass.row.cd_centro_custos_3 ?? null,
             cd_origem_lcto: modalClass.row.cd_origem ?? (modalClass.row as any).cd_origem_lcto ?? null,
             cd_tns: modalClass.row.cd_transacao ?? (modalClass.row as any).cd_tns ?? null,
             ds_historico: modalClass.row.ds_historico ?? null,
-            vl_realizado: Number(modalClass.row.vl_realizado) || 0,
+            vl_realizado: Number(modalClass.row.vl_realizado ?? modalClass.row.total) || 0,
           }}
           onSaved={() => {
             toast.success('Classificação registrada. Recarregue a DRE para refletir o impacto.');
