@@ -1,90 +1,39 @@
-## Reestruturar menu lateral em ERP / HCM / Configurações
+## Objetivo
 
-Refatorar **`src/components/AppSidebar.tsx`** por completo (único arquivo alterado). Nenhuma rota, permissão ou página é modificada — só a árvore do menu, o comportamento accordion e o fechamento em mobile.
+Elevar a qualidade da escrita dos relatórios gerados por IA em todos os pontos do sistema. A alteração é **exclusivamente nos SYSTEM prompts** das edge functions — nenhum schema, endpoint, contrato de UI, layout de PDF ou lógica de negócio é tocado. As telas e PDFs passam a exibir textos mais robustos automaticamente, sem qualquer mudança de frontend.
 
-### 1. Nova estrutura de dados
+## Padrão editorial único (aplicado a todas as funções)
 
-Trocar o array `GROUPS` atual por uma árvore de três níveis:
+Cada prompt de sistema passa a exigir o mesmo padrão de escrita:
 
-```ts
-type Leaf = { title: string; url: string; icon: any };
-type SubGroup = { id: string; label: string; icon: any; items: Leaf[] };
-type TopMenu =
-  | { id: string; label: string; icon: any; kind: 'leaf'; item: Leaf }
-  | { id: string; label: string; icon: any; kind: 'flat'; items: Leaf[] }
-  | { id: string; label: string; icon: any; kind: 'nested'; subGroups: SubGroup[] };
-```
+1. **Abertura factual quantificada** — todo bullet começa com o número que importa (valor absoluto + Δ absoluto + Δ %), no formato `R$ 1,61 mi (+R$ 177 mil, +12,4% vs período anterior)`. Sem adjetivos vazios ("bom", "ruim", "significativo") desacompanhados de número.
+2. **Materialidade primeiro** — priorizar as 3–5 variações de maior impacto financeiro/operacional, não listar tudo. Cada bullet informa por que a variação é relevante (peso sobre o total, concentração, quebra de tendência).
+3. **Causa provável** — quando o payload permitir cruzamento (filial, evento, cargo, cliente, produto, tela), citar o driver: "puxado por Filial X (68% do delta)" ou "concentrado em 3 eventos: HE 100%, HE 60%, adicional noturno".
+4. **Recomendação acionável** — verbo no infinitivo + responsável sugerido + prazo + KPI alvo. Ex.: "Revisar escala de HE na Filial X até dd/mm, meta de reduzir 15% até próximo fechamento".
+5. **Sinalização de risco** — classificar cada risco como financeiro / trabalhista / operacional / reputacional, com estimativa de exposição quando o payload permitir.
+6. **Higiene numérica** — nunca inventar números fora do payload; quando um campo estiver ausente, escrever explicitamente "não informado no período" em vez de omitir. Percentuais sempre com 1 casa; valores monetários em pt-BR (R$, milhar com ponto, decimal com vírgula, abreviar `mi`/`mil` acima de 6 dígitos).
+7. **Tom executivo** — frases curtas, voz ativa, PT-BR, sem jargão de consultoria ("sinergias", "alavancar"), sem repetir o que já está na tela como número solto.
+8. **Limites de tamanho** — mantidos os limites atuais por bullet (260 chars) e por seção (3–6 bullets), para não quebrar layouts existentes.
 
-Cinco topos, nesta ordem:
+## Arquivos alterados
 
-1. **Favoritos** — renderizado à parte (já existe `renderFavoritesGroup`), tratado como topo accordion.
-2. **Início** (`Home`) — leaf → `/dashboard-geral`.
-3. **ERP** (`Package`) — nested; ver mapa abaixo.
-4. **HCM** (`Users`) — flat; ver mapa abaixo.
-5. **Configurações** (`Settings`) — flat; ver mapa abaixo.
+Todos são edge functions em `supabase/functions/*/index.ts`. Somente a constante de SYSTEM prompt (ou equivalente) é reescrita — o restante do arquivo (schema da tool, chamada ao gateway, normalização, CORS) permanece idêntico.
 
-Nenhum topo "Terceiros".
+| Função | O que muda no prompt |
+|---|---|
+| `rh-relatorio-ia` | SYSTEM ganha o padrão editorial acima + regra de citar sempre custo total, líquido, HE, benefícios, INSS/FGTS com Δ e peso relativo; alertas passam a exigir exposição estimada em R$ quando aplicável. |
+| `rh-ai-insights` | `SYSTEM_BASE` reforçado com padrão editorial; blocos `FOCO[modulo]` reescritos para pedir causas específicas por módulo (quadro → drivers de admissão/desligamento por filial e cargo; férias → risco jurídico por dias vencidos; turnover → coorte e tempo de casa; absenteísmo → concentração por setor/dia da semana). |
+| `dashboard-geral-insights` | SYSTEM inline reforçado para produzir 3 blocos: leitura consolidada (com números), riscos priorizados por impacto financeiro, próximas ações com responsável sugerido. |
+| `relatorio-executivo-ia` | `cfg.persona` mantida; SYSTEM ganha o padrão editorial + exigência de comparar sempre vs. mês anterior, YTD e meta (quando presentes no payload) e destacar top 3 clientes/produtos que explicam o desvio. |
+| `monitor-telas-ia` | `SYSTEM_BASE` + `FOCO[origem]` reforçados para citar telas específicas com nº de execuções, usuários únicos, variação % vs semana anterior, e sinalizar telas críticas com queda >20%. |
+| `sugestao-minmax-ia` | `SYSTEM_PROMPT` reforçado para justificar cada sugestão de mín/máx/PP/lote com: consumo médio + desvio, lead time, cobertura em dias resultante e impacto em capital de giro. Mantém o schema atual. |
 
-### 2. Mapa exato (usando as URLs que o usuário passou)
+## Fora do escopo
 
-**ERP → subgrupos:**
-- `Produção` (Factory): /producao/dashboard · /producao/produzido · /producao/expedido · /producao/patio · /producao/nao-carregados · /producao/leadtime · /producao/engenharia · /producao/relatorio-semanal-obra · /producao/impressao-op · /producao/carga · /producao/carga/dashboard · /producao/carga/recursos · /producao/programacao
-- `Compras e Suprimentos` (ShoppingCart): /compras-produto · /painel-compras · /demonstrativo-compras-recebimentos · /auditoria-tributaria · /notas-recebimento
-- `Estoque` (Warehouse): /estoque · /estoque-min-max · /sugestao-min-max · /onde-usa · /bom · /numero-serie
-- `Financeiro e Contábil` (Landmark): /conciliacao-edocs · /contas-pagar · /contas-receber · /contabilidade/balanco · /contabilidade/dre-studio · /contabilidade/dre-studio/modelos · /contabilidade/dre-studio/modelos/novo
-- `Faturamento` (Receipt): /auditoria-apontamento-genius · /faturamento-genius
-- `BI e Analytics` (BarChart3): /bi/contabilidade/dre · /bi/faturamento-validacao · /bi/comercial · /bi/comercial/metas · /bi/faturamento/relatorio-executivo · /etl
-- `Cadastros` (Boxes): /cadastros/produtos
-- `Regras Senior` (ShieldAlert): /regras-senior · /regras-senior/regras · /regras-senior/identificadores · /regras-senior/auditoria · /regras-senior/snapshots
-- `Relatórios` (FileText): /relatorios/desenvolvimento · /relatorios/publicados · /relatorios/execucoes
-- `Operacional` (Cog): /passagens-aereas · /frota · /manutencao-maquinas
+- Não altera schema de tools, contrato de resposta, tipos TS, componentes React, PDF layout, catálogos de widgets, permissões, rotas ou tabelas.
+- Não troca modelo de IA nem parâmetros do gateway.
+- Não mexe em `ai-assistant`, `bi-ia-chart` nem `biblioteca-bi-suggest` (não são relatórios executivos — são chat/assistente e sugestor de gráfico).
 
-**HCM (flat, ícone Users):** /rh · /rh/resumo-folha · /rh/quadro-colaboradores · /rh/contrato-experiencia · /rh/programacao-ferias · /rh/turnover · /rh/absenteismo · /rh/formularios · /rh/relatorio-gerencial
+## Validação
 
-**Configurações (flat, ícone Settings):** /monitor-usuarios-senior · /gestao-sgu-usuarios · /configuracoes · /biblioteca-bi
-
-Rotas existentes que **não constam** na lista do usuário (`/monitor-telas`, `/bi/financeiro/dre-configuravel`, `/bi/contabilidade/dre-dinamica`, `/bi/contabilidade/dre-dinamica/montador`, `/bi/contabilidade/dre/excecoes`, `/bi/contabilidade/dre/aprovacoes`, `/bi/contabilidade/dre/parametrizacao`, `/bi/contabilidade/dre/configuracao`, `/bi/contabilidade/dre/sincronizacao-depara`, `/contabilidade/dre-studio/configuracoes`, etc.) ficam **ocultas do menu**, mas as rotas continuam registradas — usuário acessa por link direto/favorito. Nenhuma URL é alterada.
-
-### 3. Comportamento accordion
-
-- `openTop: string | null` (estado único de topo aberto). Igual ao `openGroup` atual, mas agora reflete apenas Favoritos/Início/ERP/HCM/Configurações — abrir um fecha os demais.
-- Dentro de ERP: `openSubs: Record<string, boolean>` (map por id de subgrupo) — múltiplos podem estar abertos simultaneamente. Ao trocar de rota, expande automaticamente o subgrupo ativo sem fechar outros já abertos pelo usuário.
-- Ao mudar `location.pathname`, calcular `activeTopId` + `activeSubId` (busca pelo prefixo mais longo entre todas as leaves) e:
-  - Setar `openTop = activeTopId` (força a abertura do topo correto).
-  - Setar `openSubs[activeSubId] = true` (sem desmarcar os já abertos).
-
-### 4. Página ativa
-
-Item leaf ativo já usa a classe `bg-primary/15 text-primary` + faixa vertical `before:` (código atual). Manter e reforçar contraste em ambos os temas (nenhuma cor hardcoded — só tokens semânticos).
-
-### 5. Busca
-
-`Input` "Buscar menu…" já existe. Ajustar `filter` para operar recursivamente sobre a nova árvore:
-- Enquanto `q.trim()` não vazio: força `openTop` = todos os que têm match e `openSubs[*] = true` para os subgrupos com match (`forceOpen` já existe — replicar para o nível 2 e para o nível 3 dentro de ERP).
-- Ao clicar em resultado da busca: efeito colateral do `NavLink` já muda a rota → o `useEffect` de expansão automática garante que topo+subgrupo permaneçam abertos após limpar a busca.
-
-### 6. Mobile — fechar ao selecionar
-
-- Ler `isMobile` de `useSidebar()` (já disponível via `useIsMobile`) e chamar `setOpenMobile(false)` no `onClick` de cada `NavLink`. Não afeta desktop.
-
-### 7. Permissões
-
-Manter `useUserPermissions` + `isVisible(url)` já existentes. Filtragem recursiva:
-- Se um subgrupo fica sem items visíveis → esconde o subgrupo.
-- Se um topo (ERP/HCM/Configurações) fica sem nenhum subgrupo/item visível → esconde o topo inteiro.
-- Nada de exibir números como "6/18". O código atual não mostra contadores; garantir que a nova versão também não introduza.
-
-### 8. Visual
-
-- Manter tokens `sidebar-*` (azul corporativo) e classes existentes de hover/active.
-- Ícones coerentes: topos usam ícones únicos (Home / Package / Users / Settings / Star); subgrupos de ERP mantêm ícones já usados hoje (Factory, ShoppingCart, Warehouse, Landmark, Receipt, BarChart3, Boxes, ShieldAlert, FileText, Cog).
-- Chevron rotacionando (já existe) em todos os níveis; sub-nível de ERP usa indent extra com border-l suave (padrão atual).
-- Animações discretas de expandir/recolher: manter `Collapsible` do Radix (transição 200ms padrão do design system).
-
-### 9. Fora de escopo
-
-- Nenhuma alteração em rotas (`src/App.tsx`), páginas, permissões, brand ou tema.
-- Nenhuma migração no backend.
-- `useFavorites` continua igual — o "Favoritos" é o primeiro topo accordion (mesmo componente atual `renderFavoritesGroup`).
-
-Arquivo alterado: `src/components/AppSidebar.tsx` (rewrite completo do array de dados + funções de renderização recursiva). Nada mais é tocado.
+Após aplicar, gerar um relatório em `/rh/relatorio-gerencial`, abrir o `/dashboard-geral` e o `/bi/faturamento/relatorio-executivo` e conferir que os bullets seguem o novo padrão (número na abertura, driver, ação com prazo).
