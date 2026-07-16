@@ -152,6 +152,19 @@ export default function ResumoFolhaPage() {
 
   const [syncJobId, setSyncJobId] = useState<string | null>(null);
   const [syncInFlight, setSyncInFlight] = useState(false);
+
+  const refetchAfterSync = async () => {
+    // 1. Limpa cache persistente Cloud (rh:*).
+    await invalidateRhCache();
+    // 2. Invalida todas as queries do RH (dashboard, drills, turnover, absenteísmo, quadro, etc.).
+    await qc.invalidateQueries({ queryKey: ["rh"] });
+    await qc.invalidateQueries({ queryKey: ["dg-rh"] });
+    // 3. Força refetch imediato do dashboard e dos drills ativos.
+    await qc.refetchQueries({ queryKey: ["rh", "resumo-folha-dashboard"], type: "active" });
+    await qc.refetchQueries({ queryKey: ["rh", "resumo-folha-drill"], type: "active" });
+    setUltimaSincronizacao(new Date());
+  };
+
   const syncMut = useMutation({
     mutationFn: () => sincronizarResumoFolha(baseParams),
     onMutate: () => {
@@ -161,7 +174,7 @@ export default function ResumoFolhaPage() {
       });
       return { id };
     },
-    onSuccess: (resp: any, _vars, ctx) => {
+    onSuccess: async (resp: any, _vars, ctx) => {
       const status = String(resp?.status ?? "").toUpperCase();
       if (status === "EM_PROCESSAMENTO" || status === "PROCESSING") {
         setSyncJobId(resp?.job_id ?? "pending");
@@ -174,7 +187,7 @@ export default function ResumoFolhaPage() {
       setSyncInFlight(false);
       setSyncJobId(null);
       toast.success("Sincronização RH concluída.", { id: ctx?.id });
-      qc.invalidateQueries({ queryKey: ["rh", "resumo-folha-dashboard"] });
+      await refetchAfterSync();
     },
     onError: (e: any, _vars, ctx) => {
       setSyncInFlight(false);
@@ -212,7 +225,7 @@ export default function ResumoFolhaPage() {
       setSyncInFlight(false);
       setSyncJobId(null);
       toast.success("Sincronização RH concluída.");
-      qc.invalidateQueries({ queryKey: ["rh", "resumo-folha-dashboard"] });
+      void refetchAfterSync();
       return;
     }
     if (!s) return;
@@ -221,7 +234,7 @@ export default function ResumoFolhaPage() {
       setSyncInFlight(false);
       setSyncJobId(null);
       toast.success("Sincronização RH concluída.");
-      qc.invalidateQueries({ queryKey: ["rh", "resumo-folha-dashboard"] });
+      void refetchAfterSync();
     } else if (st === "ERRO" || st === "FAILED" || st === "ERROR") {
       setSyncInFlight(false);
       setSyncJobId(null);
