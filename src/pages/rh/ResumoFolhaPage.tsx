@@ -50,15 +50,6 @@ function defaultMonth(offset = 0): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-const PIE_COLORS = [
-  "hsl(var(--primary))",
-  "hsl(var(--info, 215 70% 45%))",
-  "hsl(var(--success))",
-  "hsl(var(--warning))",
-  "hsl(var(--destructive))",
-  "hsl(var(--muted-foreground))",
-  "hsl(var(--accent))",
-];
 
 function fmtCompetencia(v: string): string {
   const s = String(v ?? "").replace(/\D/g, "");
