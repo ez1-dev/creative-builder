@@ -151,6 +151,43 @@ export default function DreMontadorPage() {
       if (n.has(k)) n.delete(k); else n.add(k);
       return n;
     });
+    // Se desmarcou a conta, limpa também os centros selecionados dela
+    setCentrosSelecionados((prev) => {
+      if (!prev.has(k)) return prev;
+      if (contasSelecionadas.has(k)) {
+        const n = new Map(prev);
+        n.delete(k);
+        return n;
+      }
+      return prev;
+    });
+  };
+
+  const toggleCentroCusto = (contaK: string, cdCentro: string) => {
+    // Marcar um centro implica marcar a conta
+    setContasSelecionadas((prev) => {
+      if (prev.has(contaK)) return prev;
+      const n = new Set(prev);
+      n.add(contaK);
+      return n;
+    });
+    setCentrosSelecionados((prev) => {
+      const n = new Map(prev);
+      const set = new Set(n.get(contaK) ?? []);
+      if (set.has(cdCentro)) set.delete(cdCentro);
+      else set.add(cdCentro);
+      if (set.size === 0) n.delete(contaK);
+      else n.set(contaK, set);
+      return n;
+    });
+  };
+
+  const marcarTodosCentros = (contaK: string, ccs: { cd_centro_custos: string }[]) => {
+    setCentrosSelecionados((prev) => {
+      const n = new Map(prev);
+      n.delete(contaK); // "todos" = vazio
+      return n;
+    });
   };
 
   const contasOrdenadas = useMemo(() => {
