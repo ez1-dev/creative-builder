@@ -1,34 +1,30 @@
-## Situação atual (auditoria rápida)
+## Problema
 
-A maior parte do pedido já está no código:
+No drill de Lançamentos (Razão) o cabeçalho é fixo (sticky top), mas a barra de rolagem **horizontal** flutuante (`FloatingHScrollbar`) hoje é renderizada **dentro** do container vertical rolável (`.flex-1 overflow-auto`), logo após a tabela.
 
-- `useResultadoCache` (src/hooks/contabil/api.ts:715) chama `GET /api/contabil/modelos/{modelo_id}/resultado-cache` já enviando `incluir_drills=true` — vale para DRE **e** Balanço (mesma tela `DreStudioVisualizacaoPage`).
-- `linha.drills_menu` é preservado no normalizador (api.ts:438) e tipado em `src/types/contabil.ts`.
-- `src/lib/contabil/drillsMenu.ts` faz `possuiDrill` (só ativa se `drillavel===true` e há itens) e `agruparDrillsMenu` (REABRIR primeiro, CONSULTA depois) — sem hardcode.
-- `src/components/dre-studio/DrillsMenu.tsx` renderiza cada grupo com `DropdownMenuLabel` (cabeçalho da seção) e cada item como opção clicável usando `item.label`.
-- Na matriz (`DreStudioVisualizacaoPage.tsx` ~2541) o menu é montado a partir de `linha.drills_menu` e o `onSelect` envia `modelo_id`, `linha_id`, `agrupar_por` (raw + normalizado), `anomes_ini/fim`, `codemp`, `codfil`, `centro_custo`, `modo_balanco`.
-- `fetchDrillDre` (src/lib/contabil/drillDreApi.ts:123) já usa `params.endpoint` (default `/api/contabil/drill-dre`) — respeita o endpoint que vier do próprio item.
+Resultado: com muitas linhas, ela só aparece quando o usuário rola verticalmente até o fim da tabela — na prática ela "fica sempre no final" e o usuário não consegue rolar horizontalmente sem antes descer todo o conteúdo.
 
-Único gap real vs. a spec: quando não há filial selecionada, o Balanço **não** força `consolidado=true` no `resultado-cache`. Hoje só envia `consolidado` quando o usuário liga o toggle. A spec pede: `&incluir_drills=true&consolidado=true (ou &codfil=)`.
+## Objetivo
 
-## Mudança proposta (mínima, só frontend)
+Deixar a barra de rolagem horizontal **sempre visível** enquanto o painel de Lançamentos estiver aberto, independentemente da posição do scroll vertical — ficando ancorada logo acima do rodapé de totais.
 
-1. `src/hooks/contabil/api.ts` (`useResultadoCache`)
-   - Se `filtros.codfil` for `null/undefined` e `filtros.consolidado` não foi explicitamente definido, enviar `consolidado: true`. Isso cobre a regra "consolidado=true OU codfil".
-   - Não alterar assinatura pública nem outros parâmetros.
+## Alteração (frontend apenas)
 
-2. Sanity check visual (sem edição) na `DreStudioVisualizacaoPage`:
-   - Confirmar que o botão do `DrillsMenu` está visível ao lado do label da linha quando `drillavel===true`.
-   - Confirmar cabeçalhos "REABRIR" / "CONSULTA" na abertura.
+Arquivo único: `src/components/dre-studio/DrillDrawer.tsx`
 
-## O que **NÃO** vou mudar
-
-- Backend, endpoints, regras contábeis — nada.
-- `DrillsMenu` / `drillsMenu.ts` — já cumprem a spec.
-- Comportamento de clique da linha (expandir/recolher) — o menu continua no ícone dedicado (Search) para não conflitar com o toggle de filhos.
+1. **Mover `<FloatingHScrollbar targetRef={razaoScrollRef} />`** para fora do container `.flex-1 overflow-auto` (hoje na linha 520, dentro do bloco da tabela).
+2. Renderizá-lo como **irmão** desse container, logo antes do "Rodapé fixo com totais" (bloco atual das linhas 526–541). Assim ele fica no layout flex do `SheetContent`, colado acima do rodapé azul, sempre visível.
+3. Ajustar o componente `FloatingHScrollbar` (linhas 96–106):
+   - Remover `sticky bottom-0` (não é mais necessário — o pai deixa de ser rolável).
+   - Manter a mesma detecção de `scrollWidth > clientWidth` para só aparecer quando a tabela realmente exceder a largura.
+   - Manter o espelhamento de `scrollLeft` já existente (funciona igual, o `targetRef` continua sendo o div horizontalmente rolável da tabela).
+4. Sem mudanças em endpoints, hooks, tipos ou lógica de negócio.
 
 ## Verificação
 
-- Abrir `/contabilidade/dre-studio/modelo/{id}` num modelo de Balanço sem filial e inspecionar a request `resultado-cache` no DevTools: deve conter `incluir_drills=true&consolidado=true`.
-- Abrir o menu numa linha do Balanço com `drillavel:true` e confirmar grupos REABRIR + CONSULTA vindos do backend.
-- Selecionar um item CONSULTA (ex.: Conta Contábil): request vai para `item.endpoint` com `modelo_id`, `linha_id`, `agrupar_por`, `anomes_ini/fim`.
+- Abrir `/contabilidade/dre-studio/{id}/visualizacao`, clicar em uma linha drillável → drill Conta Contábil → abrir Razão com muitos lançamentos.
+- Confirmar (via Playwright + screenshot) que a barra horizontal aparece imediatamente acima do rodapé de totais, mesmo com o scroll vertical no topo, e que arrastá-la move a tabela lateralmente.
+
+## Não faz parte deste plano
+
+- Nenhuma mudança no drill de "Lista de drills" (DrillsMenu), no drawer de detalhe do lançamento, ou nos parâmetros da chamada `resultado-cache`/`drill-lancamentos`.

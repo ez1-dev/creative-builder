@@ -94,14 +94,12 @@ function FloatingHScrollbar({ targetRef }: { targetRef: RefObject<HTMLDivElement
   if (!precisa) return null;
 
   return (
-    <div className="sticky bottom-0 left-0 right-0 z-20 pointer-events-none">
-      <div
-        ref={proxyRef}
-        onScroll={onProxyScroll}
-        className="pointer-events-auto overflow-x-auto h-3.5 bg-background/90 backdrop-blur border-t border-border shadow-[0_-2px_6px_-2px_rgba(0,0,0,0.15)]"
-      >
-        <div style={{ width: scrollWidth, height: 1 }} />
-      </div>
+    <div
+      ref={proxyRef}
+      onScroll={onProxyScroll}
+      className="overflow-x-auto h-3.5 bg-background/90 backdrop-blur border-t border-border shadow-[0_-2px_6px_-2px_rgba(0,0,0,0.15)]"
+    >
+      <div style={{ width: scrollWidth, height: 1 }} />
     </div>
   );
 }
