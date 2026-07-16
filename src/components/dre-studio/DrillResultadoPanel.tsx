@@ -277,33 +277,69 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
     }
   };
 
+  const hasRows = rows.length > 0;
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-4xl overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle>
-            {ctx?.acao === 'reabrir' ? 'Reabrir — ' : 'Drill — '}
-            {ctx?.linhaDescricao}
-          </SheetTitle>
-          <SheetDescription>
-            <span className="font-medium">
-              {ctx?.itemLabel ?? (ctx ? DRILL_LABELS[ctx.agrupar_por] : '')}
-            </span>
-            {' · '}Período: {periodoLabel}
-            {ctx?.codigoLinha && <> · Código: <code className="text-xs">{ctx.codigoLinha}</code></>}
-            <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
-              {ctx?.filtros.codemp != null && <span>codemp {ctx.filtros.codemp}</span>}
-              {ctx?.filtros.codfil != null && <span>codfil {ctx.filtros.codfil}</span>}
-              {ctx?.filtros.consolidado && <span>consolidado</span>}
-              {ctx?.filtros.centro_custo && <span>CCU {ctx.filtros.centro_custo}</span>}
-              {ctx?.filtros.unidade && <span>UN {ctx.filtros.unidade}</span>}
-              {ctx?.filtros.modo_balanco && <span>modo {ctx.filtros.modo_balanco}</span>}
+      <SheetContent side="right" className="w-full sm:max-w-4xl p-0 flex flex-col">
+        {/* Cabeçalho fixo */}
+        <div className="shrink-0 border-b bg-background px-6 pt-6 pb-3">
+          <SheetHeader>
+            <SheetTitle>
+              {ctx?.acao === 'reabrir' ? 'Reabrir — ' : 'Drill — '}
+              {ctx?.linhaDescricao}
+            </SheetTitle>
+            <SheetDescription>
+              <span className="font-medium">
+                {ctx?.itemLabel ?? (ctx ? DRILL_LABELS[ctx.agrupar_por] : '')}
+              </span>
+              {' · '}Período: {periodoLabel}
+              {ctx?.codigoLinha && <> · Código: <code className="text-xs">{ctx.codigoLinha}</code></>}
+              <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+                {ctx?.filtros.codemp != null && <span>codemp {ctx.filtros.codemp}</span>}
+                {ctx?.filtros.codfil != null && <span>codfil {ctx.filtros.codfil}</span>}
+                {ctx?.filtros.consolidado && <span>consolidado</span>}
+                {ctx?.filtros.centro_custo && <span>CCU {ctx.filtros.centro_custo}</span>}
+                {ctx?.filtros.unidade && <span>UN {ctx.filtros.unidade}</span>}
+                {ctx?.filtros.modo_balanco && <span>modo {ctx.filtros.modo_balanco}</span>}
+              </div>
+            </SheetDescription>
+          </SheetHeader>
+
+          {truncado && (
+            <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+              <Info className="h-4 w-4 shrink-0 mt-0.5" />
+              <div>
+                Foram exibidos os primeiros {intFmt.format(rows.length)} lançamentos
+                de um total de {intFmt.format(qtdTotal)} registros. Refine o período
+                ou os filtros para visualizar menos registros.
+              </div>
             </div>
-          </SheetDescription>
-        </SheetHeader>
+          )}
 
+          {hasRows && (
+            <div className="mt-3 flex items-center justify-between gap-2">
+              <div className="text-xs text-muted-foreground">
+                {rows.length} {rows.length === 1 ? 'registro' : 'registros'}
+                {!isLancamento && qAgg.data?.has_more && ' · há mais resultados'}
+              </div>
+              <div className="flex gap-1">
+                <Button size="sm" variant="outline" className="gap-1" onClick={copiar}>
+                  <Copy className="h-3.5 w-3.5" /> Copiar
+                </Button>
+                <Button size="sm" variant="outline" className="gap-1" onClick={exportCsv}>
+                  <Download className="h-3.5 w-3.5" /> CSV
+                </Button>
+                <Button size="sm" variant="outline" className="gap-1" onClick={exportXlsx}>
+                  <Download className="h-3.5 w-3.5" /> XLSX
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
 
-        <div className="mt-4">
+        {/* Área rolável */}
+        <div className="flex-1 overflow-auto px-6 py-4">
           {isLoading ? (
             <div className="space-y-2">
               <div className="text-xs text-muted-foreground mb-1">Carregando drill...</div>
@@ -313,41 +349,12 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
             </div>
           ) : isError ? (
             <ErroBloco err={error as Error} />
-          ) : rows.length === 0 ? (
+          ) : !hasRows ? (
             <div className="rounded-lg border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
               Nenhum dado encontrado para esta linha e período.
             </div>
           ) : (
             <>
-              {truncado && (
-                <div className="mb-3 flex items-start gap-2 rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-                  <Info className="h-4 w-4 shrink-0 mt-0.5" />
-                  <div>
-                    Foram exibidos os primeiros {intFmt.format(rows.length)} lançamentos
-                    de um total de {intFmt.format(qtdTotal)} registros. Refine o período
-                    ou os filtros para visualizar menos registros.
-                  </div>
-                </div>
-              )}
-
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <div className="text-xs text-muted-foreground">
-                  {rows.length} {rows.length === 1 ? 'registro' : 'registros'}
-                  {!isLancamento && qAgg.data?.has_more && ' · há mais resultados'}
-                </div>
-                <div className="flex gap-1">
-                  <Button size="sm" variant="outline" className="gap-1" onClick={copiar}>
-                    <Copy className="h-3.5 w-3.5" /> Copiar
-                  </Button>
-                  <Button size="sm" variant="outline" className="gap-1" onClick={exportCsv}>
-                    <Download className="h-3.5 w-3.5" /> CSV
-                  </Button>
-                  <Button size="sm" variant="outline" className="gap-1" onClick={exportXlsx}>
-                    <Download className="h-3.5 w-3.5" /> XLSX
-                  </Button>
-                </div>
-              </div>
-
               <div className="overflow-x-auto rounded-lg border">
                 <Table>
                   <TableHeader>
@@ -446,6 +453,7 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
     </Sheet>
   );
 }
+
 
 function ErroBloco({ err }: { err: Error }) {
   const [aberto, setAberto] = useState(false);
