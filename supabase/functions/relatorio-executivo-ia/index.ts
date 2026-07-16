@@ -60,9 +60,18 @@ Deno.serve(async (req) => {
         `Adicione também "pareto_analise": parágrafo de 2-3 frases analisando a concentração (quantos itens vitais, % do top 5).`
       : '';
 
-    const prompt = `Você é ${cfg.persona}. Gere comentários para um relatório executivo de ${cfg.titulo} para a diretoria.
+    const prompt = `Você é ${cfg.persona}. Escreva comentários para um relatório executivo de ${cfg.titulo} destinado à diretoria.
 Foco: ${cfg.foco}.
-Use linguagem objetiva, em PT-BR, frases curtas (máx 22 palavras cada), sem jargão técnico. NÃO invente números — use apenas os dados abaixo.
+
+PADRÃO EDITORIAL (obrigatório em CADA bullet):
+1. Abertura numérica: comece pelo número que importa em pt-BR — valor absoluto + Δ absoluto + Δ % ("R$ 12,4 mi (+R$ 1,3 mi, +11,7% vs mês anterior)"). Percentuais com 1 casa decimal; use "mi"/"mil".
+2. Comparativo triplo quando o payload permitir: vs mês anterior, YTD e meta (destaque o gap em R$ e p.p. até a meta).
+3. Materialidade primeiro: cite apenas os 3–5 movimentos de maior impacto no resultado.
+4. Causa provável: identifique os top 3 clientes/produtos/regiões/veículos/máquinas/fornecedores que explicam o desvio, com % de contribuição.
+5. Recomendação acionável: verbo no infinitivo + responsável + prazo + KPI alvo ("Renegociar contrato com Fornecedor X até dd/mm; meta de reduzir 8% do custo unitário").
+6. Risco classificado: rotule alertas como [Financeiro], [Operacional], [Comercial] ou [Fiscal] com exposição em R$ quando possível.
+7. Higiene numérica: NUNCA invente números fora do payload; se um campo faltar, escreva "não informado no período".
+8. Tom executivo: PT-BR, voz ativa, frases curtas (≤22 palavras), sem jargão ("sinergia", "alavancar"), sem adjetivo vazio.
 
 CONTEXTO: ${JSON.stringify(contexto ?? {})}
 KPIS: ${JSON.stringify(kpis ?? {})}
@@ -76,9 +85,9 @@ Responda APENAS um JSON com este formato exato:
   "alertas": ["...", "..."],
   "recomendacoes": ["...", "...", "..."]${pareto ? ',\n  "pareto_analise": "..."' : ''}
 }
-- 3 a 5 destaques (o que está indo bem, fatos positivos).
-- 2 a 4 alertas (riscos, desvios, concentrações, custos elevados).
-- 3 a 5 recomendações (ações práticas para o gestor avaliar).`;
+- 3 a 5 destaques: fatos positivos quantificados (superação de meta, ganho de mix, redução de custo), sempre com número na abertura.
+- 2 a 4 alertas: riscos rotulados com exposição em R$ e o cliente/produto/veículo que puxa o desvio.
+- 3 a 5 recomendações: ações com responsável, prazo e KPI alvo mensurável.`;
 
     const res = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -86,7 +95,7 @@ Responda APENAS um JSON com este formato exato:
       body: JSON.stringify({
         model: 'google/gemini-3-flash-preview',
         messages: [
-          { role: 'system', content: `Você é ${cfg.persona}. Sempre responda em JSON válido conforme o schema solicitado.` },
+          { role: 'system', content: `Você é ${cfg.persona} escrevendo em PT-BR para diretoria. Cada bullet começa por número (valor + Δ absoluto + Δ %), cita causa provável (top clientes/produtos/fornecedores) e recomendação com responsável e prazo. Nunca invente números fora do payload. Responda em JSON válido conforme o schema solicitado.` },
           { role: 'user', content: prompt },
         ],
         response_format: { type: 'json_object' },

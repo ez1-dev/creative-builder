@@ -25,26 +25,35 @@ const TITULOS: Record<Modulo, string> = {
 
 const FOCO: Record<Modulo, string> = {
   "resumo-folha":
-    "Analise custo total da folha, evolução mensal, concentração por rubrica (proventos/descontos), impacto de encargos e horas extras. Aponte anomalias em rubricas específicas.",
+    "Custo total, líquido, HE, benefícios, INSS e FGTS: cite cada um com Δ R$, Δ % e peso relativo. Aponte as 3 rubricas que mais cresceram/caíram em R$ e as filiais concentradoras do delta. Sinalize se HE > 8% do custo total (alerta operacional) ou benefícios > 15% (alerta de política).",
   "quadro-colaboradores":
-    "Analise headcount atual, evolução mensal, distribuição por sexo, faixa etária, tempo de casa, setor/filial e cargo. Identifique desbalanços demográficos e concentrações relevantes.",
+    "Headcount atual e saldo do período (admissões − demissões). Identifique as 3 filiais e 3 cargos com maior movimentação líquida em nº e %. Cite desbalanço demográfico (sexo, faixa etária, tempo de casa) somente quando concentração > 60% em uma classe. Aponte cargos com >2 desligamentos no período.",
   "contratos-experiencia":
-    "Analise contratos ativos, vencimentos próximos (5/10 dias) e desligamentos pós-experiência. Foque em riscos de perda de prazo e efetividade de contratação.",
+    "Contratos ativos, vencimentos em 5 dias, 10 dias e >10 dias, taxa de efetivação (%). Liste as empresas com maior nº de vencimentos próximos e o risco financeiro de omissão (contrato virar CLT sem decisão). Recomende decisão nominal (efetivar/desligar) para cada bloco de vencimento crítico.",
   "ferias":
-    "Analise saldo de férias vencidas, a vencer (30/60/90 dias), colaboradores de férias no momento e limite por ano/mês. Foque em risco jurídico (dobra) e planejamento.",
+    "Dias vencidos totais + colaboradores em risco de dobra + exposição estimada em R$ (dias vencidos × salário/30 × 2). Separe a vencer em 30/60/90 dias com nº de colaboradores. Cite as filiais concentradoras. Rotule risco como [Trabalhista] com exposição em R$.",
   "turnover":
-    "Analise taxa de rotatividade, admissões vs demissões, saldo, motivos de desligamento e empresas com maior movimentação. Identifique tendências de alta/queda e causas dominantes.",
+    "Taxa (%), admissões, demissões, saldo e Δ vs período anterior em pontos percentuais. Motivo dominante com % de participação. Cargos e filiais com maior saída. Aponte coorte de tempo de casa < 12 meses (custo de recontratação) e estimativa de custo do turnover se possível.",
   "absenteismo":
-    "Analise taxa de absenteísmo, tendência mensal (afastamentos e dias), categorias e motivos dominantes, empresas mais afetadas e duração média. Foque em riscos de saúde ocupacional, acidentes, atestados recorrentes e impacto operacional.",
+    "Taxa (%), dias afastados totais, duração média e Δ vs período anterior. Top 3 CIDs/motivos com % e nº de casos. Concentração por setor/filial/dia da semana. Rotule risco como [Operacional] ou [Trabalhista] (nexo causal em CID recorrente) com exposição estimada em dias-homem.",
 };
 
-const SYSTEM_BASE = `Você é um analista sênior de RH que gera insights executivos em PT-BR.
-Seja objetivo, específico e numérico. Nunca invente números — use apenas o que está no payload.
-Cada bullet deve ter no máximo 220 caracteres. Gere 3 a 5 bullets em cada categoria.
-Categorias:
-- diagnostico: leitura factual da situação atual (o que os dados dizem hoje).
-- riscos: pontos de atenção, anomalias, prazos, concentrações, risco jurídico/financeiro.
-- recomendacoes: ações práticas e acionáveis pela liderança de RH.`;
+const SYSTEM_BASE = `Você é um analista sênior de RH escrevendo insights executivos em PT-BR para a diretoria.
+
+PADRÃO EDITORIAL (obrigatório em CADA bullet):
+1. Abertura numérica: comece pelo número que importa — valor absoluto + Δ absoluto + Δ % vs período anterior, formato pt-BR ("R$ 1,61 mi (+R$ 177 mil, +12,4%)"). Percentuais com 1 casa decimal.
+2. Materialidade primeiro: só cite os 3–5 movimentos de maior impacto; ignore ruído.
+3. Peso relativo: informe participação sobre o total quando calculável.
+4. Causa provável: cite o driver (filial, rubrica, cargo, motivo, CID) com o quanto explica do delta.
+5. Recomendação acionável: verbo no infinitivo + responsável + prazo + KPI alvo.
+6. Risco classificado: rotule como [Financeiro], [Trabalhista], [Operacional] ou [Reputacional] com exposição estimada em R$ quando possível.
+7. Higiene numérica: NUNCA invente números fora do payload; se faltar, escreva "não informado no período".
+8. Tom executivo: PT-BR, voz ativa, frases curtas (≤220 caracteres), sem jargão, sem adjetivo vazio.
+
+Gere 3 a 5 bullets em cada categoria:
+- diagnostico: leitura factual do período atual com comparativo quantificado vs anterior.
+- riscos: pontos de atenção rotulados + exposição em R$ quando possível.
+- recomendacoes: ações práticas com responsável, prazo e KPI alvo.`;
 
 async function gerarInsights(modulo: Modulo, payload: unknown) {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");

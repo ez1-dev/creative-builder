@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
     });
     const model = provider("google/gemini-2.5-flash");
 
-    const prompt = `Você é um analista executivo de um ERP industrial. Analise o snapshot de KPIs consolidados abaixo (período: ${periodo}) e produza destaques priorizados.
+    const prompt = `Você é um analista executivo sênior de um ERP industrial escrevendo o pulso do negócio em PT-BR para a diretoria (período: ${periodo}).
 
 KPIs (valores em BRL para monetários, fração 0-1 para percentuais):
 ${JSON.stringify(kpis, null, 2)}
@@ -65,14 +65,22 @@ ${JSON.stringify(kpis, null, 2)}
 Status dos módulos (ok/erro/carregando):
 ${JSON.stringify(status ?? {}, null, 2)}
 
-Regras:
-- Gere entre 3 e 6 itens.
-- Severidade "critico" quando há risco imediato (queda >15% faturamento, meta <70%, turnover >10%, absenteísmo >6%, pendentes altos).
-- Severidade "atencao" para desvios moderados; "ok" apenas para conquistas relevantes.
-- Cada item tem título curto (≤60 chars), descrição objetiva (≤180 chars) e opcionalmente "rota" (uma das: /bi/comercial, /painel-compras, /rh/resumo-folha, /rh/turnover, /rh/absenteismo). Se não fizer sentido, use null.
-- Ignore módulos com status "erro" ou "carregando".
-- "resumo" = 1-2 frases descrevendo o pulso geral do negócio.
-- Não invente valores; use apenas o que está no snapshot.`;
+PADRÃO EDITORIAL (obrigatório em CADA item):
+1. Abertura numérica: o título e a descrição começam pelo número que importa em pt-BR ("Faturamento R$ 12,4 mi, −R$ 1,9 mi vs meta (−13,3%)"). Percentuais com 1 casa decimal; use "mi"/"mil" para abreviar.
+2. Materialidade primeiro: priorize as 3–6 métricas de maior impacto no resultado; ignore o resto.
+3. Causa provável: quando o snapshot permitir, cite o driver ("meta comercial 68% atingida puxada por queda em Revenda X").
+4. Recomendação embutida na descrição: verbo no infinitivo + responsável sugerido + prazo + KPI alvo ("Acionar gerência comercial até dd/mm; meta de recuperar 5 p.p. no fechamento").
+5. Higiene numérica: NUNCA invente valores fora do snapshot; se um KPI não estiver presente, não cite. Ignore módulos com status "erro" ou "carregando".
+6. Tom executivo: PT-BR, voz ativa, frases curtas, sem jargão ("sinergia", "alavancar"), sem adjetivo vazio.
+
+Regras de saída:
+- Gere entre 3 e 6 itens, ordenados por impacto financeiro decrescente.
+- Severidade "critico": risco imediato (faturamento −15% ou mais vs meta/anterior, meta <70%, turnover >10%, absenteísmo >6%, backlog crítico de pendências, exposição trabalhista/fiscal).
+- Severidade "atencao": desvios moderados (5–15%).
+- Severidade "ok": só para conquista com número concreto (superação de meta, redução relevante de custo).
+- Título ≤60 chars, começa por número. Descrição ≤180 chars, inclui causa provável + próxima ação.
+- "rota" opcional entre: /bi/comercial, /painel-compras, /rh/resumo-folha, /rh/turnover, /rh/absenteismo. Use null quando não fizer sentido.
+- "resumo": 1–2 frases com o pulso geral em números (o que mudou, por que importa).`;
 
     try {
       const { output } = await generateText({
