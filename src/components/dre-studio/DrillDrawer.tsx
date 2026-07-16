@@ -240,6 +240,7 @@ export function DrillDrawer({
     return Array.isArray(src) ? src : [];
   }, [q.data]);
 
+  const isDRE = args?.tipoModelo === "DRE";
   const saldoInicial = q.data?.saldo_inicial ?? null;
   const saldoFinal = q.data?.saldo_final ?? null;
   const totalDebito = q.data?.total_debito ?? null;
