@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { KpiCard } from "@/components/bi/kpis/KpiCard";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Info } from "lucide-react";
+import { Info, ChevronRight } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 
 function fmtHoras(v: string | number | undefined | null): string {
@@ -41,6 +41,39 @@ export function ValueOrMissing({
   return <>{formatCurrency(Number(value))}</>;
 }
 
+/** Wrapper opcional que torna o Card clicável com foco/hover e chevron. */
+function Drillable({
+  drillable,
+  onClick,
+  ariaLabel,
+  children,
+}: {
+  drillable?: boolean;
+  onClick?: () => void;
+  ariaLabel?: string;
+  children: React.ReactNode;
+}) {
+  if (!drillable || !onClick) return <>{children}</>;
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={ariaLabel}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      className="relative cursor-pointer rounded-lg outline-none transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <ChevronRight className="pointer-events-none absolute right-2 top-2 h-3 w-3 text-muted-foreground/60" />
+      {children}
+    </div>
+  );
+}
+
 export function KpiOrMissing({
   title,
   value,
@@ -50,6 +83,8 @@ export function KpiOrMissing({
   loading,
   footer,
   tooltip,
+  onClick,
+  drillable,
 }: {
   title: string;
   value: number | null | undefined;
@@ -60,6 +95,9 @@ export function KpiOrMissing({
   footer?: React.ReactNode;
   /** Texto auxiliar exibido como tooltip no ícone ao lado do título. */
   tooltip?: string;
+  /** Se `drillable`, o card fica clicável e chama `onClick`. */
+  onClick?: () => void;
+  drillable?: boolean;
 }) {
   const titleNode = tooltip ? (
     <span className="inline-flex items-center gap-1">
@@ -77,7 +115,9 @@ export function KpiOrMissing({
     title
   );
 
-  // Campo tecnicamente ausente do payload → aviso técnico (mantém comportamento antigo).
+  const ariaLabel = `Abrir drill de ${title}`;
+
+  // Campo tecnicamente ausente do payload → aviso técnico (não é drillable).
   if (missing) {
     return (
       <Card className="border-warning/40">
@@ -96,22 +136,24 @@ export function KpiOrMissing({
     );
   }
 
-  // Valor oficialmente nulo/pendente → badge "Pendente" (nunca R$ 0,00).
+  // Valor oficialmente nulo/pendente → badge "Pendente" (nunca R$ 0,00). Pode ser drillable.
   if (value === null || value === undefined) {
     return (
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm text-muted-foreground">{titleNode}</CardTitle>
-        </CardHeader>
-        <CardContent className="flex items-center gap-2">
-          <Badge variant="outline" className="text-xs">
-            Pendente
-          </Badge>
-          {footer && (
-            <span className="text-[10px] text-muted-foreground italic">{footer}</span>
-          )}
-        </CardContent>
-      </Card>
+      <Drillable drillable={drillable} onClick={onClick} ariaLabel={ariaLabel}>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">{titleNode}</CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center gap-2">
+            <Badge variant="outline" className="text-xs">
+              Pendente
+            </Badge>
+            {footer && (
+              <span className="text-[10px] text-muted-foreground italic">{footer}</span>
+            )}
+          </CardContent>
+        </Card>
+      </Drillable>
     );
   }
 
@@ -124,31 +166,39 @@ export function KpiOrMissing({
         ? "text-warning"
         : "text-foreground";
     return (
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm text-muted-foreground">{titleNode}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className={`text-2xl font-bold tabular-nums ${valueColor}`}>
-            {formatCurrency(Number(value))}
-          </div>
-          {footer && (
-            <div className="text-[10px] text-muted-foreground italic mt-1">{footer}</div>
-          )}
-        </CardContent>
-      </Card>
+      <Drillable drillable={drillable} onClick={onClick} ariaLabel={ariaLabel}>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">{titleNode}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold tabular-nums ${valueColor}`}>
+              {formatCurrency(Number(value))}
+            </div>
+            {footer && (
+              <div className="text-[10px] text-muted-foreground italic mt-1">{footer}</div>
+            )}
+          </CardContent>
+        </Card>
+      </Drillable>
     );
   }
 
   if (footer) {
     return (
-      <div className="relative">
-        <KpiCard title={title} value={value} format="currency" variant={variant} loading={loading} />
-        <div className="absolute bottom-1.5 right-2 text-[10px] text-muted-foreground italic pointer-events-none">
-          {footer}
+      <Drillable drillable={drillable} onClick={onClick} ariaLabel={ariaLabel}>
+        <div className="relative">
+          <KpiCard title={title} value={value} format="currency" variant={variant} loading={loading} />
+          <div className="absolute bottom-1.5 right-2 text-[10px] text-muted-foreground italic pointer-events-none">
+            {footer}
+          </div>
         </div>
-      </div>
+      </Drillable>
     );
   }
-  return <KpiCard title={title} value={value} format="currency" variant={variant} loading={loading} />;
+  return (
+    <Drillable drillable={drillable} onClick={onClick} ariaLabel={ariaLabel}>
+      <KpiCard title={title} value={value} format="currency" variant={variant} loading={loading} />
+    </Drillable>
+  );
 }
