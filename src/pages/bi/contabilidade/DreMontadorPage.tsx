@@ -706,30 +706,52 @@ function FragmentRow({
                 Sem centro de custo no período.
               </div>
             ) : (
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="text-left text-muted-foreground border-b">
-                    <th className="py-1 px-2">Centro de custo</th>
-                    <th className="py-1 px-2">Descrição</th>
-                    <th className="py-1 px-2">Nível 3</th>
-                    <th className="py-1 px-2 text-right">Qtd.</th>
-                    <th className="py-1 px-2 text-right">Valor</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ccs.map((cc, i) => (
-                    <tr key={i} className="border-b border-border/40 last:border-0">
-                      <td className="py-1 px-2 font-mono">{cc.cd_centro_custos || '—'}</td>
-                      <td className="py-1 px-2">{cc.ds_centro_custos || '—'}</td>
-                      <td className="py-1 px-2 font-mono">{cc.cd_centro_custos_3 || '—'}</td>
-                      <td className="py-1 px-2 text-right">{cc.qtd_lancamentos}</td>
-                      <td className={`py-1 px-2 text-right font-mono ${cc.valor_total < 0 ? 'text-destructive' : ''}`}>
-                        {BRL.format(cc.valor_total)}
-                      </td>
+              <>
+                <div className="mb-2 flex items-center gap-2 text-[11px]">
+                  <Checkbox
+                    checked={todosCentros}
+                    onCheckedChange={() => onMarcarTodosCentros()}
+                  />
+                  <span className={todosCentros ? 'font-medium' : 'text-muted-foreground'}>
+                    Todos os centros desta conta {todosCentros ? '(vínculo abrange todos)' : `— ${centrosMarcados.size} selecionado(s)`}
+                  </span>
+                </div>
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-left text-muted-foreground border-b">
+                      <th className="py-1 px-2 w-6"></th>
+                      <th className="py-1 px-2">Centro de custo</th>
+                      <th className="py-1 px-2">Descrição</th>
+                      <th className="py-1 px-2">Nível 3</th>
+                      <th className="py-1 px-2 text-right">Qtd.</th>
+                      <th className="py-1 px-2 text-right">Valor</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {ccs.map((cc, i) => {
+                      const marcado = centrosMarcados.has(cc.cd_centro_custos);
+                      return (
+                        <tr key={i} className={`border-b border-border/40 last:border-0 ${marcado ? 'bg-primary/5' : ''}`}>
+                          <td className="py-1 px-2">
+                            <Checkbox
+                              checked={marcado}
+                              onCheckedChange={() => onToggleCentro(cc.cd_centro_custos)}
+                              disabled={!cc.cd_centro_custos}
+                            />
+                          </td>
+                          <td className="py-1 px-2 font-mono">{cc.cd_centro_custos || '—'}</td>
+                          <td className="py-1 px-2">{cc.ds_centro_custos || '—'}</td>
+                          <td className="py-1 px-2 font-mono">{cc.cd_centro_custos_3 || '—'}</td>
+                          <td className="py-1 px-2 text-right">{cc.qtd_lancamentos}</td>
+                          <td className={`py-1 px-2 text-right font-mono ${cc.valor_total < 0 ? 'text-destructive' : ''}`}>
+                            {BRL.format(cc.valor_total)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </>
             )}
           </td>
         </tr>
