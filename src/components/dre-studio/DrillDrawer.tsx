@@ -119,6 +119,8 @@ export interface DrillArgs {
   clacta?: string | null;
   /** Opcional: descrição da conta contábil selecionada (mostrada no cabeçalho). */
   contaDescricao?: string | null;
+  /** Tipo do modelo de origem. Quando "DRE", oculta colunas/linhas de Saldo Anterior. */
+  tipoModelo?: "DRE" | "BALANCO";
 }
 
 const LIMITE_STEPS = [500, 2000, 5000];
