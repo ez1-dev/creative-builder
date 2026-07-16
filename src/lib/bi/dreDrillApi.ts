@@ -53,21 +53,45 @@ export interface DreDrillRow {
   chave?: string;
   descricao?: string;
   vl_realizado?: number;
-  // Campos extras presentes em LANCAMENTO
+  // Campos legados (compat) — continuam suportados enquanto o backend transita.
   nr_lancamento?: string;
   nr_lote?: string;
   nr_documento?: string;
   cd_conta?: string;
   cd_cencus?: string;
-  cd_centro_custos?: string;
-  ds_centro_custos?: string;
-  cd_centro_custos_3?: string;
+  // Novos campos do drill LANCAMENTO (granularidade lançamento × centro de custo).
+  cd_lancamento?: string | number | null;
+  cd_documento?: string | null;
+  cd_mascara?: string | null;
+  cd_centro_custos?: string | null;
+  ds_centro_custos?: string | null;
+  cd_centro_custos_3?: string | null;
+  grupo?: string | null;
+  subgrupo?: string | null;
+  qtd_lancamentos?: number | null;
+  total?: number | null;
+  av?: number | null;
   cd_origem?: string;
   cd_transacao?: string;
   ds_historico?: string;
   anomes_referente?: number | string;
   [k: string]: any;
 }
+
+/** Contrato oficial de um item do drill de LANCAMENTO. */
+export type DreDrillLancamentoItem = {
+  cd_lancamento?: string | number | null;
+  cd_documento?: string | null;
+  cd_mascara?: string | null;
+  cd_centro_custos?: string | null;
+  ds_centro_custos?: string | null;
+  cd_centro_custos_3?: string | null;
+  grupo?: string | null;
+  subgrupo?: string | null;
+  qtd_lancamentos?: number | null;
+  total?: number | null;
+  av?: number | null;
+};
 
 export interface DreDrillResponse {
   tipo_drill: DreDrillTipo;
