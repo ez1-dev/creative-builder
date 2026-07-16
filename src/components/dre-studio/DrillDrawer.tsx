@@ -435,7 +435,7 @@ export function DrillDrawer({
                       <TableHead className="text-primary-foreground">Origem Lcto.</TableHead>
                       <TableHead className="text-primary-foreground">Usuário Origem</TableHead>
                       <TableHead className="text-primary-foreground">Usuário Lcto.</TableHead>
-                      <TableHead className="text-primary-foreground text-right">Saldo Anterior</TableHead>
+                      {!isDRE && <TableHead className="text-primary-foreground text-right">Saldo Anterior</TableHead>}
                       <TableHead className="text-primary-foreground text-right">Mov. Débito</TableHead>
                       <TableHead className="text-primary-foreground text-right">Mov. Crédito</TableHead>
                       <TableHead className="text-primary-foreground text-right">Saldo</TableHead>
