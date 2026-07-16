@@ -10,6 +10,11 @@ export interface PlanoContaCentroCusto {
   vl_realizado: number;
 }
 
+export interface PlanoContaLinhaVinculada {
+  codigo_linha: string;
+  cd_centro_custos: string | null;
+}
+
 export interface PlanoContaErp {
   cd_mascara: string;
   ds_mascara: string;
@@ -23,7 +28,7 @@ export interface PlanoContaErp {
   realizado?: number;
   qtd_centros: number;
   ja_vinculada: boolean;
-  linhas_vinculadas: string[];
+  linhas_vinculadas: (string | PlanoContaLinhaVinculada)[];
 }
 
 export interface PlanoContasParams {
@@ -35,6 +40,12 @@ export interface PlanoContasParams {
   q?: string;
 }
 
+export interface VincularContasPayloadConta {
+  cd_mascara?: string;
+  cd_conta_contabil?: string;
+  centros_custo?: { cd_centro_custos: string }[];
+}
+
 export interface VincularContasPayload {
   modelo_id: string;
   linha_id: string;
@@ -42,7 +53,13 @@ export interface VincularContasPayload {
   operador: 'COMECA_COM' | 'IGUAL';
   sinal: 1 | -1;
   prioridade: number;
-  contas: { cd_mascara?: string; cd_conta_contabil?: string }[];
+  contas: VincularContasPayloadConta[];
+}
+
+export interface VincularContasResult {
+  criados: number;
+  ignorados_por_duplicidade: number;
+  vinculadas: number;
 }
 
 
