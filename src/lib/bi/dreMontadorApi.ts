@@ -242,7 +242,7 @@ export async function fetchPlanoContasDinamica(p: PlanoContasParams): Promise<Pl
   return mapped;
 }
 
-export async function vincularContasDinamica(payload: VincularContasPayload): Promise<{ vinculadas: number }> {
+export async function vincularContasDinamica(payload: VincularContasPayload): Promise<VincularContasResult> {
   console.log('[MONTADOR DRE] payload vínculo:', payload);
   const url = `${getApiUrl()}/api/bi/contabilidade/dre-dinamica/vincular-contas`;
   const resp = await fetch(url, {
@@ -255,7 +255,13 @@ export async function vincularContasDinamica(payload: VincularContasPayload): Pr
     throw new Error(`Falha ao vincular (HTTP ${resp.status}): ${txt.slice(0, 300)}`);
   }
   const data = await resp.json().catch(() => ({}));
-  return { vinculadas: Number(data?.vinculadas ?? data?.qtde ?? 0) };
+  const criados = Number(data?.criados ?? data?.vinculadas ?? data?.qtde ?? 0);
+  const ignorados = Number(data?.ignorados_por_duplicidade ?? data?.ignorados ?? 0);
+  return {
+    criados,
+    ignorados_por_duplicidade: ignorados,
+    vinculadas: criados,
+  };
 }
 
 /** Resolve linha_id (uuid) a partir de modelo_id + codigo_linha consultando bi_dre_estrutura_v2. */
