@@ -60,10 +60,39 @@ export interface HistoricoTelaRow {
   data_hora: string | null;
   usuario?: string | null;
   nomusu?: string | null;
+  codusu?: number | string | null;
   acao: string | null;
+  evento?: string | null;
   modulo: string | null;
   sistema?: string | null;
   observacao?: string | null;
+  sig_processo?: string | null;
+  nome_tela?: string | null;
+  descricao_tela?: string | null;
+  codemp?: number | string | null;
+  codfil?: number | string | null;
+  origem?: string | null;
+}
+
+/**
+ * Rótulo de usuário para telemetria nativa.
+ * NOMUSU é a identidade principal; CODUSU é opcional.
+ * NUNCA recalcular contagens de usuários únicos no frontend com
+ * base somente em CODUSU — sempre usar o agregado do backend.
+ */
+export function getUsuarioLabel(item: {
+  nomusu?: string | null;
+  codusu?: number | string | null;
+}): string {
+  const login = item.nomusu?.trim();
+  if (login && item.codusu != null && String(item.codusu).trim() !== '') {
+    return `${login} (${item.codusu})`;
+  }
+  if (login) return login;
+  if (item.codusu != null && String(item.codusu).trim() !== '') {
+    return `Usuário ${item.codusu}`;
+  }
+  return 'Não identificado';
 }
 
 const asArray = <T,>(payload: any, ...keys: string[]): T[] => {
