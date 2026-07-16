@@ -341,7 +341,7 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
         </div>
 
         {/* Área rolável */}
-        <div className="flex-1 overflow-auto px-6 py-4">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-4 pb-6">
           {isLoading ? (
             <div className="space-y-2">
               <div className="text-xs text-muted-foreground mb-1">Carregando drill...</div>
@@ -358,7 +358,7 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
           ) : (
             <>
               <div ref={drillScrollRef} className="overflow-x-auto rounded-lg border">
-                <Table>
+                <Table style={{ minWidth: Math.max(980, columns.length * 150) }}>
                   <TableHeader>
                     <TableRow>
                       {columns.map((c) => (
@@ -453,7 +453,11 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
         </div>
 
         {/* Barra de rolagem horizontal flutuante — sempre visível acima do rodapé */}
-        {hasRows && <FloatingHScrollbar targetRef={drillScrollRef} />}
+        {hasRows && (
+          <div className="shrink-0 z-20">
+            <FloatingHScrollbar targetRef={drillScrollRef} />
+          </div>
+        )}
       </SheetContent>
     </Sheet>
   );
