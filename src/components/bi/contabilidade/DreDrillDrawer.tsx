@@ -299,17 +299,26 @@ export function DreDrillDrawer({
                     {rows.map((row, i) => (
                       <tr key={i} className="border-t hover:bg-accent/40">
                         {columns.map((c) => {
-                          const v = row?.[c.key];
+                          const isCcCol = c.key === 'cd_centro_custos' || c.key === 'cd_cencus';
+                          const raw = isCcCol
+                            ? (row?.cd_centro_custos ?? row?.cd_cencus)
+                            : row?.[c.key];
                           const isCur = c.format === 'currency';
+                          const isEmpty = raw == null || raw === '';
                           return (
                             <td
                               key={c.key}
                               className={cn(
                                 'px-3 py-1.5 tabular-nums',
                                 isCur && 'text-right',
+                                isCcCol && isEmpty && 'italic text-muted-foreground',
                               )}
                             >
-                              {isCur ? fmtSigned(Number(v ?? 0)) : (v ?? '-')}
+                              {isCur
+                                ? fmtSigned(Number(raw ?? 0))
+                                : isCcCol && isEmpty
+                                  ? 'SEM CENTRO'
+                                  : (raw ?? '-')}
                             </td>
                           );
                         })}
