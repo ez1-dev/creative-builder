@@ -515,10 +515,14 @@ export function DrillDrawer({
                   </TableBody>
                 </Table>
               </div>
-              <FloatingHScrollbar targetRef={razaoScrollRef} />
             </>
           )}
         </div>
+
+        {/* Barra de rolagem horizontal flutuante — sempre visível acima do rodapé */}
+        {temContratoRazao && <FloatingHScrollbar targetRef={razaoScrollRef} />}
+
+
 
         {/* Rodapé fixo com totais */}
         {temContratoRazao && (
