@@ -476,12 +476,12 @@ export function DreDrillDrawer({
               modalRegra.row.cd_conta ?? (modalRegra.row as any).cd_conta_contabil ?? '',
             ),
             cd_centro_custos: String(
-              modalRegra.row.cd_cencus ?? (modalRegra.row as any).cd_centro_custos ?? '',
+              modalRegra.row.cd_cencus ?? modalRegra.row.cd_centro_custos ?? '',
             ),
-            cd_mascara_atual: (modalRegra.row as any).cd_mascara ?? null,
+            cd_mascara_atual: modalRegra.row.cd_mascara ?? null,
             cd_mascara_sugerida: (modalRegra.row as any).cd_mascara_sugerida ?? null,
             ds_historico: modalRegra.row.ds_historico ?? null,
-            vl_realizado: Number(modalRegra.row.vl_realizado) || 0,
+            vl_realizado: Number(modalRegra.row.vl_realizado ?? modalRegra.row.total) || 0,
             linha_origem: current.codigo_linha,
           }}
           onSaved={() => {
