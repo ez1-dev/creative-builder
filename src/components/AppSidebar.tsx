@@ -358,7 +358,7 @@ export function AppSidebar() {
 
   const renderLeafTop = (top: Extract<TopMenu, { kind: 'leaf' }>) => {
     if (!isVisible(top.item.url)) return null;
-    if (!matchesQuery(top.item.label) && !matchesQuery(top.item.title)) return null;
+    if (!matchesQuery(top.label) && !matchesQuery(top.item.title)) return null;
     const active = location.pathname === top.item.url;
     const Icon = top.icon;
     return (
