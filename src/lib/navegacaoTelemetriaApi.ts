@@ -33,6 +33,10 @@ export interface TelemetriaRankingRow {
   primeiro_acesso: string | null;
   ultimo_acesso: string | null;
   fonte?: string | null;
+  /** Login do usuário (identidade principal na telemetria nativa). */
+  nomusu?: string | null;
+  /** Código do usuário (opcional — pode vir nulo em eventos antigos). */
+  codusu?: number | string | null;
 }
 
 export interface TelemetriaPorDiaRow {
