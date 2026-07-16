@@ -24,6 +24,8 @@ import {
 } from "@/components/ui/dialog";
 import { useDrillLancamentos } from "@/hooks/contabil/api";
 import { cn } from "@/lib/utils";
+import * as XLSX from "xlsx";
+import { Download } from "lucide-react";
 
 /** Converte qualquer valor em texto legível. Evita "[object Object]" quando o
  *  backend envia campos estruturados (ex.: conta_debito como { ctared, descta }). */
