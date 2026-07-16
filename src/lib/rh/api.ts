@@ -337,9 +337,11 @@ export async function fetchResumoFolhaDashboard(
       kpis_raw: resp?.kpis,
       kpis_normalizados: normalizado.kpis,
       _missing_kpis: normalizado._missing_kpis,
+      drills_menu: normalizado.drills_menu,
       filiais: resp?.filiais?.length,
       mensal: resp?.mensal?.length,
     });
+
     return normalizado;
 
   } catch (e: any) {
