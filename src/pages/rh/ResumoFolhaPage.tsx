@@ -79,40 +79,30 @@ export default function ResumoFolhaPage() {
 
   const qc = useQueryClient();
 
-  // Invalidação única após a subida do novo contrato do endpoint resumo-folha
-  // (novos campos: va, outras_gratificacoes; semântica nova de rescisoes/fgts/inss_total).
-  useEffect(() => {
-    const FLAG = "rh-resumo-folha-invalidated-v2";
-    try {
-      if (typeof window !== "undefined" && !sessionStorage.getItem(FLAG)) {
-        qc.invalidateQueries({ queryKey: ["rh", "resumo-folha"] });
-        qc.invalidateQueries({ queryKey: ["rh", "resumo-folha-dashboard"] });
-        sessionStorage.setItem(FLAG, "1");
-      }
-    } catch { /* noop */ }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const [ultimaSincronizacao, setUltimaSincronizacao] = useState<Date | null>(null);
 
   const query = useQuery({
     queryKey: ["rh", "resumo-folha-dashboard", baseParams, "completo"],
-    queryFn: () => fetchResumoFolhaDashboardCached(baseParams, "completo"),
+    queryFn: () => fetchResumoFolhaDashboard(baseParams, "completo"),
     enabled,
     retry: (count, err) => (err instanceof DashboardIndisponivelError ? false : count < 1),
-    staleTime: 15 * 60_000,
-    gcTime: 60 * 60_000,
-    refetchOnWindowFocus: false,
+    staleTime: 0,
+    gcTime: 5 * 60_000,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
     placeholderData: (prev) => prev,
   });
 
   // Série mensal vem em modo separado (backend não devolve `mensal` no completo)
   const queryMensal = useQuery({
     queryKey: ["rh", "resumo-folha-dashboard", baseParams, "mensal"],
-    queryFn: () => fetchResumoFolhaDashboardCached(baseParams, "mensal"),
+    queryFn: () => fetchResumoFolhaDashboard(baseParams, "mensal"),
     enabled,
     retry: (count, err) => (err instanceof DashboardIndisponivelError ? false : count < 1),
-    staleTime: 15 * 60_000,
-    gcTime: 60 * 60_000,
-    refetchOnWindowFocus: false,
+    staleTime: 0,
+    gcTime: 5 * 60_000,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
     placeholderData: (prev) => prev,
   });
 
