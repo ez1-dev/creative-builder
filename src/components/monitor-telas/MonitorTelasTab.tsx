@@ -189,6 +189,13 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
           loading={resumo.loading}
           highlight={(resumo.data?.telas_sem_uso ?? 0) > 0 ? 'orange' : undefined}
         />
+        {/*
+          Card "Usuários Ativos": SEMPRE exibir o valor agregado do backend
+          (resumo.usuarios_ativos). NUNCA recalcular no cliente com algo como
+          `new Set(itens.map(i => i.codusu)).size` — CODUSU é opcional na
+          telemetria nativa e a identidade oficial é NOMUSU, já contabilizada
+          pelo backend com fallback.
+        */}
         <KpiCard
           label="Usuários Ativos"
           value={formatNumberBR(resumo.data?.usuarios_ativos)}
