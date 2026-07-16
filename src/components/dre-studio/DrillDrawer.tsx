@@ -565,6 +565,17 @@ export function DrillDrawer({
                       </TableRow>
                     )}
 
+                    {itens.length === 0 && (
+                      <TableRow>
+                        <TableCell
+                          colSpan={isDRE ? 13 : 14}
+                          className="text-center italic text-muted-foreground py-6"
+                        >
+                          Sem lançamentos no período.
+                        </TableCell>
+                      </TableRow>
+                    )}
+
                     {itens.map((r, i) => (
                       <TableRow
                         key={i}
