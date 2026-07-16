@@ -304,8 +304,15 @@ export function DreDrillDrawer({
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((row, i) => (
-                      <tr key={i} className="border-t hover:bg-accent/40">
+                    {rows.map((row, i) => {
+                      const rowKey = [
+                        row.cd_lancamento ?? row.nr_lancamento ?? '',
+                        row.cd_centro_custos ?? row.cd_cencus ?? 'SEM_CENTRO',
+                        row.cd_documento ?? row.nr_documento ?? '',
+                        i,
+                      ].join('-');
+                      return (
+                      <tr key={rowKey} className="border-t hover:bg-accent/40">
                         {columns.map((c) => {
                           const isCcCol = c.key === 'cd_centro_custos' || c.key === 'cd_cencus';
                           const raw = isCcCol
