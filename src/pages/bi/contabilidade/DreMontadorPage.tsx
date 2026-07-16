@@ -679,7 +679,16 @@ function FragmentRow({
               <TooltipContent>
                 <div className="text-xs space-y-0.5">
                   {conta.linhas_vinculadas.length
-                    ? conta.linhas_vinculadas.map((ln, i) => <div key={i} className="font-mono">{ln}</div>)
+                    ? conta.linhas_vinculadas.map((ln, i) => {
+                        if (typeof ln === 'string') {
+                          return <div key={i} className="font-mono">{ln}</div>;
+                        }
+                        return (
+                          <div key={i} className="font-mono">
+                            {ln.codigo_linha} — {ln.cd_centro_custos ?? 'Todos os centros'}
+                          </div>
+                        );
+                      })
                     : <div>Vinculada (sem detalhes)</div>}
                 </div>
               </TooltipContent>
