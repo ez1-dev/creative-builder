@@ -37,6 +37,7 @@ import {
 } from "@/lib/rh/api";
 import { KpiOrMissing, ValueOrMissing } from "@/components/rh/KpiOrMissing";
 import { formatCurrency } from "@/lib/format";
+import { tickCurrencyAbbrev } from "@/components/bi/utils/chartHelpers";
 
 function defaultMonth(offset = 0): string {
   const d = new Date();
