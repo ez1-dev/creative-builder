@@ -244,9 +244,11 @@ export default function DreMontadorPage() {
           ? { cd_mascara: c.cd_mascara }
           : { cd_conta_contabil: c.cd_conta_contabil };
         const set = centrosSelecionados.get(contaKey(c));
-        if (set && set.size > 0) {
-          base.centros_custo = Array.from(set).map((cd) => ({ cd_centro_custos: cd }));
-        }
+        // Exclusividade: nenhum centro marcado → vínculo geral (centros_custo: []).
+        //                centros marcados → apenas os selecionados.
+        base.centros_custo = set && set.size > 0
+          ? Array.from(set).map((cd) => ({ cd_centro_custos: cd }))
+          : [];
         return base;
       });
       const payload = {
@@ -259,7 +261,13 @@ export default function DreMontadorPage() {
         contas,
       };
       const r = await vincularContasDinamica(payload);
-      toast.success(`Vinculadas: ${r.criados} · Ignoradas (duplicadas): ${r.ignorados_por_duplicidade}`);
+      const cCriados = r.criados ?? 0;
+      const cIgn = r.ignorados_por_duplicidade ?? 0;
+      const parts: string[] = [];
+      if (cCriados > 0) parts.push(`${cCriados} vínculo${cCriados === 1 ? '' : 's'} criado${cCriados === 1 ? '' : 's'}.`);
+      if (cIgn > 0) parts.push(`${cIgn} vínculo${cIgn === 1 ? '' : 's'} já existia${cIgn === 1 ? '' : 'm'} e foi${cIgn === 1 ? '' : 'ram'} ignorado${cIgn === 1 ? '' : 's'}.`);
+      if (parts.length === 0) parts.push('Nenhum vínculo criado.');
+      toast.success(parts.join(' '));
       setContasSelecionadas(new Set());
       setCentrosSelecionados(new Map());
       await carregarContas();
