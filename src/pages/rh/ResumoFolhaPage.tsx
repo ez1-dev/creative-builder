@@ -26,6 +26,7 @@ import { addMonths } from "@/lib/rh/relatorio";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import {
+  fetchResumoFolhaDashboard,
   fetchResumoFolhaDashboardCached,
   sincronizarResumoFolha,
   consultarStatusSincronizacaoRh,
@@ -35,6 +36,7 @@ import {
   ExportarResumoFolhaError,
   toAnomes,
 } from "@/lib/rh/api";
+import { invalidateRhCache } from "@/lib/rh/rhCache";
 import { KpiOrMissing, ValueOrMissing } from "@/components/rh/KpiOrMissing";
 import { ResumoFolhaDrillDrawer } from "@/components/rh/ResumoFolhaDrillDrawer";
 import type { ResumoFolhaDrillsMenuItem } from "@/lib/rh/types";
