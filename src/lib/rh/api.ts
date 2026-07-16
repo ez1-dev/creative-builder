@@ -291,8 +291,27 @@ function normalizeDashboard(raw: any): ResumoFolhaDashboard {
     diagnostico: raw?.diagnostico,
     kpis_status: raw?.kpis_status ?? null,
     kpis_completude: raw?.kpis_completude ?? null,
+    drills_menu: Array.isArray(raw?.drills_menu)
+      ? raw.drills_menu
+          .map((d: any) => ({
+            card: String(d?.card ?? "").trim(),
+            label: String(d?.label ?? d?.card ?? "").trim(),
+            agrupamentos: Array.isArray(d?.agrupamentos)
+              ? d.agrupamentos
+                  .map((a: any) => ({
+                    key: String(a?.key ?? a?.agrupar_por ?? a?.id ?? "").trim(),
+                    label: String(a?.label ?? a?.nome ?? a?.key ?? "").trim(),
+                    ...a,
+                  }))
+                  .filter((a: any) => a.key)
+              : [],
+            ...d,
+          }))
+          .filter((d: any) => d.card)
+      : [],
   };
 }
+
 
 export type ResumoFolhaModo = "completo" | "acumulado" | "mensal";
 
