@@ -332,7 +332,36 @@ export function DrillDrawer({
           )}
         </SheetHeader>
 
+        {/* Subfaixa fixa: contador + ação de aumentar limite */}
+        {temContratoRazao && (
+          <div className="shrink-0 border-b bg-background px-4 py-2 flex items-center justify-between text-xs text-muted-foreground">
+            <div>
+              Mostrando <strong>{qtdExib}</strong>
+              {qtdTotal != null && qtdTotal !== qtdExib && (
+                <> de <strong>{qtdTotal}</strong></>
+              )}{" "}
+              lançamentos
+              {truncado && (
+                <span className="ml-2 rounded bg-amber-100 text-amber-900 px-2 py-0.5">
+                  truncado
+                </span>
+              )}
+            </div>
+            {truncado && proximoLimite && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setLimite(proximoLimite)}
+                disabled={q.isFetching}
+              >
+                Aumentar limite para {proximoLimite}
+              </Button>
+            )}
+          </div>
+        )}
+
         <div className="flex-1 overflow-auto px-4 py-3">
+
           {!hasCtared ? (
             <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
               <div className="font-medium mb-1">Selecione uma conta contábil</div>
