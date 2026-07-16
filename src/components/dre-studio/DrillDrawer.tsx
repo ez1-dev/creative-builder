@@ -409,16 +409,18 @@ export function DrillDrawer({
               </Button>
             </div>
           </div>
-          <SheetDescription className="text-primary-foreground/80 space-y-0.5">
-            {ctaredNum != null && (
-              <div>
-                Conta <strong>{ctaredNum}</strong>
-                {contaDescricao ? <> — {contaDescricao}</> : null}
+          <SheetDescription asChild>
+            <div className="text-primary-foreground/80 space-y-0.5">
+              {ctaredNum != null && (
+                <div>
+                  Conta <strong>{ctaredNum}</strong>
+                  {contaDescricao ? <> — {contaDescricao}</> : null}
+                </div>
+              )}
+              {clacta && <div className="text-xs">Classificação: {clacta}</div>}
+              <div className="text-xs">
+                Período: {fmtPeriodoBR(dataIniISO, dataFimISO)}
               </div>
-            )}
-            {clacta && <div className="text-xs">Classificação: {clacta}</div>}
-            <div className="text-xs">
-              Período: {fmtPeriodoBR(dataIniISO, dataFimISO)}
             </div>
           </SheetDescription>
 
