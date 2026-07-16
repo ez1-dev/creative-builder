@@ -1,74 +1,57 @@
 ## Objetivo
 
-Atualizar a tela "01 — Resumo da Folha" (`src/pages/rh/ResumoFolhaPage.tsx`) para consumir fielmente o novo contrato de `GET /api/rh/resumo-folha/dashboard`, sem recalcular nada no frontend, adicionando os novos KPIs `va` e `outras_gratificacoes`, renomeando visualmente `INSS Total`, e tratando corretamente valores nulos como "Pendente".
+Ajustar o drill de LANÇAMENTO da DRE (drawer usado a partir de `DrePage`) para refletir o novo contrato do endpoint `GET /api/bi/contabilidade/dre-drill?tipo_drill=LANCAMENTO`, que passou a devolver a granularidade **lançamento × centro de custo**. O frontend precisa apenas exibir corretamente os novos campos — nada de recalcular, deduplicar ou agrupar.
 
 ## Escopo (somente frontend)
 
 Arquivos afetados:
-- `src/lib/rh/types.ts` — tipagem dos KPIs
-- `src/lib/rh/api.ts` — normalização/aliases dos KPIs e filiais
-- `src/pages/rh/ResumoFolhaPage.tsx` — cards e ordenação
-- `src/components/rh/KpiOrMissing.tsx` — suporte a estado "Pendente" (valor nulo) e tooltip
+- `src/lib/bi/dreDrillApi.ts` — tipos.
+- `src/components/bi/contabilidade/DreDrillDrawer.tsx` — colunas, chave da linha, empty state, ação por linha.
 
-Nada de backend, ETL, RLS, view `rh_drill_eventos_v` ou cálculos.
+Fora de escopo: backend, endpoint, filtros, `useDreDrill`, cálculo de totais da DRE, rateio.
 
-## Alterações detalhadas
+## Alterações
 
-### 1. Tipos (`src/lib/rh/types.ts`)
-Ampliar `ResumoFolhaKpis` deixando todos os campos numéricos como `number | null` opcionais e adicionando `va` e `outras_gratificacoes`. Adicionar também `kpis_status` e `kpis_completude` opcionais em `ResumoFolhaDashboard` (sem tipar rígido — reaproveitar o que a API mandar). Adicionar `va` como `number | null` também em `ResumoFolhaFilialAgg` (já existe, ajustar o tipo).
-
-### 2. Normalização (`src/lib/rh/api.ts`)
-- Em `KPI_ALIASES`, adicionar `va: ["va"]` e `outras_gratificacoes: ["outras_gratificacoes"]`.
-- Em `buildKpis`, preservar `null` sem sobrescrever para `0`: quando o campo estiver ausente, marcar como `_missing_kpis` (mantendo comportamento atual); quando vier explicitamente `null`, gravar `null` no objeto de KPIs (não marcar como missing — é um "Pendente" oficial).
-- Remover o alias cruzado atual `va ↔ beneficios` em `normalizeFiliais` (linhas 199–200) para não duplicar V.A. em Benefícios das filiais.
-- Propagar `kpis_status` e `kpis_completude` da resposta bruta para o objeto `ResumoFolhaDashboard`.
-
-### 3. Componente `KpiOrMissing`
-- Aceitar `value: number | null | undefined`.
-- Regra de renderização:
-  - Se `missing === true` (campo ausente do payload) → badge atual "Campo pendente na API".
-  - Se `value == null` → badge `Pendente` (variant `outline`), sem exibir `R$ 0,00`.
-  - Caso contrário → `formatCurrency(value)`.
-- Aceitar um `tooltip?: string` opcional exibido via `Tooltip` do shadcn no título do card.
-
-### 4. Página `ResumoFolhaPage.tsx`
-Substituir o bloco `kpis-resumo` para renderizar os cards na ordem sugerida, preservando o card composto "Líquido" (Provento/Desconto/Total Líquido) e os KPIs que já existem e não foram mencionados (Hora Extra, Provisões, Custo das Férias, Custo Total):
-
-Ordem:
-1. Líquido (card composto atual — preservado)
-2. Salário Base
-3. Salário Bruto
-4. Outras Gratificações — `kpis.outras_gratificacoes` (novo)
-5. Benefícios — com tooltip "Benefícios oficiais do período, incluindo V.A."
-6. V.A. — `kpis.va` (novo); nulo → badge "Pendente"
-7. INSS (descontos) — mesmo campo `kpis.inss_total`, apenas título e tooltip "Descontos de INSS dos colaboradores. Não representa GPS patronal."
-8. FGTS
-9. Rescisões — tooltip "Custo de rescisões calculado pelos eventos oficiais da folha."
-10. Custo Total
-11. Hora Extra, Provisões, Custo das Férias (preservados após o bloco principal)
-
-Não somar `beneficios + va` em nenhum lugar. Não converter `null` para `0` (remover usos de `?? 0` para exibição — a formatação é feita pelo componente).
-
-### 5. Cache
-- Após ações de sincronização (já existentes) e no primeiro mount pós-deploy, invalidar:
+### 1. Tipos (`dreDrillApi.ts`)
+- Exportar novo tipo `DreDrillLancamentoItem` conforme a especificação (todos os campos opcionais/nulos), sem remover `DreDrillRow` — ele continua sendo o container genérico das linhas de `rows`, apenas ganha os aliases novos:
   ```ts
-  qc.invalidateQueries({ queryKey: ["rh", "resumo-folha"] });
-  qc.invalidateQueries({ queryKey: ["rh", "resumo-folha-dashboard"] });
+  cd_lancamento?: string | number | null;
+  cd_documento?: string | null;
+  cd_mascara?: string | null;
+  qtd_lancamentos?: number | null;
+  total?: number | null;
+  av?: number | null;
   ```
-  Adicionar um `useEffect` único, guardado por flag em `sessionStorage` (`rh-resumo-folha-invalidated-v2`), para invalidar uma vez após a subida do novo contrato.
+- Manter aliases antigos (`nr_lancamento`, `nr_documento`, `vl_realizado`, `cd_cencus`) só como campos opcionais legados de compat — nada é removido do tipo, o frontend só ganha novos.
 
-### 6. Grid de filiais
-Consumir `va` do backend como está retornado (coluna V.A. já existe). Não distribuir/soma V.A. no frontend. Já removido o cross-alias no passo 2.
+### 2. Drawer (`DreDrillDrawer.tsx`)
+- **Sem dedup.** Confirmar por leitura que não existe agrupamento/dedup por `cd_lancamento`/`nr_lancamento` no drawer nem em helpers próximos. Já é apenas `rows.map((row, i) => …)`.
+- **Chave composta** por linha (substituir o `key={i}` atual):
+  ```ts
+  const rowKey = [
+    row.cd_lancamento ?? row.nr_lancamento ?? "",
+    row.cd_centro_custos ?? row.cd_cencus ?? "SEM_CENTRO",
+    row.cd_documento ?? row.nr_documento ?? "",
+    i,
+  ].join("-");
+  ```
+- **Colunas para LANCAMENTO**: o backend já dita `data.columns`. O drawer só injeta extras que a API ainda não enviou. Ampliar a injeção atual para incluir também `ds_centro_custos` (Descrição do Centro), mantendo a ordem sugerida: Centro de Custos → Descrição do Centro → CC Grupo, inseridos antes da primeira coluna monetária.
+- **"SEM CENTRO"** já é tratado para `cd_centro_custos`/`cd_cencus`; estender a mesma regra visual (itálico + texto "SEM CENTRO") também para `ds_centro_custos` vazio, exibindo apenas em `cd_centro_custos` (na descrição, célula vazia continua "-").
+- **Empty state**: quando `tipo_drill === 'LANCAMENTO'` e `rows.length === 0`, exibir "Nenhum lançamento encontrado para os filtros selecionados." Caso contrário, manter o texto genérico atual.
+- **Erro**: quando `tipo_drill === 'LANCAMENTO'`, prefixar a mensagem com "Não foi possível carregar os lançamentos da DRE." mantendo o detalhe técnico logo abaixo.
+- **Ações da linha**: os handlers de Exceção/Classificar/Criar regra recebem `nr_lancamento`, `nr_documento`, `cd_cencus`. Fazer fallback para os novos nomes: `row.nr_lancamento ?? row.cd_lancamento`, `row.nr_documento ?? row.cd_documento`, `row.cd_cencus ?? row.cd_centro_custos`. Assim, os modais existentes continuam funcionando com o novo contrato sem alterar sua API.
+- **Alinhamento**: valores monetários já estão à direita via `c.format === 'currency'`. Scroll horizontal já ativo (`overflow-x-auto`).
 
-## Fora de escopo (não alterar)
-Backend, banco, view, sync, autenticação, endpoint, cálculos, cards não mencionados. Nenhuma lista de códigos de evento no frontend (auditar e confirmar que não existe).
+### 3. Totais
+Manter o cálculo atual: usa `data.total` quando presente; caso contrário soma `Number(row.vl_realizado)` das linhas recebidas — inalterado. Como agora cada linha é um rateio já valorado, a soma continua correta e fecha com o valor do lançamento quando agrupado no ERP.
+
+## Não alterar
+Backend, endpoint, filtros, chamada `fetchDreDrill`, DRE, rateio, hook `useDreDrill`, modais de Exceção/Classificar/Criar regra.
 
 ## Validação
-
-Fevereiro/2026 (`anomes_ini=202602`, `anomes_fim=202602`, `codemp=1`):
-- V.A. = R$ 263.704,99
-- Rescisões = R$ 201.150,35
-- Benefícios = R$ 379.494,34 (já inclui V.A.)
-- Card `INSS (descontos)` visível
-- V.A. nulo em meses de transição → badge "Pendente", sem `R$ 0,00`
-- `kpis_status`/`kpis_completude` continuam refletindo Completo/Parcial/Pendente
+Abrir a DRE, drill em uma linha com `tipo_drill = LANCAMENTO`:
+1. Confirmar que um lançamento rateado aparece em múltiplas linhas, uma por centro de custo.
+2. Conferir coluna "Centro de Custos" preenchida (ou "SEM CENTRO" quando nula).
+3. Somar visualmente as linhas de um mesmo `cd_lancamento` e checar que fecha com o valor exibido para aquele lançamento em outra granularidade (ex.: drill por Conta Contábil).
+4. Filtros e demais colunas seguem funcionando.
+5. Precisamos de um exemplo real com múltiplos centros de custo para reportar — sugestão: rodar o drill em uma linha de despesa e usar o log `[DRE DRILL] params` que já é impresso no console.

@@ -163,17 +163,20 @@ export function DreDrillDrawer({
   const columns = useMemo(() => {
     const base = Array.isArray(data?.columns) ? [...data!.columns] : [];
     if (current?.tipo_drill !== 'LANCAMENTO') return base;
-    // Cada linha do drill é lançamento × centro de custo — NÃO deduplicar por nr_lancamento.
+    // Cada linha do drill é lançamento × centro de custo — NÃO deduplicar por cd_lancamento.
     const has = (k: string) => base.some((c) => c.key === k);
     const extras: typeof base = [];
     if (!has('cd_centro_custos') && !has('cd_cencus')) {
       extras.push({ key: 'cd_centro_custos', label: 'Centro de Custos', format: 'text' });
     }
+    if (!has('ds_centro_custos')) {
+      extras.push({ key: 'ds_centro_custos', label: 'Descrição do Centro', format: 'text' });
+    }
     if (!has('cd_centro_custos_3')) {
       extras.push({ key: 'cd_centro_custos_3', label: 'CC Grupo', format: 'text' });
     }
     if (extras.length === 0) return base;
-    // Insere antes da primeira coluna monetária (geralmente vl_realizado)
+    // Insere antes da primeira coluna monetária (geralmente vl_realizado / total)
     const idx = base.findIndex((c) => c.format === 'currency');
     if (idx < 0) return [...base, ...extras];
     return [...base.slice(0, idx), ...extras, ...base.slice(idx)];
@@ -267,12 +270,17 @@ export function DreDrillDrawer({
             )}
             {!loading && erro && (
               <div className="text-center text-destructive bg-destructive/10 rounded-md py-3 px-4 text-xs">
-                {erro}
+                {current.tipo_drill === 'LANCAMENTO' && (
+                  <div className="font-medium mb-1">Não foi possível carregar os lançamentos da DRE.</div>
+                )}
+                <div className="opacity-80">{erro}</div>
               </div>
             )}
             {!loading && !erro && data && !hasRows && (
               <div className="text-center text-muted-foreground py-10 text-xs">
-                Sem registros para esta combinação.
+                {current.tipo_drill === 'LANCAMENTO'
+                  ? 'Nenhum lançamento encontrado para os filtros selecionados.'
+                  : 'Sem registros para esta combinação.'}
               </div>
             )}
             {!loading && !erro && data && hasRows && (
@@ -296,8 +304,15 @@ export function DreDrillDrawer({
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((row, i) => (
-                      <tr key={i} className="border-t hover:bg-accent/40">
+                    {rows.map((row, i) => {
+                      const rowKey = [
+                        row.cd_lancamento ?? row.nr_lancamento ?? '',
+                        row.cd_centro_custos ?? row.cd_cencus ?? 'SEM_CENTRO',
+                        row.cd_documento ?? row.nr_documento ?? '',
+                        i,
+                      ].join('-');
+                      return (
+                      <tr key={rowKey} className="border-t hover:bg-accent/40">
                         {columns.map((c) => {
                           const isCcCol = c.key === 'cd_centro_custos' || c.key === 'cd_cencus';
                           const raw = isCcCol
@@ -372,7 +387,8 @@ export function DreDrillDrawer({
                           </td>
                         )}
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                   <tfoot className="bg-muted/30 border-t">
                     <tr>
@@ -401,16 +417,16 @@ export function DreDrillDrawer({
           codigoLinhaOrigem={current.codigo_linha}
           codigosLinha={codigosLinha}
           lancamento={{
-            nr_lancamento: modal.row.nr_lancamento ?? String(modal.row.chave ?? ''),
+            nr_lancamento: String(modal.row.nr_lancamento ?? modal.row.cd_lancamento ?? modal.row.chave ?? ''),
             nr_lote: modal.row.nr_lote,
-            nr_documento: modal.row.nr_documento,
+            nr_documento: modal.row.nr_documento ?? modal.row.cd_documento ?? undefined,
             cd_conta: modal.row.cd_conta,
-            cd_cencus: modal.row.cd_cencus,
+            cd_cencus: modal.row.cd_cencus ?? modal.row.cd_centro_custos ?? undefined,
             cd_origem: modal.row.cd_origem,
             cd_transacao: modal.row.cd_transacao,
             ds_historico: modal.row.ds_historico,
             anomes_referente: modal.row.anomes_referente ?? current.anomes_referente ?? undefined,
-            vl_realizado: Number(modal.row.vl_realizado) || 0,
+            vl_realizado: Number(modal.row.vl_realizado ?? modal.row.total) || 0,
           }}
           onSaved={() => {
             toast.success('Exceção registrada. Recarregue a DRE para refletir o valor.');
@@ -432,17 +448,17 @@ export function DreDrillDrawer({
           }}
           lancamento={{
             anomes_referente: modalClass.row.anomes_referente ?? current.anomes_referente ?? null,
-            nr_lancamento: modalClass.row.nr_lancamento ?? String(modalClass.row.chave ?? ''),
+            nr_lancamento: String(modalClass.row.nr_lancamento ?? modalClass.row.cd_lancamento ?? modalClass.row.chave ?? ''),
             nr_lote: modalClass.row.nr_lote ?? null,
-            nr_documento: modalClass.row.nr_documento ?? null,
+            nr_documento: modalClass.row.nr_documento ?? modalClass.row.cd_documento ?? null,
             cd_mascara: (modalClass.row as any).cd_mascara ?? null,
             cd_conta_contabil: modalClass.row.cd_conta ?? (modalClass.row as any).cd_conta_contabil ?? null,
-            cd_centro_custos: modalClass.row.cd_cencus ?? (modalClass.row as any).cd_centro_custos ?? null,
-            cd_centro_custos_3: (modalClass.row as any).cd_centro_custos_3 ?? null,
+            cd_centro_custos: modalClass.row.cd_cencus ?? modalClass.row.cd_centro_custos ?? null,
+            cd_centro_custos_3: modalClass.row.cd_centro_custos_3 ?? null,
             cd_origem_lcto: modalClass.row.cd_origem ?? (modalClass.row as any).cd_origem_lcto ?? null,
             cd_tns: modalClass.row.cd_transacao ?? (modalClass.row as any).cd_tns ?? null,
             ds_historico: modalClass.row.ds_historico ?? null,
-            vl_realizado: Number(modalClass.row.vl_realizado) || 0,
+            vl_realizado: Number(modalClass.row.vl_realizado ?? modalClass.row.total) || 0,
           }}
           onSaved={() => {
             toast.success('Classificação registrada. Recarregue a DRE para refletir o impacto.');
@@ -460,12 +476,12 @@ export function DreDrillDrawer({
               modalRegra.row.cd_conta ?? (modalRegra.row as any).cd_conta_contabil ?? '',
             ),
             cd_centro_custos: String(
-              modalRegra.row.cd_cencus ?? (modalRegra.row as any).cd_centro_custos ?? '',
+              modalRegra.row.cd_cencus ?? modalRegra.row.cd_centro_custos ?? '',
             ),
-            cd_mascara_atual: (modalRegra.row as any).cd_mascara ?? null,
+            cd_mascara_atual: modalRegra.row.cd_mascara ?? null,
             cd_mascara_sugerida: (modalRegra.row as any).cd_mascara_sugerida ?? null,
             ds_historico: modalRegra.row.ds_historico ?? null,
-            vl_realizado: Number(modalRegra.row.vl_realizado) || 0,
+            vl_realizado: Number(modalRegra.row.vl_realizado ?? modalRegra.row.total) || 0,
             linha_origem: current.codigo_linha,
           }}
           onSaved={() => {
