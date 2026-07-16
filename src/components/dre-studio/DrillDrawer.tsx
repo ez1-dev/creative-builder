@@ -385,15 +385,29 @@ export function DrillDrawer({
         <SheetHeader className="px-6 pt-6 pb-4 border-b bg-primary text-primary-foreground">
           <div className="flex items-start justify-between gap-2">
             <SheetTitle className="text-primary-foreground">Lançamentos</SheetTitle>
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              onClick={() => setExpandido((v) => !v)}
-              className="h-7 px-2 text-xs"
-            >
-              {expandido ? "Recolher" : "Expandir"}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={exportarExcel}
+                disabled={!podeExportar}
+                className="h-7 px-2 text-xs gap-1"
+                title="Exportar lançamentos exibidos para Excel"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Excel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => setExpandido((v) => !v)}
+                className="h-7 px-2 text-xs"
+              >
+                {expandido ? "Recolher" : "Expandir"}
+              </Button>
+            </div>
           </div>
           <SheetDescription className="text-primary-foreground/80 space-y-0.5">
             {ctaredNum != null && (
