@@ -490,9 +490,11 @@ export function DrillDrawer({
                         <TableCell className="whitespace-nowrap">{r.origem_descricao ?? ""}</TableCell>
                         <TableCell className="whitespace-nowrap">{r.usuario_origem ?? ""}</TableCell>
                         <TableCell className="whitespace-nowrap">{r.usuario_lancamento ?? ""}</TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {r.saldo_anterior != null ? fmtBRL(Number(r.saldo_anterior)) : ""}
-                        </TableCell>
+                        {!isDRE && (
+                          <TableCell className="text-right tabular-nums">
+                            {r.saldo_anterior != null ? fmtBRL(Number(r.saldo_anterior)) : ""}
+                          </TableCell>
+                        )}
                         <TableCell className="text-right tabular-nums">
                           {cellNum(r.mov_debito, { zeroBlank: true })}
                         </TableCell>
