@@ -610,17 +610,24 @@ function FragmentRow({
   sel,
   ccs,
   isOpen,
+  centrosMarcados,
   onToggleExpand,
   onToggleSel,
+  onToggleCentro,
+  onMarcarTodosCentros,
 }: {
   conta: PlanoContaErp;
   sel: boolean;
   ccs: PlanoContaErp['centros_custo'];
   isOpen: boolean;
+  centrosMarcados: Set<string>;
   onToggleExpand: () => void;
   onToggleSel: () => void;
+  onToggleCentro: (cdCentro: string) => void;
+  onMarcarTodosCentros: () => void;
 }) {
   const nome = conta.ds_conta || conta.ds_mascara;
+  const todosCentros = centrosMarcados.size === 0;
   return (
     <>
       <tr className={`border-b hover:bg-muted/40 ${sel ? 'bg-primary/5' : ''}`}>
