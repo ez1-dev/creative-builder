@@ -65,7 +65,7 @@ export default function MonitorTelasPage() {
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Usuário</Label>
-            <Input value={usuario} onChange={(e) => setUsuario(e.target.value)} placeholder="Login ou email" className="h-9" />
+            <Input value={usuario} onChange={(e) => setUsuario(e.target.value)} placeholder="Login ou código do usuário" className="h-9" />
           </div>
           <div className="flex items-end">
             <Button onClick={aplicar} className="w-full gap-2">
