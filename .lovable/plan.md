@@ -1,57 +1,95 @@
-## Objetivo
+## Diagnóstico
 
-Ajustar o drill de LANÇAMENTO da DRE (drawer usado a partir de `DrePage`) para refletir o novo contrato do endpoint `GET /api/bi/contabilidade/dre-drill?tipo_drill=LANCAMENTO`, que passou a devolver a granularidade **lançamento × centro de custo**. O frontend precisa apenas exibir corretamente os novos campos — nada de recalcular, deduplicar ou agrupar.
+O Montador da DRE Gerencial (`src/pages/bi/contabilidade/DreMontadorPage.tsx` + `src/lib/bi/dreMontadorApi.ts`) já implementa a maior parte do fluxo pedido:
+- Recebe `centros_custo[]` por conta no plano-contas e renderiza expandido com checkbox, código, descrição, valor, qtd de lançamentos.
+- Marcar/desmarcar centros já implica marcar a conta; desmarcar todos os centros volta ao estado "Todos os centros".
+- Tooltip da listagem mostra `Todos os centros` quando `cd_centro_custos` é nulo, ou o código quando específico.
+- Payload já leva `centros_custo: [{ cd_centro_custos }]` quando marcado.
+
+Faltam ajustes de contrato/UX descritos na especificação. Nenhum backend, migration, RPC ou regra contábil será tocado.
 
 ## Escopo (somente frontend)
 
 Arquivos afetados:
-- `src/lib/bi/dreDrillApi.ts` — tipos.
-- `src/components/bi/contabilidade/DreDrillDrawer.tsx` — colunas, chave da linha, empty state, ação por linha.
-
-Fora de escopo: backend, endpoint, filtros, `useDreDrill`, cálculo de totais da DRE, rateio.
+- `src/lib/bi/dreMontadorApi.ts` — tipos, envio explícito de `centros_custo: []`.
+- `src/pages/bi/contabilidade/DreMontadorPage.tsx` — labels, exclusividade explícita, mensagens de estado, toast com singular/plural, `centros_custo: []` no vínculo geral.
 
 ## Alterações
 
-### 1. Tipos (`dreDrillApi.ts`)
-- Exportar novo tipo `DreDrillLancamentoItem` conforme a especificação (todos os campos opcionais/nulos), sem remover `DreDrillRow` — ele continua sendo o container genérico das linhas de `rows`, apenas ganha os aliases novos:
+### 1. Tipos (`dreMontadorApi.ts`)
+- Adicionar aliases exportados sem quebrar os existentes:
   ```ts
-  cd_lancamento?: string | number | null;
-  cd_documento?: string | null;
-  cd_mascara?: string | null;
-  qtd_lancamentos?: number | null;
-  total?: number | null;
-  av?: number | null;
+  export type CentroCustoConta = {
+    cd_centro_custos: string;
+    ds_centro_custos?: string | null;
+    valor?: number | null;
+    qtd_lancamentos?: number | null;
+  };
+  export type PlanoContaDre = {
+    cd_conta_contabil: string;
+    ds_conta_contabil?: string | null;
+    qtd_centros?: number;
+    centros_custo?: CentroCustoConta[];
+  };
+  export type ContaParaVinculo = {
+    cd_conta_contabil: string;
+    centros_custo: Array<{ cd_centro_custos: string }>;
+  };
   ```
-- Manter aliases antigos (`nr_lancamento`, `nr_documento`, `vl_realizado`, `cd_cencus`) só como campos opcionais legados de compat — nada é removido do tipo, o frontend só ganha novos.
+- Manter `PlanoContaCentroCusto` / `PlanoContaErp` / `VincularContasPayload*` como estão (compat interna).
 
-### 2. Drawer (`DreDrillDrawer.tsx`)
-- **Sem dedup.** Confirmar por leitura que não existe agrupamento/dedup por `cd_lancamento`/`nr_lancamento` no drawer nem em helpers próximos. Já é apenas `rows.map((row, i) => …)`.
-- **Chave composta** por linha (substituir o `key={i}` atual):
-  ```ts
-  const rowKey = [
-    row.cd_lancamento ?? row.nr_lancamento ?? "",
-    row.cd_centro_custos ?? row.cd_cencus ?? "SEM_CENTRO",
-    row.cd_documento ?? row.nr_documento ?? "",
-    i,
-  ].join("-");
-  ```
-- **Colunas para LANCAMENTO**: o backend já dita `data.columns`. O drawer só injeta extras que a API ainda não enviou. Ampliar a injeção atual para incluir também `ds_centro_custos` (Descrição do Centro), mantendo a ordem sugerida: Centro de Custos → Descrição do Centro → CC Grupo, inseridos antes da primeira coluna monetária.
-- **"SEM CENTRO"** já é tratado para `cd_centro_custos`/`cd_cencus`; estender a mesma regra visual (itálico + texto "SEM CENTRO") também para `ds_centro_custos` vazio, exibindo apenas em `cd_centro_custos` (na descrição, célula vazia continua "-").
-- **Empty state**: quando `tipo_drill === 'LANCAMENTO'` e `rows.length === 0`, exibir "Nenhum lançamento encontrado para os filtros selecionados." Caso contrário, manter o texto genérico atual.
-- **Erro**: quando `tipo_drill === 'LANCAMENTO'`, prefixar a mensagem com "Não foi possível carregar os lançamentos da DRE." mantendo o detalhe técnico logo abaixo.
-- **Ações da linha**: os handlers de Exceção/Classificar/Criar regra recebem `nr_lancamento`, `nr_documento`, `cd_cencus`. Fazer fallback para os novos nomes: `row.nr_lancamento ?? row.cd_lancamento`, `row.nr_documento ?? row.cd_documento`, `row.cd_cencus ?? row.cd_centro_custos`. Assim, os modais existentes continuam funcionando com o novo contrato sem alterar sua API.
-- **Alinhamento**: valores monetários já estão à direita via `c.format === 'currency'`. Scroll horizontal já ativo (`overflow-x-auto`).
+### 2. Payload — `centros_custo: []` explícito
+Em `DreMontadorPage.vincular`, hoje `base.centros_custo` só é setado quando há centros marcados. Alterar para **sempre** popular o campo:
+```ts
+const set = centrosSelecionados.get(contaKey(c));
+base.centros_custo = set && set.size > 0
+  ? Array.from(set).map((cd) => ({ cd_centro_custos: cd }))
+  : [];
+```
+Isso atende a spec: "Nenhum centro marcado → `centros_custo: []`" (vínculo geral).
 
-### 3. Totais
-Manter o cálculo atual: usa `data.total` quando presente; caso contrário soma `Number(row.vl_realizado)` das linhas recebidas — inalterado. Como agora cada linha é um rateio já valorado, a soma continua correta e fecha com o valor do lançamento quando agrupado no ERP.
+### 3. Exclusividade explícita
+A lógica atual já é exclusiva por consequência (`n.delete(contaK)` quando `size===0`). Adicionar comentário curto e um teste-visual no rótulo:
+- Quando nenhum centro está marcado para a conta: mostrar rótulo "Todos os centros" (não "Todos os centros desta conta").
+- Quando há centros marcados: mostrar `N centro(s) específico(s)` e desabilitar visualmente o item "Todos os centros" (checkbox permanece — clicar volta ao geral, o que representa a operação "desmarcar todos").
+- Ao clicar em "Todos os centros" com centros marcados → limpa a seleção (já implementado por `marcarTodosCentros`).
+
+### 4. Mensagens de estado
+- Conta sem centros no período (`ccs.length === 0`): substituir por "Esta conta não possui centros de custo no período selecionado. O vínculo valerá para todos os centros." e manter a marcação implícita "Todos os centros".
+- Erro de plano-contas (já existente via `toast.error`): manter, sem duplicar.
+- Estado "Carregando centros de custo…" só é aplicável se um dia forem buscados de forma lazy. Como o backend devolve tudo no plano-contas, não adicionar spinner por conta — o loader global (`loadingContas`) já cobre.
+
+### 5. Toast criados/ignorados com singular/plural
+Substituir a linha atual por:
+```ts
+const c = r.criados ?? 0;
+const i = r.ignorados_por_duplicidade ?? 0;
+const parts: string[] = [];
+if (c > 0) parts.push(`${c} vínculo${c === 1 ? '' : 's'} criado${c === 1 ? '' : 's'}.`);
+if (i > 0) parts.push(`${i} vínculo${i === 1 ? '' : 's'} já existia${i === 1 ? '' : 'm'} e foi${i === 1 ? '' : 'ram'} ignorado${i === 1 ? '' : 's'}.`);
+if (parts.length === 0) parts.push('Nenhum vínculo criado.');
+toast.success(parts.join(' '));
+```
+
+### 6. Estabilidade da seleção durante busca/paginação
+Já funciona porque `contasSelecionadas` e `centrosSelecionados` são chaveados por `contaKey(c) = cd_mascara||cd_conta_contabil`. Confirmar por leitura que `busca` só chama `carregarContas()` e não limpa esses states. Ajuste: quando `contas` muda, **não** limpar seleção. Manter.
+
+### 7. Listagem de vínculos existentes
+Tooltip atual já mostra `codigo_linha — cd_centro_custos ?? 'Todos os centros'`. Manter. Sem grid separada — a listagem detalhada de vínculos é atribuição do painel de "Modelo/Linhas", que não faz parte desta tarefa.
+
+### 8. Exclusão de vínculos
+Fora do escopo do Montador (a exclusão hoje é feita em outra tela / no backend). Não alterar.
 
 ## Não alterar
-Backend, endpoint, filtros, chamada `fetchDreDrill`, DRE, rateio, hook `useDreDrill`, modais de Exceção/Classificar/Criar regra.
+Backend, migrations, RPC, endpoints, autenticação, modelos/linhas da DRE, cálculo, distribuição de valores por centro.
+
+**Nota sobre endpoint plano-contas**: hoje o Montador usa `GET /api/bi/contabilidade/plano-contas-disponivel`, que já retorna `centros_custo[]`. A spec cita `GET /api/bi/contabilidade/dre-dinamica/plano-contas`. Como o próprio comentário do código declara essa rota como fonte, e a instrução é "não alterar backend", vou manter a URL atual. Se o backend passar a expor a rota canônica, é trocar apenas a constante em `fetchPlanoContasDinamica`.
 
 ## Validação
-Abrir a DRE, drill em uma linha com `tipo_drill = LANCAMENTO`:
-1. Confirmar que um lançamento rateado aparece em múltiplas linhas, uma por centro de custo.
-2. Conferir coluna "Centro de Custos" preenchida (ou "SEM CENTRO" quando nula).
-3. Somar visualmente as linhas de um mesmo `cd_lancamento` e checar que fecha com o valor exibido para aquele lançamento em outra granularidade (ex.: drill por Conta Contábil).
-4. Filtros e demais colunas seguem funcionando.
-5. Precisamos de um exemplo real com múltiplos centros de custo para reportar — sugestão: rodar o drill em uma linha de despesa e usar o log `[DRE DRILL] params` que já é impresso no console.
+1. Abrir Montador, escolher modelo e linha.
+2. Expandir uma conta com múltiplos centros; marcar 2 → rótulo passa a "2 centros específicos".
+3. Desmarcar tudo → volta a "Todos os centros".
+4. Enviar vínculo geral e capturar payload no console: `centros_custo: []`.
+5. Enviar vínculo específico: `centros_custo: [{ cd_centro_custos: "10780" }, ...]`.
+6. Conferir toast: "N vínculo(s) criado(s). M vínculo(s) já existia(m) e foi(ram) ignorado(s)."
+7. Buscar/filtrar a lista e confirmar que as marcações prévias continuam vivas para as contas que reaparecem.

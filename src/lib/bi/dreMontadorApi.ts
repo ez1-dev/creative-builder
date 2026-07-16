@@ -62,6 +62,26 @@ export interface VincularContasResult {
   vinculadas: number;
 }
 
+// ===== Aliases alinhados ao contrato da API de DRE Dinâmica =====
+export type CentroCustoConta = {
+  cd_centro_custos: string;
+  ds_centro_custos?: string | null;
+  valor?: number | null;
+  qtd_lancamentos?: number | null;
+};
+
+export type PlanoContaDre = {
+  cd_conta_contabil: string;
+  ds_conta_contabil?: string | null;
+  qtd_centros?: number;
+  centros_custo?: CentroCustoConta[];
+};
+
+export type ContaParaVinculo = {
+  cd_conta_contabil: string;
+  centros_custo: Array<{ cd_centro_custos: string }>;
+};
+
 
 function authHeaders(): Record<string, string> {
   const token = api.getToken();

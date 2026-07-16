@@ -244,9 +244,11 @@ export default function DreMontadorPage() {
           ? { cd_mascara: c.cd_mascara }
           : { cd_conta_contabil: c.cd_conta_contabil };
         const set = centrosSelecionados.get(contaKey(c));
-        if (set && set.size > 0) {
-          base.centros_custo = Array.from(set).map((cd) => ({ cd_centro_custos: cd }));
-        }
+        // Exclusividade: nenhum centro marcado → vínculo geral (centros_custo: []).
+        //                centros marcados → apenas os selecionados.
+        base.centros_custo = set && set.size > 0
+          ? Array.from(set).map((cd) => ({ cd_centro_custos: cd }))
+          : [];
         return base;
       });
       const payload = {
@@ -259,7 +261,13 @@ export default function DreMontadorPage() {
         contas,
       };
       const r = await vincularContasDinamica(payload);
-      toast.success(`Vinculadas: ${r.criados} · Ignoradas (duplicadas): ${r.ignorados_por_duplicidade}`);
+      const cCriados = r.criados ?? 0;
+      const cIgn = r.ignorados_por_duplicidade ?? 0;
+      const parts: string[] = [];
+      if (cCriados > 0) parts.push(`${cCriados} vínculo${cCriados === 1 ? '' : 's'} criado${cCriados === 1 ? '' : 's'}.`);
+      if (cIgn > 0) parts.push(`${cIgn} vínculo${cIgn === 1 ? '' : 's'} já existia${cIgn === 1 ? '' : 'm'} e foi${cIgn === 1 ? '' : 'ram'} ignorado${cIgn === 1 ? '' : 's'}.`);
+      if (parts.length === 0) parts.push('Nenhum vínculo criado.');
+      toast.success(parts.join(' '));
       setContasSelecionadas(new Set());
       setCentrosSelecionados(new Map());
       await carregarContas();
@@ -703,7 +711,7 @@ function FragmentRow({
           <td colSpan={10} className="py-2 px-6">
             {ccs.length === 0 ? (
               <div className="text-xs text-muted-foreground italic">
-                Sem centro de custo no período.
+                Esta conta não possui centros de custo no período selecionado. O vínculo valerá para todos os centros.
               </div>
             ) : (
               <>
@@ -713,7 +721,9 @@ function FragmentRow({
                     onCheckedChange={() => onMarcarTodosCentros()}
                   />
                   <span className={todosCentros ? 'font-medium' : 'text-muted-foreground'}>
-                    Todos os centros desta conta {todosCentros ? '(vínculo abrange todos)' : `— ${centrosMarcados.size} selecionado(s)`}
+                    {todosCentros
+                      ? 'Todos os centros'
+                      : `${centrosMarcados.size} centro${centrosMarcados.size === 1 ? '' : 's'} específico${centrosMarcados.size === 1 ? '' : 's'} — clique para voltar a "Todos os centros"`}
                   </span>
                 </div>
                 <table className="w-full text-xs">
