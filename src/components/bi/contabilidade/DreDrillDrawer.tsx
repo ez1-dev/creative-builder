@@ -387,7 +387,8 @@ export function DreDrillDrawer({
                           </td>
                         )}
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                   <tfoot className="bg-muted/30 border-t">
                     <tr>
