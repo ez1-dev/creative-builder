@@ -24,6 +24,8 @@ import {
 } from "@/components/ui/dialog";
 import { useDrillLancamentos } from "@/hooks/contabil/api";
 import { cn } from "@/lib/utils";
+import * as XLSX from "xlsx";
+import { Download } from "lucide-react";
 
 /** Converte qualquer valor em texto legível. Evita "[object Object]" quando o
  *  backend envia campos estruturados (ex.: conta_debito como { ctared, descta }). */
@@ -286,6 +288,88 @@ export function DrillDrawer({
     return fmtBRL(n);
   };
 
+  const podeExportar = temContratoRazao && itens.length > 0;
+
+  const exportarExcel = () => {
+    const num = (v: any) => {
+      if (v == null || v === "") return null;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    };
+    const header = [
+      "Lançamento", "Data", "Ctared", "Classificação", "Conta", "Observação",
+      "Origem Cód.", "Origem", "Usuário Origem", "Usuário Lcto.",
+      ...(!isDRE ? ["Saldo Anterior"] : []),
+      "Mov. Débito", "Mov. Crédito", "Saldo",
+    ];
+    const rows: any[][] = [];
+    if (!isDRE) {
+      rows.push([
+        "", fmtDataBR(dataIniISO), "", "", "SALDO INICIAL", "", "", "", "", "",
+        num(saldoInicial), null, null, num(saldoInicial),
+      ]);
+    }
+    for (const r of itens) {
+      rows.push([
+        r.lancamento ?? "",
+        fmtDataBR(r.data),
+        r.ctared ?? "",
+        r.clacta ?? "",
+        r.conta_descricao ?? "",
+        r.observacao ?? r.historico ?? "",
+        r.origem_codigo ?? "",
+        r.origem_descricao ?? "",
+        r.usuario_origem ?? "",
+        r.usuario_lancamento ?? "",
+        ...(!isDRE ? [num(r.saldo_anterior)] : []),
+        num(r.mov_debito),
+        num(r.mov_credito),
+        num(r.saldo),
+      ]);
+    }
+    rows.push([
+      "", fmtDataBR(dataFimISO), "", "", "SALDO FINAL", "", "", "", "", "",
+      ...(!isDRE ? [null] : []),
+      num(totalDebito), num(totalCredito), num(saldoFinal),
+    ]);
+
+    const meta_aoa = [
+      [isDRE ? "DRE — Lançamentos" : "Balanço — Razão"],
+      [`Conta: ${ctaredNum ?? ""}${contaDescricao ? " — " + contaDescricao : ""}`],
+      [`Classificação: ${clacta ?? ""}`],
+      [`Período: ${fmtPeriodoBR(dataIniISO, dataFimISO)}`],
+      [],
+    ];
+    const aoa = [...meta_aoa, header, ...rows];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const money = "#,##0.00;(#,##0.00);-";
+    const moneyStart = header.indexOf("Mov. Débito");
+    const dataStartRow = meta_aoa.length + 1; // após header
+    for (let R = dataStartRow; R < dataStartRow + rows.length; R++) {
+      for (let C = moneyStart; C < header.length; C++) {
+        const addr = XLSX.utils.encode_cell({ r: R, c: C });
+        const cell = ws[addr];
+        if (cell && typeof cell.v === "number") cell.z = money;
+      }
+      if (!isDRE) {
+        const addr = XLSX.utils.encode_cell({ r: R, c: header.indexOf("Saldo Anterior") });
+        const cell = ws[addr];
+        if (cell && typeof cell.v === "number") cell.z = money;
+      }
+    }
+    ws["!cols"] = header.map((h) =>
+      ["Observação", "Conta", "Origem"].includes(h) ? { wch: 32 } :
+      ["Usuário Origem", "Usuário Lcto.", "Classificação"].includes(h) ? { wch: 18 } :
+      h.startsWith("Mov.") || h === "Saldo" || h === "Saldo Anterior" ? { wch: 16 } :
+      { wch: 12 }
+    );
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Razão");
+    const periodo = `${(args?.anomes ?? args?.anomes_ini ?? "")}${args?.anomes_fim ? "-" + args.anomes_fim : ""}`;
+    const fname = `${isDRE ? "dre" : "balanco"}_drill_${ctaredNum ?? "conta"}_${periodo || "periodo"}.xlsx`;
+    XLSX.writeFile(wb, fname);
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -301,15 +385,29 @@ export function DrillDrawer({
         <SheetHeader className="px-6 pt-6 pb-4 border-b bg-primary text-primary-foreground">
           <div className="flex items-start justify-between gap-2">
             <SheetTitle className="text-primary-foreground">Lançamentos</SheetTitle>
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              onClick={() => setExpandido((v) => !v)}
-              className="h-7 px-2 text-xs"
-            >
-              {expandido ? "Recolher" : "Expandir"}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={exportarExcel}
+                disabled={!podeExportar}
+                className="h-7 px-2 text-xs gap-1"
+                title="Exportar lançamentos exibidos para Excel"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Excel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => setExpandido((v) => !v)}
+                className="h-7 px-2 text-xs"
+              >
+                {expandido ? "Recolher" : "Expandir"}
+              </Button>
+            </div>
           </div>
           <SheetDescription className="text-primary-foreground/80 space-y-0.5">
             {ctaredNum != null && (
