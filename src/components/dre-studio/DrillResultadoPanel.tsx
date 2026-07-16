@@ -357,7 +357,7 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto rounded-lg border">
+              <div ref={drillScrollRef} className="overflow-x-auto rounded-lg border">
                 <Table>
                   <TableHeader>
                     <TableRow>
