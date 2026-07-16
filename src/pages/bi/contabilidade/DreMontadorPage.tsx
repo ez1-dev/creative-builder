@@ -711,7 +711,7 @@ function FragmentRow({
           <td colSpan={10} className="py-2 px-6">
             {ccs.length === 0 ? (
               <div className="text-xs text-muted-foreground italic">
-                Sem centro de custo no período.
+                Esta conta não possui centros de custo no período selecionado. O vínculo valerá para todos os centros.
               </div>
             ) : (
               <>
@@ -721,7 +721,9 @@ function FragmentRow({
                     onCheckedChange={() => onMarcarTodosCentros()}
                   />
                   <span className={todosCentros ? 'font-medium' : 'text-muted-foreground'}>
-                    Todos os centros desta conta {todosCentros ? '(vínculo abrange todos)' : `— ${centrosMarcados.size} selecionado(s)`}
+                    {todosCentros
+                      ? 'Todos os centros'
+                      : `${centrosMarcados.size} centro${centrosMarcados.size === 1 ? '' : 's'} específico${centrosMarcados.size === 1 ? '' : 's'} — clique para voltar a "Todos os centros"`}
                   </span>
                 </div>
                 <table className="w-full text-xs">
