@@ -306,23 +306,101 @@ export default function ResumoFolhaPage() {
     ),
     "mensal-chart": (
       <Card className="h-full">
-        <CardHeader className="pb-2"><CardTitle className="text-sm">Evolução mensal</CardTitle></CardHeader>
-        <CardContent className="h-[calc(100%-3rem)]">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Evolução mensal</CardTitle>
+          <p className="text-xs text-muted-foreground">Provento, Desconto e Líquido por competência</p>
+        </CardHeader>
+        <CardContent className="h-[calc(100%-3.5rem)]">
           {mensal.length === 0 ? (
             <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
               {isLoading ? "Carregando..." : "Sem dados no período"}
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={mensal.map((m) => ({ ...m, label: fmtCompetencia(m.competencia) }))}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                <XAxis dataKey="label" fontSize={12} />
-                <YAxis fontSize={11} tickFormatter={(v) => `R$ ${Math.round(v / 1000)}k`} />
-                <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                <Legend />
-                <Bar dataKey="provento" name="Provento" fill="hsl(var(--primary))" />
-                <Bar dataKey="desconto" name="Desconto" fill="hsl(var(--destructive))" />
-                <Bar dataKey="total_liquido" name="Líquido" fill="hsl(var(--success))" />
+              <BarChart
+                data={mensal.map((m) => ({ ...m, label: fmtCompetencia(m.competencia) }))}
+                margin={{ top: 12, right: 12, left: 0, bottom: 0 }}
+                barCategoryGap="25%"
+              >
+                <defs>
+                  <linearGradient id="rhBarProvento" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.95} />
+                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.55} />
+                  </linearGradient>
+                  <linearGradient id="rhBarDesconto" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="hsl(var(--destructive))" stopOpacity={0.95} />
+                    <stop offset="100%" stopColor="hsl(var(--destructive))" stopOpacity={0.55} />
+                  </linearGradient>
+                  <linearGradient id="rhBarLiquido" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="hsl(var(--success))" stopOpacity={0.95} />
+                    <stop offset="100%" stopColor="hsl(var(--success))" stopOpacity={0.55} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} vertical={false} />
+                <XAxis
+                  dataKey="label"
+                  fontSize={11}
+                  tick={{ fill: "hsl(var(--muted-foreground))" }}
+                  tickLine={false}
+                  axisLine={false}
+                  dy={4}
+                />
+                <YAxis
+                  fontSize={11}
+                  tick={{ fill: "hsl(var(--muted-foreground))" }}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={tickCurrencyAbbrev}
+                  width={70}
+                />
+                <Tooltip
+                  cursor={{ fill: "hsl(var(--muted))", opacity: 0.35 }}
+                  content={({ active, payload, label }) => {
+                    if (!active || !payload?.length) return null;
+                    const order = ["provento", "desconto", "total_liquido"] as const;
+                    const meta: Record<string, { name: string; color: string }> = {
+                      provento: { name: "Provento", color: "hsl(var(--primary))" },
+                      desconto: { name: "Desconto", color: "hsl(var(--destructive))" },
+                      total_liquido: { name: "Líquido", color: "hsl(var(--success))" },
+                    };
+                    return (
+                      <div
+                        className="rounded-lg border bg-popover px-3 py-2 shadow-md"
+                        style={{ borderColor: "hsl(var(--border))" }}
+                      >
+                        <div className="text-xs font-semibold text-foreground mb-1.5">{label}</div>
+                        <div className="space-y-1">
+                          {order.map((k) => {
+                            const p = payload.find((x: any) => x.dataKey === k);
+                            if (!p) return null;
+                            return (
+                              <div key={k} className="flex items-center gap-3 text-xs">
+                                <span
+                                  className="inline-block h-2 w-2 rounded-full"
+                                  style={{ background: meta[k].color }}
+                                />
+                                <span className="text-muted-foreground">{meta[k].name}</span>
+                                <span className="ml-auto tabular-nums font-medium text-foreground">
+                                  {formatCurrency(Number(p.value) || 0)}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  }}
+                />
+                <Legend
+                  iconType="circle"
+                  align="right"
+                  verticalAlign="top"
+                  height={28}
+                  wrapperStyle={{ fontSize: 12 }}
+                />
+                <Bar dataKey="provento" name="Provento" fill="url(#rhBarProvento)" radius={[6, 6, 0, 0]} barSize={18} />
+                <Bar dataKey="desconto" name="Desconto" fill="url(#rhBarDesconto)" radius={[6, 6, 0, 0]} barSize={18} />
+                <Bar dataKey="total_liquido" name="Líquido" fill="url(#rhBarLiquido)" radius={[6, 6, 0, 0]} barSize={18} />
               </BarChart>
             </ResponsiveContainer>
           )}
