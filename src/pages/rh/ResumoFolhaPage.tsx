@@ -770,6 +770,15 @@ export default function ResumoFolhaPage() {
           serie_mensal: mensal,
         }}
       />
+
+      <ResumoFolhaDrillDrawer
+        open={drillOpen}
+        onOpenChange={setDrillOpen}
+        drillItem={drillCard}
+        cardValue={drillCardValue}
+        anomes_ini={baseParams.anomes_ini}
+        anomes_fim={baseParams.anomes_fim}
+      />
     </div>
   );
 }
