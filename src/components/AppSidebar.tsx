@@ -1,26 +1,19 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  Home, FileBarChart, Star, StarOff, Search as SearchIcon,
-  Package, GitBranch, ShoppingCart, BarChart3,
-  Factory, FileCheck, FileSearch, LayoutDashboard, FileInput, Hash, Settings,
-  Hammer, Truck, Warehouse, PackageX, Clock, GitCompare, ChevronDown, Landmark, HandCoins, Gauge, Sparkles, ClipboardCheck, Receipt, Plane, CalendarRange, CalendarClock, Users, ShieldCheck, Palette, Database, ShieldAlert, FileText, History, Cog, Printer, Activity, Boxes, PackageSearch, TrendingUp,
+  Home, Star, StarOff, Search as SearchIcon, ChevronDown,
+  Package, Users, Settings, Factory, ShoppingCart, Warehouse, Landmark,
+  Receipt, BarChart3, Boxes, ShieldAlert, FileText, Cog, LayoutDashboard,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useDemoMode, useBrand } from '@/contexts/DemoModeContext';
-
-function BrandName() {
-  const { name } = useBrand('ERP Sapiens');
-  return <span className="text-[15px] font-semibold tracking-tight text-sidebar-foreground truncate">{name}</span>;
-}
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -31,295 +24,227 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
-type Item = { title: string; url: string; icon: any };
-type SubGroup = { id: string; label: string; items: Item[] };
-type Group = { id: string; label: string; icon: any; items?: Item[]; subGroups?: SubGroup[] };
+function BrandName() {
+  const { name } = useBrand('ERP Sapiens');
+  return <span className="text-[15px] font-semibold tracking-tight text-sidebar-foreground truncate">{name}</span>;
+}
 
-const GROUPS: Group[] = [
+// ============ Tipos ============
+type Leaf = { title: string; url: string; icon: any };
+type SubGroup = { id: string; label: string; icon: any; items: Leaf[] };
+type TopMenu =
+  | { id: string; label: string; icon: any; kind: 'leaf'; item: Leaf }
+  | { id: string; label: string; icon: any; kind: 'flat'; items: Leaf[] }
+  | { id: string; label: string; icon: any; kind: 'nested'; subGroups: SubGroup[] };
+
+// ============ Árvore do menu ============
+const TOP_MENUS: TopMenu[] = [
   {
     id: 'inicio',
     label: 'Início',
     icon: Home,
-    items: [
-      { title: 'Dashboard Geral', url: '/dashboard-geral', icon: LayoutDashboard },
-      { title: 'Relatório Executivo', url: '/bi/faturamento/relatorio-executivo', icon: FileBarChart },
-    ],
+    kind: 'leaf',
+    item: { title: 'Início', url: '/dashboard-geral', icon: Home },
   },
   {
-    id: 'cadastros',
-    label: 'Cadastros',
-    icon: Boxes,
+    id: 'erp',
+    label: 'ERP',
+    icon: Package,
+    kind: 'nested',
     subGroups: [
       {
-        id: 'cad-produtos',
-        label: 'Produtos',
+        id: 'erp-producao', label: 'Produção', icon: Factory,
         items: [
-          { title: 'Produtos', url: '/cadastros/produtos', icon: PackageSearch },
-        ],
-      },
-      {
-        id: 'cad-engenharia',
-        label: 'Engenharia de Produto',
-        items: [
-          { title: 'Estrutura Multinível', url: '/bom', icon: GitBranch },
-          { title: 'Onde Usa', url: '/onde-usa', icon: SearchIcon },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'estoque',
-    label: 'Estoque',
-    icon: Warehouse,
-    items: [
-      { title: 'Consulta de Estoques', url: '/estoque', icon: Package },
-      { title: 'Estoque Min/Max', url: '/estoque-min-max', icon: Gauge },
-      { title: 'Sugestão Min/Max', url: '/sugestao-min-max', icon: Sparkles },
-    ],
-  },
-  {
-    id: 'suprimentos',
-    label: 'Suprimentos',
-    icon: ShoppingCart,
-    items: [
-      { title: 'Painel de Compras', url: '/painel-compras', icon: BarChart3 },
-      { title: 'Compras / Custos', url: '/compras-produto', icon: ShoppingCart },
-      { title: 'Compras e Recebimentos', url: '/demonstrativo-compras-recebimentos', icon: GitCompare },
-      { title: 'NF Recebimento', url: '/notas-recebimento', icon: FileInput },
-    ],
-  },
-  {
-    id: 'producao',
-    label: 'Produção',
-    icon: Factory,
-    subGroups: [
-      {
-        id: 'prod-visao',
-        label: 'Visão Geral',
-        items: [
-          { title: 'Dashboard', url: '/producao/dashboard', icon: LayoutDashboard },
-          { title: 'Produção no Período', url: '/producao/produzido', icon: Hammer },
+          { title: 'Produção — Dashboard', url: '/producao/dashboard', icon: LayoutDashboard },
+          { title: 'Produzido no Período', url: '/producao/produzido', icon: Factory },
+          { title: 'Expedido para Obra', url: '/producao/expedido', icon: Factory },
           { title: 'Saldo em Pátio', url: '/producao/patio', icon: Warehouse },
-          { title: 'Lead Time', url: '/producao/leadtime', icon: Clock },
+          { title: 'Não Carregados', url: '/producao/nao-carregados', icon: Factory },
+          { title: 'Lead Time', url: '/producao/leadtime', icon: Factory },
+          { title: 'Engenharia x Produção', url: '/producao/engenharia', icon: Factory },
+          { title: 'Relatório Semanal por Obra', url: '/producao/relatorio-semanal-obra', icon: FileText },
+          { title: 'Impressão de Ordem de Produção', url: '/producao/impressao-op', icon: FileText },
+          { title: 'Carga de Produção', url: '/producao/carga', icon: Factory },
+          { title: 'Carga — Dashboard BI', url: '/producao/carga/dashboard', icon: LayoutDashboard },
+          { title: 'Carga por Centro de Recurso', url: '/producao/carga/recursos', icon: Factory },
+          { title: 'Programação e Sequenciamento', url: '/producao/programacao', icon: Factory },
         ],
       },
       {
-        id: 'prod-planejamento',
-        label: 'Planejamento',
+        id: 'erp-compras', label: 'Compras e Suprimentos', icon: ShoppingCart,
         items: [
-          { title: 'Carga de Produção', url: '/producao/carga', icon: Gauge },
-          { title: 'Sequenciamento', url: '/producao/programacao', icon: CalendarClock },
-          { title: 'Dashboard de Carga', url: '/producao/carga/dashboard', icon: Activity },
-          { title: 'Carga por Recurso', url: '/producao/carga/recursos', icon: Gauge },
+          { title: 'Compras / Custos', url: '/compras-produto', icon: ShoppingCart },
+          { title: 'Painel de Compras', url: '/painel-compras', icon: ShoppingCart },
+          { title: 'Demonstrativo de Compras e Recebimentos', url: '/demonstrativo-compras-recebimentos', icon: ShoppingCart },
+          { title: 'Auditoria Tributária', url: '/auditoria-tributaria', icon: FileText },
+          { title: 'Notas Fiscais de Recebimento', url: '/notas-recebimento', icon: Receipt },
         ],
       },
       {
-        id: 'prod-obras',
-        label: 'Obras e Expedição',
+        id: 'erp-estoque', label: 'Estoque', icon: Warehouse,
         items: [
-          { title: 'Expedição para Obra', url: '/producao/expedido', icon: Truck },
-          { title: 'Semanal por Obra', url: '/producao/relatorio-semanal-obra', icon: CalendarRange },
-          { title: 'Não Carregados', url: '/producao/nao-carregados', icon: PackageX },
-          { title: 'Reserva Nº Série', url: '/numero-serie', icon: Hash },
+          { title: 'Estoque', url: '/estoque', icon: Warehouse },
+          { title: 'Estoque Mínimo/Máximo', url: '/estoque-min-max', icon: Warehouse },
+          { title: 'Sugestão de Mínimo/Máximo', url: '/sugestao-min-max', icon: Warehouse },
+          { title: 'Onde Usa', url: '/onde-usa', icon: SearchIcon },
+          { title: 'Estrutura de Produto — BOM', url: '/bom', icon: Boxes },
+          { title: 'Reserva de Número de Série', url: '/numero-serie', icon: Boxes },
         ],
       },
       {
-        id: 'prod-engenharia',
-        label: 'Engenharia / OP',
+        id: 'erp-financeiro', label: 'Financeiro e Contábil', icon: Landmark,
         items: [
-          { title: 'Engenharia x Produção', url: '/producao/engenharia', icon: GitCompare },
-          { title: 'Impressão de OP', url: '/producao/impressao-op', icon: Printer },
+          { title: 'Conciliação EDocs', url: '/conciliacao-edocs', icon: Landmark },
+          { title: 'Contas a Pagar', url: '/contas-pagar', icon: Landmark },
+          { title: 'Contas a Receber', url: '/contas-receber', icon: Landmark },
+          { title: 'Balanço Patrimonial', url: '/contabilidade/balanco', icon: Landmark },
+          { title: 'DRE Studio — Visão Geral', url: '/contabilidade/dre-studio', icon: Landmark },
+          { title: 'DRE Studio — Modelos', url: '/contabilidade/dre-studio/modelos', icon: Landmark },
+          { title: 'DRE Studio — Novo Modelo', url: '/contabilidade/dre-studio/modelos/novo', icon: Landmark },
         ],
       },
-    ],
-  },
-  {
-    id: 'comercial',
-    label: 'Comercial',
-    icon: BarChart3,
-    items: [
-      { title: 'BI Comercial', url: '/bi/comercial', icon: BarChart3 },
-      { title: 'Metas de Faturamento', url: '/bi/comercial/metas', icon: BarChart3 },
-      { title: 'Validação Faturamento', url: '/bi/faturamento-validacao', icon: FileCheck },
-      { title: 'Faturamento Genius', url: '/faturamento-genius', icon: Receipt },
-      { title: 'Auditoria Apont. Genius', url: '/auditoria-apontamento-genius', icon: ClipboardCheck },
-    ],
-  },
-  {
-    id: 'fiscal',
-    label: 'Fiscal',
-    icon: FileCheck,
-    items: [
-      { title: 'Auditoria Tributária', url: '/auditoria-tributaria', icon: FileCheck },
-      { title: 'Conciliação EDocs', url: '/conciliacao-edocs', icon: FileSearch },
-    ],
-  },
-  {
-    id: 'financeiro',
-    label: 'Financeiro',
-    icon: HandCoins,
-    items: [
-      { title: 'Contas a Pagar', url: '/contas-pagar', icon: Landmark },
-      { title: 'Contas a Receber', url: '/contas-receber', icon: HandCoins },
-    ],
-  },
-  {
-    id: 'controladoria',
-    label: 'Controladoria',
-    icon: Landmark,
-    items: [
-      { title: 'Balanço', url: '/contabilidade/balanco', icon: Landmark },
-    ],
-    subGroups: [
       {
-        id: 'ctrl-dre-studio',
-        label: 'DRE Studio',
+        id: 'erp-faturamento', label: 'Faturamento', icon: Receipt,
         items: [
-          { title: 'Modelos', url: '/contabilidade/dre-studio', icon: Landmark },
-          { title: 'Novo modelo', url: '/contabilidade/dre-studio/novo', icon: FileCheck },
-          { title: 'Configurações contábeis', url: '/contabilidade/dre-studio/configuracoes', icon: Cog },
+          { title: 'Auditoria de Apontamento Genius', url: '/auditoria-apontamento-genius', icon: FileText },
+          { title: 'Faturamento Genius', url: '/faturamento-genius', icon: Receipt },
         ],
       },
       {
-        id: 'ctrl-dre',
-        label: 'DRE (outros)',
+        id: 'erp-bi', label: 'BI e Analytics', icon: BarChart3,
         items: [
           { title: 'Contabilidade — DRE', url: '/bi/contabilidade/dre', icon: BarChart3 },
-          { title: 'DRE Configurável', url: '/bi/financeiro/dre-configuravel', icon: Landmark },
-          { title: 'DRE Dinâmica', url: '/bi/contabilidade/dre-dinamica', icon: BarChart3 },
-          { title: 'Montador DRE', url: '/bi/contabilidade/dre-dinamica/montador', icon: Cog },
-          { title: 'Exceções DRE', url: '/bi/contabilidade/dre/excecoes', icon: FileCheck },
-          { title: 'Aprovações DRE', url: '/bi/contabilidade/dre/aprovacoes', icon: FileCheck },
-          { title: 'Parametrização DRE', url: '/bi/contabilidade/dre/parametrizacao', icon: FileCheck },
-          { title: 'Configurações DRE', url: '/bi/contabilidade/dre/configuracao', icon: Cog },
-          { title: 'De/Para DRE', url: '/bi/contabilidade/dre/sincronizacao-depara', icon: Database },
+          { title: 'Validação de Faturamento', url: '/bi/faturamento-validacao', icon: BarChart3 },
+          { title: 'BI Comercial', url: '/bi/comercial', icon: BarChart3 },
+          { title: 'Metas de Faturamento', url: '/bi/comercial/metas', icon: BarChart3 },
+          { title: 'Relatório Executivo de Faturamento', url: '/bi/faturamento/relatorio-executivo', icon: BarChart3 },
+          { title: 'ETL / Camada Analítica', url: '/etl', icon: BarChart3 },
+        ],
+      },
+      {
+        id: 'erp-cadastros', label: 'Cadastros', icon: Boxes,
+        items: [
+          { title: 'Consulta de Produtos', url: '/cadastros/produtos', icon: Boxes },
+        ],
+      },
+      {
+        id: 'erp-regras', label: 'Regras Senior', icon: ShieldAlert,
+        items: [
+          { title: 'Dashboard', url: '/regras-senior', icon: LayoutDashboard },
+          { title: 'Lista de Regras', url: '/regras-senior/regras', icon: FileText },
+          { title: 'Identificadores', url: '/regras-senior/identificadores', icon: ShieldAlert },
+          { title: 'Auditoria', url: '/regras-senior/auditoria', icon: FileText },
+          { title: 'Snapshots', url: '/regras-senior/snapshots', icon: FileText },
+        ],
+      },
+      {
+        id: 'erp-relatorios', label: 'Relatórios', icon: FileText,
+        items: [
+          { title: 'Desenvolvimento', url: '/relatorios/desenvolvimento', icon: FileText },
+          { title: 'Publicados', url: '/relatorios/publicados', icon: FileText },
+          { title: 'Histórico de Execuções', url: '/relatorios/execucoes', icon: FileText },
+        ],
+      },
+      {
+        id: 'erp-operacional', label: 'Operacional', icon: Cog,
+        items: [
+          { title: 'Passagens Aéreas', url: '/passagens-aereas', icon: Cog },
+          { title: 'Manutenção de Frota', url: '/frota', icon: Cog },
+          { title: 'Manutenção de Máquinas', url: '/manutencao-maquinas', icon: Cog },
         ],
       },
     ],
   },
   {
-    id: 'manutencao',
-    label: 'Manutenção',
-    icon: Cog,
-    items: [
-      { title: 'Manutenção de Frota', url: '/frota', icon: Truck },
-      { title: 'Manutenção de Máquinas', url: '/manutencao-maquinas', icon: Cog },
-    ],
-  },
-  {
-    id: 'bi-dados',
-    label: 'BI e Dados',
-    icon: Database,
-    items: [
-      { title: 'Biblioteca BI', url: '/biblioteca-bi', icon: Palette },
-      { title: 'Central ETL', url: '/etl', icon: Database },
-    ],
-  },
-  {
-    id: 'rh',
-    label: 'RH',
+    id: 'hcm',
+    label: 'HCM',
     icon: Users,
+    kind: 'flat',
     items: [
-      { title: 'Resumo Folha', url: '/rh/resumo-folha', icon: Receipt },
-      { title: 'Quadro Colaboradores', url: '/rh/quadro-colaboradores', icon: Users },
-      { title: 'Contratos de Experiência', url: '/rh/contrato-experiencia', icon: FileCheck },
-      { title: 'Férias', url: '/rh/programacao-ferias', icon: CalendarRange },
-      { title: 'Turnover', url: '/rh/turnover', icon: TrendingUp },
-      { title: 'Absenteísmo / Afastamentos', url: '/rh/absenteismo', icon: Activity },
+      { title: 'Visão Geral do RH', url: '/rh', icon: Users },
+      { title: 'Resumo da Folha', url: '/rh/resumo-folha', icon: Receipt },
+      { title: 'Quadro de Colaboradores', url: '/rh/quadro-colaboradores', icon: Users },
+      { title: 'Contratos de Experiência', url: '/rh/contrato-experiencia', icon: FileText },
+      { title: 'Férias', url: '/rh/programacao-ferias', icon: Users },
+      { title: 'Turnover', url: '/rh/turnover', icon: Users },
+      { title: 'Absenteísmo e Afastamentos', url: '/rh/absenteismo', icon: Users },
       { title: 'Formulários', url: '/rh/formularios', icon: FileText },
-      { title: 'Relatório Gerencial (PDF+IA)', url: '/rh/relatorio-gerencial', icon: Sparkles },
+      { title: 'Relatório Gerencial — PDF + IA', url: '/rh/relatorio-gerencial', icon: FileText },
     ],
   },
   {
-    id: 'regras',
-    label: 'Regras Senior',
-    icon: ShieldAlert,
-    items: [
-      { title: 'Dashboard', url: '/regras-senior', icon: LayoutDashboard },
-      { title: 'Regras LSP', url: '/regras-senior/regras', icon: FileText },
-      { title: 'Identificadores', url: '/regras-senior/identificadores', icon: ShieldCheck },
-      { title: 'Auditoria', url: '/regras-senior/auditoria', icon: History },
-      { title: 'Snapshots', url: '/regras-senior/snapshots', icon: Database },
-    ],
-  },
-  {
-    id: 'relatorios',
-    label: 'Relatórios',
-    icon: FileText,
-    items: [
-      { title: 'Criador de Relatórios', url: '/relatorios/desenvolvimento', icon: FileText },
-      { title: 'Relatórios Publicados', url: '/relatorios/publicados', icon: FileCheck },
-      { title: 'Histórico', url: '/relatorios/execucoes', icon: History },
-    ],
-  },
-  {
-    id: 'admin',
-    label: 'Administração',
+    id: 'config',
+    label: 'Configurações',
     icon: Settings,
+    kind: 'flat',
     items: [
-      { title: 'Passagens Aéreas', url: '/passagens-aereas', icon: Plane },
-      { title: 'Monitor Usuários Senior', url: '/monitor-usuarios-senior', icon: Users },
-      { title: 'Monitor de Telas', url: '/monitor-telas', icon: Activity },
-      { title: 'Gestão SGU', url: '/gestao-sgu-usuarios', icon: ShieldCheck },
-      { title: 'Configurações', url: '/configuracoes', icon: Settings },
+      { title: 'Monitor de Usuários Senior', url: '/monitor-usuarios-senior', icon: Users },
+      { title: 'Gestão SGU — Usuários ERP Senior', url: '/gestao-sgu-usuarios', icon: Users },
+      { title: 'Configurações Gerais', url: '/configuracoes', icon: Settings },
+      { title: 'Biblioteca BI — Catálogo de Componentes', url: '/biblioteca-bi', icon: Boxes },
     ],
   },
 ];
 
-const OUTROS: Item[] = [];
-
-
 const ALWAYS_VISIBLE = new Set<string>(['/biblioteca-bi', '/']);
 
-function groupActiveId(pathname: string): string | null {
-  const flat: Array<{ id: string; url: string }> = [];
-  for (const g of GROUPS) {
-    for (const it of g.items ?? []) flat.push({ id: g.id, url: it.url });
-    for (const sg of g.subGroups ?? []) for (const it of sg.items) flat.push({ id: g.id, url: it.url });
-  }
-  // Preferir match exato, depois prefixo mais longo
-  let best: { id: string; len: number } | null = null;
-  for (const f of flat) {
-    if (pathname === f.url || (f.url !== '/' && pathname.startsWith(f.url + '/')) || pathname.startsWith(f.url)) {
-      const len = f.url.length;
-      if (!best || len > best.len) best = { id: f.id, len };
-    }
-  }
-  return best?.id ?? null;
+// ============ Helpers ============
+function allLeaves(top: TopMenu): Leaf[] {
+  if (top.kind === 'leaf') return [top.item];
+  if (top.kind === 'flat') return top.items;
+  return top.subGroups.flatMap((sg) => sg.items);
 }
 
-function subGroupActiveId(pathname: string, group: Group): string | null {
-  if (!group.subGroups) return null;
-  let best: { id: string; len: number } | null = null;
-  for (const sg of group.subGroups) {
-    for (const it of sg.items) {
-      if (pathname === it.url || pathname.startsWith(it.url + '/')) {
-        const len = it.url.length;
-        if (!best || len > best.len) best = { id: sg.id, len };
+function findActive(pathname: string): { topId: string | null; subId: string | null } {
+  let best: { topId: string; subId: string | null; len: number } | null = null;
+  for (const top of TOP_MENUS) {
+    if (top.kind === 'leaf') {
+      const u = top.item.url;
+      if (pathname === u || pathname.startsWith(u + '/')) {
+        if (!best || u.length > best.len) best = { topId: top.id, subId: null, len: u.length };
+      }
+    } else if (top.kind === 'flat') {
+      for (const it of top.items) {
+        if (pathname === it.url || pathname.startsWith(it.url + '/')) {
+          if (!best || it.url.length > best.len) best = { topId: top.id, subId: null, len: it.url.length };
+        }
+      }
+    } else {
+      for (const sg of top.subGroups) {
+        for (const it of sg.items) {
+          if (pathname === it.url || pathname.startsWith(it.url + '/')) {
+            if (!best || it.url.length > best.len) best = { topId: top.id, subId: sg.id, len: it.url.length };
+          }
+        }
       }
     }
   }
-  return best?.id ?? group.subGroups[0]?.id ?? null;
+  return { topId: best?.topId ?? null, subId: best?.subId ?? null };
 }
 
+// ============ Componente ============
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = state === 'collapsed';
   const location = useLocation();
   const { canView, hasPermissions, loading, isAdmin } = useUserPermissions();
   const { favorites, isFavorite, toggle } = useFavorites();
   const { isModuleHidden } = useDemoMode();
 
-  const activeGroupId = useMemo(() => groupActiveId(location.pathname), [location.pathname]);
-  const [openGroup, setOpenGroup] = useState<string | null>(activeGroupId ?? 'inicio');
-  const [openSub, setOpenSub] = useState<Record<string, string | null>>({});
+  const { topId: activeTopId, subId: activeSubId } = useMemo(
+    () => findActive(location.pathname),
+    [location.pathname],
+  );
+
+  const [openTop, setOpenTop] = useState<string | null>(activeTopId ?? 'inicio');
+  const [openSubs, setOpenSubs] = useState<Record<string, boolean>>({});
   const [query, setQuery] = useState('');
 
-  // Se a rota muda para outro grupo, expande-o
-  useMemo(() => {
-    if (activeGroupId && activeGroupId !== openGroup) setOpenGroup(activeGroupId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeGroupId]);
+  // Expande automaticamente topo + subgrupo da rota ativa (sem fechar outros subs já abertos)
+  useEffect(() => {
+    if (activeTopId) setOpenTop(activeTopId);
+    if (activeSubId) setOpenSubs((prev) => (prev[activeSubId] ? prev : { ...prev, [activeSubId]: true }));
+  }, [activeTopId, activeSubId]);
 
   const isVisible = (url: string) => {
     if (isModuleHidden(url)) return false;
@@ -331,19 +256,17 @@ export function AppSidebar() {
 
   const q = query.trim().toLowerCase();
   const matchesQuery = (title: string) => (q ? title.toLowerCase().includes(q) : true);
+  const forceOpen = q.length > 0;
 
-  const filterItems = (items: Item[]) =>
+  const filterLeaves = (items: Leaf[]) =>
     items.filter((it) => isVisible(it.url) && matchesQuery(it.title));
 
-  const setGroupOpen = (id: string, next: boolean) => {
-    setOpenGroup(next ? id : null);
+  const closeMobileMaybe = () => {
+    if (isMobile) setOpenMobile(false);
   };
 
-  const setSubOpen = (groupId: string, subId: string, next: boolean) => {
-    setOpenSub((prev) => ({ ...prev, [groupId]: next ? subId : null }));
-  };
-
-  const renderItemRow = (item: Item, canFavorite = true) => {
+  // ---- Renderers ----
+  const renderItemRow = (item: Leaf, canFavorite = true) => {
     const active = location.pathname === item.url;
     const fav = isFavorite(item.url);
     return (
@@ -353,6 +276,7 @@ export function AppSidebar() {
             <NavLink
               to={item.url}
               end
+              onClick={closeMobileMaybe}
               className={cn(
                 'relative transition-colors hover:bg-transparent',
                 'before:absolute before:left-0 before:top-1/2 before:h-4 before:w-[2px] before:-translate-y-1/2 before:rounded-r before:bg-primary before:opacity-0 before:transition-opacity group-hover/item:before:opacity-60',
@@ -363,7 +287,6 @@ export function AppSidebar() {
               {!collapsed && <span className="truncate text-[12.5px] font-normal">{item.title}</span>}
               {collapsed && <item.icon className="h-[18px] w-[18px]" />}
             </NavLink>
-
           </SidebarMenuButton>
 
           {!collapsed && canFavorite && (
@@ -388,24 +311,24 @@ export function AppSidebar() {
     );
   };
 
-  // Favoritos resolvidos (título + icon) a partir da árvore
+  // Favoritos resolvidos
   const favoriteItems = useMemo(() => {
-    const map = new Map<string, Item>();
-    for (const g of GROUPS) {
-      for (const it of g.items ?? []) map.set(it.url, it);
-      for (const sg of g.subGroups ?? []) for (const it of sg.items) map.set(it.url, it);
-    }
-    for (const it of OUTROS) map.set(it.url, it);
-    return favorites.map((u) => map.get(u)).filter(Boolean).filter((it) => isVisible(it!.url)) as Item[];
+    const map = new Map<string, Leaf>();
+    for (const top of TOP_MENUS) for (const l of allLeaves(top)) map.set(l.url, l);
+    return favorites.map((u) => map.get(u)).filter(Boolean).filter((it) => isVisible(it!.url)) as Leaf[];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [favorites, loading, hasPermissions]);
 
-  const renderFavoritesGroup = () => {
-    const forceOpen = q.length > 0;
-    const isOpen = forceOpen || openGroup === 'favoritos';
+  const setTopOpen = (id: string, next: boolean) => setOpenTop(next ? id : null);
+  const setSubOpen = (id: string, next: boolean) =>
+    setOpenSubs((prev) => ({ ...prev, [id]: next }));
+
+  const renderFavoritesTop = () => {
+    const isOpen = forceOpen || openTop === 'favoritos';
     const visibleFavs = favoriteItems.filter((it) => matchesQuery(it.title));
     return (
       <SidebarGroup key="favoritos" className="py-0.5">
-        <Collapsible open={isOpen} onOpenChange={(v) => setGroupOpen('favoritos', v)}>
+        <Collapsible open={isOpen} onOpenChange={(v) => setTopOpen('favoritos', v)}>
           <CollapsibleTrigger className="group flex w-full items-center justify-between px-3 py-1.5 text-[13px] font-semibold tracking-wide text-sidebar-foreground/80 hover:text-sidebar-foreground">
             <span className="flex min-w-0 items-center gap-2">
               <Star className="h-[18px] w-[18px] shrink-0" />
@@ -430,57 +353,105 @@ export function AppSidebar() {
           </CollapsibleContent>
         </Collapsible>
       </SidebarGroup>
-
     );
   };
 
-  const renderGroup = (group: Group) => {
-    // Determina se grupo tem conteúdo após filtros
-    const items = group.items ? filterItems(group.items) : [];
-    const subGroupsFiltered = (group.subGroups ?? [])
-      .map((sg) => ({ ...sg, items: filterItems(sg.items) }))
-      .filter((sg) => sg.items.length > 0);
-    const hasContent = items.length > 0 || subGroupsFiltered.length > 0;
-    if (!hasContent && group.id !== 'inicio') return null;
-    if (group.id === 'relatorios' && !isAdmin) return null;
-
-    const forceOpen = q.length > 0; // busca abre tudo que tem match
-    const isOpen = forceOpen || openGroup === group.id;
-    const Icon = group.icon;
-
+  const renderLeafTop = (top: Extract<TopMenu, { kind: 'leaf' }>) => {
+    if (!isVisible(top.item.url)) return null;
+    if (!matchesQuery(top.label) && !matchesQuery(top.item.title)) return null;
+    const active = location.pathname === top.item.url;
+    const Icon = top.icon;
     return (
-      <SidebarGroup key={group.id} className="py-0.5">
-        <Collapsible open={isOpen} onOpenChange={(v) => setGroupOpen(group.id, v)}>
+      <SidebarGroup key={top.id} className="py-0.5">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild className="min-h-[32px]">
+              <NavLink
+                to={top.item.url}
+                end
+                onClick={closeMobileMaybe}
+                className={cn(
+                  'flex items-center gap-2 px-3 py-1.5 text-[13px] font-semibold tracking-wide text-sidebar-foreground/80 hover:text-sidebar-foreground',
+                  active && 'bg-primary/15 text-primary',
+                )}
+                activeClassName="bg-primary/15 text-primary"
+              >
+                <Icon className="h-[18px] w-[18px] shrink-0" />
+                {!collapsed && <span className="truncate whitespace-nowrap">{top.label}</span>}
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarGroup>
+    );
+  };
+
+  const renderFlatTop = (top: Extract<TopMenu, { kind: 'flat' }>) => {
+    const items = filterLeaves(top.items);
+    if (items.length === 0) return null;
+    if (top.id === 'config' && !isAdmin) {
+      // Se algum item requer permissão, o filtro isVisible já cuidou. Sem gate extra.
+    }
+    const isOpen = forceOpen || openTop === top.id;
+    const Icon = top.icon;
+    return (
+      <SidebarGroup key={top.id} className="py-0.5">
+        <Collapsible open={isOpen} onOpenChange={(v) => setTopOpen(top.id, v)}>
           <CollapsibleTrigger className="group flex w-full items-center justify-between px-3 py-1.5 text-[13px] font-semibold tracking-wide text-sidebar-foreground/80 hover:text-sidebar-foreground">
             <span className="flex min-w-0 items-center gap-2">
               <Icon className="h-[18px] w-[18px] shrink-0" />
-              {!collapsed && <span className="truncate whitespace-nowrap">{group.label}</span>}
+              {!collapsed && <span className="truncate whitespace-nowrap">{top.label}</span>}
             </span>
             {!collapsed && <ChevronDown className={cn('h-3.5 w-3.5 transition-transform duration-200', isOpen && 'rotate-180')} />}
           </CollapsibleTrigger>
           <CollapsibleContent>
             <SidebarGroupContent>
-              {items.length > 0 && (
-                <SidebarMenu className={cn(!collapsed && 'ml-[18px] border-l border-sidebar-border/40 pl-1.5 gap-0')}>
-                  {items.map((it) => renderItemRow(it))}
-                </SidebarMenu>
-              )}
+              <SidebarMenu className={cn(!collapsed && 'ml-[18px] border-l border-sidebar-border/40 pl-1.5 gap-0')}>
+                {items.map((it) => renderItemRow(it))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </CollapsibleContent>
+        </Collapsible>
+      </SidebarGroup>
+    );
+  };
 
-              {subGroupsFiltered.map((sg) => {
-                const subOpen = forceOpen || openSub[group.id] === sg.id ||
-                  (openSub[group.id] === undefined && sg.id === subGroupActiveId(location.pathname, group));
+  const renderNestedTop = (top: Extract<TopMenu, { kind: 'nested' }>) => {
+    const subs = top.subGroups
+      .map((sg) => ({ ...sg, items: filterLeaves(sg.items) }))
+      .filter((sg) => sg.items.length > 0);
+    if (subs.length === 0) return null;
+    const isOpen = forceOpen || openTop === top.id;
+    const Icon = top.icon;
+    return (
+      <SidebarGroup key={top.id} className="py-0.5">
+        <Collapsible open={isOpen} onOpenChange={(v) => setTopOpen(top.id, v)}>
+          <CollapsibleTrigger className="group flex w-full items-center justify-between px-3 py-1.5 text-[13px] font-semibold tracking-wide text-sidebar-foreground/80 hover:text-sidebar-foreground">
+            <span className="flex min-w-0 items-center gap-2">
+              <Icon className="h-[18px] w-[18px] shrink-0" />
+              {!collapsed && <span className="truncate whitespace-nowrap">{top.label}</span>}
+            </span>
+            {!collapsed && <ChevronDown className={cn('h-3.5 w-3.5 transition-transform duration-200', isOpen && 'rotate-180')} />}
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <SidebarGroupContent>
+              {subs.map((sg) => {
+                const subOpen = forceOpen || openSubs[sg.id] === true;
+                const SubIcon = sg.icon;
                 return (
                   <Collapsible
                     key={sg.id}
                     open={subOpen}
-                    onOpenChange={(v) => setSubOpen(group.id, sg.id, v)}
+                    onOpenChange={(v) => setSubOpen(sg.id, v)}
                     className={cn(!collapsed && 'ml-[18px] border-l border-sidebar-border/40 pl-1')}
                   >
-                    <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-1 text-[12px] font-medium tracking-normal text-sidebar-foreground/60 hover:text-sidebar-foreground">
-                      <span className="truncate whitespace-nowrap">{!collapsed && sg.label}</span>
+                    <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-1 text-[12px] font-medium tracking-normal text-sidebar-foreground/70 hover:text-sidebar-foreground">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <SubIcon className="h-3.5 w-3.5 shrink-0" />
+                        {!collapsed && <span className="truncate whitespace-nowrap">{sg.label}</span>}
+                      </span>
                       {!collapsed && <ChevronDown className={cn('h-3 w-3 transition-transform', subOpen && 'rotate-180')} />}
                     </CollapsibleTrigger>
-
                     <CollapsibleContent>
                       <SidebarMenu className={cn(!collapsed && 'ml-2 border-l border-sidebar-border/30 pl-1.5 gap-0')}>
                         {sg.items.map((it) => renderItemRow(it))}
@@ -493,11 +464,14 @@ export function AppSidebar() {
           </CollapsibleContent>
         </Collapsible>
       </SidebarGroup>
-
     );
   };
 
-  
+  const renderTop = (top: TopMenu) => {
+    if (top.kind === 'leaf') return renderLeafTop(top);
+    if (top.kind === 'flat') return renderFlatTop(top);
+    return renderNestedTop(top);
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -519,10 +493,9 @@ export function AppSidebar() {
         )}
       </SidebarHeader>
       <SidebarContent>
-        {renderFavoritesGroup()}
-        {GROUPS.map(renderGroup)}
+        {renderFavoritesTop()}
+        {TOP_MENUS.map(renderTop)}
       </SidebarContent>
-
     </Sidebar>
   );
 }
