@@ -239,6 +239,16 @@ export default function DreMontadorPage() {
     setVinculando(true);
     try {
       const escolhidas = contasOrdenadas.filter((c) => contasSelecionadas.has(contaKey(c)));
+      const contas: VincularContasPayloadConta[] = escolhidas.map((c) => {
+        const base: VincularContasPayloadConta = tipoRegra === 'MASCARA_CONTA'
+          ? { cd_mascara: c.cd_mascara }
+          : { cd_conta_contabil: c.cd_conta_contabil };
+        const set = centrosSelecionados.get(contaKey(c));
+        if (set && set.size > 0) {
+          base.centros_custo = Array.from(set).map((cd) => ({ cd_centro_custos: cd }));
+        }
+        return base;
+      });
       const payload = {
         modelo_id: modeloId,
         linha_id: linhaSelecionada.id,
@@ -246,13 +256,12 @@ export default function DreMontadorPage() {
         operador: (tipoRegra === 'MASCARA_CONTA' ? 'COMECA_COM' : 'IGUAL') as 'COMECA_COM' | 'IGUAL',
         sinal: (sinal === '-1' ? -1 : 1) as 1 | -1,
         prioridade,
-        contas: escolhidas.map((c) => tipoRegra === 'MASCARA_CONTA'
-          ? { cd_mascara: c.cd_mascara }
-          : { cd_conta_contabil: c.cd_conta_contabil }),
+        contas,
       };
-      await vincularContasDinamica(payload);
-      toast.success('Contas vinculadas com sucesso.');
+      const r = await vincularContasDinamica(payload);
+      toast.success(`Vinculadas: ${r.criados} · Ignoradas (duplicadas): ${r.ignorados_por_duplicidade}`);
       setContasSelecionadas(new Set());
+      setCentrosSelecionados(new Map());
       await carregarContas();
     } catch (e: any) {
       toast.error(e?.message ?? 'Falha ao vincular contas.');
