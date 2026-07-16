@@ -132,6 +132,32 @@ export default function ResumoFolhaPage() {
   const diagnostico = data?.diagnostico ?? data?.debug;
   const { isAdmin } = useUserPermissions();
 
+  // ============ Drill dos cards (fonte: dashboard.drills_menu) ============
+  const drillsMenu: ResumoFolhaDrillsMenuItem[] = data?.drills_menu ?? [];
+  const drillsMap = useMemo(() => {
+    const m = new Map<string, ResumoFolhaDrillsMenuItem>();
+    for (const d of drillsMenu) m.set(d.card, d);
+    return m;
+  }, [drillsMenu]);
+  const [drillOpen, setDrillOpen] = useState(false);
+  const [drillCard, setDrillCard] = useState<ResumoFolhaDrillsMenuItem | null>(null);
+  const [drillCardValue, setDrillCardValue] = useState<number | null | undefined>(null);
+  const openDrill = (field: string) => {
+    const item = drillsMap.get(field);
+    if (!item) return;
+    setDrillCard(item);
+    setDrillCardValue(kpis ? (kpis[field] as number | null | undefined) : null);
+    setDrillOpen(true);
+  };
+  const kpiDrill = (field: string) => {
+    const drillable = drillsMap.has(field);
+    return {
+      drillable,
+      onClick: drillable ? () => openDrill(field) : undefined,
+    };
+  };
+
+
   const [syncJobId, setSyncJobId] = useState<string | null>(null);
   const [syncInFlight, setSyncInFlight] = useState(false);
   const syncMut = useMutation({
