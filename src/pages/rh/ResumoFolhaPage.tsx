@@ -36,6 +36,8 @@ import {
   toAnomes,
 } from "@/lib/rh/api";
 import { KpiOrMissing, ValueOrMissing } from "@/components/rh/KpiOrMissing";
+import { ResumoFolhaDrillDrawer } from "@/components/rh/ResumoFolhaDrillDrawer";
+import type { ResumoFolhaDrillsMenuItem } from "@/lib/rh/types";
 import { formatCurrency } from "@/lib/format";
 import { tickCurrencyAbbrev } from "@/components/bi/utils/chartHelpers";
 
