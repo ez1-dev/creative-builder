@@ -160,10 +160,24 @@ export function DreDrillDrawer({
     () => (Array.isArray(data?.rows) ? data!.rows : []),
     [data],
   );
-  const columns = useMemo(
-    () => (Array.isArray(data?.columns) ? data!.columns : []),
-    [data],
-  );
+  const columns = useMemo(() => {
+    const base = Array.isArray(data?.columns) ? [...data!.columns] : [];
+    if (current?.tipo_drill !== 'LANCAMENTO') return base;
+    // Cada linha do drill é lançamento × centro de custo — NÃO deduplicar por nr_lancamento.
+    const has = (k: string) => base.some((c) => c.key === k);
+    const extras: typeof base = [];
+    if (!has('cd_centro_custos') && !has('cd_cencus')) {
+      extras.push({ key: 'cd_centro_custos', label: 'Centro de Custos', format: 'text' });
+    }
+    if (!has('cd_centro_custos_3')) {
+      extras.push({ key: 'cd_centro_custos_3', label: 'CC Grupo', format: 'text' });
+    }
+    if (extras.length === 0) return base;
+    // Insere antes da primeira coluna monetária (geralmente vl_realizado)
+    const idx = base.findIndex((c) => c.format === 'currency');
+    if (idx < 0) return [...base, ...extras];
+    return [...base.slice(0, idx), ...extras, ...base.slice(idx)];
+  }, [data, current?.tipo_drill]);
   const hasRows = rows.length > 0;
 
   const totalRodape = useMemo(() => {
@@ -285,17 +299,26 @@ export function DreDrillDrawer({
                     {rows.map((row, i) => (
                       <tr key={i} className="border-t hover:bg-accent/40">
                         {columns.map((c) => {
-                          const v = row?.[c.key];
+                          const isCcCol = c.key === 'cd_centro_custos' || c.key === 'cd_cencus';
+                          const raw = isCcCol
+                            ? (row?.cd_centro_custos ?? row?.cd_cencus)
+                            : row?.[c.key];
                           const isCur = c.format === 'currency';
+                          const isEmpty = raw == null || raw === '';
                           return (
                             <td
                               key={c.key}
                               className={cn(
                                 'px-3 py-1.5 tabular-nums',
                                 isCur && 'text-right',
+                                isCcCol && isEmpty && 'italic text-muted-foreground',
                               )}
                             >
-                              {isCur ? fmtSigned(Number(v ?? 0)) : (v ?? '-')}
+                              {isCur
+                                ? fmtSigned(Number(raw ?? 0))
+                                : isCcCol && isEmpty
+                                  ? 'SEM CENTRO'
+                                  : (raw ?? '-')}
                             </td>
                           );
                         })}

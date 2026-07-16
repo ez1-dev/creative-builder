@@ -10,6 +10,11 @@ export interface PlanoContaCentroCusto {
   vl_realizado: number;
 }
 
+export interface PlanoContaLinhaVinculada {
+  codigo_linha: string;
+  cd_centro_custos: string | null;
+}
+
 export interface PlanoContaErp {
   cd_mascara: string;
   ds_mascara: string;
@@ -23,7 +28,7 @@ export interface PlanoContaErp {
   realizado?: number;
   qtd_centros: number;
   ja_vinculada: boolean;
-  linhas_vinculadas: string[];
+  linhas_vinculadas: (string | PlanoContaLinhaVinculada)[];
 }
 
 export interface PlanoContasParams {
@@ -35,6 +40,12 @@ export interface PlanoContasParams {
   q?: string;
 }
 
+export interface VincularContasPayloadConta {
+  cd_mascara?: string;
+  cd_conta_contabil?: string;
+  centros_custo?: { cd_centro_custos: string }[];
+}
+
 export interface VincularContasPayload {
   modelo_id: string;
   linha_id: string;
@@ -42,7 +53,13 @@ export interface VincularContasPayload {
   operador: 'COMECA_COM' | 'IGUAL';
   sinal: 1 | -1;
   prioridade: number;
-  contas: { cd_mascara?: string; cd_conta_contabil?: string }[];
+  contas: VincularContasPayloadConta[];
+}
+
+export interface VincularContasResult {
+  criados: number;
+  ignorados_por_duplicidade: number;
+  vinculadas: number;
 }
 
 
@@ -175,7 +192,15 @@ export async function fetchPlanoContasDinamica(p: PlanoContasParams): Promise<Pl
       realizado: valorConta,
       ja_vinculada: !!(r.ja_usada ?? r.ja_vinculada ?? r.vinculada),
       linhas_vinculadas: Array.isArray(r.linhas_vinculadas)
-        ? r.linhas_vinculadas
+        ? r.linhas_vinculadas.map((lv: any) => {
+            if (lv && typeof lv === 'object') {
+              return {
+                codigo_linha: String(lv.codigo_linha ?? lv.linha ?? ''),
+                cd_centro_custos: lv.cd_centro_custos != null ? String(lv.cd_centro_custos) : null,
+              } as PlanoContaLinhaVinculada;
+            }
+            return String(lv);
+          })
         : (linhaVinc ? [linhaVinc] : []),
     };
   });
@@ -217,7 +242,7 @@ export async function fetchPlanoContasDinamica(p: PlanoContasParams): Promise<Pl
   return mapped;
 }
 
-export async function vincularContasDinamica(payload: VincularContasPayload): Promise<{ vinculadas: number }> {
+export async function vincularContasDinamica(payload: VincularContasPayload): Promise<VincularContasResult> {
   console.log('[MONTADOR DRE] payload vínculo:', payload);
   const url = `${getApiUrl()}/api/bi/contabilidade/dre-dinamica/vincular-contas`;
   const resp = await fetch(url, {
@@ -230,7 +255,13 @@ export async function vincularContasDinamica(payload: VincularContasPayload): Pr
     throw new Error(`Falha ao vincular (HTTP ${resp.status}): ${txt.slice(0, 300)}`);
   }
   const data = await resp.json().catch(() => ({}));
-  return { vinculadas: Number(data?.vinculadas ?? data?.qtde ?? 0) };
+  const criados = Number(data?.criados ?? data?.vinculadas ?? data?.qtde ?? 0);
+  const ignorados = Number(data?.ignorados_por_duplicidade ?? data?.ignorados ?? 0);
+  return {
+    criados,
+    ignorados_por_duplicidade: ignorados,
+    vinculadas: criados,
+  };
 }
 
 /** Resolve linha_id (uuid) a partir de modelo_id + codigo_linha consultando bi_dre_estrutura_v2. */

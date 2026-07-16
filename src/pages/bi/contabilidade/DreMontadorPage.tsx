@@ -15,6 +15,7 @@ import {
   fetchPlanoContasDinamica,
   vincularContasDinamica,
   type PlanoContaErp,
+  type VincularContasPayloadConta,
 } from '@/lib/bi/dreMontadorApi';
 import {
   listarModelosFastApi,
@@ -58,6 +59,7 @@ export default function DreMontadorPage() {
 
   const [contas, setContas] = useState<PlanoContaErp[]>([]);
   const [contasSelecionadas, setContasSelecionadas] = useState<Set<string>>(new Set());
+  const [centrosSelecionados, setCentrosSelecionados] = useState<Map<string, Set<string>>>(new Map());
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
   const [loadingContas, setLoadingContas] = useState(false);
 
@@ -149,6 +151,43 @@ export default function DreMontadorPage() {
       if (n.has(k)) n.delete(k); else n.add(k);
       return n;
     });
+    // Se desmarcou a conta, limpa também os centros selecionados dela
+    setCentrosSelecionados((prev) => {
+      if (!prev.has(k)) return prev;
+      if (contasSelecionadas.has(k)) {
+        const n = new Map(prev);
+        n.delete(k);
+        return n;
+      }
+      return prev;
+    });
+  };
+
+  const toggleCentroCusto = (contaK: string, cdCentro: string) => {
+    // Marcar um centro implica marcar a conta
+    setContasSelecionadas((prev) => {
+      if (prev.has(contaK)) return prev;
+      const n = new Set(prev);
+      n.add(contaK);
+      return n;
+    });
+    setCentrosSelecionados((prev) => {
+      const n = new Map(prev);
+      const set = new Set(n.get(contaK) ?? []);
+      if (set.has(cdCentro)) set.delete(cdCentro);
+      else set.add(cdCentro);
+      if (set.size === 0) n.delete(contaK);
+      else n.set(contaK, set);
+      return n;
+    });
+  };
+
+  const marcarTodosCentros = (contaK: string, ccs: { cd_centro_custos: string }[]) => {
+    setCentrosSelecionados((prev) => {
+      const n = new Map(prev);
+      n.delete(contaK); // "todos" = vazio
+      return n;
+    });
   };
 
   const contasOrdenadas = useMemo(() => {
@@ -200,6 +239,16 @@ export default function DreMontadorPage() {
     setVinculando(true);
     try {
       const escolhidas = contasOrdenadas.filter((c) => contasSelecionadas.has(contaKey(c)));
+      const contas: VincularContasPayloadConta[] = escolhidas.map((c) => {
+        const base: VincularContasPayloadConta = tipoRegra === 'MASCARA_CONTA'
+          ? { cd_mascara: c.cd_mascara }
+          : { cd_conta_contabil: c.cd_conta_contabil };
+        const set = centrosSelecionados.get(contaKey(c));
+        if (set && set.size > 0) {
+          base.centros_custo = Array.from(set).map((cd) => ({ cd_centro_custos: cd }));
+        }
+        return base;
+      });
       const payload = {
         modelo_id: modeloId,
         linha_id: linhaSelecionada.id,
@@ -207,13 +256,12 @@ export default function DreMontadorPage() {
         operador: (tipoRegra === 'MASCARA_CONTA' ? 'COMECA_COM' : 'IGUAL') as 'COMECA_COM' | 'IGUAL',
         sinal: (sinal === '-1' ? -1 : 1) as 1 | -1,
         prioridade,
-        contas: escolhidas.map((c) => tipoRegra === 'MASCARA_CONTA'
-          ? { cd_mascara: c.cd_mascara }
-          : { cd_conta_contabil: c.cd_conta_contabil }),
+        contas,
       };
-      await vincularContasDinamica(payload);
-      toast.success('Contas vinculadas com sucesso.');
+      const r = await vincularContasDinamica(payload);
+      toast.success(`Vinculadas: ${r.criados} · Ignoradas (duplicadas): ${r.ignorados_por_duplicidade}`);
       setContasSelecionadas(new Set());
+      setCentrosSelecionados(new Map());
       await carregarContas();
     } catch (e: any) {
       toast.error(e?.message ?? 'Falha ao vincular contas.');
@@ -444,8 +492,11 @@ export default function DreMontadorPage() {
                           sel={sel}
                           ccs={ccs}
                           isOpen={isOpen}
+                          centrosMarcados={centrosSelecionados.get(k) ?? new Set()}
                           onToggleExpand={toggleExpand}
                           onToggleSel={() => toggleConta(k)}
+                          onToggleCentro={(cd) => toggleCentroCusto(k, cd)}
+                          onMarcarTodosCentros={() => marcarTodosCentros(k, ccs)}
                         />
                       );
                     })}
@@ -559,17 +610,24 @@ function FragmentRow({
   sel,
   ccs,
   isOpen,
+  centrosMarcados,
   onToggleExpand,
   onToggleSel,
+  onToggleCentro,
+  onMarcarTodosCentros,
 }: {
   conta: PlanoContaErp;
   sel: boolean;
   ccs: PlanoContaErp['centros_custo'];
   isOpen: boolean;
+  centrosMarcados: Set<string>;
   onToggleExpand: () => void;
   onToggleSel: () => void;
+  onToggleCentro: (cdCentro: string) => void;
+  onMarcarTodosCentros: () => void;
 }) {
   const nome = conta.ds_conta || conta.ds_mascara;
+  const todosCentros = centrosMarcados.size === 0;
   return (
     <>
       <tr className={`border-b hover:bg-muted/40 ${sel ? 'bg-primary/5' : ''}`}>
@@ -621,7 +679,16 @@ function FragmentRow({
               <TooltipContent>
                 <div className="text-xs space-y-0.5">
                   {conta.linhas_vinculadas.length
-                    ? conta.linhas_vinculadas.map((ln, i) => <div key={i} className="font-mono">{ln}</div>)
+                    ? conta.linhas_vinculadas.map((ln, i) => {
+                        if (typeof ln === 'string') {
+                          return <div key={i} className="font-mono">{ln}</div>;
+                        }
+                        return (
+                          <div key={i} className="font-mono">
+                            {ln.codigo_linha} — {ln.cd_centro_custos ?? 'Todos os centros'}
+                          </div>
+                        );
+                      })
                     : <div>Vinculada (sem detalhes)</div>}
                 </div>
               </TooltipContent>
@@ -639,30 +706,52 @@ function FragmentRow({
                 Sem centro de custo no período.
               </div>
             ) : (
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="text-left text-muted-foreground border-b">
-                    <th className="py-1 px-2">Centro de custo</th>
-                    <th className="py-1 px-2">Descrição</th>
-                    <th className="py-1 px-2">Nível 3</th>
-                    <th className="py-1 px-2 text-right">Qtd.</th>
-                    <th className="py-1 px-2 text-right">Valor</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ccs.map((cc, i) => (
-                    <tr key={i} className="border-b border-border/40 last:border-0">
-                      <td className="py-1 px-2 font-mono">{cc.cd_centro_custos || '—'}</td>
-                      <td className="py-1 px-2">{cc.ds_centro_custos || '—'}</td>
-                      <td className="py-1 px-2 font-mono">{cc.cd_centro_custos_3 || '—'}</td>
-                      <td className="py-1 px-2 text-right">{cc.qtd_lancamentos}</td>
-                      <td className={`py-1 px-2 text-right font-mono ${cc.valor_total < 0 ? 'text-destructive' : ''}`}>
-                        {BRL.format(cc.valor_total)}
-                      </td>
+              <>
+                <div className="mb-2 flex items-center gap-2 text-[11px]">
+                  <Checkbox
+                    checked={todosCentros}
+                    onCheckedChange={() => onMarcarTodosCentros()}
+                  />
+                  <span className={todosCentros ? 'font-medium' : 'text-muted-foreground'}>
+                    Todos os centros desta conta {todosCentros ? '(vínculo abrange todos)' : `— ${centrosMarcados.size} selecionado(s)`}
+                  </span>
+                </div>
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-left text-muted-foreground border-b">
+                      <th className="py-1 px-2 w-6"></th>
+                      <th className="py-1 px-2">Centro de custo</th>
+                      <th className="py-1 px-2">Descrição</th>
+                      <th className="py-1 px-2">Nível 3</th>
+                      <th className="py-1 px-2 text-right">Qtd.</th>
+                      <th className="py-1 px-2 text-right">Valor</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {ccs.map((cc, i) => {
+                      const marcado = centrosMarcados.has(cc.cd_centro_custos);
+                      return (
+                        <tr key={i} className={`border-b border-border/40 last:border-0 ${marcado ? 'bg-primary/5' : ''}`}>
+                          <td className="py-1 px-2">
+                            <Checkbox
+                              checked={marcado}
+                              onCheckedChange={() => onToggleCentro(cc.cd_centro_custos)}
+                              disabled={!cc.cd_centro_custos}
+                            />
+                          </td>
+                          <td className="py-1 px-2 font-mono">{cc.cd_centro_custos || '—'}</td>
+                          <td className="py-1 px-2">{cc.ds_centro_custos || '—'}</td>
+                          <td className="py-1 px-2 font-mono">{cc.cd_centro_custos_3 || '—'}</td>
+                          <td className="py-1 px-2 text-right">{cc.qtd_lancamentos}</td>
+                          <td className={`py-1 px-2 text-right font-mono ${cc.valor_total < 0 ? 'text-destructive' : ''}`}>
+                            {BRL.format(cc.valor_total)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </>
             )}
           </td>
         </tr>
