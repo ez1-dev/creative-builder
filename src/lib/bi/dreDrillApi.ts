@@ -59,6 +59,9 @@ export interface DreDrillRow {
   nr_documento?: string;
   cd_conta?: string;
   cd_cencus?: string;
+  cd_centro_custos?: string;
+  ds_centro_custos?: string;
+  cd_centro_custos_3?: string;
   cd_origem?: string;
   cd_transacao?: string;
   ds_historico?: string;
