@@ -325,8 +325,8 @@ export function DrillDrawer({
 
           {/* Resumo */}
           {temContratoRazao && (
-            <div className="mt-3 grid grid-cols-4 gap-3 text-xs">
-              <ResumoCard label="Saldo Anterior" value={saldoInicial} />
+            <div className={cn("mt-3 grid gap-3 text-xs", isDRE ? "grid-cols-3" : "grid-cols-4")}>
+              {!isDRE && <ResumoCard label="Saldo Anterior" value={saldoInicial} />}
               <ResumoCard label="Total Débito" value={totalDebito} />
               <ResumoCard label="Total Crédito" value={totalCredito} />
               <ResumoCard label="Saldo Final" value={saldoFinal} strong />
