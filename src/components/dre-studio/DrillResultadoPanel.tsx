@@ -451,6 +451,9 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
             </>
           )}
         </div>
+
+        {/* Barra de rolagem horizontal flutuante — sempre visível acima do rodapé */}
+        {hasRows && <FloatingHScrollbar targetRef={drillScrollRef} />}
       </SheetContent>
     </Sheet>
   );
