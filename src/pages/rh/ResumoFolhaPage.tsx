@@ -74,6 +74,21 @@ export default function ResumoFolhaPage() {
   const enabled = !!baseParams.anomes_ini && !!baseParams.anomes_fim;
 
   const qc = useQueryClient();
+
+  // Invalidação única após a subida do novo contrato do endpoint resumo-folha
+  // (novos campos: va, outras_gratificacoes; semântica nova de rescisoes/fgts/inss_total).
+  useEffect(() => {
+    const FLAG = "rh-resumo-folha-invalidated-v2";
+    try {
+      if (typeof window !== "undefined" && !sessionStorage.getItem(FLAG)) {
+        qc.invalidateQueries({ queryKey: ["rh", "resumo-folha"] });
+        qc.invalidateQueries({ queryKey: ["rh", "resumo-folha-dashboard"] });
+        sessionStorage.setItem(FLAG, "1");
+      }
+    } catch { /* noop */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const query = useQuery({
     queryKey: ["rh", "resumo-folha-dashboard", baseParams, "completo"],
     queryFn: () => fetchResumoFolhaDashboardCached(baseParams, "completo"),
@@ -294,14 +309,16 @@ export default function ResumoFolhaPage() {
         </Card>
         <KpiOrMissing title="Salário Base" value={kpis?.salario_base} missing={isMissing("salario_base")} field="salario_base" loading={isLoading} />
         <KpiOrMissing title="Salário Bruto" value={kpis?.salario_bruto} missing={isMissing("salario_bruto")} field="salario_bruto" loading={isLoading} />
+        <KpiOrMissing title="Outras Gratificações" value={kpis?.outras_gratificacoes} missing={isMissing("outras_gratificacoes")} field="outras_gratificacoes" loading={isLoading} />
+        <KpiOrMissing title="Benefícios" value={kpis?.beneficios} missing={isMissing("beneficios")} field="beneficios" loading={isLoading} tooltip="Benefícios oficiais do período, incluindo V.A." />
+        <KpiOrMissing title="V.A." value={kpis?.va} missing={isMissing("va")} field="va" loading={isLoading} tooltip="Vale-Alimentação oficial do período. Valor nulo indica ausência da fonte mensal de recarga (não é zero)." />
+        <KpiOrMissing title="INSS (descontos)" value={kpis?.inss_total} missing={isMissing("inss_total")} field="inss_total" loading={isLoading} tooltip="Descontos de INSS dos colaboradores. Não representa GPS patronal." />
+        <KpiOrMissing title="FGTS" value={kpis?.fgts} missing={isMissing("fgts")} field="fgts" loading={isLoading} />
+        <KpiOrMissing title="Rescisões" value={kpis?.rescisoes} missing={isMissing("rescisoes")} field="rescisoes" variant="warning" loading={isLoading} tooltip="Custo de rescisões calculado pelos eventos oficiais da folha." />
         <KpiOrMissing title="Custo Total" value={kpis?.custo_total} missing={isMissing("custo_total")} field="custo_total" variant="danger" loading={isLoading} />
-        <KpiOrMissing title="Benefícios" value={kpis?.beneficios} missing={isMissing("beneficios")} field="beneficios" loading={isLoading} />
-        <KpiOrMissing title="INSS Total" value={kpis?.inss_total} missing={isMissing("inss_total")} field="inss_total" loading={isLoading} />
         <KpiOrMissing title="Hora Extra" value={kpis?.hora_extra} missing={isMissing("hora_extra")} field="hora_extra" variant="warning" loading={isLoading} />
         <KpiOrMissing title="Provisões" value={kpis?.provisoes} missing={isMissing("provisoes")} field="provisoes" loading={isLoading} />
         <KpiOrMissing title="Custo das Férias" value={kpis?.custo_ferias} missing={isMissing("custo_ferias")} field="custo_ferias" loading={isLoading} footer={isAdmin && data?.fonte === "public.rh_vm_folha" ? "Em validação técnica" : undefined} />
-        <KpiOrMissing title="Rescisões" value={kpis?.rescisoes} missing={isMissing("rescisoes")} field="rescisoes" variant="warning" loading={isLoading} />
-        <KpiOrMissing title="FGTS" value={kpis?.fgts} missing={isMissing("fgts")} field="fgts" loading={isLoading} />
       </div>
     ),
     "mensal-chart": (

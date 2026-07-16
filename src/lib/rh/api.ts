@@ -17,11 +17,7 @@ export function toAnomes(v: string | undefined | null): string {
   return digits.slice(0, 6);
 }
 
-const EMPTY_KPIS: ResumoFolhaKpis = {
-  provento: 0, desconto: 0, total_liquido: 0, custo_total: 0,
-  beneficios: 0, inss_total: 0, hora_extra: 0, provisoes: 0,
-  custo_ferias: 0, rescisoes: 0, fgts: 0,
-};
+const EMPTY_KPIS: ResumoFolhaKpis = {};
 
 function num(v: any): number {
   if (v == null || v === "") return 0;
@@ -196,8 +192,8 @@ function normalizeFiliais(arr: any) {
       qtd_hora_extra: ["qtd_hora_extra", "qtdHE", "qtd_he"],
       liquido: ["liquido"],
       fgts: ["fgts"],
-      va: ["va", "beneficios", "benef"],
-      beneficios: ["beneficios", "va"],
+      va: ["va"],
+      beneficios: ["beneficios"],
       inss: ["inss"],
       custo_ferias: ["custo_ferias", "ferias"],
       prov_ferias: ["prov_ferias", "provFerias"],
@@ -222,7 +218,7 @@ function normalizeFiliais(arr: any) {
 
 
 
-const KPI_ALIASES: Record<keyof ResumoFolhaKpis, string[]> = {
+const KPI_ALIASES: Record<string, string[]> = {
   provento: ["provento"],
   desconto: ["desconto"],
   total_liquido: ["total_liquido", "liquido"],
@@ -236,18 +232,26 @@ const KPI_ALIASES: Record<keyof ResumoFolhaKpis, string[]> = {
   fgts: ["fgts"],
   salario_base: ["salario_base", "salarioBase"],
   salario_bruto: ["salario_bruto", "salarioBruto"],
+  va: ["va"],
+  outras_gratificacoes: ["outras_gratificacoes", "outrasGratificacoes"],
 };
 
 function buildKpis(k: any): { kpis: ResumoFolhaKpis; missing: string[] } {
-  const kpis = { ...EMPTY_KPIS };
+  const kpis: ResumoFolhaKpis = {};
   const missing: string[] = [];
-  for (const [field, aliases] of Object.entries(KPI_ALIASES) as [keyof ResumoFolhaKpis, string[]][]) {
+  for (const [field, aliases] of Object.entries(KPI_ALIASES)) {
     const { hit, value } = pickKey(k ?? {}, aliases);
-    const pendente = typeof value === "string" && value.trim().toLowerCase() === "campo_pendente";
-    if (hit && value !== null && value !== "" && !pendente) {
-      (kpis as any)[field] = num(value);
-    } else {
+    const pendenteStr =
+      typeof value === "string" && value.trim().toLowerCase() === "campo_pendente";
+    if (!hit) {
+      // Campo totalmente ausente do payload → marca como missing (aviso técnico).
       missing.push(field);
+    } else if (value === null || value === "" || pendenteStr) {
+      // Campo presente mas oficialmente nulo/pendente → NÃO é "missing" técnico,
+      // é um estado válido da API. Guarda null para o componente exibir badge "Pendente".
+      (kpis as any)[field] = null;
+    } else {
+      (kpis as any)[field] = num(value);
     }
   }
   return { kpis, missing };
@@ -285,6 +289,8 @@ function normalizeDashboard(raw: any): ResumoFolhaDashboard {
     fonte: raw?.fonte,
     debug: raw?.debug,
     diagnostico: raw?.diagnostico,
+    kpis_status: raw?.kpis_status ?? null,
+    kpis_completude: raw?.kpis_completude ?? null,
   };
 }
 
