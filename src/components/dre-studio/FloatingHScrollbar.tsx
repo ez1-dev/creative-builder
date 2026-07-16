@@ -15,7 +15,13 @@ export function FloatingHScrollbar({ targetRef }: { targetRef: RefObject<HTMLDiv
 
     const descendants = Array.from(root.querySelectorAll<HTMLElement>("*"));
     return (
-      descendants.find((node) => node.scrollWidth > node.clientWidth + 1) ?? root
+      descendants.find((node) => {
+        const overflowX = window.getComputedStyle(node).overflowX;
+        return (
+          node.scrollWidth > node.clientWidth + 1 &&
+          (overflowX === "auto" || overflowX === "scroll")
+        );
+      }) ?? null
     );
   };
 
