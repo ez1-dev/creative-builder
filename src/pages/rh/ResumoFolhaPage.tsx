@@ -592,27 +592,13 @@ export default function ResumoFolhaPage() {
       </Card>
     ),
     "tipos-evento": (
-      <Card className="h-full">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-center">Tipos de Evento</CardTitle></CardHeader>
-        <CardContent className="h-[calc(100%-3rem)]">
-          {tiposPie.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-xs text-muted-foreground">Sem dados</div>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={tiposPie} dataKey="valor" nameKey="label" cx="50%" cy="50%" innerRadius={50} outerRadius={90} paddingAngle={2}>
-                  {tiposPie.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                </Pie>
-                <Tooltip formatter={(v: number, _n: any, p: any) => `${formatCurrency(v)} (${((p?.payload?.pct ?? 0) * 100).toFixed(1)}%)`} />
-                <Legend verticalAlign="bottom" iconSize={8} formatter={(value, entry: any) => {
-                  const pct = (entry?.payload?.pct ?? 0) * 100;
-                  return `${value} — ${pct.toFixed(0)}%`;
-                }} />
-              </PieChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
+      <DonutSideLegendCard
+        title="Tipos de Evento"
+        subtitle="% e valor por tipo de evento"
+        data={tiposPie.map((t) => ({ label: String(t.label ?? "—"), valor: Number(t.valor) || 0 }))}
+        loading={isLoading}
+        height={380}
+      />
     ),
   }), [kpis, isMissing, isLoading, isAdmin, data, mensal, proventos, descontos, filiaisData, tiposPie, drillsMap]);
 
