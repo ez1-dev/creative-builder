@@ -74,9 +74,10 @@ export function ResumoFolhaDrillDrawer({
       }),
     enabled: open && !!drillItem && !!tab,
     retry: (count, err) => (err instanceof ResumoFolhaDrillError ? false : count < 1),
-    staleTime: 60_000,
+    staleTime: 0,
     gcTime: 5 * 60_000,
-    refetchOnWindowFocus: false,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   const data = query.data;

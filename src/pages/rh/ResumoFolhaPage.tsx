@@ -26,6 +26,7 @@ import { addMonths } from "@/lib/rh/relatorio";
 import { AiInsightsPanel } from "@/components/rh/AiInsightsPanel";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import {
+  fetchResumoFolhaDashboard,
   fetchResumoFolhaDashboardCached,
   sincronizarResumoFolha,
   consultarStatusSincronizacaoRh,
@@ -35,6 +36,7 @@ import {
   ExportarResumoFolhaError,
   toAnomes,
 } from "@/lib/rh/api";
+import { invalidateRhCache } from "@/lib/rh/rhCache";
 import { KpiOrMissing, ValueOrMissing } from "@/components/rh/KpiOrMissing";
 import { ResumoFolhaDrillDrawer } from "@/components/rh/ResumoFolhaDrillDrawer";
 import type { ResumoFolhaDrillsMenuItem } from "@/lib/rh/types";
@@ -77,40 +79,30 @@ export default function ResumoFolhaPage() {
 
   const qc = useQueryClient();
 
-  // Invalidação única após a subida do novo contrato do endpoint resumo-folha
-  // (novos campos: va, outras_gratificacoes; semântica nova de rescisoes/fgts/inss_total).
-  useEffect(() => {
-    const FLAG = "rh-resumo-folha-invalidated-v2";
-    try {
-      if (typeof window !== "undefined" && !sessionStorage.getItem(FLAG)) {
-        qc.invalidateQueries({ queryKey: ["rh", "resumo-folha"] });
-        qc.invalidateQueries({ queryKey: ["rh", "resumo-folha-dashboard"] });
-        sessionStorage.setItem(FLAG, "1");
-      }
-    } catch { /* noop */ }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const [ultimaSincronizacao, setUltimaSincronizacao] = useState<Date | null>(null);
 
   const query = useQuery({
     queryKey: ["rh", "resumo-folha-dashboard", baseParams, "completo"],
-    queryFn: () => fetchResumoFolhaDashboardCached(baseParams, "completo"),
+    queryFn: () => fetchResumoFolhaDashboard(baseParams, "completo"),
     enabled,
     retry: (count, err) => (err instanceof DashboardIndisponivelError ? false : count < 1),
-    staleTime: 15 * 60_000,
-    gcTime: 60 * 60_000,
-    refetchOnWindowFocus: false,
+    staleTime: 0,
+    gcTime: 5 * 60_000,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
     placeholderData: (prev) => prev,
   });
 
   // Série mensal vem em modo separado (backend não devolve `mensal` no completo)
   const queryMensal = useQuery({
     queryKey: ["rh", "resumo-folha-dashboard", baseParams, "mensal"],
-    queryFn: () => fetchResumoFolhaDashboardCached(baseParams, "mensal"),
+    queryFn: () => fetchResumoFolhaDashboard(baseParams, "mensal"),
     enabled,
     retry: (count, err) => (err instanceof DashboardIndisponivelError ? false : count < 1),
-    staleTime: 15 * 60_000,
-    gcTime: 60 * 60_000,
-    refetchOnWindowFocus: false,
+    staleTime: 0,
+    gcTime: 5 * 60_000,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
     placeholderData: (prev) => prev,
   });
 
@@ -160,6 +152,19 @@ export default function ResumoFolhaPage() {
 
   const [syncJobId, setSyncJobId] = useState<string | null>(null);
   const [syncInFlight, setSyncInFlight] = useState(false);
+
+  const refetchAfterSync = async () => {
+    // 1. Limpa cache persistente Cloud (rh:*).
+    await invalidateRhCache();
+    // 2. Invalida todas as queries do RH (dashboard, drills, turnover, absenteísmo, quadro, etc.).
+    await qc.invalidateQueries({ queryKey: ["rh"] });
+    await qc.invalidateQueries({ queryKey: ["dg-rh"] });
+    // 3. Força refetch imediato do dashboard e dos drills ativos.
+    await qc.refetchQueries({ queryKey: ["rh", "resumo-folha-dashboard"], type: "active" });
+    await qc.refetchQueries({ queryKey: ["rh", "resumo-folha-drill"], type: "active" });
+    setUltimaSincronizacao(new Date());
+  };
+
   const syncMut = useMutation({
     mutationFn: () => sincronizarResumoFolha(baseParams),
     onMutate: () => {
@@ -169,7 +174,7 @@ export default function ResumoFolhaPage() {
       });
       return { id };
     },
-    onSuccess: (resp: any, _vars, ctx) => {
+    onSuccess: async (resp: any, _vars, ctx) => {
       const status = String(resp?.status ?? "").toUpperCase();
       if (status === "EM_PROCESSAMENTO" || status === "PROCESSING") {
         setSyncJobId(resp?.job_id ?? "pending");
@@ -182,7 +187,7 @@ export default function ResumoFolhaPage() {
       setSyncInFlight(false);
       setSyncJobId(null);
       toast.success("Sincronização RH concluída.", { id: ctx?.id });
-      qc.invalidateQueries({ queryKey: ["rh", "resumo-folha-dashboard"] });
+      await refetchAfterSync();
     },
     onError: (e: any, _vars, ctx) => {
       setSyncInFlight(false);
@@ -220,7 +225,7 @@ export default function ResumoFolhaPage() {
       setSyncInFlight(false);
       setSyncJobId(null);
       toast.success("Sincronização RH concluída.");
-      qc.invalidateQueries({ queryKey: ["rh", "resumo-folha-dashboard"] });
+      void refetchAfterSync();
       return;
     }
     if (!s) return;
@@ -229,7 +234,7 @@ export default function ResumoFolhaPage() {
       setSyncInFlight(false);
       setSyncJobId(null);
       toast.success("Sincronização RH concluída.");
-      qc.invalidateQueries({ queryKey: ["rh", "resumo-folha-dashboard"] });
+      void refetchAfterSync();
     } else if (st === "ERRO" || st === "FAILED" || st === "ERROR") {
       setSyncInFlight(false);
       setSyncJobId(null);
@@ -673,6 +678,31 @@ export default function ResumoFolhaPage() {
           <div><Label>Empresa (codemp)</Label><Input value={codemp} onChange={(e) => setCodemp(e.target.value)} placeholder="1" /></div>
         </CardContent>
       </Card>
+
+      {(() => {
+        const nowYm = (() => {
+          const d = new Date();
+          return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}`;
+        })();
+        const mesAberto = baseParams.anomes_fim && baseParams.anomes_fim >= nowYm;
+        if (!mesAberto && !ultimaSincronizacao) return null;
+        return (
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+            {mesAberto ? (
+              <div className="flex items-center gap-2 rounded-md border border-warning/30 bg-warning/5 px-3 py-1.5">
+                <Info className="h-3.5 w-3.5 text-warning" />
+                <span>Mês em aberto: os valores podem mudar até o fechamento da folha.</span>
+              </div>
+            ) : <span />}
+            {ultimaSincronizacao && (
+              <span className="tabular-nums">
+                Atualizado às {ultimaSincronizacao.toLocaleTimeString("pt-BR")}
+              </span>
+            )}
+          </div>
+        );
+      })()}
+
 
       {indisponivel && (
         <div className="rounded-md border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
