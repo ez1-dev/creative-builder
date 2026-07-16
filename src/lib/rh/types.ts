@@ -336,6 +336,43 @@ export interface ResumoFolhaMensalAgg {
   total_liquido?: number;
 }
 
+export interface ResumoFolhaDrillsMenuAgrupamento {
+  key: string;
+  label: string;
+  [k: string]: any;
+}
+
+export interface ResumoFolhaDrillsMenuItem {
+  card: string;
+  label: string;
+  agrupamentos: ResumoFolhaDrillsMenuAgrupamento[];
+  [k: string]: any;
+}
+
+export interface ResumoFolhaDrillItem {
+  label: string;
+  valor: number | null;
+  qtd?: number | null;
+  [k: string]: any;
+}
+
+export interface ResumoFolhaDrillMeta {
+  aviso?: string | null;
+  pecas_pendentes?: any;
+  meses_sem_planilha?: any;
+  [k: string]: any;
+}
+
+export interface ResumoFolhaDrillResponse {
+  card: string;
+  agrupar_por: string;
+  itens: ResumoFolhaDrillItem[];
+  total?: number | null;
+  fonte?: string | null;
+  meta?: ResumoFolhaDrillMeta | null;
+  [k: string]: any;
+}
+
 export interface ResumoFolhaDashboard {
   kpis: ResumoFolhaKpis;
   proventos_vantagens: ResumoFolhaEventoAgg[];
@@ -352,7 +389,10 @@ export interface ResumoFolhaDashboard {
   fonte?: string;
   debug?: any;
   diagnostico?: any;
+  /** Cards drilláveis e seus agrupamentos oficiais (fonte de verdade: backend). */
+  drills_menu?: ResumoFolhaDrillsMenuItem[];
 }
+
 
 
 // ===== RH-06 Absenteísmo =====

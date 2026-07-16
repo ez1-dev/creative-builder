@@ -291,8 +291,27 @@ function normalizeDashboard(raw: any): ResumoFolhaDashboard {
     diagnostico: raw?.diagnostico,
     kpis_status: raw?.kpis_status ?? null,
     kpis_completude: raw?.kpis_completude ?? null,
+    drills_menu: Array.isArray(raw?.drills_menu)
+      ? raw.drills_menu
+          .map((d: any) => ({
+            card: String(d?.card ?? "").trim(),
+            label: String(d?.label ?? d?.card ?? "").trim(),
+            agrupamentos: Array.isArray(d?.agrupamentos)
+              ? d.agrupamentos
+                  .map((a: any) => ({
+                    key: String(a?.key ?? a?.agrupar_por ?? a?.id ?? "").trim(),
+                    label: String(a?.label ?? a?.nome ?? a?.key ?? "").trim(),
+                    ...a,
+                  }))
+                  .filter((a: any) => a.key)
+              : [],
+            ...d,
+          }))
+          .filter((d: any) => d.card)
+      : [],
   };
 }
+
 
 export type ResumoFolhaModo = "completo" | "acumulado" | "mensal";
 
@@ -318,9 +337,11 @@ export async function fetchResumoFolhaDashboard(
       kpis_raw: resp?.kpis,
       kpis_normalizados: normalizado.kpis,
       _missing_kpis: normalizado._missing_kpis,
+      drills_menu: normalizado.drills_menu,
       filiais: resp?.filiais?.length,
       mensal: resp?.mensal?.length,
     });
+
     return normalizado;
 
   } catch (e: any) {
@@ -334,6 +355,74 @@ export async function fetchResumoFolhaDashboard(
 
 
 export { EMPTY_KPIS };
+
+// ============= Drill do Resumo da Folha =============
+
+export interface ResumoFolhaDrillParams {
+  card: string;
+  agrupar_por: string;
+  anomes_ini: string; // YYYYMM
+  anomes_fim: string; // YYYYMM
+  cd_filial?: string;
+}
+
+export class ResumoFolhaDrillError extends Error {
+  status: number;
+  detail: any;
+  constructor(msg: string, status: number, detail: any) {
+    super(msg);
+    this.name = "ResumoFolhaDrillError";
+    this.status = status;
+    this.detail = detail;
+  }
+}
+
+export async function fetchResumoFolhaDrill(
+  p: ResumoFolhaDrillParams,
+): Promise<import("./types").ResumoFolhaDrillResponse> {
+  const params = cleanParams({
+    card: p.card,
+    agrupar_por: p.agrupar_por,
+    anomes_ini: p.anomes_ini,
+    anomes_fim: p.anomes_fim,
+    cd_filial: p.cd_filial,
+  });
+  try {
+    const resp = await api.get<any>("/api/rh/resumo-folha/drill", params);
+    const itens = Array.isArray(resp?.itens)
+      ? resp.itens.map((it: any) => ({
+          label: String(it?.label ?? it?.nome ?? it?.descricao ?? ""),
+          valor: it?.valor == null ? null : Number(it.valor),
+          qtd: it?.qtd == null ? null : Number(it.qtd),
+          ...it,
+        }))
+      : [];
+    const normalizado = {
+      card: String(resp?.card ?? p.card),
+      agrupar_por: String(resp?.agrupar_por ?? p.agrupar_por),
+      itens,
+      total: resp?.total == null ? null : Number(resp.total),
+      fonte: resp?.fonte ?? null,
+      meta: resp?.meta ?? null,
+      ...resp,
+    };
+    // eslint-disable-next-line no-console
+    console.log("[RH ResumoFolha] drill", { params, resp: normalizado });
+    return normalizado;
+  } catch (e: any) {
+    const status = e?.statusCode ?? e?.status ?? 0;
+    if (status === 422) {
+      const detail = e?.details?.detail ?? e?.details ?? e?.message;
+      throw new ResumoFolhaDrillError(
+        typeof detail === "string" ? detail : (e?.message || "Requisição inválida (422)."),
+        422,
+        detail,
+      );
+    }
+    throw e;
+  }
+}
+
 
 
 

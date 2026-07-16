@@ -36,6 +36,8 @@ import {
   toAnomes,
 } from "@/lib/rh/api";
 import { KpiOrMissing, ValueOrMissing } from "@/components/rh/KpiOrMissing";
+import { ResumoFolhaDrillDrawer } from "@/components/rh/ResumoFolhaDrillDrawer";
+import type { ResumoFolhaDrillsMenuItem } from "@/lib/rh/types";
 import { formatCurrency } from "@/lib/format";
 import { tickCurrencyAbbrev } from "@/components/bi/utils/chartHelpers";
 
@@ -129,6 +131,32 @@ export default function ResumoFolhaPage() {
   const mensal = (queryMensal.data?.mensal?.length ? queryMensal.data.mensal : data?.mensal) ?? [];
   const diagnostico = data?.diagnostico ?? data?.debug;
   const { isAdmin } = useUserPermissions();
+
+  // ============ Drill dos cards (fonte: dashboard.drills_menu) ============
+  const drillsMenu: ResumoFolhaDrillsMenuItem[] = data?.drills_menu ?? [];
+  const drillsMap = useMemo(() => {
+    const m = new Map<string, ResumoFolhaDrillsMenuItem>();
+    for (const d of drillsMenu) m.set(d.card, d);
+    return m;
+  }, [drillsMenu]);
+  const [drillOpen, setDrillOpen] = useState(false);
+  const [drillCard, setDrillCard] = useState<ResumoFolhaDrillsMenuItem | null>(null);
+  const [drillCardValue, setDrillCardValue] = useState<number | null | undefined>(null);
+  const openDrill = (field: string) => {
+    const item = drillsMap.get(field);
+    if (!item) return;
+    setDrillCard(item);
+    setDrillCardValue(kpis ? (kpis[field] as number | null | undefined) : null);
+    setDrillOpen(true);
+  };
+  const kpiDrill = (field: string) => {
+    const drillable = drillsMap.has(field);
+    return {
+      drillable,
+      onClick: drillable ? () => openDrill(field) : undefined,
+    };
+  };
+
 
   const [syncJobId, setSyncJobId] = useState<string | null>(null);
   const [syncInFlight, setSyncInFlight] = useState(false);
@@ -287,38 +315,55 @@ export default function ResumoFolhaPage() {
         <Card className="md:row-span-2 border-l-4 border-l-primary">
           <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Líquido</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            <div>
-              <div className="text-[11px] text-muted-foreground">Provento</div>
-              <div className="text-xl font-bold tabular-nums">
-                <ValueOrMissing value={kpis?.provento} missing={isMissing("provento")} field="provento" />
-              </div>
-            </div>
-            <div>
-              <div className="text-[11px] text-muted-foreground">Desconto</div>
-              <div className="text-xl font-bold tabular-nums text-destructive">
-                <ValueOrMissing value={kpis?.desconto} missing={isMissing("desconto")} field="desconto" />
-              </div>
-            </div>
-            <div className="pt-2 border-t">
-              <div className="text-[11px] text-muted-foreground">Total Líquido</div>
-              <div className="text-2xl font-bold tabular-nums text-primary">
-                <ValueOrMissing value={kpis?.total_liquido} missing={isMissing("total_liquido")} field="total_liquido" />
-              </div>
-            </div>
+            {(["provento", "desconto", "total_liquido"] as const).map((key) => {
+              const label = key === "provento" ? "Provento" : key === "desconto" ? "Desconto" : "Total Líquido";
+              const colorCls =
+                key === "desconto" ? "text-destructive" :
+                key === "total_liquido" ? "text-primary" : "";
+              const sizeCls = key === "total_liquido" ? "text-2xl" : "text-xl";
+              const wrapCls = key === "total_liquido" ? "pt-2 border-t" : "";
+              const drillable = drillsMap.has(key);
+              const inner = (
+                <>
+                  <div className="text-[11px] text-muted-foreground">{label}</div>
+                  <div className={`${sizeCls} font-bold tabular-nums ${colorCls}`}>
+                    <ValueOrMissing value={kpis?.[key]} missing={isMissing(key)} field={key} />
+                  </div>
+                </>
+              );
+              if (!drillable) return <div key={key} className={wrapCls}>{inner}</div>;
+              return (
+                <div
+                  key={key}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Abrir drill de ${label}`}
+                  onClick={() => openDrill(key)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDrill(key); }
+                  }}
+                  className={`${wrapCls} -mx-2 px-2 py-1 rounded cursor-pointer hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
+                >
+                  {inner}
+                </div>
+              );
+            })}
           </CardContent>
+
         </Card>
-        <KpiOrMissing title="Salário Base" value={kpis?.salario_base} missing={isMissing("salario_base")} field="salario_base" loading={isLoading} />
-        <KpiOrMissing title="Salário Bruto" value={kpis?.salario_bruto} missing={isMissing("salario_bruto")} field="salario_bruto" loading={isLoading} />
-        <KpiOrMissing title="Outras Gratificações" value={kpis?.outras_gratificacoes} missing={isMissing("outras_gratificacoes")} field="outras_gratificacoes" loading={isLoading} />
-        <KpiOrMissing title="Benefícios" value={kpis?.beneficios} missing={isMissing("beneficios")} field="beneficios" loading={isLoading} tooltip="Benefícios oficiais do período, incluindo V.A." />
-        <KpiOrMissing title="V.A." value={kpis?.va} missing={isMissing("va")} field="va" loading={isLoading} tooltip="Vale-Alimentação oficial do período. Valor nulo indica ausência da fonte mensal de recarga (não é zero)." />
-        <KpiOrMissing title="INSS (descontos)" value={kpis?.inss_total} missing={isMissing("inss_total")} field="inss_total" loading={isLoading} tooltip="Descontos de INSS dos colaboradores. Não representa GPS patronal." />
-        <KpiOrMissing title="FGTS" value={kpis?.fgts} missing={isMissing("fgts")} field="fgts" loading={isLoading} />
-        <KpiOrMissing title="Rescisões" value={kpis?.rescisoes} missing={isMissing("rescisoes")} field="rescisoes" variant="warning" loading={isLoading} tooltip="Custo de rescisões calculado pelos eventos oficiais da folha." />
-        <KpiOrMissing title="Custo Total" value={kpis?.custo_total} missing={isMissing("custo_total")} field="custo_total" variant="danger" loading={isLoading} />
-        <KpiOrMissing title="Hora Extra" value={kpis?.hora_extra} missing={isMissing("hora_extra")} field="hora_extra" variant="warning" loading={isLoading} />
-        <KpiOrMissing title="Provisões" value={kpis?.provisoes} missing={isMissing("provisoes")} field="provisoes" loading={isLoading} />
-        <KpiOrMissing title="Custo das Férias" value={kpis?.custo_ferias} missing={isMissing("custo_ferias")} field="custo_ferias" loading={isLoading} footer={isAdmin && data?.fonte === "public.rh_vm_folha" ? "Em validação técnica" : undefined} />
+        <KpiOrMissing title="Salário Base" value={kpis?.salario_base} missing={isMissing("salario_base")} field="salario_base" loading={isLoading} {...kpiDrill("salario_base")} />
+        <KpiOrMissing title="Salário Bruto" value={kpis?.salario_bruto} missing={isMissing("salario_bruto")} field="salario_bruto" loading={isLoading} {...kpiDrill("salario_bruto")} />
+        <KpiOrMissing title="Outras Gratificações" value={kpis?.outras_gratificacoes} missing={isMissing("outras_gratificacoes")} field="outras_gratificacoes" loading={isLoading} {...kpiDrill("outras_gratificacoes")} />
+        <KpiOrMissing title="Benefícios" value={kpis?.beneficios} missing={isMissing("beneficios")} field="beneficios" loading={isLoading} tooltip="Benefícios oficiais do período, incluindo V.A." {...kpiDrill("beneficios")} />
+        <KpiOrMissing title="V.A." value={kpis?.va} missing={isMissing("va")} field="va" loading={isLoading} tooltip="Vale-Alimentação oficial do período. Valor nulo indica ausência da fonte mensal de recarga (não é zero)." {...kpiDrill("va")} />
+        <KpiOrMissing title="INSS (descontos)" value={kpis?.inss_total} missing={isMissing("inss_total")} field="inss_total" loading={isLoading} tooltip="Descontos de INSS dos colaboradores. Não representa GPS patronal." {...kpiDrill("inss_total")} />
+        <KpiOrMissing title="FGTS" value={kpis?.fgts} missing={isMissing("fgts")} field="fgts" loading={isLoading} {...kpiDrill("fgts")} />
+        <KpiOrMissing title="Rescisões" value={kpis?.rescisoes} missing={isMissing("rescisoes")} field="rescisoes" variant="warning" loading={isLoading} tooltip="Custo de rescisões calculado pelos eventos oficiais da folha." {...kpiDrill("rescisoes")} />
+        <KpiOrMissing title="Custo Total" value={kpis?.custo_total} missing={isMissing("custo_total")} field="custo_total" variant="danger" loading={isLoading} {...kpiDrill("custo_total")} />
+        <KpiOrMissing title="Hora Extra" value={kpis?.hora_extra} missing={isMissing("hora_extra")} field="hora_extra" variant="warning" loading={isLoading} {...kpiDrill("hora_extra")} />
+        <KpiOrMissing title="Provisões" value={kpis?.provisoes} missing={isMissing("provisoes")} field="provisoes" loading={isLoading} {...kpiDrill("provisoes")} />
+        <KpiOrMissing title="Custo das Férias" value={kpis?.custo_ferias} missing={isMissing("custo_ferias")} field="custo_ferias" loading={isLoading} footer={isAdmin && data?.fonte === "public.rh_vm_folha" ? "Em validação técnica" : undefined} {...kpiDrill("custo_ferias")} />
+
       </div>
     ),
     "mensal-chart": (
@@ -563,7 +608,7 @@ export default function ResumoFolhaPage() {
         </CardContent>
       </Card>
     ),
-  }), [kpis, isMissing, isLoading, isAdmin, data, mensal, proventos, descontos, filiaisData, tiposPie]);
+  }), [kpis, isMissing, isLoading, isAdmin, data, mensal, proventos, descontos, filiaisData, tiposPie, drillsMap]);
 
   return (
     <div className="container mx-auto px-3 md:px-6 py-4 md:py-6 space-y-3 md:space-y-4">
@@ -724,6 +769,15 @@ export default function ResumoFolhaPage() {
           tipos_evento: tipos,
           serie_mensal: mensal,
         }}
+      />
+
+      <ResumoFolhaDrillDrawer
+        open={drillOpen}
+        onOpenChange={setDrillOpen}
+        drillItem={drillCard}
+        cardValue={drillCardValue}
+        anomes_ini={baseParams.anomes_ini}
+        anomes_fim={baseParams.anomes_fim}
       />
     </div>
   );
