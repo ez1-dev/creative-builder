@@ -252,17 +252,20 @@ export function DrillDrawer({
   const qtdTotal = q.data?.qtd_total ?? null;
   const qtdExib = q.data?.qtd_exibida ?? itens.length;
 
-  // Contrato do Razão: exige saldo_inicial / saldo_final / mov_* / saldo por linha.
+  // Contrato do Razão: exige saldo_inicial / saldo_final no topo.
+  // Se houver itens, valida ainda que ao menos um traga mov_*/saldo_anterior/saldo.
+  // Se não houver itens (período sem lançamentos), aceita o contrato mesmo assim.
   const temContratoRazao =
     saldoInicial != null &&
     saldoFinal != null &&
-    itens.some(
-      (i) =>
-        i?.saldo_anterior !== undefined ||
-        i?.mov_debito !== undefined ||
-        i?.mov_credito !== undefined ||
-        i?.saldo !== undefined,
-    );
+    (itens.length === 0 ||
+      itens.some(
+        (i) =>
+          i?.saldo_anterior !== undefined ||
+          i?.mov_debito !== undefined ||
+          i?.mov_credito !== undefined ||
+          i?.saldo !== undefined,
+      ));
 
   const dataIniISO =
     meta?.data_ini ??
@@ -559,6 +562,17 @@ export function DrillDrawer({
                         <TableCell></TableCell>
                         <TableCell></TableCell>
                         <TableCell className="text-right tabular-nums">{cellNum(saldoInicial)}</TableCell>
+                      </TableRow>
+                    )}
+
+                    {itens.length === 0 && (
+                      <TableRow>
+                        <TableCell
+                          colSpan={isDRE ? 13 : 14}
+                          className="text-center italic text-muted-foreground py-6"
+                        >
+                          Sem lançamentos no período.
+                        </TableCell>
                       </TableRow>
                     )}
 
