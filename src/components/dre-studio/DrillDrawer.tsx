@@ -288,6 +288,88 @@ export function DrillDrawer({
     return fmtBRL(n);
   };
 
+  const podeExportar = temContratoRazao && itens.length > 0;
+
+  const exportarExcel = () => {
+    const num = (v: any) => {
+      if (v == null || v === "") return null;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    };
+    const header = [
+      "Lançamento", "Data", "Ctared", "Classificação", "Conta", "Observação",
+      "Origem Cód.", "Origem", "Usuário Origem", "Usuário Lcto.",
+      ...(!isDRE ? ["Saldo Anterior"] : []),
+      "Mov. Débito", "Mov. Crédito", "Saldo",
+    ];
+    const rows: any[][] = [];
+    if (!isDRE) {
+      rows.push([
+        "", fmtDataBR(dataIniISO), "", "", "SALDO INICIAL", "", "", "", "", "",
+        num(saldoInicial), null, null, num(saldoInicial),
+      ]);
+    }
+    for (const r of itens) {
+      rows.push([
+        r.lancamento ?? "",
+        fmtDataBR(r.data),
+        r.ctared ?? "",
+        r.clacta ?? "",
+        r.conta_descricao ?? "",
+        r.observacao ?? r.historico ?? "",
+        r.origem_codigo ?? "",
+        r.origem_descricao ?? "",
+        r.usuario_origem ?? "",
+        r.usuario_lancamento ?? "",
+        ...(!isDRE ? [num(r.saldo_anterior)] : []),
+        num(r.mov_debito),
+        num(r.mov_credito),
+        num(r.saldo),
+      ]);
+    }
+    rows.push([
+      "", fmtDataBR(dataFimISO), "", "", "SALDO FINAL", "", "", "", "", "",
+      ...(!isDRE ? [null] : []),
+      num(totalDebito), num(totalCredito), num(saldoFinal),
+    ]);
+
+    const meta_aoa = [
+      [isDRE ? "DRE — Lançamentos" : "Balanço — Razão"],
+      [`Conta: ${ctaredNum ?? ""}${contaDescricao ? " — " + contaDescricao : ""}`],
+      [`Classificação: ${clacta ?? ""}`],
+      [`Período: ${fmtPeriodoBR(dataIniISO, dataFimISO)}`],
+      [],
+    ];
+    const aoa = [...meta_aoa, header, ...rows];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const money = "#,##0.00;(#,##0.00);-";
+    const moneyStart = header.indexOf("Mov. Débito");
+    const dataStartRow = meta_aoa.length + 1; // após header
+    for (let R = dataStartRow; R < dataStartRow + rows.length; R++) {
+      for (let C = moneyStart; C < header.length; C++) {
+        const addr = XLSX.utils.encode_cell({ r: R, c: C });
+        const cell = ws[addr];
+        if (cell && typeof cell.v === "number") cell.z = money;
+      }
+      if (!isDRE) {
+        const addr = XLSX.utils.encode_cell({ r: R, c: header.indexOf("Saldo Anterior") });
+        const cell = ws[addr];
+        if (cell && typeof cell.v === "number") cell.z = money;
+      }
+    }
+    ws["!cols"] = header.map((h) =>
+      ["Observação", "Conta", "Origem"].includes(h) ? { wch: 32 } :
+      ["Usuário Origem", "Usuário Lcto.", "Classificação"].includes(h) ? { wch: 18 } :
+      h.startsWith("Mov.") || h === "Saldo" || h === "Saldo Anterior" ? { wch: 16 } :
+      { wch: 12 }
+    );
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Razão");
+    const periodo = `${(args?.anomes ?? args?.anomes_ini ?? "")}${args?.anomes_fim ? "-" + args.anomes_fim : ""}`;
+    const fname = `${isDRE ? "dre" : "balanco"}_drill_${ctaredNum ?? "conta"}_${periodo || "periodo"}.xlsx`;
+    XLSX.writeFile(wb, fname);
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
