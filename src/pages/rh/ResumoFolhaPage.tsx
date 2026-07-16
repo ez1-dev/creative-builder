@@ -367,7 +367,7 @@ export default function ResumoFolhaPage() {
         <KpiOrMissing title="Custo Total" value={kpis?.custo_total} missing={isMissing("custo_total")} field="custo_total" variant="danger" loading={isLoading} {...kpiDrill("custo_total")} />
         <KpiOrMissing title="Hora Extra" value={kpis?.hora_extra} missing={isMissing("hora_extra")} field="hora_extra" variant="warning" loading={isLoading} {...kpiDrill("hora_extra")} />
         <KpiOrMissing title="Provisões" value={kpis?.provisoes} missing={isMissing("provisoes")} field="provisoes" loading={isLoading} {...kpiDrill("provisoes")} />
-        <KpiOrMissing title="Custo das Férias" value={kpis?.custo_ferias} missing={isMissing("custo_ferias")} field="custo_ferias" loading={isLoading} footer={isAdmin && data?.fonte === "public.rh_vm_folha" ? "Em validação técnica" : undefined} {...kpiDrill("custo_ferias")} />
+        <KpiOrMissing title="Custo das Férias" value={kpis?.custo_ferias} missing={isMissing("custo_ferias")} field="custo_ferias" loading={isLoading} {...kpiDrill("custo_ferias")} />
 
       </div>
     ),
