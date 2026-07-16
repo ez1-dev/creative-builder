@@ -15,6 +15,7 @@ import {
   fetchPlanoContasDinamica,
   vincularContasDinamica,
   type PlanoContaErp,
+  type VincularContasPayloadConta,
 } from '@/lib/bi/dreMontadorApi';
 import {
   listarModelosFastApi,
