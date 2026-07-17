@@ -61,7 +61,7 @@ export default function TurnoverPage() {
   const { data, isLoading, error, isFetching } = useQuery({
     queryKey: ["rh", "turnover", ini, fim, codemp],
     queryFn: () => fetchTurnoverDashboardCached({ anomes_ini: ini, anomes_fim: fim, codemp }),
-    staleTime: 15 * 60_000,
+    staleTime: 2 * 60_000, gcTime: 10 * 60_000,
     gcTime: 60 * 60_000,
     refetchOnWindowFocus: false,
     placeholderData: (prev) => prev,
