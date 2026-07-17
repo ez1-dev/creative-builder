@@ -78,10 +78,9 @@ export default function ResumoFolhaPage() {
     queryFn: () => fetchResumoFolhaDashboard(baseParams, "completo"),
     enabled,
     retry: (count, err) => (err instanceof DashboardIndisponivelError ? false : count < 1),
-    staleTime: 0,
-    gcTime: 5 * 60_000,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: true,
+    staleTime: 2 * 60_000,
+    gcTime: 10 * 60_000,
+    refetchOnWindowFocus: false,
     placeholderData: (prev) => prev,
   });
 
@@ -91,12 +90,12 @@ export default function ResumoFolhaPage() {
     queryFn: () => fetchResumoFolhaDashboard(baseParams, "mensal"),
     enabled,
     retry: (count, err) => (err instanceof DashboardIndisponivelError ? false : count < 1),
-    staleTime: 0,
-    gcTime: 5 * 60_000,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: true,
+    staleTime: 2 * 60_000,
+    gcTime: 10 * 60_000,
+    refetchOnWindowFocus: false,
     placeholderData: (prev) => prev,
   });
+
 
   const data = query.data;
   const isLoading = query.isLoading;
