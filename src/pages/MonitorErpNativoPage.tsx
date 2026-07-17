@@ -805,20 +805,16 @@ export default function MonitorErpNativoPage() {
                               <TableCell className="text-xs text-muted-foreground">{fmtDia(row.ultimo_dia)}</TableCell>
                               <TableCell>
                                 <EdicaoTelaPopover
-                                  trigger={
-                                    <Button size="sm" variant="outline" className="gap-1">
-                                      <Pencil className="h-3.5 w-3.5" />
-                                      Nomear
-                                    </Button>
-                                  }
-                                  tela={{
-                                    tela: row.tela,
+                                  tela={row.tela}
+                                  initial={{
                                     nome_tela: null,
                                     atalho: row.tela,
-                                    modulo: row.modulo_sugerido ?? null,
+                                    modulo: row.modulo_sugerido,
+                                    ativo: true,
                                   }}
                                   onSaved={invalidarTudo}
                                 />
+
                               </TableCell>
                             </TableRow>
                           ))}
