@@ -25,6 +25,7 @@ import ConciliacaoEdocsPage from "@/pages/ConciliacaoEdocsPage";
 import NotasRecebimentoPage from "@/pages/NotasRecebimentoPage";
 import NumeroSeriePage from "@/pages/NumeroSeriePage";
 import ConfiguracoesPage from "@/pages/ConfiguracoesPage";
+import PersonalizarMenusPage from "@/pages/PersonalizarMenusPage";
 import ProducaoDashboardPage from "@/pages/producao/ProducaoDashboardPage";
 import ProduzidoPeriodoPage from "@/pages/producao/ProduzidoPeriodoPage";
 import ExpedidoObraPage from "@/pages/producao/ExpedidoObraPage";
@@ -170,6 +171,7 @@ const App = () => (
               <Route path="/monitor-erp-nativo" element={<ProtectedRoute path="/monitor-erp-nativo"><MonitorErpNativoPage /></ProtectedRoute>} />
               <Route path="/gestao-sgu-usuarios" element={<ProtectedRoute path="/gestao-sgu-usuarios"><GestaoSguUsuariosPage /></ProtectedRoute>} />
               <Route path="/configuracoes" element={<ProtectedRoute path="/configuracoes"><ConfiguracoesPage /></ProtectedRoute>} />
+              <Route path="/configuracoes/personalizar-menus" element={<PersonalizarMenusPage />} />
               <Route path="/connect" element={<ConnectAgentPage />} />
               <Route path="/bi-components-demo" element={<BiComponentsDemoPage />} />
               <Route path="/biblioteca-bi" element={<BiComponentsDemoPage />} />
