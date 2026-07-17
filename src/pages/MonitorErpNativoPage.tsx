@@ -238,6 +238,12 @@ export default function MonitorErpNativoPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerTitulo, setDrawerTitulo] = useState<string>("");
   const [drawerFiltros, setDrawerFiltros] = useState<MonitorErpFiltros | null>(null);
+  const [deParaOpen, setDeParaOpen] = useState(false);
+  const queryClient = useQueryClient();
+
+  const invalidarTudo = () =>
+    queryClient.invalidateQueries({ queryKey: ["monitor-erp-nativo"] });
+
 
   const qDrawer = useQuery({
     queryKey: [
