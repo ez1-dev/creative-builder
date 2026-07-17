@@ -1,50 +1,43 @@
+## Objetivo
 
-## Contexto
-
-As colunas **Nome / Atalho / Módulo** já são exibidas no Ranking, na tabela de Eventos e em Sem Uso da página `MonitorErpNativoPage.tsx`, e o modal de-para com edição inline (`DeParaMonitorErpModal`) e o popover `EdicaoTelaPopover` já existem. Faltam dois ajustes:
-
-1. **Contrato do backend novo** — o POST agora recebe `cod_form` (não `tela`) e as pendentes retornam `modulo_sugerido` (não `modulo`). O frontend atual envia/lê `tela`/`modulo`.
-2. **Seção visível "Telas sem nome"** — hoje isso só existe como aba dentro do modal; o pedido é uma seção/aba na própria página.
-
-Nada muda em backend, endpoints, cálculos ou regras. Só ajustes de frontend.
-
----
+Fazer o Monitor de Telas Portal Web (`/monitor-telas` aba Portal Web) atualizar em tempo real, mantendo a lista de eventos sempre incluindo hoje (17/07/2026) sem precisar clicar em "Atualizar".
 
 ## Mudanças
 
-### 1) `src/lib/monitorErpNativoDeparaApi.ts` — alinhar contrato
+### 1. `src/components/monitor-telas/MonitorTelasTab.tsx`
+Substituir os 4 blocos manuais de `useState` + `useEffect` + `.then/.catch` (resumo, ranking, porDia, naoUt) por `useQuery` do `@tanstack/react-query`:
 
-- Renomear no tipo `DeParaTelaPendente`: `modulo` → `modulo_sugerido` (mantendo `tela`, `tabela`, `gravacoes`, `ultimo_dia`).
-- `upsertDeParaMonitorErp` passa a enviar `cod_form` (valor de `input.tela`) no lugar de `tela`. Payload final: `{ cod_form, nome_tela, atalho, modulo, ativo, obs }`. Mantemos `ativo`/`obs` porque a UI de mapeadas já os usa; o backend ignora extras se não aceitar.
-- `fetchDeParaMonitorErp` continua igual, apenas normalizando ambos os formatos (`modulo_sugerido ?? modulo`) para o campo `modulo_sugerido` nas pendentes.
+- Query keys estáveis por origem + filtros aplicados:
+  - `['telemetria', origem, 'resumo', filtros]`
+  - `['telemetria', origem, 'ranking', filtros, 100]`
+  - `['telemetria', origem, 'por-dia', filtros]`
+  - `['telemetria', origem, 'nao-utilizadas', filtros]`
+- Opções em cada `useQuery`:
+  - `refetchInterval: 30_000` (polling a cada 30s)
+  - `refetchIntervalInBackground: false` (só quando aba está ativa)
+  - `refetchOnWindowFocus: true`
+  - `refetchOnReconnect: true`
+  - `staleTime: 0` (sempre considerar stale para pegar eventos novos)
+- `reloadKey` (via prop) passa a disparar `queryClient.invalidateQueries({ queryKey: ['telemetria', origem] })` num `useEffect`, mantendo o botão "Atualizar" da página funcionando.
+- `load` interno (usado pelo `DeParaTelasModal onSaved`) vira função que invalida as mesmas queries.
+- Indicador visual discreto de "Atualizado há Xs" no topo da aba (usando `dataUpdatedAt` do resumo) para deixar claro que está vivo.
 
-### 2) `src/components/monitor-erp-nativo/DeParaMonitorErpModal.tsx`
+### 2. Sem mudanças de contrato/API
+Nenhuma alteração em `src/lib/navegacaoTelemetriaApi.ts`, endpoints ou payloads. O backend já usa `NOW()` como limite superior, então preset de 30 dias já inclui hoje — o polling garante que eventos gravados durante a sessão apareçam.
 
-- Ler `row.modulo_sugerido` como valor inicial da coluna Módulo na aba "A mapear" (pré-preenche o input do módulo com a sugestão do backend).
-- Nenhuma outra mudança visual.
+### 3. Sem mudanças na aba ERP Nativo além de herdar o mesmo comportamento
+O mesmo componente serve as duas abas; o auto-refresh vale para ambas quando visíveis. `refetchIntervalInBackground: false` evita polling na aba não selecionada.
 
-### 3) `src/pages/MonitorErpNativoPage.tsx` — nova aba "Telas sem nome"
-
-- Adicionar uma aba `sem-nome` ao lado das existentes (Ranking / Eventos / Sem Uso).
-- Conteúdo: tabela lida de `GET /api/monitor-erp-nativo/depara` → `nao_mapeadas`, colunas **Tela (código)**, **Tabela**, **Módulo sugerido**, **Gravações** (ordenada desc), **Última mov.**, e botão **Nomear**.
-- **Nomear** abre o `DeParaMonitorErpModal` já existente na aba "A mapear" (reaproveitando o fluxo). Após `onSaved`, recarrega o ranking e a lista de sem-nome via `refetch`.
-- Badge com contagem de pendentes no título da aba.
-
-### 4) Sem mudanças em
-
-- `monitorErpNativoApi.ts` (ranking/buscar/sem-uso já leem `nome_tela`/`atalho`/`modulo`).
-- `EdicaoTelaPopover` (já usa `upsertDeParaMonitorErp`, herda a mudança de `cod_form` automaticamente).
-
----
+## Fora de escopo
+- Novos presets de período (ex.: "Hoje") — usuário optou por manter 7/30/60/90.
+- Date-picker de data final — não necessário.
+- Alterações no backend, no `DeParaTelasModal`, no `HistoricoTelaModal` ou na `MonitorTelasPage` (filtros/tabs).
 
 ## Arquivos alterados
-
-- `src/lib/monitorErpNativoDeparaApi.ts` — tipos + payload.
-- `src/components/monitor-erp-nativo/DeParaMonitorErpModal.tsx` — pré-preenche módulo com `modulo_sugerido`.
-- `src/pages/MonitorErpNativoPage.tsx` — nova aba "Telas sem nome" com carregamento independente e botão Nomear.
+- `src/components/monitor-telas/MonitorTelasTab.tsx` (único)
 
 ## Validação
-
-- Abrir Monitor → aba "Telas sem nome" lista pendentes ordenadas por gravações.
-- Clicar "Nomear" → modal abre em "A mapear" com módulo pré-preenchido → salvar → toast + lista recarrega.
-- Confirmar via aba Network que o POST envia `cod_form` (não `tela`).
+- Abrir `/monitor-telas` → Portal Web: KPIs carregam, e após 30s há novo request para `/resumo`, `/ranking`, `/por-dia`, `/nao-utilizadas` (visível em Network).
+- Trocar de aba do navegador e voltar: dispara refetch imediato.
+- Clicar "Atualizar" na página: invalida e re-busca todas as 4 queries.
+- Trocar entre Portal Web/ERP Nativo: polling pausa na aba oculta.
