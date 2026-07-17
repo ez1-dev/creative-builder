@@ -67,7 +67,7 @@ export default function ContratoExperienciaPage() {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ["rh", "contrato-experiencia", "dashboard", codemp, diasVencidoMax],
     queryFn: () => fetchContratoExperienciaDashboardCached(codemp, diasVencidoMax),
-    staleTime: 15 * 60_000,
+    staleTime: 2 * 60_000, gcTime: 10 * 60_000,
     gcTime: 60 * 60_000,
     refetchOnWindowFocus: false,
     placeholderData: (prev) => prev,

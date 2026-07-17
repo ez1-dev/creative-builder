@@ -57,7 +57,7 @@ export default function ProgramacaoFeriasPage() {
   const { data: dataRaw, isLoading, isFetching, error } = useQuery({
     queryKey: ["rh", "programacao-ferias", "dashboard", codemp],
     queryFn: () => fetchProgramacaoFeriasDashboardCached(codemp),
-    staleTime: 15 * 60_000,
+    staleTime: 2 * 60_000, gcTime: 10 * 60_000,
     gcTime: 60 * 60_000,
     refetchOnWindowFocus: false,
     placeholderData: (prev) => prev,

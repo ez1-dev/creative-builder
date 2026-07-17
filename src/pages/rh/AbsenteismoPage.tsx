@@ -80,7 +80,7 @@ export default function AbsenteismoPage() {
     queryKey: ["rh", "absenteismo", ini, fim, codemp],
     queryFn: () =>
       fetchAbsenteismoDashboardCached({ anomes_ini: ini, anomes_fim: fim, codemp }),
-    staleTime: 15 * 60_000,
+    staleTime: 2 * 60_000, gcTime: 10 * 60_000,
     gcTime: 60 * 60_000,
     refetchOnWindowFocus: false,
     placeholderData: (prev) => prev,
