@@ -74,12 +74,16 @@ export interface MonitorErpPorDia {
 
 export interface MonitorErpSemUso {
   tela?: string | null;
+  nome_tela?: string | null;
+  atalho?: string | null;
+  modulo?: string | null;
   tabela?: string | null;
   ultimo_dia?: string | null;
   dias_sem_uso?: number;
   total_historico?: number;
   [k: string]: any;
 }
+
 
 function buildParams(f: MonitorErpFiltros, extra?: Record<string, any>) {
   const out: Record<string, any> = {};
