@@ -199,7 +199,6 @@ export default function QuadroColaboradoresPage() {
     queryKey: ["rh", "quadro-dashboard", dataRefIso],
     queryFn: () => fetchQuadroDashboardCached(dataRefIso),
     staleTime: 2 * 60_000, gcTime: 10 * 60_000,
-    gcTime: 60 * 60_000,
     refetchOnWindowFocus: false,
     placeholderData: (prev) => prev,
   });
@@ -208,7 +207,6 @@ export default function QuadroColaboradoresPage() {
     queryFn: () => fetchQuadroHistoricoCached(anomesIni, anomesFim),
     enabled: /^\d{6}$/.test(anomesIni) && /^\d{6}$/.test(anomesFim),
     staleTime: 2 * 60_000, gcTime: 10 * 60_000,
-    gcTime: 60 * 60_000,
     refetchOnWindowFocus: false,
     placeholderData: (prev) => prev,
   });
