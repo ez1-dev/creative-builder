@@ -43,11 +43,13 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  Settings2,
   Trash2,
   Users,
   MonitorSmartphone,
   AlertCircle,
 } from "lucide-react";
+
 import {
   Bar,
   BarChart,
