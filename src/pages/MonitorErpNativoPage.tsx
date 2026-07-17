@@ -771,6 +771,7 @@ function EventosTable({
             <TableHead>Data/Hora</TableHead>
             <TableHead>Usuário</TableHead>
             <TableHead>Tela</TableHead>
+            <TableHead>Módulo</TableHead>
             <TableHead>Tabela</TableHead>
             <TableHead>Ação</TableHead>
             <TableHead>Chave do registro</TableHead>
@@ -783,7 +784,20 @@ function EventosTable({
                 {ev.data_hora ? fmtDataHora(ev.data_hora) : fmtDia(ev.dia)}
               </TableCell>
               <TableCell>{ev.usuario ?? "-"}</TableCell>
-              <TableCell>{ev.tela ?? "-"}</TableCell>
+              <TableCell>
+                <div className="flex flex-col leading-tight" title={ev.nome_tela ?? undefined}>
+                  <span className="text-sm">
+                    {ev.nome_tela ?? (
+                      <span className="italic text-muted-foreground">— não mapeado —</span>
+                    )}
+                  </span>
+                  <span className="font-mono text-[11px] text-muted-foreground">
+                    {ev.tela ?? "-"}
+                    {ev.atalho ? ` · ${ev.atalho}` : ""}
+                  </span>
+                </div>
+              </TableCell>
+              <TableCell className="text-xs text-muted-foreground">{ev.modulo ?? "-"}</TableCell>
               <TableCell className="text-muted-foreground">{ev.tabela ?? "-"}</TableCell>
               <TableCell>
                 <OperacaoBadge tiplog={ev.tiplog ?? ev.acao} />
@@ -800,3 +814,4 @@ function EventosTable({
     </div>
   );
 }
+
