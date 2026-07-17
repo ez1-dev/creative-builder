@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+
 import {
   Sheet,
   SheetContent,
@@ -42,11 +43,13 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  Settings2,
   Trash2,
   Users,
   MonitorSmartphone,
   AlertCircle,
 } from "lucide-react";
+
 import {
   Bar,
   BarChart,
@@ -72,6 +75,9 @@ import {
   type MonitorErpFiltros,
   type TipLog,
 } from "@/lib/monitorErpNativoApi";
+import { DeParaMonitorErpModal } from "@/components/monitor-erp-nativo/DeParaMonitorErpModal";
+import { EdicaoTelaPopover } from "@/components/monitor-erp-nativo/EdicaoTelaPopover";
+
 
 const OPCOES_DIAS = [7, 30, 90, 180] as const;
 
@@ -232,6 +238,12 @@ export default function MonitorErpNativoPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerTitulo, setDrawerTitulo] = useState<string>("");
   const [drawerFiltros, setDrawerFiltros] = useState<MonitorErpFiltros | null>(null);
+  const [deParaOpen, setDeParaOpen] = useState(false);
+  const queryClient = useQueryClient();
+
+  const invalidarTudo = () =>
+    queryClient.invalidateQueries({ queryKey: ["monitor-erp-nativo"] });
+
 
   const qDrawer = useQuery({
     queryKey: [
@@ -293,9 +305,15 @@ export default function MonitorErpNativoPage() {
               inclusões, alterações e exclusões de dados por tela, tabela e usuário.
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={refetchTudo} className="gap-2">
-            <RefreshCw className="h-4 w-4" /> Atualizar
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setDeParaOpen(true)} className="gap-2">
+              <Settings2 className="h-4 w-4" /> De-Para de Telas
+            </Button>
+            <Button variant="outline" size="sm" onClick={refetchTudo} className="gap-2">
+              <RefreshCw className="h-4 w-4" /> Atualizar
+            </Button>
+          </div>
+
         </div>
 
         {/* Filtros */}
@@ -322,7 +340,7 @@ export default function MonitorErpNativoPage() {
               <Input
                 value={telaInput}
                 onChange={(e) => setTelaInput(e.target.value)}
-                placeholder="Código da tela, exemplo F210LPD"
+                placeholder="Código, nome ou atalho da tela"
                 className="h-9"
               />
             </div>
@@ -476,6 +494,9 @@ export default function MonitorErpNativoPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Tela</TableHead>
+                          <TableHead>Nome amigável</TableHead>
+                          <TableHead>Atalho</TableHead>
+                          <TableHead>Módulo</TableHead>
                           <TableHead>Tabela</TableHead>
                           <TableHead className="text-right">Gravações</TableHead>
                           <TableHead className="text-right">Usuários</TableHead>
@@ -483,6 +504,7 @@ export default function MonitorErpNativoPage() {
                           <TableHead className="text-right">Alter.</TableHead>
                           <TableHead className="text-right">Excl.</TableHead>
                           <TableHead>Última mov.</TableHead>
+                          <TableHead className="w-10" />
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -492,7 +514,28 @@ export default function MonitorErpNativoPage() {
                             onClick={() => abrirTela(r.tela, r.tabela)}
                             className="cursor-pointer"
                           >
-                            <TableCell className="font-medium">{r.tela ?? "-"}</TableCell>
+                            <TableCell className="font-mono text-xs">{r.tela ?? "-"}</TableCell>
+                            <TableCell className="max-w-[220px] truncate" title={r.nome_tela ?? undefined}>
+                              {r.nome_tela ? (
+                                <span className="font-medium">{r.nome_tela}</span>
+                              ) : (
+                                <span className="italic text-muted-foreground">— não mapeado —</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {r.atalho ? (
+                                <Badge variant="outline" className="font-mono text-[11px]">{r.atalho}</Badge>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {r.modulo ? (
+                                <Badge variant="secondary" className="text-[11px]">{r.modulo}</Badge>
+                              ) : (
+                                <span className="text-xs italic text-muted-foreground">Não mapeado</span>
+                              )}
+                            </TableCell>
                             <TableCell className="text-muted-foreground">{r.tabela ?? "-"}</TableCell>
                             <TableCell className="text-right">{fmtNum(r.gravacoes)}</TableCell>
                             <TableCell className="text-right">{fmtNum(r.usuarios)}</TableCell>
@@ -500,10 +543,25 @@ export default function MonitorErpNativoPage() {
                             <TableCell className="text-right">{fmtNum(r.alteracoes)}</TableCell>
                             <TableCell className="text-right">{fmtNum(r.exclusoes)}</TableCell>
                             <TableCell>{fmtDia(r.ultimo_dia)}</TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              {r.tela && (
+                                <EdicaoTelaPopover
+                                  tela={r.tela}
+                                  initial={{
+                                    nome_tela: r.nome_tela,
+                                    atalho: r.atalho,
+                                    modulo: r.modulo,
+                                    ativo: true,
+                                  }}
+                                  onSaved={invalidarTudo}
+                                />
+                              )}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
+
                   </div>
                 )}
               </CardContent>
@@ -596,24 +654,64 @@ export default function MonitorErpNativoPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Tela</TableHead>
+                          <TableHead>Nome amigável</TableHead>
+                          <TableHead>Atalho</TableHead>
+                          <TableHead>Módulo</TableHead>
                           <TableHead>Tabela</TableHead>
                           <TableHead>Última movimentação</TableHead>
                           <TableHead className="text-right">Dias sem uso</TableHead>
                           <TableHead className="text-right">Total histórico</TableHead>
+                          <TableHead className="w-10" />
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {semUso.map((r, i) => (
                           <TableRow key={`${r.tela ?? "-"}|${r.tabela ?? "-"}|${i}`}>
-                            <TableCell className="font-medium">{r.tela ?? "-"}</TableCell>
+                            <TableCell className="font-mono text-xs">{r.tela ?? "-"}</TableCell>
+                            <TableCell className="max-w-[220px] truncate" title={r.nome_tela ?? undefined}>
+                              {r.nome_tela ? (
+                                <span className="font-medium">{r.nome_tela}</span>
+                              ) : (
+                                <span className="italic text-muted-foreground">— não mapeado —</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {r.atalho ? (
+                                <Badge variant="outline" className="font-mono text-[11px]">{r.atalho}</Badge>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {r.modulo ? (
+                                <Badge variant="secondary" className="text-[11px]">{r.modulo}</Badge>
+                              ) : (
+                                <span className="text-xs italic text-muted-foreground">Não mapeado</span>
+                              )}
+                            </TableCell>
                             <TableCell className="text-muted-foreground">{r.tabela ?? "-"}</TableCell>
                             <TableCell>{fmtDia(r.ultimo_dia)}</TableCell>
                             <TableCell className="text-right">{fmtNum(r.dias_sem_uso)}</TableCell>
                             <TableCell className="text-right">{fmtNum(r.total_historico)}</TableCell>
+                            <TableCell>
+                              {r.tela && (
+                                <EdicaoTelaPopover
+                                  tela={r.tela}
+                                  initial={{
+                                    nome_tela: r.nome_tela,
+                                    atalho: r.atalho,
+                                    modulo: r.modulo,
+                                    ativo: true,
+                                  }}
+                                  onSaved={invalidarTudo}
+                                />
+                              )}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
+
                   </div>
                 )}
               </CardContent>
@@ -644,8 +742,15 @@ export default function MonitorErpNativoPage() {
             </div>
           </SheetContent>
         </Sheet>
+
+        <DeParaMonitorErpModal
+          open={deParaOpen}
+          onOpenChange={setDeParaOpen}
+          onSaved={invalidarTudo}
+        />
       </div>
     </TooltipProvider>
+
   );
 }
 
@@ -666,6 +771,7 @@ function EventosTable({
             <TableHead>Data/Hora</TableHead>
             <TableHead>Usuário</TableHead>
             <TableHead>Tela</TableHead>
+            <TableHead>Módulo</TableHead>
             <TableHead>Tabela</TableHead>
             <TableHead>Ação</TableHead>
             <TableHead>Chave do registro</TableHead>
@@ -678,7 +784,20 @@ function EventosTable({
                 {ev.data_hora ? fmtDataHora(ev.data_hora) : fmtDia(ev.dia)}
               </TableCell>
               <TableCell>{ev.usuario ?? "-"}</TableCell>
-              <TableCell>{ev.tela ?? "-"}</TableCell>
+              <TableCell>
+                <div className="flex flex-col leading-tight" title={ev.nome_tela ?? undefined}>
+                  <span className="text-sm">
+                    {ev.nome_tela ?? (
+                      <span className="italic text-muted-foreground">— não mapeado —</span>
+                    )}
+                  </span>
+                  <span className="font-mono text-[11px] text-muted-foreground">
+                    {ev.tela ?? "-"}
+                    {ev.atalho ? ` · ${ev.atalho}` : ""}
+                  </span>
+                </div>
+              </TableCell>
+              <TableCell className="text-xs text-muted-foreground">{ev.modulo ?? "-"}</TableCell>
               <TableCell className="text-muted-foreground">{ev.tabela ?? "-"}</TableCell>
               <TableCell>
                 <OperacaoBadge tiplog={ev.tiplog ?? ev.acao} />
@@ -695,3 +814,4 @@ function EventosTable({
     </div>
   );
 }
+

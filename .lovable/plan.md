@@ -1,46 +1,81 @@
-# Personalização da navegação (menus e páginas)
+## Objetivo
 
-Permitir que cada usuário (ou admin, global) configure quais páginas aparecem em cada menu da sidebar e oculte páginas que não quer ver.
+Enriquecer a página `/monitor-erp-nativo` com os novos campos vindos do backend (`nome_tela`, `atalho`, `modulo`) e permitir manter o de-para diretamente na interface (modal + edição inline), sem tocar em backend, banco ou contratos.
 
-## O que será construído
+## 1. Tipagem e API client (`src/lib/monitorErpNativoApi.ts`)
 
-### 1. Tela "Personalizar menus" (`/configuracoes/menus`)
-- Lista todos os grupos de menu da sidebar (ex.: BI, Produção, ERP Nativo, Configurações...).
-- Para cada grupo:
-  - Reordenar páginas (drag-and-drop).
-  - Mover uma página para outro grupo (dropdown "Mover para...").
-  - Alternar visibilidade (switch "Ocultar").
-  - Criar novo grupo customizado e renomear/excluir grupos criados pelo usuário.
-- Botões: **Salvar**, **Restaurar padrão**.
+Estender os tipos existentes com os novos campos opcionais retornados pelo backend:
 
-### 2. Escopo da personalização
-Duas opções — pergunto abaixo qual você prefere:
-- **Por usuário**: cada login tem seu próprio layout de menu.
-- **Global (admin)**: um admin define o layout que vale para todos; usuários comuns só consomem.
-- **Híbrido**: admin define o padrão da empresa e cada usuário pode ajustar em cima.
+- `MonitorErpRankingTela`: `nome_tela?`, `atalho?`, `modulo?` (já existe `tela`, `tabela`).
+- `MonitorErpEvento`: `nome_tela?`, `atalho?`, `modulo?`.
+- `MonitorErpSemUso`: `nome_tela?`, `atalho?`, `modulo?`.
 
-### 3. Armazenamento
-Nova tabela no backend (Lovable Cloud) `menu_preferences` guardando por usuário (ou global) o JSON com a estrutura `[{ grupo, ordem, paginas: [{ id, ordem, oculto }] }]`. RLS: usuário só lê/escreve o próprio registro; admin escreve o global.
+Adicionar novo módulo de manutenção `src/lib/monitorErpNativoDeparaApi.ts` cobrindo os endpoints `/api/monitor-erp-nativo/depara`:
 
-### 4. Sidebar dinâmica
-`AppSidebar` passa a montar os grupos/itens a partir de um hook `useMenuLayout()` que:
-- Carrega o catálogo padrão de páginas (fonte da verdade em `src/config/menuCatalog.ts`).
-- Mescla com a preferência salva (ordem + ocultos + realocações).
-- Faz fallback para o padrão se não houver preferência.
-Páginas ocultas continuam acessíveis via URL direta (só somem do menu) — a menos que você queira bloquear também (ver pergunta abaixo).
+```ts
+GET  /api/monitor-erp-nativo/depara
+  → { mapeadas: DeParaTelaErp[], nao_mapeadas: DeParaTelaPendente[] }
 
-### 5. Atalho de acesso
-Ícone de engrenagem no rodapé da sidebar → abre `/configuracoes/menus`.
+POST /api/monitor-erp-nativo/depara
+  body: { tela, nome_tela, atalho, modulo, ativo, obs? }
+```
 
-## Detalhes técnicos
+`DeParaTelaErp` = `{ tela, nome_tela, atalho, modulo, ativo, obs }`.
+`DeParaTelaPendente` = `{ tela, tabela?, gravacoes?, ultimo_dia? }`.
 
-- Catálogo central `menuCatalog.ts` com todas as rotas atuais tipadas (`id`, `label`, `icon`, `url`, `grupoPadrao`).
-- Migração SQL cria `public.menu_preferences (user_id uuid pk, layout jsonb, updated_at)` + GRANTs + RLS + política `auth.uid() = user_id`. Se escolher global, adiciono também `menu_preferences_global` com política via `has_role(auth.uid(), 'admin')`.
-- Drag-and-drop com `@dnd-kit/core` (já leve, sem dependências pesadas).
-- Sidebar existente continua com `collapsible="icon"`; nenhuma quebra nas rotas.
+> Se o contrato real usar outra chave (ex.: `tela+tabela`) ou outros nomes, alinho no primeiro build — só ajustar o tipo/payload nesse arquivo, sem impactar a UI.
 
-## Perguntas antes de implementar
+## 2. Novo modal — `src/components/monitor-erp-nativo/DeParaMonitorErpModal.tsx`
 
-1. **Escopo**: personalização por usuário, global (admin define para todos) ou híbrido?
-2. **Páginas ocultas**: ficam apenas fora do menu (acessíveis por URL) ou também bloqueadas na rota?
-3. Quer poder **criar novos grupos** próprios (ex.: "Meus favoritos") ou só reorganizar os existentes?
+Modal dedicado seguindo o padrão do `DeParaTelasModal` já existente:
+
+- Aba "A mapear" — telas capturadas na auditoria mas ainda sem `nome_tela`/`modulo`, ordenadas por gravações; inputs `Nome da Tela *`, `Atalho`, `Módulo *`, `Obs` + botão Salvar.
+- Aba "Mapeadas" — lista completa com edição inline (`nome_tela`, `atalho`, `modulo`, `ativo`, `obs`) + Salvar por linha.
+- Usa `sonner` para feedback e recarrega ao salvar.
+
+## 3. Página `MonitorErpNativoPage.tsx`
+
+**Cabeçalho / ações**
+
+- Adicionar botão `De-Para de Telas` (ícone `Settings2`) ao lado do `Atualizar`, que abre o novo modal. Ao salvar, invalida as queries `monitor-erp-nativo` para refletir os nomes novos.
+
+**Ranking de telas (aba "Telas")**
+
+Nova estrutura de colunas:
+
+| Tela (código) | Nome amigável | Atalho | Módulo | Tabela | Gravações | Usuários | Incl. | Alter. | Excl. | Última mov. | ✎ |
+
+- Código em `font-mono text-xs`.
+- Nome: `nome_tela` com fallback "— não mapeado —" em `italic text-muted-foreground`. Truncar com `truncateLabel` + `Tooltip` mostrando texto completo.
+- Atalho: badge outline monoespaçada; oculto quando vazio.
+- Módulo: badge sutil; "Não mapeado" quando vazio.
+- Botão lápis por linha abre um `Popover` de edição rápida com os mesmos campos, faz `POST` e invalida queries. Mantém o clique na linha (fora do popover) abrindo o drawer de eventos.
+
+**Telas sem uso (aba "Sem uso")**
+
+Adicionar colunas `Nome`, `Atalho`, `Módulo` e o mesmo botão de edição inline.
+
+**Eventos (tabela + drawer)**
+
+Coluna `Tela` passa a exibir `nome_tela` em cima e `tela` em `font-mono text-[11px] text-muted-foreground` embaixo; tooltip completo. Adicionar coluna compacta `Módulo` quando presente.
+
+**Filtros**
+
+Placeholder do campo `Tela` passa a mencionar "código, nome ou atalho"; enquanto o backend não expandir, o filtro continua enviando `tela` como está.
+
+## 4. Query invalidation
+
+Após qualquer save do de-para (modal ou popover inline), chamar `queryClient.invalidateQueries({ queryKey: ['monitor-erp-nativo'] })` para refrescar ranking, eventos e sem-uso com os nomes atualizados.
+
+## 5. Fora do escopo
+
+- Nenhuma alteração em backend, edge function, migrations, RLS, contratos ou regras de auditoria.
+- Nenhuma mudança na aba "ERP Nativo" da página antiga `MonitorTelasPage` (que usa `navegacaoTelemetriaApi` + `DeParaTelasModal`) — permanece como está.
+
+## Arquivos
+
+- **Editar** `src/lib/monitorErpNativoApi.ts` — novos campos opcionais.
+- **Novo** `src/lib/monitorErpNativoDeparaApi.ts` — client dos endpoints de de-para.
+- **Novo** `src/components/monitor-erp-nativo/DeParaMonitorErpModal.tsx` — modal (a mapear / mapeadas).
+- **Novo** `src/components/monitor-erp-nativo/EdicaoTelaPopover.tsx` — popover de edição inline reutilizado nas tabelas.
+- **Editar** `src/pages/MonitorErpNativoPage.tsx` — novas colunas, botão do modal, integração dos popovers, invalidations.
