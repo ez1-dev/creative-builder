@@ -79,7 +79,7 @@ function Kpi({ label, value, deltaAbs, deltaPct, formatter = fmtNum }: {
       <Text style={s.kpiValue}>{formatter(value ?? 0)}</Text>
       {hasDelta && (
         <Text style={[s.kpiDelta, up ? s.deltaUp : down ? s.deltaDown : s.deltaFlat]}>
-          {up ? "▲" : down ? "▼" : "▬"} {formatter(Math.abs(deltaAbs ?? 0))} ({fmtPct(deltaPct, 1)}) vs anterior
+          {up ? "+" : down ? "-" : "="}{formatter(Math.abs(deltaAbs ?? 0))}  ({fmtPct(deltaPct, 1)})  vs anterior
         </Text>
       )}
     </View>
