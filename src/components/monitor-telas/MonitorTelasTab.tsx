@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -7,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import {
   Bar, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Legend,
 } from 'recharts';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 import {
   fetchTelemetriaResumo, fetchTelemetriaRanking, fetchTelemetriaPorDia, fetchTelemetriaNaoUtilizadas,
   type TelemetriaOrigem, type TelemetriaResumo, type TelemetriaRankingRow,
@@ -22,9 +23,7 @@ import { DeParaTelasModal } from './DeParaTelasModal';
 
 const FONTES_WEB = new Set(['ERP_WEB', 'PORTAL_WEB', 'NAVEGACAO_WEB']);
 const FONTE_NATIVO = 'ERP_SENIOR_NATIVO';
-
-type LoadState<T> = { loading: boolean; data: T | null; error: any };
-const initial = <T,>(): LoadState<T> => ({ loading: true, data: null, error: null });
+const REFRESH_MS = 30_000;
 
 interface Props {
   origem: TelemetriaOrigem;
@@ -34,38 +33,69 @@ interface Props {
 }
 
 export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
-  const [resumo, setResumo] = useState<LoadState<TelemetriaResumo>>(initial());
-  const [ranking, setRanking] = useState<LoadState<TelemetriaRankingRow[]>>(initial());
-  const [porDia, setPorDia] = useState<LoadState<TelemetriaPorDiaRow[]>>(initial());
-  const [naoUt, setNaoUt] = useState<LoadState<TelemetriaNaoUtilizadaRow[]>>(initial());
+  const queryClient = useQueryClient();
+
+  const commonOpts = {
+    refetchInterval: REFRESH_MS,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    staleTime: 0,
+  } as const;
+
+  const resumo = useQuery<TelemetriaResumo>({
+    queryKey: ['telemetria', origem, 'resumo', filtros],
+    queryFn: () => fetchTelemetriaResumo(origem, filtros),
+    ...commonOpts,
+  });
+  const ranking = useQuery<TelemetriaRankingRow[]>({
+    queryKey: ['telemetria', origem, 'ranking', filtros, 100],
+    queryFn: () => fetchTelemetriaRanking(origem, filtros, 100),
+    ...commonOpts,
+  });
+  const porDia = useQuery<TelemetriaPorDiaRow[]>({
+    queryKey: ['telemetria', origem, 'por-dia', filtros],
+    queryFn: () => fetchTelemetriaPorDia(origem, filtros),
+    ...commonOpts,
+  });
+  const naoUt = useQuery<TelemetriaNaoUtilizadaRow[]>({
+    queryKey: ['telemetria', origem, 'nao-utilizadas', filtros],
+    queryFn: () => fetchTelemetriaNaoUtilizadas(origem, filtros),
+    ...commonOpts,
+  });
 
   const [modalOpen, setModalOpen] = useState(false);
   const [drill, setDrill] = useState<{ cod: string | null; nome: string | null }>({ cod: null, nome: null });
   const [deParaOpen, setDeParaOpen] = useState(false);
 
-  const load = useCallback(() => {
-    setResumo({ loading: true, data: null, error: null });
-    setRanking({ loading: true, data: null, error: null });
-    setPorDia({ loading: true, data: null, error: null });
-    setNaoUt({ loading: true, data: null, error: null });
+  const load = () => {
+    queryClient.invalidateQueries({ queryKey: ['telemetria', origem] });
+  };
 
-    fetchTelemetriaResumo(origem, filtros)
-      .then((d) => setResumo({ loading: false, data: d, error: null }))
-      .catch((e) => setResumo({ loading: false, data: null, error: e }));
-    fetchTelemetriaRanking(origem, filtros, 100)
-      .then((d) => setRanking({ loading: false, data: d, error: null }))
-      .catch((e) => setRanking({ loading: false, data: null, error: e }));
-    fetchTelemetriaPorDia(origem, filtros)
-      .then((d) => setPorDia({ loading: false, data: d, error: null }))
-      .catch((e) => setPorDia({ loading: false, data: null, error: e }));
-    fetchTelemetriaNaoUtilizadas(origem, filtros)
-      .then((d) => setNaoUt({ loading: false, data: d, error: null }))
-      .catch((e) => setNaoUt({ loading: false, data: null, error: e }));
-  }, [origem, filtros]);
+  useEffect(() => {
+    if (reloadKey > 0) {
+      queryClient.invalidateQueries({ queryKey: ['telemetria', origem] });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadKey]);
 
-  useEffect(() => { load(); }, [load, reloadKey]);
+  // "Atualizado há Xs" — força re-render a cada 5s.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 5000);
+    return () => clearInterval(id);
+  }, []);
 
-  // Validação de fonte
+  const lastUpdatedAt = Math.max(
+    resumo.dataUpdatedAt || 0,
+    ranking.dataUpdatedAt || 0,
+    porDia.dataUpdatedAt || 0,
+    naoUt.dataUpdatedAt || 0,
+  );
+  const atualizadoHa = lastUpdatedAt
+    ? Math.max(0, Math.round((Date.now() - lastUpdatedAt) / 1000))
+    : null;
+
   const fonteInvalida = useMemo(() => {
     const fontes: string[] = [];
     if (resumo.data?.fonte) fontes.push(String(resumo.data.fonte).toUpperCase());
