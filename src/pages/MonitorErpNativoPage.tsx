@@ -494,6 +494,9 @@ export default function MonitorErpNativoPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Tela</TableHead>
+                          <TableHead>Nome amigável</TableHead>
+                          <TableHead>Atalho</TableHead>
+                          <TableHead>Módulo</TableHead>
                           <TableHead>Tabela</TableHead>
                           <TableHead className="text-right">Gravações</TableHead>
                           <TableHead className="text-right">Usuários</TableHead>
@@ -501,6 +504,7 @@ export default function MonitorErpNativoPage() {
                           <TableHead className="text-right">Alter.</TableHead>
                           <TableHead className="text-right">Excl.</TableHead>
                           <TableHead>Última mov.</TableHead>
+                          <TableHead className="w-10" />
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -510,7 +514,28 @@ export default function MonitorErpNativoPage() {
                             onClick={() => abrirTela(r.tela, r.tabela)}
                             className="cursor-pointer"
                           >
-                            <TableCell className="font-medium">{r.tela ?? "-"}</TableCell>
+                            <TableCell className="font-mono text-xs">{r.tela ?? "-"}</TableCell>
+                            <TableCell className="max-w-[220px] truncate" title={r.nome_tela ?? undefined}>
+                              {r.nome_tela ? (
+                                <span className="font-medium">{r.nome_tela}</span>
+                              ) : (
+                                <span className="italic text-muted-foreground">— não mapeado —</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {r.atalho ? (
+                                <Badge variant="outline" className="font-mono text-[11px]">{r.atalho}</Badge>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {r.modulo ? (
+                                <Badge variant="secondary" className="text-[11px]">{r.modulo}</Badge>
+                              ) : (
+                                <span className="text-xs italic text-muted-foreground">Não mapeado</span>
+                              )}
+                            </TableCell>
                             <TableCell className="text-muted-foreground">{r.tabela ?? "-"}</TableCell>
                             <TableCell className="text-right">{fmtNum(r.gravacoes)}</TableCell>
                             <TableCell className="text-right">{fmtNum(r.usuarios)}</TableCell>
@@ -518,10 +543,25 @@ export default function MonitorErpNativoPage() {
                             <TableCell className="text-right">{fmtNum(r.alteracoes)}</TableCell>
                             <TableCell className="text-right">{fmtNum(r.exclusoes)}</TableCell>
                             <TableCell>{fmtDia(r.ultimo_dia)}</TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              {r.tela && (
+                                <EdicaoTelaPopover
+                                  tela={r.tela}
+                                  initial={{
+                                    nome_tela: r.nome_tela,
+                                    atalho: r.atalho,
+                                    modulo: r.modulo,
+                                    ativo: true,
+                                  }}
+                                  onSaved={invalidarTudo}
+                                />
+                              )}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
+
                   </div>
                 )}
               </CardContent>
