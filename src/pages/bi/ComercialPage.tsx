@@ -1227,7 +1227,7 @@ export default function ComercialPage() {
       <DashboardPage>
         <PageHeader
           title="BI Comercial"
-          description={isAdmin ? "Faturamento comercial validado (fonte_acao = VM_FATURAMENTO)." : undefined}
+          description={undefined}
           actions={
             <div className="flex flex-wrap items-center justify-start sm:justify-end gap-2">
               <span
