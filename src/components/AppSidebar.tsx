@@ -99,8 +99,8 @@ const TOP_MENUS: TopMenu[] = [
           { title: 'Contas a Receber', url: '/contas-receber', icon: Landmark },
           { title: 'Balanço Patrimonial', url: '/contabilidade/balanco', icon: Landmark },
           { title: 'DRE Studio — Visão Geral', url: '/contabilidade/dre-studio', icon: Landmark },
-          { title: 'DRE Studio — Modelos', url: '/contabilidade/dre-studio/modelos', icon: Landmark },
-          { title: 'DRE Studio — Novo Modelo', url: '/contabilidade/dre-studio/modelos/novo', icon: Landmark },
+          { title: 'DRE Studio — Modelos', url: '/contabilidade/dre-studio', icon: Landmark },
+          { title: 'DRE Studio — Novo Modelo', url: '/contabilidade/dre-studio/novo', icon: Landmark },
         ],
       },
       {
