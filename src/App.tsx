@@ -52,6 +52,7 @@ import ManutencaoMaquinasCompartilhadoPage from "@/pages/ManutencaoMaquinasCompa
 import TiposMaquinaPage from "@/pages/maquinas/TiposMaquinaPage";
 import MonitorUsuariosSeniorPage from "@/pages/MonitorUsuariosSeniorPage";
 import MonitorTelasPage from "@/pages/MonitorTelasPage";
+import MonitorErpNativoPage from "@/pages/MonitorErpNativoPage";
 import GestaoSguUsuariosPage from "@/pages/GestaoSguUsuariosPage";
 import DemonstrativoComprasRecebimentosPage from "@/pages/DemonstrativoComprasRecebimentosPage";
 import BiComponentsDemoPage from "@/pages/BiComponentsDemoPage";
