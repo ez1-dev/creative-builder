@@ -1,5 +1,5 @@
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { api } from '@/lib/api';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { FilterPanel } from '@/components/erp/FilterPanel';
@@ -8,17 +8,28 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatNumber } from '@/lib/format';
 import { toast } from 'sonner';
 import { useAiFilters } from '@/hooks/useAiFilters';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
-import { AlertTriangle, Clock, SearchX, RefreshCw, Package, TrendingUp, Truck, Warehouse, Layers, AlertCircle, Hourglass } from 'lucide-react';
+import {
+  AlertTriangle, SearchX, RefreshCw, Package, Truck, Warehouse, Layers,
+  AlertCircle, Hourglass, Activity, Gauge,
+} from 'lucide-react';
 import { DashboardCharts } from './components/DashboardCharts';
-import { KpiGrid, KpiCard, LoadingState, UserWidgetsSlot } from '@/components/bi';
+import { KpiGrid, KpiCard, UserWidgetsSlot } from '@/components/bi';
 import { DrillSheet, useDrillSheet } from '@/components/bi/drill/DrillSheet';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
+import {
+  fetchProducaoVisaoGeral,
+  type ProducaoFiltros,
+  type ProducaoResumo,
+} from '@/lib/producao/visaoGeralApi';
 
-interface DashboardResumo {
+/** Compat: mantida para o componente DashboardCharts que importa daqui. */
+export interface DashboardResumo {
   kg_engenharia: number;
   kg_produzido: number;
   kg_expedido: number;
@@ -34,7 +45,7 @@ interface DashboardResumo {
   quantidade_cargas: number;
 }
 
-interface TopProjetoPatio {
+export interface TopProjetoPatio {
   numero_projeto: number;
   numero_desenho: number;
   revisao: string;
@@ -44,9 +55,10 @@ interface TopProjetoPatio {
   kg_engenharia: number;
   status_patio: string;
   cliente: string;
+  [k: string]: any;
 }
 
-interface CargaPorMes {
+export interface CargaPorMes {
   periodo: string;
   quantidade_cargas: number;
 }
@@ -57,32 +69,35 @@ export interface DashboardData {
   cargas_por_mes: CargaPorMes[];
 }
 
-type RequestStatus = 'idle' | 'loading' | 'success' | 'error' | 'timeout' | 'empty';
-
-const TIMEOUT_MS = 45_000;
-
-const defaultResumo: DashboardResumo = {
-  kg_engenharia: 0, kg_produzido: 0, kg_expedido: 0, kg_patio: 0,
-  itens_nao_carregados: 0, projetos_aguardando_producao: 0, projetos_em_producao: 0,
-  projetos_parcialmente_expedidos: 0, projetos_expedidos: 0,
-  leadtime_medio_engenharia_producao: 0, leadtime_medio_producao_expedicao: 0,
-  leadtime_medio_total: 0, quantidade_cargas: 0,
+const num = (v: any): number => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
 };
 
-function normalizeDashboardData(result: any): DashboardData | null {
-  if (!result || typeof result !== 'object') return null;
-  const resumo = result.resumo && typeof result.resumo === 'object'
-    ? { ...defaultResumo, ...result.resumo }
-    : null;
+function toDashboardResumo(p?: ProducaoResumo | null): DashboardResumo {
   return {
-    resumo: resumo as DashboardResumo,
-    top_projetos_patio: Array.isArray(result.top_projetos_patio) ? result.top_projetos_patio : [],
-    cargas_por_mes: Array.isArray(result.cargas_por_mes) ? result.cargas_por_mes : [],
+    kg_engenharia: num(p?.kg_engenharia),
+    kg_produzido: num(p?.kg_produzido),
+    kg_expedido: num(p?.kg_expedido),
+    kg_patio: num(p?.kg_patio),
+    itens_nao_carregados: num(p?.itens_nao_carregados),
+    projetos_aguardando_producao: num(p?.projetos_aguardando_producao),
+    projetos_em_producao: num(p?.projetos_em_producao),
+    projetos_parcialmente_expedidos: num(p?.projetos_parcialmente_expedidos),
+    projetos_expedidos: num(p?.projetos_expedidos),
+    leadtime_medio_engenharia_producao: num(
+      p?.leadtime_medio_engenharia ?? p?.leadtime_medio_engenharia_producao,
+    ),
+    leadtime_medio_producao_expedicao: num(
+      p?.leadtime_medio_producao ?? p?.leadtime_medio_producao_expedicao,
+    ),
+    leadtime_medio_total: num(p?.leadtime_medio_total),
+    quantidade_cargas: num(p?.quantidade_cargas),
   };
 }
 
 function isResumoEmpty(r: DashboardResumo): boolean {
-  return Object.values(r).every(v => v === 0 || v === null || v === undefined);
+  return Object.values(r).every((v) => v === 0 || v === null || v === undefined);
 }
 
 interface DrillItem {
@@ -96,10 +111,10 @@ function buildProjectDetails(
   key: keyof Pick<TopProjetoPatio, 'kg_produzido' | 'kg_expedido' | 'kg_patio' | 'kg_engenharia'>,
 ): DrillItem[] {
   return projetos
-    .filter(p => (p[key] ?? 0) > 0)
+    .filter((p) => (p[key] ?? 0) > 0)
     .sort((a, b) => (b[key] ?? 0) - (a[key] ?? 0))
     .slice(0, 10)
-    .map(p => ({
+    .map((p) => ({
       label: `Proj ${p.numero_projeto} / Des ${p.numero_desenho} Rev ${p.revisao}`,
       value: `${formatNumber(p[key], 0)} Kg`,
       projeto: p,
@@ -107,14 +122,14 @@ function buildProjectDetails(
 }
 
 function buildStatusDetails(projetos: TopProjetoPatio[], ...keywords: string[]): DrillItem[] {
-  const upper = keywords.map(k => k.toUpperCase());
+  const upper = keywords.map((k) => k.toUpperCase());
   return projetos
-    .filter(p => {
+    .filter((p) => {
       const s = (p.status_patio ?? '').toUpperCase();
-      return upper.some(k => s.includes(k));
+      return upper.some((k) => s.includes(k));
     })
     .slice(0, 15)
-    .map(p => ({
+    .map((p) => ({
       label: `Proj ${p.numero_projeto} / Des ${p.numero_desenho} Rev ${p.revisao}`,
       value: (p.cliente ?? '').length > 25 ? (p.cliente ?? '').slice(0, 25) + '…' : (p.cliente ?? '-'),
       projeto: p,
@@ -132,17 +147,18 @@ function buildProjetoBreakdown(p: TopProjetoPatio): DrillItem[] {
   ];
 }
 
+const EMPTY_FILTROS: ProducaoFiltros = {
+  numero_projeto: '', numero_desenho: '', revisao: '', cliente: '', cidade: '',
+};
+
 export default function ProducaoDashboardPage() {
-  const [filters, setFilters] = useState({
-    numero_projeto: '', numero_desenho: '', revisao: '', cliente: '', cidade: '',
-  });
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [status, setStatus] = useState<RequestStatus>('idle');
-  const [errorMsg, setErrorMsg] = useState('');
+  const [filters, setFilters] = useState<ProducaoFiltros>(EMPTY_FILTROS);
+  const [filtrosAplicados, setFiltrosAplicados] = useState<ProducaoFiltros>(EMPTY_FILTROS);
+  const [buscou, setBuscou] = useState(false);
+  const [tab, setTab] = useState<'resumo' | 'carga'>('resumo');
   const erpReady = useErpReady();
-  const abortRef = useRef<AbortController | null>(null);
-  const requestIdRef = useRef(0);
   const drill = useDrillSheet<{ items: DrillItem[] }>();
+
   const openDrill = (payload: Parameters<typeof drill.openWith>[0]) => {
     const snap = filters;
     drill.openWith(payload, { restore: () => setFilters(snap) });
@@ -157,100 +173,104 @@ export default function ProducaoDashboardPage() {
     });
   };
 
-  useEffect(() => {
-    return () => { abortRef.current?.abort(); };
-  }, []);
+  const qResumo = useQuery({
+    queryKey: ['producao', 'visao-geral', filtrosAplicados, false],
+    queryFn: () => fetchProducaoVisaoGeral(filtrosAplicados, false),
+    enabled: erpReady && buscou,
+    staleTime: 2 * 60_000,
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
 
-  const search = useCallback(async () => {
-    if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
+  const qCarga = useQuery({
+    queryKey: ['producao', 'visao-geral', filtrosAplicados, true],
+    queryFn: () => fetchProducaoVisaoGeral(filtrosAplicados, true),
+    enabled: erpReady && buscou && tab === 'carga',
+    staleTime: 2 * 60_000,
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
 
-    // Cancel previous
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    const currentId = ++requestIdRef.current;
-
-    setStatus('loading');
-    setErrorMsg('');
-    setData(null);
-
-    const timeout = setTimeout(() => {
-      if (requestIdRef.current === currentId) {
-        controller.abort();
-        setStatus('timeout');
-        setErrorMsg('A consulta do dashboard está demorando mais que o normal. Tente refinar os filtros.');
-      }
-    }, TIMEOUT_MS);
-
-    try {
-      const result = await api.get<any>('/api/producao/dashboard', filters);
-      clearTimeout(timeout);
-      if (requestIdRef.current !== currentId) return;
-
-      const normalized = normalizeDashboardData(result);
-      if (!normalized || !normalized.resumo) {
-        setStatus('empty');
-        setErrorMsg('O dashboard não recebeu dados consolidados para estes filtros.');
-        setData(null);
-      } else if (isResumoEmpty(normalized.resumo)) {
-        setStatus('empty');
-        setErrorMsg('Nenhum dado encontrado para os filtros informados.');
-        setData(normalized);
-      } else {
-        setData(normalized);
-        setStatus('success');
-      }
-    } catch (e: any) {
-      clearTimeout(timeout);
-      if (requestIdRef.current !== currentId) return;
-      if (e.name === 'AbortError' || controller.signal.aborted) {
-        if (status !== 'timeout') return; // already handled
-      } else {
-        setStatus('error');
-        setErrorMsg(e.message || 'Erro ao consultar o dashboard.');
-        toast.error(e.message);
-      }
+  const search = useCallback(() => {
+    if (!erpReady) {
+      toast.error('Conexão ERP não disponível.');
+      return;
     }
+    setFiltrosAplicados({ ...filters });
+    setBuscou(true);
   }, [filters, erpReady]);
+
+  const clearFilters = () => {
+    setFilters(EMPTY_FILTROS);
+    setFiltrosAplicados(EMPTY_FILTROS);
+    setBuscou(false);
+  };
 
   useAiFilters('producao-dashboard', setFilters, () => search());
 
-  const resumoCtx = data?.resumo;
+  useEffect(() => {
+    if (qResumo.error) {
+      // eslint-disable-next-line no-console
+      console.error('[producao] visao-geral erro', qResumo.error);
+    }
+  }, [qResumo.error]);
+
+  const resumo = useMemo(
+    () => toDashboardResumo(qResumo.data?.producao),
+    [qResumo.data?.producao],
+  );
+  const topProjetos = useMemo<TopProjetoPatio[]>(
+    () => (qResumo.data?.top_projetos_patio ?? []) as TopProjetoPatio[],
+    [qResumo.data?.top_projetos_patio],
+  );
+  const cargasPorMes = useMemo<CargaPorMes[]>(
+    () => (qResumo.data?.cargas_por_mes ?? []) as CargaPorMes[],
+    [qResumo.data?.cargas_por_mes],
+  );
+
   useAiPageContext({
     title: 'Dashboard Produção',
-    filters,
-    kpis: resumoCtx ? {
-      'Kg Previsto': formatNumber(resumoCtx.kg_engenharia, 0),
-      'Kg Produzido': formatNumber(resumoCtx.kg_produzido, 0),
-      'Kg Expedido': formatNumber(resumoCtx.kg_expedido, 0),
-      'Kg Pátio': formatNumber(resumoCtx.kg_patio, 0),
-      'Qtd Cargas': resumoCtx.quantidade_cargas,
-      'Itens Não Carregados': resumoCtx.itens_nao_carregados,
-      'Em Produção': resumoCtx.projetos_em_producao,
-      'LT Total (dias)': resumoCtx.leadtime_medio_total,
+    filters: filtrosAplicados,
+    kpis: qResumo.data?.producao ? {
+      'Kg Previsto': formatNumber(resumo.kg_engenharia, 0),
+      'Kg Produzido': formatNumber(resumo.kg_produzido, 0),
+      'Kg Expedido': formatNumber(resumo.kg_expedido, 0),
+      'Kg Pátio': formatNumber(resumo.kg_patio, 0),
+      'Qtd Cargas': resumo.quantidade_cargas,
+      'Itens Não Carregados': resumo.itens_nao_carregados,
+      'Em Produção': resumo.projetos_em_producao,
+      'LT Total (dias)': resumo.leadtime_medio_total,
     } : undefined,
-    summary: status === 'success'
-      ? `Dashboard carregado; ${(data?.top_projetos_patio || []).length} projetos no top pátio`
-      : status === 'loading' ? 'Carregando dashboard...' : undefined,
+    summary: qResumo.isSuccess
+      ? `Visão geral carregada; ${topProjetos.length} projetos no top pátio`
+      : qResumo.isFetching ? 'Carregando visão geral...' : undefined,
   });
 
-  const clearFilters = () => {
-    abortRef.current?.abort();
-    setFilters({ numero_projeto: '', numero_desenho: '', revisao: '', cliente: '', cidade: '' });
-    setData(null);
-    setStatus('idle');
-    setErrorMsg('');
+  const resumoStatus: 'idle' | 'loading' | 'error' | 'empty' | 'success' =
+    !buscou ? 'idle'
+      : qResumo.isFetching && !qResumo.data ? 'loading'
+      : qResumo.isError ? 'error'
+      : qResumo.data && qResumo.data.producao && !isResumoEmpty(resumo) ? 'success'
+      : qResumo.data ? 'empty'
+      : 'loading';
+
+  const errorMsg = useMemo(() => {
+    const err = qResumo.error as any;
+    if (!err) return '';
+    if (err?.statusCode === 404) return 'Atualização do backend ainda não disponível.';
+    return err?.message || 'Não foi possível carregar a visão geral da produção.';
+  }, [qResumo.error]);
+
+  const dashboardData: DashboardData = {
+    resumo,
+    top_projetos_patio: topProjetos,
+    cargas_por_mes: cargasPorMes,
   };
-
-  const resumo = data?.resumo;
-
-  const topProjetos = data?.top_projetos_patio ?? [];
-  const cargasPorMes = data?.cargas_por_mes ?? [];
 
   return (
     <PageDataProvider
       pageKey="producao-dashboard"
-      kpis={resumo ? {
+      kpis={qResumo.data?.producao ? {
         total_produzido: resumo.kg_produzido,
         total_expedido: resumo.kg_expedido,
         em_estoque: resumo.kg_patio,
@@ -262,109 +282,124 @@ export default function ProducaoDashboardPage() {
         top_projetos_produzido: topProjetos.map((p) => ({ label: `Proj ${p.numero_projeto}`, valor: Number(p.kg_produzido ?? 0) })),
       }}
       rows={topProjetos}
-      filtros={filters}
+      filtros={filtrosAplicados}
     >
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
       <PageHeader
         title="Dashboard Produção"
         description="Visão gerencial de produção, expedição e pátio"
-        actions={<ExportButton endpoint="/api/export/producao-patio" params={filters} />}
+        actions={<ExportButton endpoint="/api/export/producao-patio" params={filtrosAplicados} />}
       />
       <FilterPanel onSearch={search} onClear={clearFilters}>
-        <div><Label className="text-xs">Projeto</Label><Input value={filters.numero_projeto} onChange={(e) => setFilters(f => ({ ...f, numero_projeto: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Desenho</Label><Input value={filters.numero_desenho} onChange={(e) => setFilters(f => ({ ...f, numero_desenho: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Revisão</Label><Input value={filters.revisao} onChange={(e) => setFilters(f => ({ ...f, revisao: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Cliente</Label><Input value={filters.cliente} onChange={(e) => setFilters(f => ({ ...f, cliente: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Cidade</Label><Input value={filters.cidade} onChange={(e) => setFilters(f => ({ ...f, cidade: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Projeto</Label><Input value={filters.numero_projeto ?? ''} onChange={(e) => setFilters(f => ({ ...f, numero_projeto: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Desenho</Label><Input value={filters.numero_desenho ?? ''} onChange={(e) => setFilters(f => ({ ...f, numero_desenho: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Revisão</Label><Input value={filters.revisao ?? ''} onChange={(e) => setFilters(f => ({ ...f, revisao: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Cliente</Label><Input value={filters.cliente ?? ''} onChange={(e) => setFilters(f => ({ ...f, cliente: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Cidade</Label><Input value={filters.cidade ?? ''} onChange={(e) => setFilters(f => ({ ...f, cidade: e.target.value }))} className="h-8 text-xs" /></div>
       </FilterPanel>
 
-      {status === 'loading' && (
-        <div className="flex items-center justify-center gap-2 text-muted-foreground py-12">
-          <Clock className="h-5 w-5 animate-spin" />
-          <span>Consultando dashboard... Aguarde.</span>
-        </div>
-      )}
+      <Tabs value={tab} onValueChange={(v) => setTab(v as 'resumo' | 'carga')}>
+        <TabsList>
+          <TabsTrigger value="resumo">Resumo</TabsTrigger>
+          <TabsTrigger value="carga">Carga</TabsTrigger>
+        </TabsList>
 
-      {status === 'timeout' && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Tempo excedido</AlertTitle>
-          <AlertDescription className="flex items-center gap-2">
-            {errorMsg}
-            <Button variant="outline" size="sm" onClick={search} className="ml-2">
-              <RefreshCw className="h-3 w-3 mr-1" /> Tentar novamente
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
+        <TabsContent value="resumo" className="mt-4 space-y-4">
+          {resumoStatus === 'loading' && (
+            <>
+              <KpiGrid cols={7}>
+                {Array.from({ length: 7 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}
+              </KpiGrid>
+              <Skeleton className="h-64 w-full" />
+            </>
+          )}
 
-      {status === 'error' && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Erro na consulta</AlertTitle>
-          <AlertDescription className="flex items-center gap-2">
-            {errorMsg}
-            <Button variant="outline" size="sm" onClick={search} className="ml-2">
-              <RefreshCw className="h-3 w-3 mr-1" /> Tentar novamente
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
+          {resumoStatus === 'error' && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>{qResumo.error && (qResumo.error as any).statusCode === 404 ? 'Backend em atualização' : 'Erro na consulta'}</AlertTitle>
+              <AlertDescription className="flex items-center gap-2">
+                {errorMsg}
+                <Button variant="outline" size="sm" onClick={() => qResumo.refetch()} className="ml-2">
+                  <RefreshCw className="h-3 w-3 mr-1" /> Tentar novamente
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
 
-      {status === 'empty' && (
-        <Alert>
-          <SearchX className="h-4 w-4" />
-          <AlertTitle>Sem resultados</AlertTitle>
-          <AlertDescription>{errorMsg}</AlertDescription>
-        </Alert>
-      )}
+          {resumoStatus === 'empty' && (
+            <Alert>
+              <SearchX className="h-4 w-4" />
+              <AlertTitle>Sem resultados</AlertTitle>
+              <AlertDescription>Nenhum dado encontrado para os filtros informados.</AlertDescription>
+            </Alert>
+          )}
 
-      {resumo && status === 'success' && (
-        <>
-          <KpiGrid cols={7}>
-            <KpiCard title="Kg Previsto" value={formatNumber(resumo.kg_engenharia, 0)} variant="info"
-              icon={<Layers className="h-4 w-4" />} tooltip="Peso previsto em engenharia"
-              onClick={() => openDrill({ title: 'Kg Previsto — Top projetos', chips: [{ label: 'Métrica', value: 'kg_engenharia' }], ctx: { items: buildProjectDetails(topProjetos, 'kg_engenharia') } })} />
-            <KpiCard title="Kg Produzido" value={formatNumber(resumo.kg_produzido, 0)} variant="success"
-              icon={<Package className="h-4 w-4" />} tooltip="Total produzido (entrada estoque)"
-              onClick={() => openDrill({ title: 'Kg Produzido — Top projetos', chips: [{ label: 'Métrica', value: 'kg_produzido' }], ctx: { items: buildProjectDetails(topProjetos, 'kg_produzido') } })} />
-            <KpiCard title="Kg Expedido" value={formatNumber(resumo.kg_expedido, 0)} variant="success"
-              icon={<Truck className="h-4 w-4" />} tooltip="Total expedido (romaneio)"
-              onClick={() => openDrill({ title: 'Kg Expedido — Top projetos', chips: [{ label: 'Métrica', value: 'kg_expedido' }], ctx: { items: buildProjectDetails(topProjetos, 'kg_expedido') } })} />
-            <KpiCard title="Kg Pátio" value={formatNumber(resumo.kg_patio, 0)} variant="warning"
-              icon={<Warehouse className="h-4 w-4" />} tooltip="Saldo em pátio (produzido − expedido)"
-              onClick={() => openDrill({ title: 'Kg em Pátio — Top projetos', chips: [{ label: 'Métrica', value: 'kg_patio' }], ctx: { items: buildProjectDetails(topProjetos, 'kg_patio') } })} />
-            <KpiCard title="Qtd Cargas" value={resumo.quantidade_cargas} icon={<Truck className="h-4 w-4" />} />
-            <KpiCard title="Itens Não Carreg." value={resumo.itens_nao_carregados} variant="warning"
-              icon={<AlertCircle className="h-4 w-4" />} tooltip="Itens produzidos ainda não carregados" />
-            <KpiCard title="Aguardando Prod." value={resumo.projetos_aguardando_producao}
-              icon={<Hourglass className="h-4 w-4" />} tooltip="Projetos aguardando início de produção"
-              onClick={() => openDrill({ title: 'Aguardando Produção', chips: [{ label: 'Status', value: 'AGUARDANDO' }], ctx: { items: buildStatusDetails(topProjetos, 'AGUARDANDO') } })} />
-          </KpiGrid>
-          <KpiGrid cols={6}>
-            <KpiCard title="Em Produção" value={resumo.projetos_em_producao} variant="info"
-              tooltip="Projetos em fase de produção ou sem entrada em estoque"
-              onClick={() => openDrill({ title: 'Em Produção', chips: [{ label: 'Status', value: 'EM PRODUÇÃO' }], ctx: { items: buildStatusDetails(topProjetos, 'PRODUÇÃO') } })} />
-            <KpiCard title="Parcial Expedido" value={resumo.projetos_parcialmente_expedidos} variant="warning"
-              tooltip="Projetos com expedição parcial"
-              onClick={() => openDrill({ title: 'Parcialmente Expedidos', chips: [{ label: 'Status', value: 'PARCIAL' }], ctx: { items: buildStatusDetails(topProjetos, 'PARCIAL') } })} />
-            <KpiCard title="Total Expedidos" value={resumo.projetos_expedidos} variant="success"
-              tooltip="Projetos totalmente expedidos"
-              onClick={() => openDrill({ title: 'Totalmente Expedidos', chips: [{ label: 'Status', value: 'EXPEDIDO' }], ctx: { items: buildStatusDetails(topProjetos, 'EXPEDIDO') } })} />
-            <KpiCard title="LT Eng→Prod (dias)" value={resumo.leadtime_medio_engenharia_producao} />
-            <KpiCard title="LT Prod→Exp (dias)" value={resumo.leadtime_medio_producao_expedicao} />
-            <KpiCard title="LT Total (dias)" value={resumo.leadtime_medio_total} variant="info" />
-          </KpiGrid>
+          {resumoStatus === 'idle' && (
+            <Alert>
+              <AlertDescription>Ajuste os filtros e clique em Buscar para carregar a visão geral da produção.</AlertDescription>
+            </Alert>
+          )}
 
-          <DashboardCharts data={data!} />
+          {resumoStatus === 'success' && (
+            <>
+              <KpiGrid cols={7}>
+                <KpiCard title="Kg Previsto" value={formatNumber(resumo.kg_engenharia, 0)} variant="info"
+                  icon={<Layers className="h-4 w-4" />} tooltip="Peso previsto em engenharia"
+                  onClick={() => openDrill({ title: 'Kg Previsto — Top projetos', chips: [{ label: 'Métrica', value: 'kg_engenharia' }], ctx: { items: buildProjectDetails(topProjetos, 'kg_engenharia') } })} />
+                <KpiCard title="Kg Produzido" value={formatNumber(resumo.kg_produzido, 0)} variant="success"
+                  icon={<Package className="h-4 w-4" />} tooltip="Total produzido (entrada estoque)"
+                  onClick={() => openDrill({ title: 'Kg Produzido — Top projetos', chips: [{ label: 'Métrica', value: 'kg_produzido' }], ctx: { items: buildProjectDetails(topProjetos, 'kg_produzido') } })} />
+                <KpiCard title="Kg Expedido" value={formatNumber(resumo.kg_expedido, 0)} variant="success"
+                  icon={<Truck className="h-4 w-4" />} tooltip="Total expedido (romaneio)"
+                  onClick={() => openDrill({ title: 'Kg Expedido — Top projetos', chips: [{ label: 'Métrica', value: 'kg_expedido' }], ctx: { items: buildProjectDetails(topProjetos, 'kg_expedido') } })} />
+                <KpiCard title="Kg Pátio" value={formatNumber(resumo.kg_patio, 0)} variant="warning"
+                  icon={<Warehouse className="h-4 w-4" />} tooltip="Saldo em pátio (produzido − expedido)"
+                  onClick={() => openDrill({ title: 'Kg em Pátio — Top projetos', chips: [{ label: 'Métrica', value: 'kg_patio' }], ctx: { items: buildProjectDetails(topProjetos, 'kg_patio') } })} />
+                <KpiCard title="Qtd Cargas" value={resumo.quantidade_cargas} icon={<Truck className="h-4 w-4" />} />
+                <KpiCard title="Itens Não Carreg." value={resumo.itens_nao_carregados} variant="warning"
+                  icon={<AlertCircle className="h-4 w-4" />} tooltip="Itens produzidos ainda não carregados" />
+                <KpiCard title="Aguardando Prod." value={resumo.projetos_aguardando_producao}
+                  icon={<Hourglass className="h-4 w-4" />} tooltip="Projetos aguardando início de produção"
+                  onClick={() => openDrill({ title: 'Aguardando Produção', chips: [{ label: 'Status', value: 'AGUARDANDO' }], ctx: { items: buildStatusDetails(topProjetos, 'AGUARDANDO') } })} />
+              </KpiGrid>
+              <KpiGrid cols={6}>
+                <KpiCard title="Em Produção" value={resumo.projetos_em_producao} variant="info"
+                  tooltip="Projetos em fase de produção ou sem entrada em estoque"
+                  onClick={() => openDrill({ title: 'Em Produção', chips: [{ label: 'Status', value: 'EM PRODUÇÃO' }], ctx: { items: buildStatusDetails(topProjetos, 'PRODUÇÃO') } })} />
+                <KpiCard title="Parcial Expedido" value={resumo.projetos_parcialmente_expedidos} variant="warning"
+                  tooltip="Projetos com expedição parcial"
+                  onClick={() => openDrill({ title: 'Parcialmente Expedidos', chips: [{ label: 'Status', value: 'PARCIAL' }], ctx: { items: buildStatusDetails(topProjetos, 'PARCIAL') } })} />
+                <KpiCard title="Total Expedidos" value={resumo.projetos_expedidos} variant="success"
+                  tooltip="Projetos totalmente expedidos"
+                  onClick={() => openDrill({ title: 'Totalmente Expedidos', chips: [{ label: 'Status', value: 'EXPEDIDO' }], ctx: { items: buildStatusDetails(topProjetos, 'EXPEDIDO') } })} />
+                <KpiCard title="LT Eng→Prod (dias)" value={resumo.leadtime_medio_engenharia_producao} />
+                <KpiCard title="LT Prod→Exp (dias)" value={resumo.leadtime_medio_producao_expedicao} />
+                <KpiCard title="LT Total (dias)" value={resumo.leadtime_medio_total} variant="info" />
+              </KpiGrid>
 
-          {/* Widgets personalizados via Biblioteca BI */}
-          <UserWidgetsSlot section="kpis" cols={4} emptyHint={true} />
-          <UserWidgetsSlot section="charts" cols={3} emptyHint={false} />
-          <UserWidgetsSlot section="tables" cols={2} emptyHint={false} />
-        </>
-      )}
+              <DashboardCharts data={dashboardData} />
+
+              <UserWidgetsSlot section="kpis" cols={4} emptyHint={true} />
+              <UserWidgetsSlot section="charts" cols={3} emptyHint={false} />
+              <UserWidgetsSlot section="tables" cols={2} emptyHint={false} />
+            </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="carga" className="mt-4 space-y-4">
+          <CargaResumoCard
+            loading={qCarga.isFetching}
+            error={qCarga.error as any}
+            carga={qCarga.data?.carga ?? null}
+            fetched={!!qCarga.data}
+            onRefetch={() => qCarga.refetch()}
+            disabled={!buscou}
+          />
+        </TabsContent>
+      </Tabs>
+
       <DrillSheet {...drill.sheetProps}>
         {drill.state.ctx && drill.state.ctx.items.length > 0 ? (
           <ul className="divide-y">
@@ -390,5 +425,83 @@ export default function ProducaoDashboardPage() {
       </DrillSheet>
     </div>
     </PageDataProvider>
+  );
+}
+
+function CargaResumoCard({
+  loading, error, carga, fetched, onRefetch, disabled,
+}: {
+  loading: boolean;
+  error: any;
+  carga: { ocupacao_media_percentual?: number | null; qtd_gargalos?: number | null; obras_em_producao?: number | null } | null;
+  fetched: boolean;
+  onRefetch: () => void;
+  disabled: boolean;
+}) {
+  if (disabled) {
+    return (
+      <Alert>
+        <AlertDescription>Aplique os filtros e clique em Buscar antes de consultar a carga.</AlertDescription>
+      </Alert>
+    );
+  }
+  if (loading) {
+    return (
+      <KpiGrid cols={3}>
+        {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}
+      </KpiGrid>
+    );
+  }
+  if (error) {
+    const is404 = error?.statusCode === 404;
+    return (
+      <Alert variant="destructive">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>{is404 ? 'Backend em atualização' : 'Erro ao consultar carga'}</AlertTitle>
+        <AlertDescription className="flex items-center gap-2">
+          {is404 ? 'Atualização do backend ainda não disponível.' : (error?.message || 'Não foi possível carregar os indicadores de carga.')}
+          <Button variant="outline" size="sm" onClick={onRefetch} className="ml-2">
+            <RefreshCw className="h-3 w-3 mr-1" /> Tentar novamente
+          </Button>
+        </AlertDescription>
+      </Alert>
+    );
+  }
+  if (!fetched || carga === null || carga === undefined) {
+    return (
+      <Alert>
+        <Activity className="h-4 w-4" />
+        <AlertTitle>Indicadores de carga ainda não carregados</AlertTitle>
+        <AlertDescription className="flex items-center gap-2">
+          Os indicadores da aba Carga são carregados sob demanda.
+          <Button variant="outline" size="sm" onClick={onRefetch} className="ml-2">
+            <RefreshCw className="h-3 w-3 mr-1" /> Carregar agora
+          </Button>
+        </AlertDescription>
+      </Alert>
+    );
+  }
+  const ocup = carga.ocupacao_media_percentual;
+  return (
+    <KpiGrid cols={3}>
+      <KpiCard
+        title="Ocupação Média"
+        value={ocup === null || ocup === undefined ? '-' : `${formatNumber(ocup, 1)}%`}
+        icon={<Gauge className="h-4 w-4" />}
+        variant="info"
+        tooltip="Percentual médio de ocupação da carga no período"
+      />
+      <KpiCard
+        title="Qtd Gargalos"
+        value={carga.qtd_gargalos ?? '-'}
+        icon={<AlertCircle className="h-4 w-4" />}
+        variant="warning"
+      />
+      <KpiCard
+        title="Obras em Produção"
+        value={carga.obras_em_producao ?? '-'}
+        icon={<Warehouse className="h-4 w-4" />}
+      />
+    </KpiGrid>
   );
 }
