@@ -1,39 +1,41 @@
 ## Objetivo
+Revisar o menu lateral (`src/components/AppSidebar.tsx`) e incluir as telas registradas em `src/App.tsx` que hoje não têm entrada no menu, além de corrigir 2 links que caem em redirect.
 
-Elevar a qualidade da escrita dos relatórios gerados por IA em todos os pontos do sistema. A alteração é **exclusivamente nos SYSTEM prompts** das edge functions — nenhum schema, endpoint, contrato de UI, layout de PDF ou lógica de negócio é tocado. As telas e PDFs passam a exibir textos mais robustos automaticamente, sem qualquer mudança de frontend.
+## Telas com rota, mas sem entrada no menu
 
-## Padrão editorial único (aplicado a todas as funções)
+**Configurações**
+- `/monitor-telas` — Monitor de Telas (IA)
 
-Cada prompt de sistema passa a exigir o mesmo padrão de escrita:
+**BI / Contabilidade** (subitens da DRE que só são acessados por link direto hoje)
+- `/bi/contabilidade/dre/excecoes` — DRE — Exceções
+- `/bi/contabilidade/dre/aprovacoes` — DRE — Aprovações
+- `/bi/contabilidade/dre/parametrizacao` — DRE — Parametrização
+- `/bi/contabilidade/dre/sincronizacao-depara` — DRE — Sincronização De/Para
+- `/bi/contabilidade/dre/configuracao` — Configuração da DRE Gerencial
+- `/bi/contabilidade/dre-dinamica` — DRE Dinâmica Gerencial
+- `/bi/contabilidade/dre-dinamica/montador` — Montador da DRE Gerencial
+- `/bi/financeiro/dre-configuravel` — BI Financeiro — DRE Configurável
 
-1. **Abertura factual quantificada** — todo bullet começa com o número que importa (valor absoluto + Δ absoluto + Δ %), no formato `R$ 1,61 mi (+R$ 177 mil, +12,4% vs período anterior)`. Sem adjetivos vazios ("bom", "ruim", "significativo") desacompanhados de número.
-2. **Materialidade primeiro** — priorizar as 3–5 variações de maior impacto financeiro/operacional, não listar tudo. Cada bullet informa por que a variação é relevante (peso sobre o total, concentração, quebra de tendência).
-3. **Causa provável** — quando o payload permitir cruzamento (filial, evento, cargo, cliente, produto, tela), citar o driver: "puxado por Filial X (68% do delta)" ou "concentrado em 3 eventos: HE 100%, HE 60%, adicional noturno".
-4. **Recomendação acionável** — verbo no infinitivo + responsável sugerido + prazo + KPI alvo. Ex.: "Revisar escala de HE na Filial X até dd/mm, meta de reduzir 15% até próximo fechamento".
-5. **Sinalização de risco** — classificar cada risco como financeiro / trabalhista / operacional / reputacional, com estimativa de exposição quando o payload permitir.
-6. **Higiene numérica** — nunca inventar números fora do payload; quando um campo estiver ausente, escrever explicitamente "não informado no período" em vez de omitir. Percentuais sempre com 1 casa; valores monetários em pt-BR (R$, milhar com ponto, decimal com vírgula, abreviar `mi`/`mil` acima de 6 dígitos).
-7. **Tom executivo** — frases curtas, voz ativa, PT-BR, sem jargão de consultoria ("sinergias", "alavancar"), sem repetir o que já está na tela como número solto.
-8. **Limites de tamanho** — mantidos os limites atuais por bullet (260 chars) e por seção (3–6 bullets), para não quebrar layouts existentes.
+**Operacional**
+- `/manutencao-maquinas/tipos` — Tipos de Máquina
+- `/passagens-aereas/relatorio-executivo` — Passagens — Relatório Executivo
+- `/frota/relatorio-executivo` — Frota — Relatório Executivo
+- `/manutencao-maquinas/relatorio-executivo` — Máquinas — Relatório Executivo
 
-## Arquivos alterados
+## Correções em links já existentes no menu
+- "DRE Studio — Modelos" (`/contabilidade/dre-studio/modelos`) → trocar para `/contabilidade/dre-studio` (a rota atual é apenas um `Navigate` que redireciona).
+- "DRE Studio — Novo Modelo" (`/contabilidade/dre-studio/modelos/novo`) → trocar para `/contabilidade/dre-studio/novo`.
 
-Todos são edge functions em `supabase/functions/*/index.ts`. Somente a constante de SYSTEM prompt (ou equivalente) é reescrita — o restante do arquivo (schema da tool, chamada ao gateway, normalização, CORS) permanece idêntico.
+## Não incluído
+- `/bi-components-demo` (rota de demo/desenvolvedor; já existe "Biblioteca BI" em Configurações apontando para a mesma página).
+- `/usuarios-conectados` (alias antigo do Monitor de Usuários Senior).
+- Rotas paramétricas (`/regras-senior/regras/:id/...`, `/etl/tarefas/:nome`, subrotas de `/contabilidade/dre-studio/:id/...`) — são acessadas a partir das telas pai e não fazem sentido como item de menu fixo.
 
-| Função | O que muda no prompt |
-|---|---|
-| `rh-relatorio-ia` | SYSTEM ganha o padrão editorial acima + regra de citar sempre custo total, líquido, HE, benefícios, INSS/FGTS com Δ e peso relativo; alertas passam a exigir exposição estimada em R$ quando aplicável. |
-| `rh-ai-insights` | `SYSTEM_BASE` reforçado com padrão editorial; blocos `FOCO[modulo]` reescritos para pedir causas específicas por módulo (quadro → drivers de admissão/desligamento por filial e cargo; férias → risco jurídico por dias vencidos; turnover → coorte e tempo de casa; absenteísmo → concentração por setor/dia da semana). |
-| `dashboard-geral-insights` | SYSTEM inline reforçado para produzir 3 blocos: leitura consolidada (com números), riscos priorizados por impacto financeiro, próximas ações com responsável sugerido. |
-| `relatorio-executivo-ia` | `cfg.persona` mantida; SYSTEM ganha o padrão editorial + exigência de comparar sempre vs. mês anterior, YTD e meta (quando presentes no payload) e destacar top 3 clientes/produtos que explicam o desvio. |
-| `monitor-telas-ia` | `SYSTEM_BASE` + `FOCO[origem]` reforçados para citar telas específicas com nº de execuções, usuários únicos, variação % vs semana anterior, e sinalizar telas críticas com queda >20%. |
-| `sugestao-minmax-ia` | `SYSTEM_PROMPT` reforçado para justificar cada sugestão de mín/máx/PP/lote com: consumo médio + desvio, lead time, cobertura em dias resultante e impacto em capital de giro. Mantém o schema atual. |
-
-## Fora do escopo
-
-- Não altera schema de tools, contrato de resposta, tipos TS, componentes React, PDF layout, catálogos de widgets, permissões, rotas ou tabelas.
-- Não troca modelo de IA nem parâmetros do gateway.
-- Não mexe em `ai-assistant`, `bi-ia-chart` nem `biblioteca-bi-suggest` (não são relatórios executivos — são chat/assistente e sugestor de gráfico).
-
-## Validação
-
-Após aplicar, gerar um relatório em `/rh/relatorio-gerencial`, abrir o `/dashboard-geral` e o `/bi/faturamento/relatorio-executivo` e conferir que os bullets seguem o novo padrão (número na abertura, driver, ação com prazo).
+## Detalhes técnicos
+- Editar somente `TOP_MENUS` em `src/components/AppSidebar.tsx`:
+  - **ERP → BI e Analytics**: adicionar DRE Dinâmica, Montador, DRE Configurável e as 5 subrotas da DRE (Exceções, Aprovações, Parametrização, Sincronização De/Para, Configuração).
+  - **ERP → Financeiro e Contábil**: ajustar os 2 links do DRE Studio para as rotas canônicas.
+  - **ERP → Operacional**: adicionar Tipos de Máquina e os 3 "Relatório Executivo" (agrupados por módulo pai).
+  - **Configurações**: adicionar Monitor de Telas.
+- Os itens continuam sujeitos ao filtro `isVisible` (permissões / demo mode) — usuários sem permissão continuam sem enxergar.
+- Nenhuma alteração de rota, permissão ou lógica de negócio.
