@@ -157,8 +157,12 @@ const TOP_MENUS: TopMenu[] = [
         id: 'erp-operacional', label: 'Operacional', icon: Cog,
         items: [
           { title: 'Passagens Aéreas', url: '/passagens-aereas', icon: Cog },
+          { title: 'Passagens — Relatório Executivo', url: '/passagens-aereas/relatorio-executivo', icon: FileText },
           { title: 'Manutenção de Frota', url: '/frota', icon: Cog },
+          { title: 'Frota — Relatório Executivo', url: '/frota/relatorio-executivo', icon: FileText },
           { title: 'Manutenção de Máquinas', url: '/manutencao-maquinas', icon: Cog },
+          { title: 'Máquinas — Relatório Executivo', url: '/manutencao-maquinas/relatorio-executivo', icon: FileText },
+          { title: 'Tipos de Máquina', url: '/manutencao-maquinas/tipos', icon: Cog },
         ],
       },
     ],
