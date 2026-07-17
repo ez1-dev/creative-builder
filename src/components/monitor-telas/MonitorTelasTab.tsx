@@ -109,7 +109,7 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
   const errorMsg = useMemo(() => errorMessage(anyError), [anyError]);
 
   const isVazio =
-    !resumo.loading && !ranking.loading && !porDia.loading && !naoUt.loading &&
+    !resumo.isLoading && !ranking.isLoading && !porDia.isLoading && !naoUt.isLoading &&
     !anyError &&
     (resumo.data?.total_acessos ?? 0) === 0 &&
     (ranking.data ?? []).length === 0 &&
@@ -195,13 +195,13 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
         porDia={porDia.data ?? []}
         ranking={ranking.data ?? []}
         naoUtilizadas={naoUt.data ?? []}
-        disabled={resumo.loading || ranking.loading || porDia.loading || naoUt.loading || !!anyError}
+        disabled={resumo.isLoading || ranking.isLoading || porDia.isLoading || naoUt.isLoading || !!anyError}
       />
 
       {/* KPIs */}
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <KpiCard label="Total de Acessos" value={formatNumberBR(resumo.data?.total_acessos)} loading={resumo.loading} />
+        <KpiCard label="Total de Acessos" value={formatNumberBR(resumo.data?.total_acessos)} loading={resumo.isLoading} />
         <KpiCard
           label="Telas Usadas"
           value={
@@ -211,12 +211,12 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
                 }`
               : '-'
           }
-          loading={resumo.loading}
+          loading={resumo.isLoading}
         />
         <KpiCard
           label="Telas Sem Uso"
           value={formatNumberBR(resumo.data?.telas_sem_uso)}
-          loading={resumo.loading}
+          loading={resumo.isLoading}
           highlight={(resumo.data?.telas_sem_uso ?? 0) > 0 ? 'orange' : undefined}
         />
         {/*
@@ -229,7 +229,7 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
         <KpiCard
           label="Usuários Ativos"
           value={formatNumberBR(resumo.data?.usuarios_ativos)}
-          loading={resumo.loading}
+          loading={resumo.isLoading}
           subtitle={
             resumo.data
               ? resumo.data.ultimo_acesso
@@ -244,7 +244,7 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-sm">Acessos por Dia</CardTitle></CardHeader>
         <CardContent className="h-[280px]">
-          {porDia.loading ? (
+          {porDia.isLoading ? (
             <Skeleton className="h-full w-full" />
           ) : (porDia.data ?? []).length === 0 ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
@@ -285,7 +285,7 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {ranking.loading ? (
+                {ranking.isLoading ? (
                   <TableRow><TableCell colSpan={7}><Skeleton className="h-24 w-full" /></TableCell></TableRow>
                 ) : (ranking.data ?? []).length === 0 ? (
                   <TableRow><TableCell colSpan={7} className="py-6 text-center text-sm text-muted-foreground">
@@ -336,7 +336,7 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {naoUt.loading ? (
+                {naoUt.isLoading ? (
                   <TableRow><TableCell colSpan={6}><Skeleton className="h-24 w-full" /></TableCell></TableRow>
                 ) : (naoUt.data ?? []).length === 0 ? (
                   <TableRow><TableCell colSpan={6} className="py-6 text-center text-sm text-muted-foreground">
