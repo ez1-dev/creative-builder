@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Home, Star, StarOff, Search as SearchIcon, ChevronDown,
   Package, Users, Settings, Factory, ShoppingCart, Warehouse, Landmark,
-  Receipt, BarChart3, Boxes, ShieldAlert, FileText, Cog, LayoutDashboard,
+  Receipt, BarChart3, Boxes, ShieldAlert, FileText, Cog, LayoutDashboard, Database,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
