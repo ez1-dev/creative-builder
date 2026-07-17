@@ -484,6 +484,14 @@ export default function MonitorErpNativoPage() {
             <TabsTrigger value="usuarios">Usuários</TabsTrigger>
             <TabsTrigger value="eventos">Eventos</TabsTrigger>
             <TabsTrigger value="sem-uso">Sem uso</TabsTrigger>
+            <TabsTrigger value="sem-nome" className="gap-2">
+              Telas sem nome
+              {(qSemNome.data?.nao_mapeadas?.length ?? 0) > 0 && (
+                <Badge className="bg-orange-500/15 text-orange-600 hover:bg-orange-500/15 h-5 px-1.5">
+                  {qSemNome.data?.nao_mapeadas.length}
+                </Badge>
+              )}
+            </TabsTrigger>
           </TabsList>
 
           {/* Ranking Telas */}
