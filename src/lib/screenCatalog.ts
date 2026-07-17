@@ -16,6 +16,8 @@ const EXACT: Record<string, ScreenInfo> = {
   '/frota':                     { codigo: 'FROTA',        nome: 'Manutenção de Frota' },
   '/manutencao-maquinas':       { codigo: 'MAQUINAS',     nome: 'Manutenção de Máquinas' },
   '/monitor-usuarios-senior':   { codigo: 'MON_SR',       nome: 'Monitor Usuários Senior' },
+  '/monitor-telas':             { codigo: 'MON_TELAS',    nome: 'Monitor de Telas (IA)' },
+  '/monitor-erp-nativo':        { codigo: 'MON_ERP_NAT',  nome: 'Monitor de Telas — ERP Nativo' },
   '/faturamento-genius':        { codigo: 'FAT_GENIUS',   nome: 'Faturamento Genius' },
   '/gestao-sgu-usuarios':       { codigo: 'SGU_USR',      nome: 'Gestão SGU - Usuários ERP Senior' },
   '/demonstrativo-compras-recebimentos': { codigo: 'DEM_COMP_REC', nome: 'Demonstrativo de Compras e Recebimentos' },
