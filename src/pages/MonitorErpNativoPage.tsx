@@ -734,6 +734,101 @@ export default function MonitorErpNativoPage() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Telas sem nome */}
+          <TabsContent value="sem-nome">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2">
+                <div>
+                  <CardTitle className="text-base">Telas sem nome amigável</CardTitle>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Códigos de formulário que apareceram no log e ainda não têm nome cadastrado. Ordenados por gravações.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => qSemNome.refetch()} className="gap-2">
+                    <RefreshCw className={`h-4 w-4 ${qSemNome.isFetching ? "animate-spin" : ""}`} />
+                    Atualizar
+                  </Button>
+                  <Button size="sm" onClick={() => setDeParaOpen(true)} className="gap-2">
+                    <Settings2 className="h-4 w-4" />
+                    Abrir de-para
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {qSemNome.isLoading ? (
+                  <Skeleton className="h-40 w-full" />
+                ) : qSemNome.isError ? (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Falha ao carregar</AlertTitle>
+                    <AlertDescription>Não foi possível obter a lista de telas sem nome.</AlertDescription>
+                  </Alert>
+                ) : (qSemNome.data?.nao_mapeadas.length ?? 0) === 0 ? (
+                  <div className="py-8 text-center text-sm text-muted-foreground">
+                    Todas as telas registradas no log já possuem nome amigável.
+                  </div>
+                ) : (
+                  <div className="overflow-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Tela</TableHead>
+                          <TableHead>Tabela</TableHead>
+                          <TableHead>Módulo sugerido</TableHead>
+                          <TableHead className="text-right">Gravações</TableHead>
+                          <TableHead>Última mov.</TableHead>
+                          <TableHead className="w-28" />
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {[...(qSemNome.data?.nao_mapeadas ?? [])]
+                          .sort((a, b) => (b.gravacoes ?? 0) - (a.gravacoes ?? 0))
+                          .map((row) => (
+                            <TableRow key={row.tela}>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="font-mono text-[11px]">{row.tela}</Badge>
+                                  <Badge className="bg-orange-500/15 text-orange-600 hover:bg-orange-500/15">Pendente</Badge>
+                                </div>
+                              </TableCell>
+                              <TableCell className="font-mono text-xs text-muted-foreground">{row.tabela ?? "-"}</TableCell>
+                              <TableCell>
+                                {row.modulo_sugerido ? (
+                                  <Badge variant="secondary" className="text-[11px]">{row.modulo_sugerido}</Badge>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">-</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums">{fmtNum(row.gravacoes)}</TableCell>
+                              <TableCell className="text-xs text-muted-foreground">{fmtDia(row.ultimo_dia)}</TableCell>
+                              <TableCell>
+                                <EdicaoTelaPopover
+                                  trigger={
+                                    <Button size="sm" variant="outline" className="gap-1">
+                                      <Pencil className="h-3.5 w-3.5" />
+                                      Nomear
+                                    </Button>
+                                  }
+                                  tela={{
+                                    tela: row.tela,
+                                    nome_tela: null,
+                                    atalho: row.tela,
+                                    modulo: row.modulo_sugerido ?? null,
+                                  }}
+                                  onSaved={invalidarTudo}
+                                />
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
 
         {/* Aviso fixo */}
