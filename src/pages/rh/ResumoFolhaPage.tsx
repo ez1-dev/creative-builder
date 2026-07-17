@@ -720,6 +720,16 @@ export default function ResumoFolhaPage() {
         </CardContent>
       </Card>
 
+      {syncing && (
+        <div className="flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-primary">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          <span>
+            Sincronização em andamento. O processamento pode levar alguns minutos — você pode manter esta aba aberta.
+          </span>
+        </div>
+      )}
+
+
       {(() => {
         const nowYm = (() => {
           const d = new Date();
