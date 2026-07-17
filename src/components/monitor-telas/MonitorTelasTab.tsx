@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -7,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import {
   Bar, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Legend,
 } from 'recharts';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 import {
   fetchTelemetriaResumo, fetchTelemetriaRanking, fetchTelemetriaPorDia, fetchTelemetriaNaoUtilizadas,
   type TelemetriaOrigem, type TelemetriaResumo, type TelemetriaRankingRow,
@@ -22,9 +23,7 @@ import { DeParaTelasModal } from './DeParaTelasModal';
 
 const FONTES_WEB = new Set(['ERP_WEB', 'PORTAL_WEB', 'NAVEGACAO_WEB']);
 const FONTE_NATIVO = 'ERP_SENIOR_NATIVO';
-
-type LoadState<T> = { loading: boolean; data: T | null; error: any };
-const initial = <T,>(): LoadState<T> => ({ loading: true, data: null, error: null });
+const REFRESH_MS = 30_000;
 
 interface Props {
   origem: TelemetriaOrigem;
@@ -34,38 +33,69 @@ interface Props {
 }
 
 export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
-  const [resumo, setResumo] = useState<LoadState<TelemetriaResumo>>(initial());
-  const [ranking, setRanking] = useState<LoadState<TelemetriaRankingRow[]>>(initial());
-  const [porDia, setPorDia] = useState<LoadState<TelemetriaPorDiaRow[]>>(initial());
-  const [naoUt, setNaoUt] = useState<LoadState<TelemetriaNaoUtilizadaRow[]>>(initial());
+  const queryClient = useQueryClient();
+
+  const commonOpts = {
+    refetchInterval: REFRESH_MS,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    staleTime: 0,
+  } as const;
+
+  const resumo = useQuery<TelemetriaResumo>({
+    queryKey: ['telemetria', origem, 'resumo', filtros],
+    queryFn: () => fetchTelemetriaResumo(origem, filtros),
+    ...commonOpts,
+  });
+  const ranking = useQuery<TelemetriaRankingRow[]>({
+    queryKey: ['telemetria', origem, 'ranking', filtros, 100],
+    queryFn: () => fetchTelemetriaRanking(origem, filtros, 100),
+    ...commonOpts,
+  });
+  const porDia = useQuery<TelemetriaPorDiaRow[]>({
+    queryKey: ['telemetria', origem, 'por-dia', filtros],
+    queryFn: () => fetchTelemetriaPorDia(origem, filtros),
+    ...commonOpts,
+  });
+  const naoUt = useQuery<TelemetriaNaoUtilizadaRow[]>({
+    queryKey: ['telemetria', origem, 'nao-utilizadas', filtros],
+    queryFn: () => fetchTelemetriaNaoUtilizadas(origem, filtros),
+    ...commonOpts,
+  });
 
   const [modalOpen, setModalOpen] = useState(false);
   const [drill, setDrill] = useState<{ cod: string | null; nome: string | null }>({ cod: null, nome: null });
   const [deParaOpen, setDeParaOpen] = useState(false);
 
-  const load = useCallback(() => {
-    setResumo({ loading: true, data: null, error: null });
-    setRanking({ loading: true, data: null, error: null });
-    setPorDia({ loading: true, data: null, error: null });
-    setNaoUt({ loading: true, data: null, error: null });
+  const load = () => {
+    queryClient.invalidateQueries({ queryKey: ['telemetria', origem] });
+  };
 
-    fetchTelemetriaResumo(origem, filtros)
-      .then((d) => setResumo({ loading: false, data: d, error: null }))
-      .catch((e) => setResumo({ loading: false, data: null, error: e }));
-    fetchTelemetriaRanking(origem, filtros, 100)
-      .then((d) => setRanking({ loading: false, data: d, error: null }))
-      .catch((e) => setRanking({ loading: false, data: null, error: e }));
-    fetchTelemetriaPorDia(origem, filtros)
-      .then((d) => setPorDia({ loading: false, data: d, error: null }))
-      .catch((e) => setPorDia({ loading: false, data: null, error: e }));
-    fetchTelemetriaNaoUtilizadas(origem, filtros)
-      .then((d) => setNaoUt({ loading: false, data: d, error: null }))
-      .catch((e) => setNaoUt({ loading: false, data: null, error: e }));
-  }, [origem, filtros]);
+  useEffect(() => {
+    if (reloadKey > 0) {
+      queryClient.invalidateQueries({ queryKey: ['telemetria', origem] });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadKey]);
 
-  useEffect(() => { load(); }, [load, reloadKey]);
+  // "Atualizado há Xs" — força re-render a cada 5s.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 5000);
+    return () => clearInterval(id);
+  }, []);
 
-  // Validação de fonte
+  const lastUpdatedAt = Math.max(
+    resumo.dataUpdatedAt || 0,
+    ranking.dataUpdatedAt || 0,
+    porDia.dataUpdatedAt || 0,
+    naoUt.dataUpdatedAt || 0,
+  );
+  const atualizadoHa = lastUpdatedAt
+    ? Math.max(0, Math.round((Date.now() - lastUpdatedAt) / 1000))
+    : null;
+
   const fonteInvalida = useMemo(() => {
     const fontes: string[] = [];
     if (resumo.data?.fonte) fontes.push(String(resumo.data.fonte).toUpperCase());
@@ -77,9 +107,11 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
 
   const anyError = [resumo, ranking, porDia, naoUt].find((s) => s.error)?.error;
   const errorMsg = useMemo(() => errorMessage(anyError), [anyError]);
+  const isFetching = resumo.isFetching || ranking.isFetching || porDia.isFetching || naoUt.isFetching;
+
 
   const isVazio =
-    !resumo.loading && !ranking.loading && !porDia.loading && !naoUt.loading &&
+    !resumo.isLoading && !ranking.isLoading && !porDia.isLoading && !naoUt.isLoading &&
     !anyError &&
     (resumo.data?.total_acessos ?? 0) === 0 &&
     (ranking.data ?? []).length === 0 &&
@@ -130,6 +162,17 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground">
+        <RefreshCw className={`h-3 w-3 ${isFetching ? 'animate-spin text-primary' : ''}`} />
+        <span>
+          {isFetching
+            ? 'Atualizando…'
+            : atualizadoHa !== null
+              ? `Atualizado há ${atualizadoHa}s · auto a cada 30s`
+              : 'Auto-refresh a cada 30s'}
+        </span>
+      </div>
+
       {errorMsg && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
@@ -165,13 +208,13 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
         porDia={porDia.data ?? []}
         ranking={ranking.data ?? []}
         naoUtilizadas={naoUt.data ?? []}
-        disabled={resumo.loading || ranking.loading || porDia.loading || naoUt.loading || !!anyError}
+        disabled={resumo.isLoading || ranking.isLoading || porDia.isLoading || naoUt.isLoading || !!anyError}
       />
 
       {/* KPIs */}
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <KpiCard label="Total de Acessos" value={formatNumberBR(resumo.data?.total_acessos)} loading={resumo.loading} />
+        <KpiCard label="Total de Acessos" value={formatNumberBR(resumo.data?.total_acessos)} loading={resumo.isLoading} />
         <KpiCard
           label="Telas Usadas"
           value={
@@ -181,12 +224,12 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
                 }`
               : '-'
           }
-          loading={resumo.loading}
+          loading={resumo.isLoading}
         />
         <KpiCard
           label="Telas Sem Uso"
           value={formatNumberBR(resumo.data?.telas_sem_uso)}
-          loading={resumo.loading}
+          loading={resumo.isLoading}
           highlight={(resumo.data?.telas_sem_uso ?? 0) > 0 ? 'orange' : undefined}
         />
         {/*
@@ -199,7 +242,7 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
         <KpiCard
           label="Usuários Ativos"
           value={formatNumberBR(resumo.data?.usuarios_ativos)}
-          loading={resumo.loading}
+          loading={resumo.isLoading}
           subtitle={
             resumo.data
               ? resumo.data.ultimo_acesso
@@ -214,7 +257,7 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-sm">Acessos por Dia</CardTitle></CardHeader>
         <CardContent className="h-[280px]">
-          {porDia.loading ? (
+          {porDia.isLoading ? (
             <Skeleton className="h-full w-full" />
           ) : (porDia.data ?? []).length === 0 ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
@@ -255,7 +298,7 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {ranking.loading ? (
+                {ranking.isLoading ? (
                   <TableRow><TableCell colSpan={7}><Skeleton className="h-24 w-full" /></TableCell></TableRow>
                 ) : (ranking.data ?? []).length === 0 ? (
                   <TableRow><TableCell colSpan={7} className="py-6 text-center text-sm text-muted-foreground">
@@ -306,7 +349,7 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {naoUt.loading ? (
+                {naoUt.isLoading ? (
                   <TableRow><TableCell colSpan={6}><Skeleton className="h-24 w-full" /></TableCell></TableRow>
                 ) : (naoUt.data ?? []).length === 0 ? (
                   <TableRow><TableCell colSpan={6} className="py-6 text-center text-sm text-muted-foreground">
