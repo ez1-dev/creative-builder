@@ -62,7 +62,11 @@ class ApiClient {
     localStorage.removeItem("erp_user");
   }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {},
+    extras: { timeoutMs?: number } = {},
+  ): Promise<T> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       "ngrok-skip-browser-warning": "true",
@@ -74,16 +78,35 @@ class ApiClient {
       headers["Authorization"] = `Bearer ${token}`;
     }
 
+    // Timeout opcional: controlado pelo chamador (ex.: sincronização longa do RH).
+    // Sem `timeoutMs`, mantém o comportamento default do fetch (sem AbortController).
+    const controller = extras.timeoutMs ? new AbortController() : null;
+    const timeoutId = controller
+      ? setTimeout(() => controller.abort(), extras.timeoutMs)
+      : null;
+
     let response: Response;
     try {
       response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
         ...options,
         headers,
+        signal: controller?.signal ?? options.signal,
       });
     } catch (networkErr: any) {
+      const baseUrl = getApiBaseUrl();
+      const aborted =
+        networkErr?.name === "AbortError" || controller?.signal.aborted;
+      if (aborted && extras.timeoutMs) {
+        const msg =
+          "A solicitação demorou mais que o esperado. A operação pode continuar em processamento no servidor.";
+        const err: any = new Error(msg);
+        err.statusCode = 0;
+        err.code = "CLIENT_TIMEOUT";
+        err.isTimeout = true;
+        throw err;
+      }
       // fetch lança TypeError("Failed to fetch") quando: servidor offline,
       // CORS bloqueia preflight, túnel ngrok caiu, DNS falha, ou timeout de rede.
-      const baseUrl = getApiBaseUrl();
       const friendly =
         `Não foi possível conectar ao servidor ERP (${endpoint}). ` +
         `Verifique se o backend FastAPI está online e se a URL configurada em Configurações está correta. ` +
@@ -98,7 +121,10 @@ class ApiClient {
       err.statusCode = 0;
       err.isNetworkError = true;
       throw err;
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
     }
+
 
     if (response.status === 401) {
       const msg = "Sessão da API ERP expirada. Verifique a conexão da API nas Configurações.";
