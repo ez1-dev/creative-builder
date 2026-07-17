@@ -348,7 +348,7 @@ export default function ResumoFolhaPage() {
           </CardContent>
 
         </Card>
-        <KpiOrMissing title="Salário Base" value={kpis?.salario_base} missing={isMissing("salario_base")} field="salario_base" loading={isLoading} {...kpiDrill("salario_base")} />
+        
         <KpiOrMissing title="Salário Bruto" value={kpis?.salario_bruto} missing={isMissing("salario_bruto")} field="salario_bruto" loading={isLoading} {...kpiDrill("salario_bruto")} />
         <KpiOrMissing title="Outras Gratificações" value={kpis?.outras_gratificacoes} missing={isMissing("outras_gratificacoes")} field="outras_gratificacoes" loading={isLoading} {...kpiDrill("outras_gratificacoes")} />
         <KpiOrMissing title="Benefícios" value={kpis?.beneficios} missing={isMissing("beneficios")} field="beneficios" loading={isLoading} tooltip="Benefícios oficiais do período, incluindo V.A." {...kpiDrill("beneficios")} />
