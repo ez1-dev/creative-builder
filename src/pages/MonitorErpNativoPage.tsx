@@ -742,8 +742,15 @@ export default function MonitorErpNativoPage() {
             </div>
           </SheetContent>
         </Sheet>
+
+        <DeParaMonitorErpModal
+          open={deParaOpen}
+          onOpenChange={setDeParaOpen}
+          onSaved={invalidarTudo}
+        />
       </div>
     </TooltipProvider>
+
   );
 }
 
