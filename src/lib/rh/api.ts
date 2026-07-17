@@ -621,7 +621,7 @@ export async function sincronizarResumoFolha(p: SincronizarRhParams): Promise<an
   let lastErr: any;
   for (const url of endpoints) {
     try {
-      return await api.post<any>(url);
+      return await api.post<any>(url, undefined, { timeoutMs: RH_SYNC_TIMEOUT_MS });
     } catch (e: any) {
       const status = e?.statusCode ?? e?.status;
       lastErr = e;
