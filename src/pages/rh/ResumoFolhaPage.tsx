@@ -685,8 +685,14 @@ export default function ResumoFolhaPage() {
             </Button>
             <Button size="sm" onClick={() => syncMut.mutate()} disabled={syncing || !enabled}>
               {syncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-              Sincronizar RH
+              {syncing ? "Sincronizando RH…" : "Sincronizar RH"}
             </Button>
+            {syncInFlight && (
+              <Button size="sm" variant="outline" onClick={verificarResultado}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Verificar resultado
+              </Button>
+            )}
             <BotaoRelatorioModuloPdf
               modulo="resumo-folha"
               titulo="Resumo da Folha"
