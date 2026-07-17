@@ -568,13 +568,17 @@ export interface SincronizarRhParams {
   anomes_fim: string;
   codemp?: number;
 }
+// Timeout de 10 minutos para sincronizações longas (evita AbortError
+// prematuro do fetch/proxy quando o backend processa por vários minutos).
+const RH_SYNC_TIMEOUT_MS = 10 * 60_000;
+
 export async function sincronizarRh(p: SincronizarRhParams): Promise<any> {
   const qs = new URLSearchParams({
     anomes_ini: p.anomes_ini,
     anomes_fim: p.anomes_fim,
     codemp: String(p.codemp ?? 1),
   }).toString();
-  return api.post<any>(`/api/rh/sync?${qs}`);
+  return api.post<any>(`/api/rh/sync?${qs}`, undefined, { timeoutMs: RH_SYNC_TIMEOUT_MS });
 }
 
 /**
@@ -587,8 +591,9 @@ export async function sincronizarVmFolha(p: SincronizarRhParams): Promise<any> {
     anomes_ini: toAnomes(p.anomes_ini),
     anomes_fim: toAnomes(p.anomes_fim),
   }).toString();
-  return api.post<any>(`/api/rh/vm-folha/sincronizar?${qs}`);
+  return api.post<any>(`/api/rh/vm-folha/sincronizar?${qs}`, undefined, { timeoutMs: RH_SYNC_TIMEOUT_MS });
 }
+
 
 export class SincronizacaoCompatIndisponivelError extends Error {
   code = "SINCRONIZACAO_COMPAT_INDISPONIVEL" as const;
