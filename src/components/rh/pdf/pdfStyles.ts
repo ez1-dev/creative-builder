@@ -30,10 +30,10 @@ export const pdfStyles = StyleSheet.create({
   divider: { borderBottomWidth: 1, borderBottomColor: PDF_COLORS.border, marginVertical: 8 },
 
   kpiGrid: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 8 },
-  kpiCard: { width: "31%", padding: 8, backgroundColor: PDF_COLORS.bgSoft, borderRadius: 4, borderLeftWidth: 3, borderLeftColor: PDF_COLORS.primary, marginBottom: 6, marginRight: "2%" },
+  kpiCard: { width: "31%", padding: 10, minHeight: 62, backgroundColor: PDF_COLORS.bgSoft, borderRadius: 4, borderLeftWidth: 3, borderLeftColor: PDF_COLORS.primary, marginBottom: 6, marginRight: "2%" },
   kpiLabel: { fontSize: 8, color: PDF_COLORS.muted, textTransform: "uppercase", letterSpacing: 0.5 },
-  kpiValue: { fontSize: 13, fontWeight: "bold", color: PDF_COLORS.primary, marginTop: 2 },
-  kpiDelta: { fontSize: 8, marginTop: 2 },
+  kpiValue: { fontSize: 13, fontWeight: "bold", color: PDF_COLORS.primary, marginTop: 3 },
+  kpiDelta: { fontSize: 8.5, marginTop: 2, lineHeight: 1.3 },
   deltaUp: { color: PDF_COLORS.success },
   deltaDown: { color: PDF_COLORS.danger },
   deltaFlat: { color: PDF_COLORS.muted },
