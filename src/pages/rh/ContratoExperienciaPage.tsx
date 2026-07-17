@@ -68,7 +68,6 @@ export default function ContratoExperienciaPage() {
     queryKey: ["rh", "contrato-experiencia", "dashboard", codemp, diasVencidoMax],
     queryFn: () => fetchContratoExperienciaDashboardCached(codemp, diasVencidoMax),
     staleTime: 2 * 60_000, gcTime: 10 * 60_000,
-    gcTime: 60 * 60_000,
     refetchOnWindowFocus: false,
     placeholderData: (prev) => prev,
   });

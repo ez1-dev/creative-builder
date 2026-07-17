@@ -58,7 +58,6 @@ export default function ProgramacaoFeriasPage() {
     queryKey: ["rh", "programacao-ferias", "dashboard", codemp],
     queryFn: () => fetchProgramacaoFeriasDashboardCached(codemp),
     staleTime: 2 * 60_000, gcTime: 10 * 60_000,
-    gcTime: 60 * 60_000,
     refetchOnWindowFocus: false,
     placeholderData: (prev) => prev,
   });
