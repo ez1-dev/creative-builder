@@ -47,7 +47,7 @@ export function DeParaMonitorErpModal({ open, onOpenChange, onSaved }: Props) {
       const sortedNao = [...r.nao_mapeadas].sort((a, b) => (b.gravacoes ?? 0) - (a.gravacoes ?? 0));
       setNao(sortedNao);
       setMap(r.mapeadas);
-      setDPend(Object.fromEntries(sortedNao.map((n) => [n.tela, { nome_tela: '', atalho: '', modulo: '', obs: '' }])));
+      setDPend(Object.fromEntries(sortedNao.map((n) => [n.tela, { nome_tela: '', atalho: n.tela, modulo: n.modulo_sugerido ?? '', obs: '' }])));
       setDMap(Object.fromEntries(r.mapeadas.map((m) => [m.tela, {
         nome_tela: m.nome_tela ?? '', atalho: m.atalho ?? '', modulo: m.modulo ?? '',
         ativo: !!m.ativo, obs: m.obs ?? '',
