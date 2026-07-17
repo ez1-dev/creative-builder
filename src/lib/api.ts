@@ -202,12 +202,21 @@ class ApiClient {
     return this.request<T>(url);
   }
 
-  async post<T>(endpoint: string, body?: Record<string, any>): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: "POST",
-      body: body ? JSON.stringify(body) : undefined,
-    });
+  async post<T>(
+    endpoint: string,
+    body?: Record<string, any>,
+    extras?: { timeoutMs?: number },
+  ): Promise<T> {
+    return this.request<T>(
+      endpoint,
+      {
+        method: "POST",
+        body: body ? JSON.stringify(body) : undefined,
+      },
+      extras,
+    );
   }
+
 
   async put<T>(endpoint: string, body?: Record<string, any>): Promise<T> {
     return this.request<T>(endpoint, {
