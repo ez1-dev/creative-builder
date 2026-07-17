@@ -167,6 +167,7 @@ const App = () => (
               <Route path="/monitor-usuarios-senior" element={<ProtectedRoute path="/monitor-usuarios-senior"><MonitorUsuariosSeniorPage /></ProtectedRoute>} />
               <Route path="/usuarios-conectados" element={<ProtectedRoute path="/monitor-usuarios-senior"><MonitorUsuariosSeniorPage /></ProtectedRoute>} />
               <Route path="/monitor-telas" element={<ProtectedRoute path="/monitor-telas"><MonitorTelasPage /></ProtectedRoute>} />
+              <Route path="/monitor-erp-nativo" element={<ProtectedRoute path="/monitor-erp-nativo"><MonitorErpNativoPage /></ProtectedRoute>} />
               <Route path="/gestao-sgu-usuarios" element={<ProtectedRoute path="/gestao-sgu-usuarios"><GestaoSguUsuariosPage /></ProtectedRoute>} />
               <Route path="/configuracoes" element={<ProtectedRoute path="/configuracoes"><ConfiguracoesPage /></ProtectedRoute>} />
               <Route path="/connect" element={<ConnectAgentPage />} />
