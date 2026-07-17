@@ -82,6 +82,7 @@ export function AppSidebar() {
   }, [activeTopId, activeSubId]);
 
   const isVisible = (url: string) => {
+    if (isMenuHidden(url)) return false;
     if (isModuleHidden(url)) return false;
     if (ALWAYS_VISIBLE.has(url)) return true;
     if (loading) return false;
@@ -329,7 +330,7 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         {renderFavoritesTop()}
-        {TOP_MENUS.map(renderTop)}
+        {effectiveMenus.map(renderTop)}
       </SidebarContent>
     </Sidebar>
   );
