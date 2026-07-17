@@ -340,7 +340,7 @@ export default function MonitorErpNativoPage() {
               <Input
                 value={telaInput}
                 onChange={(e) => setTelaInput(e.target.value)}
-                placeholder="Código da tela, exemplo F210LPD"
+                placeholder="Código, nome ou atalho da tela"
                 className="h-9"
               />
             </div>
