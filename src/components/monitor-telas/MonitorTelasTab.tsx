@@ -160,6 +160,17 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground">
+        <RefreshCw className={`h-3 w-3 ${isFetching ? 'animate-spin text-primary' : ''}`} />
+        <span>
+          {isFetching
+            ? 'Atualizando…'
+            : atualizadoHa !== null
+              ? `Atualizado há ${atualizadoHa}s · auto a cada 30s`
+              : 'Auto-refresh a cada 30s'}
+        </span>
+      </div>
+
       {errorMsg && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
