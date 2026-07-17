@@ -654,24 +654,64 @@ export default function MonitorErpNativoPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Tela</TableHead>
+                          <TableHead>Nome amigável</TableHead>
+                          <TableHead>Atalho</TableHead>
+                          <TableHead>Módulo</TableHead>
                           <TableHead>Tabela</TableHead>
                           <TableHead>Última movimentação</TableHead>
                           <TableHead className="text-right">Dias sem uso</TableHead>
                           <TableHead className="text-right">Total histórico</TableHead>
+                          <TableHead className="w-10" />
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {semUso.map((r, i) => (
                           <TableRow key={`${r.tela ?? "-"}|${r.tabela ?? "-"}|${i}`}>
-                            <TableCell className="font-medium">{r.tela ?? "-"}</TableCell>
+                            <TableCell className="font-mono text-xs">{r.tela ?? "-"}</TableCell>
+                            <TableCell className="max-w-[220px] truncate" title={r.nome_tela ?? undefined}>
+                              {r.nome_tela ? (
+                                <span className="font-medium">{r.nome_tela}</span>
+                              ) : (
+                                <span className="italic text-muted-foreground">— não mapeado —</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {r.atalho ? (
+                                <Badge variant="outline" className="font-mono text-[11px]">{r.atalho}</Badge>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {r.modulo ? (
+                                <Badge variant="secondary" className="text-[11px]">{r.modulo}</Badge>
+                              ) : (
+                                <span className="text-xs italic text-muted-foreground">Não mapeado</span>
+                              )}
+                            </TableCell>
                             <TableCell className="text-muted-foreground">{r.tabela ?? "-"}</TableCell>
                             <TableCell>{fmtDia(r.ultimo_dia)}</TableCell>
                             <TableCell className="text-right">{fmtNum(r.dias_sem_uso)}</TableCell>
                             <TableCell className="text-right">{fmtNum(r.total_historico)}</TableCell>
+                            <TableCell>
+                              {r.tela && (
+                                <EdicaoTelaPopover
+                                  tela={r.tela}
+                                  initial={{
+                                    nome_tela: r.nome_tela,
+                                    atalho: r.atalho,
+                                    modulo: r.modulo,
+                                    ativo: true,
+                                  }}
+                                  onSaved={invalidarTudo}
+                                />
+                              )}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
+
                   </div>
                 )}
               </CardContent>
