@@ -305,9 +305,15 @@ export default function MonitorErpNativoPage() {
               inclusões, alterações e exclusões de dados por tela, tabela e usuário.
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={refetchTudo} className="gap-2">
-            <RefreshCw className="h-4 w-4" /> Atualizar
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setDeParaOpen(true)} className="gap-2">
+              <Settings2 className="h-4 w-4" /> De-Para de Telas
+            </Button>
+            <Button variant="outline" size="sm" onClick={refetchTudo} className="gap-2">
+              <RefreshCw className="h-4 w-4" /> Atualizar
+            </Button>
+          </div>
+
         </div>
 
         {/* Filtros */}
