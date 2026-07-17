@@ -75,6 +75,9 @@ import {
   type MonitorErpFiltros,
   type TipLog,
 } from "@/lib/monitorErpNativoApi";
+import { DeParaMonitorErpModal } from "@/components/monitor-erp-nativo/DeParaMonitorErpModal";
+import { EdicaoTelaPopover } from "@/components/monitor-erp-nativo/EdicaoTelaPopover";
+
 
 const OPCOES_DIAS = [7, 30, 90, 180] as const;
 
