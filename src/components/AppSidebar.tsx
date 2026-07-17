@@ -71,21 +71,6 @@ export function AppSidebar() {
     [effectiveMenus, location.pathname],
   );
 
-
-// ============ Componente ============
-export function AppSidebar() {
-  const { state, isMobile, setOpenMobile } = useSidebar();
-  const collapsed = state === 'collapsed';
-  const location = useLocation();
-  const { canView, hasPermissions, loading, isAdmin } = useUserPermissions();
-  const { favorites, isFavorite, toggle } = useFavorites();
-  const { isModuleHidden } = useDemoMode();
-
-  const { topId: activeTopId, subId: activeSubId } = useMemo(
-    () => findActive(location.pathname),
-    [location.pathname],
-  );
-
   const [openTop, setOpenTop] = useState<string | null>(activeTopId ?? 'inicio');
   const [openSubs, setOpenSubs] = useState<Record<string, boolean>>({});
   const [query, setQuery] = useState('');
