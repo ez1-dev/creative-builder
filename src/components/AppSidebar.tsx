@@ -191,6 +191,7 @@ const TOP_MENUS: TopMenu[] = [
     kind: 'flat',
     items: [
       { title: 'Monitor de Usuários Senior', url: '/monitor-usuarios-senior', icon: Users },
+      { title: 'Monitor de Telas (IA)', url: '/monitor-telas', icon: BarChart3 },
       { title: 'Gestão SGU — Usuários ERP Senior', url: '/gestao-sgu-usuarios', icon: Users },
       { title: 'Configurações Gerais', url: '/configuracoes', icon: Settings },
       { title: 'Biblioteca BI — Catálogo de Componentes', url: '/biblioteca-bi', icon: Boxes },
