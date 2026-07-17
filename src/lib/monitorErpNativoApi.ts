@@ -24,6 +24,9 @@ export interface MonitorErpResumo {
 
 export interface MonitorErpRankingTela {
   tela?: string | null;
+  nome_tela?: string | null;
+  atalho?: string | null;
+  modulo?: string | null;
   tabela?: string | null;
   gravacoes?: number;
   usuarios?: number;
@@ -50,12 +53,16 @@ export interface MonitorErpEvento {
   dia?: string | null;
   usuario?: string | null;
   tela?: string | null;
+  nome_tela?: string | null;
+  atalho?: string | null;
+  modulo?: string | null;
   tabela?: string | null;
   tiplog?: TipLog | string | null;
   acao?: string | null;
   chave?: string | null;
   [k: string]: any;
 }
+
 
 export interface MonitorErpPorDia {
   dia?: string | null;
