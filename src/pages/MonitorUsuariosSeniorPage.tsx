@@ -530,9 +530,8 @@ export default function MonitorUsuariosSeniorPage() {
         }
       />
 
-      {/* Status do backend — escondido para usuários comuns quando estiver tudo OK.
-          Admin/RENATO continuam enxergando para diagnosticar. Erros aparecem para todos. */}
-      {(connStatus.kind !== 'online' || canDisconnect) && (
+      {/* Status do backend — só aparece quando há erro/carregando. */}
+      {connStatus.kind !== 'online' && (
         <BackendStatusCard
           status={connStatus.kind === 'idle' && loading ? { kind: 'loading' } : connStatus}
           apiUrl={apiUrl}
