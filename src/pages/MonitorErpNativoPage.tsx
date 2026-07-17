@@ -235,6 +235,14 @@ export default function MonitorErpNativoPage() {
     ...QUERY_OPTS,
   });
 
+  const qSemNome = useQuery({
+    queryKey: ["monitor-erp-nativo", "depara"],
+    queryFn: fetchDeParaMonitorErp,
+    ...QUERY_OPTS,
+  });
+
+
+
   // Drawer
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerTitulo, setDrawerTitulo] = useState<string>("");
