@@ -150,9 +150,17 @@ export default function ResumoFolhaPage() {
     // 2. Invalida todas as queries do RH (dashboard, drills, turnover, absenteísmo, quadro, etc.).
     await qc.invalidateQueries({ queryKey: ["rh"] });
     await qc.invalidateQueries({ queryKey: ["dg-rh"] });
-    // 3. Força refetch imediato do dashboard e dos drills ativos.
-    await qc.refetchQueries({ queryKey: ["rh", "resumo-folha-dashboard"], type: "active" });
-    await qc.refetchQueries({ queryKey: ["rh", "resumo-folha-drill"], type: "active" });
+    // 3. Força refetch imediato do dashboard e dos drills ativos + demais telas RH abertas.
+    await Promise.all([
+      qc.refetchQueries({ queryKey: ["rh", "resumo-folha-dashboard"], type: "active" }),
+      qc.refetchQueries({ queryKey: ["rh", "resumo-folha-drill"], type: "active" }),
+      qc.refetchQueries({ queryKey: ["rh", "turnover"], type: "active" }),
+      qc.refetchQueries({ queryKey: ["rh", "absenteismo"], type: "active" }),
+      qc.refetchQueries({ queryKey: ["rh", "quadro-dashboard"], type: "active" }),
+      qc.refetchQueries({ queryKey: ["rh", "quadro-historico"], type: "active" }),
+      qc.refetchQueries({ queryKey: ["rh", "contrato-experiencia"], type: "active" }),
+      qc.refetchQueries({ queryKey: ["rh", "programacao-ferias"], type: "active" }),
+    ]);
     setUltimaSincronizacao(new Date());
   };
 
@@ -161,7 +169,7 @@ export default function ResumoFolhaPage() {
     onMutate: () => {
       setSyncInFlight(true);
       const id = toast.loading("Sincronizando RH...", {
-        description: `${baseParams.anomes_ini} → ${baseParams.anomes_fim} (empresa ${baseParams.codemp})`,
+        description: "A operação pode levar alguns minutos. Você pode manter a aba aberta.",
       });
       return { id };
     },
@@ -181,6 +189,20 @@ export default function ResumoFolhaPage() {
       await refetchAfterSync();
     },
     onError: (e: any, _vars, ctx) => {
+      // Timeout do cliente: NÃO tratar como "API offline"; a sincronização
+      // pode continuar processando no servidor. Deixa polling ativo.
+      if (e?.isTimeout || e?.code === "CLIENT_TIMEOUT") {
+        setSyncJobId((prev) => prev ?? "pending");
+        toast.info(
+          "A solicitação demorou mais que o esperado. A sincronização pode continuar em processamento no servidor.",
+          {
+            id: ctx?.id,
+            description: "Clique em Verificar resultado quando quiser conferir se já concluiu.",
+            duration: 10_000,
+          },
+        );
+        return;
+      }
       setSyncInFlight(false);
       setSyncJobId(null);
       if (e instanceof SincronizacaoCompatIndisponivelError) {
@@ -194,9 +216,45 @@ export default function ResumoFolhaPage() {
       const description = tecnico
         ? typeof tecnico === "string" ? tecnico : JSON.stringify(tecnico)
         : typeof detalhe === "string" ? detalhe : JSON.stringify(detalhe);
-      toast.error("Erro ao sincronizar dados do ERP Senior/Vetorh.", { id: ctx?.id, description });
+      toast.error("Não foi possível consultar os dados do RH.", { id: ctx?.id, description });
     },
   });
+
+  const verificarResultado = async () => {
+    const tid = toast.loading("Verificando resultado da sincronização...");
+    try {
+      const st = await consultarStatusSincronizacaoRh({
+        codemp: baseParams.codemp,
+        job_id: syncJobId && syncJobId !== "pending" ? syncJobId : undefined,
+      });
+      const status = String(st?.status ?? "").toUpperCase();
+      if (!st || status === "OK" || status === "CONCLUIDO" || status === "SUCCESS") {
+        setSyncInFlight(false);
+        setSyncJobId(null);
+        toast.success("Sincronização concluída. Atualizando dados...", { id: tid });
+        await refetchAfterSync();
+      } else if (status === "ERRO" || status === "FAILED" || status === "ERROR") {
+        setSyncInFlight(false);
+        setSyncJobId(null);
+        const tecnico = st?.diagnostico?.erro_tecnico ?? st?.mensagem;
+        toast.error("Falha na sincronização.", {
+          id: tid,
+          description: typeof tecnico === "string" ? tecnico : JSON.stringify(tecnico ?? {}),
+        });
+      } else {
+        toast.info("Sincronização ainda em processamento.", {
+          id: tid,
+          description: st?.mensagem ?? "Tente novamente em alguns instantes.",
+        });
+      }
+    } catch (e: any) {
+      toast.error("Não foi possível verificar o status.", {
+        id: tid,
+        description: e?.message,
+      });
+    }
+  };
+
 
   const statusQuery = useQuery({
     queryKey: ["rh", "resumo-folha-sync-status", baseParams.codemp, syncJobId],
