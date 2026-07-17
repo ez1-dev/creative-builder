@@ -107,6 +107,8 @@ export function MonitorTelasTab({ origem, filtros, reloadKey }: Props) {
 
   const anyError = [resumo, ranking, porDia, naoUt].find((s) => s.error)?.error;
   const errorMsg = useMemo(() => errorMessage(anyError), [anyError]);
+  const isFetching = resumo.isFetching || ranking.isFetching || porDia.isFetching || naoUt.isFetching;
+
 
   const isVazio =
     !resumo.isLoading && !ranking.isLoading && !porDia.isLoading && !naoUt.isLoading &&
