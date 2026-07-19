@@ -900,7 +900,7 @@ export default function NovaRequisicaoOpPage() {
         stats={stats}
         step={step}
         canContinue={canContinue}
-        canEnviar={sidWrite.enabled && itensSelecionados.length > 0}
+        canEnviar={sidWrite.enabled && itensSelecionados.length > 0 && itensSemDeposito.length === 0 && itensInvalidos.length === 0}
         enviando={enviando}
         onContinue={handleContinue}
         onBack={handleBack}
