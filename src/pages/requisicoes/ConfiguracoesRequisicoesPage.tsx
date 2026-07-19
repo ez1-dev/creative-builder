@@ -63,14 +63,60 @@ function LinhaServico({ nome, s }: { nome: string; s: SidServicoStatus | undefin
 export default function ConfiguracoesRequisicoesPage() {
   const q = useConfigRequisicoes();
   const salvar = useAtualizarConfiguracoes();
+  const sid = useSidStatus();
+  const { isAdmin } = usePermissionsContext();
   const [form, setForm] = useState<ConfigRequisicoes | null>(null);
+  const [ultimoPing, setUltimoPing] = useState<Date | null>(null);
 
   useEffect(() => { if (q.data) setForm(q.data); }, [q.data]);
+  useEffect(() => { if (sid.dataUpdatedAt) setUltimoPing(new Date(sid.dataUpdatedAt)); }, [sid.dataUpdatedAt]);
+
+  const geral = corGeral(sid.isLoading, sid.data);
+
+  const secaoSid = (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+        <CardTitle className="text-base">Integração Senior SID</CardTitle>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className={`gap-1 ${CORES[geral.cor]}`}>
+            {ICONES[geral.cor]} {geral.label}
+          </Badge>
+          <Button size="sm" variant="outline" onClick={() => sid.refetch()} disabled={sid.isFetching}>
+            <RefreshCw className={`mr-1 h-3.5 w-3.5 ${sid.isFetching ? 'animate-spin' : ''}`} /> Testar conexão
+          </Button>
+          {isAdmin && (
+            <Button asChild size="sm" variant="ghost">
+              <Link to="/requisicoes/configuracoes/teste-sid">
+                <FlaskConical className="mr-1 h-3.5 w-3.5" /> Teste controlado
+              </Link>
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <div className="grid gap-2 md:grid-cols-2">
+          <LinhaServico nome="co_ger_sid" s={sid.data?.ger_sid} />
+          <LinhaServico nome="cha_separacao" s={sid.data?.cha_separacao} />
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+          <span>
+            Escrita: <strong>{sid.data?.sid_habilitado ? 'habilitada' : 'desabilitada'}</strong>
+            {' · '}Última verificação: {ultimoPing ? ultimoPing.toLocaleString('pt-BR') : '—'}
+          </span>
+          {sid.data?.proximo_passo && <span>Próximo passo: {sid.data.proximo_passo}</span>}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          A variável <code>SID_HABILITADO</code> é controlada exclusivamente pelo backend. Esta tela apenas consulta o status.
+        </p>
+      </CardContent>
+    </Card>
+  );
 
   if (q.isLoading || !form) {
     return (
       <div className="space-y-4">
         <PageHeader title="Configurações — Requisição de Materiais" />
+        {secaoSid}
         <Card><CardContent className="space-y-2 p-4"><Skeleton className="h-40 w-full" /></CardContent></Card>
       </div>
     );
@@ -91,6 +137,9 @@ export default function ConfiguracoesRequisicoesPage() {
         title="Configurações — Requisição de Materiais"
         description="Parâmetros aplicados a todo o módulo. As regras finais permanecem no ERP; aqui só definimos comportamento da interface."
       />
+
+      {secaoSid}
+
 
       <Card>
         <CardContent className="space-y-4 p-4">
