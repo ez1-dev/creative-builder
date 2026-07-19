@@ -31,6 +31,14 @@ export class IntegracaoDesabilitadaError extends Error {
   }
 }
 
+/** Endpoint de cadastro ainda não publicado pela API. */
+export class EndpointIndisponivelError extends Error {
+  constructor(readonly recurso: string, message?: string) {
+    super(message ?? `Este cadastro ainda não está disponível no backend.`);
+    this.name = 'EndpointIndisponivelError';
+  }
+}
+
 export class ApiOfflineError extends Error {
   constructor() {
     super('Não foi possível contatar o servidor. Verifique sua conexão.');
