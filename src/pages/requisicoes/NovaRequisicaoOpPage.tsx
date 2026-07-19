@@ -93,7 +93,9 @@ export default function NovaRequisicaoOpPage() {
     <div className="space-y-4">
       <PageHeader title="Nova requisição — com OP" description="Consulte a OP, selecione componentes e escolha o tipo de atendimento." />
 
-      {pendenteIntegr !== null && <IntegracaoOfflineBanner detail={pendenteIntegr || undefined} />}
+      {pendenteIntegr !== null && <IntegracaoOfflineBanner detail={pendenteIntegr || undefined} force />}
+      <IntegracaoOfflineBanner />
+
 
       <Card>
         <CardContent className="grid gap-3 p-4 md:grid-cols-4">
