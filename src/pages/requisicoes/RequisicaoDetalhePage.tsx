@@ -21,6 +21,7 @@ export default function RequisicaoDetalhePage() {
   const cancelar = useCancelarRequisicao();
   const estornar = useEstornarRequisicao();
   const reprocessar = useReprocessarIntegracao();
+  const sidWrite = useSidWriteEnabled();
   const [askCancel, setAskCancel] = useState(false);
   const [askEstorno, setAskEstorno] = useState(false);
 
