@@ -327,51 +327,45 @@ function toNum(v: any): number {
 
 /**
  * Normaliza a resposta de GET /api/requisicoes/op/{codori}/{numorp}.
- * Backend novo devolve os campos aninhados em `op` (sitorp, qtd_prevista, qtd_produzida,
- * produto_final, descricao, situacao_desc, motivo_bloqueio, saldo, centro_custo, ...).
- * Achatamos para o formato consumido pelo front (OpConsultaResponse).
+ * O backend devolve os campos da OP dentro de `raw.op`; achatamos para o shape
+ * consumido pelo front (OpConsultaResponse). Componentes e total_componentes
+ * ficam no topo da resposta.
  */
 function normalizeOpConsulta(raw: any, codori: string, numorp: string): OpConsultaResponse {
-  if (!raw || typeof raw !== 'object') {
-    return {
-      codemp: 0, codfil: 0, codori, numorp,
-      produto_final: null, descricao: null, codder: null, projeto: null,
-      situacao: '', quantidade_prevista: 0, quantidade_produzida: 0,
-      pode_requisitar: false, componentes: [],
-    };
-  }
-  const src: any = raw.op && typeof raw.op === 'object' ? { ...raw, ...raw.op } : raw;
-  const componentes: ComponenteOP[] = Array.isArray(raw.componentes)
-    ? raw.componentes
-    : Array.isArray(src.componentes) ? src.componentes : [];
-  const situacao = String(pick(src, 'situacao', 'sitorp', 'SitOrp') ?? '');
-  const situacao_desc = pick(src, 'situacao_desc', 'situacaoDescricao') ?? null;
-  const derivacao = pick(src, 'derivacao', 'codder', 'CodDer') ?? null;
+  const op: any = raw && typeof raw === 'object' && raw.op && typeof raw.op === 'object'
+    ? raw.op
+    : (raw && typeof raw === 'object' ? raw : {});
+  const componentes: ComponenteOP[] = Array.isArray(raw?.componentes) ? raw.componentes : [];
+  const prev = toNum(op.qtd_prevista ?? op.quantidade_prevista);
+  const prod = toNum(op.qtd_produzida ?? op.quantidade_produzida);
+  const saldoRaw = op.saldo;
+  const derivacao = op.derivacao ?? op.codder ?? null;
   return {
-    codemp: toNum(pick(src, 'codemp', 'CodEmp')),
-    codfil: toNum(pick(src, 'codfil', 'CodFil')),
-    codori: String(pick(src, 'codori', 'CodOri') ?? codori),
-    numorp: String(pick(src, 'numorp', 'NumOrp') ?? numorp),
-    produto_final: pick(src, 'produto_final', 'codpro', 'CodPro') ?? null,
-    descricao: pick(src, 'descricao', 'despro', 'DesPro') ?? null,
+    codemp: toNum(op.codemp),
+    codfil: toNum(op.codfil),
+    codori: String(op.codori ?? codori),
+    numorp: String(op.numorp ?? numorp),
+    produto_final: op.produto_final ?? null,
+    descricao: op.descricao ?? null,
     codder: derivacao,
     derivacao,
-    projeto: pick(src, 'projeto', 'projeto_obra') ?? null,
-    projeto_obra: pick(src, 'projeto_obra', 'projeto') ?? null,
-    situacao,
-    situacao_desc,
-    quantidade_prevista: toNum(pick(src, 'quantidade_prevista', 'qtd_prevista', 'qtdprv', 'QtdPrv')),
-    quantidade_produzida: toNum(pick(src, 'quantidade_produzida', 'qtd_produzida', 'qtdicp', 'QtdIcp')),
-    saldo: src.saldo !== undefined ? toNum(src.saldo) : null,
-    centro_custo: pick(src, 'centro_custo', 'ccudes', 'ccuori') ?? null,
-    codfam: pick(src, 'codfam', 'CodFam') ?? null,
-    numped: pick(src, 'numped', 'NumPed') ?? null,
-    pode_requisitar: Boolean(pick(src, 'pode_requisitar')) || src.pode_requisitar === true,
-    motivo_bloqueio: pick(src, 'motivo_bloqueio') ?? null,
+    projeto: op.projeto_obra ?? op.projeto ?? null,
+    projeto_obra: op.projeto_obra ?? null,
+    situacao: String(op.sitorp ?? op.situacao ?? ''),
+    situacao_desc: op.situacao_desc ?? null,
+    quantidade_prevista: prev,
+    quantidade_produzida: prod,
+    saldo: saldoRaw === null || saldoRaw === undefined ? Math.max(0, prev - prod) : toNum(saldoRaw),
+    centro_custo: op.centro_custo ?? null,
+    codfam: op.codfam ?? null,
+    numped: op.numped ?? null,
+    pode_requisitar: op.pode_requisitar === true,
+    motivo_bloqueio: op.motivo_bloqueio ?? null,
     componentes,
-    total_componentes: typeof raw.total_componentes === 'number' ? raw.total_componentes : componentes.length,
+    total_componentes: typeof raw?.total_componentes === 'number' ? raw.total_componentes : componentes.length,
   };
 }
+
 
 async function buscarProdutos(params: {
   q?: string;
