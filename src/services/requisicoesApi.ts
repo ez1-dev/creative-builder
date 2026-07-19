@@ -322,6 +322,12 @@ export interface ComponenteLookup {
   um: string;
 }
 
+export interface DepositoLookup {
+  codigo: number;
+  descricao: string;
+}
+
+
 
 function pick(obj: any, ...keys: string[]): any {
   for (const k of keys) {
