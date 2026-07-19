@@ -527,6 +527,7 @@ export default function NovaRequisicaoOpPage() {
                 const qtd = sel[c.seqcmp] ?? 0;
                 const excede = qtd > c.quantidade_disponivel;
                 const selecionado = qtd > 0;
+                const invMotivo = componenteInvalido(c);
                 return (
                   <TableRow
                     key={c.seqcmp}
@@ -534,16 +535,26 @@ export default function NovaRequisicaoOpPage() {
                       'border-l-4',
                       rowToneClass(c),
                       selecionado && 'bg-primary/5',
+                      invMotivo && 'opacity-70',
                     )}
                   >
                     <TableCell>
-                      <Checkbox
-                        checked={selecionado}
-                        onCheckedChange={(v) =>
-                          setSel((s) => ({ ...s, [c.seqcmp]: v ? Math.max(1, c.quantidade_disponivel) : 0 }))
-                        }
-                        disabled={!podeRequisitar}
-                      />
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>
+                            <Checkbox
+                              checked={selecionado}
+                              onCheckedChange={(v) =>
+                                setSel((s) => ({ ...s, [c.seqcmp]: v ? Math.max(1, c.quantidade_disponivel) : 0 }))
+                              }
+                              disabled={!podeRequisitar || !!invMotivo}
+                            />
+                          </span>
+                        </TooltipTrigger>
+                        {invMotivo && (
+                          <TooltipContent>Componente incompleto ({invMotivo}). Recarregue a OP ou contate o backend.</TooltipContent>
+                        )}
+                      </Tooltip>
                     </TableCell>
                     <TableCell>{c.seqcmp}</TableCell>
                     <TableCell>{c.codetg}</TableCell>
