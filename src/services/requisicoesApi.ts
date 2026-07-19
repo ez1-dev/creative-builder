@@ -286,6 +286,7 @@ export const requisicoesApi = {
   buscarProdutos: buscarProdutos,
   buscarCentrosCusto: buscarCentrosCusto,
   buscarProjetos: buscarProjetos,
+  buscarComponentes: buscarComponentes,
 };
 
 /* ============================== Lookups ============================== */
@@ -302,6 +303,7 @@ export interface ProdutoLookup {
 export interface CentroCustoLookup {
   codccu: string;
   desccu: string;
+  abreviacao?: string | null;
 }
 
 export interface ProjetoLookup {
@@ -309,7 +311,16 @@ export interface ProjetoLookup {
   desprj?: string;
   obra?: string;
   codfpj?: string;
+  abreviacao?: string | null;
+  situacao_desc?: string | null;
 }
+
+export interface ComponenteLookup {
+  codigo: string;
+  descricao: string;
+  um: string;
+}
+
 
 function pick(obj: any, ...keys: string[]): any {
   for (const k of keys) {
