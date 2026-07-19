@@ -16,7 +16,7 @@ import { toast } from '@/hooks/use-toast';
 const CONFIRMACAO = 'CONFIRMAR TESTE SID';
 
 export default function TesteSidPage() {
-  const { isAdmin, loading: permLoading } = usePermissions();
+  const { isAdmin, loading: permLoading } = usePermissionsContext();
   const status = useSidStatus();
 
   const [form, setForm] = useState({
