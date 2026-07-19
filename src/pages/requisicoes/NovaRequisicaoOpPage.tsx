@@ -730,10 +730,16 @@ export default function NovaRequisicaoOpPage() {
               <TableBody>
                 {itensSelecionados.map((it) => {
                   const c = comps.find((x) => x.seqcmp === it.seqcmp);
+                  const inv = componenteInvalido(c);
                   return (
-                    <TableRow key={it.seqcmp}>
-                      <TableCell className="font-mono text-xs">{c?.codcmp}</TableCell>
-                      <TableCell>{c?.descricao ?? '—'}</TableCell>
+                    <TableRow key={it.seqcmp} className={cn(inv && 'bg-destructive/5')}>
+                      <TableCell className="font-mono text-xs">
+                        {c?.codcmp}
+                        {inv && (
+                          <Badge variant="destructive" className="ml-2 align-middle text-[10px]">Dados incompletos</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>{c?.descricao ?? (inv ? <span className="text-destructive text-xs">{inv}</span> : '—')}</TableCell>
                       <TableCell className="text-right tabular-nums">{it.quantidade} {c?.unidade ?? ''}</TableCell>
                       <TableCell>{c?.deposito ?? '—'}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{justif[it.seqcmp] || '—'}</TableCell>
@@ -744,7 +750,16 @@ export default function NovaRequisicaoOpPage() {
             </Table>
           </div>
 
-          {!sidWrite.enabled && (
+          {itensInvalidos.length > 0 && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+              <div className="font-medium">Não é possível enviar: {itensInvalidos.length} componente(s) sem dados-chave.</div>
+              <div className="text-xs mt-1">
+                O backend não devolveu <code>codetg</code>, <code>codcmp</code>, <code>unidade</code> ou <code>depósito</code> para os itens marcados. Clique em <b>Atualizar dados</b> no topo ou peça ao suporte do backend para corrigir a consulta desta OP.
+              </div>
+            </div>
+          )}
+
+          {!sidWrite.enabled && itensInvalidos.length === 0 && (
             <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-200">
               A integração com o ERP está desabilitada. A requisição será salva como pendente de integração.
             </div>
