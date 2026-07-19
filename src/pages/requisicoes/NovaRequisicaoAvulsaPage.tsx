@@ -13,7 +13,7 @@ import { toast } from '@/hooks/use-toast';
 import {
   requisicoesApi,
   IntegracaoDesabilitadaError,
-  type ProdutoLookup,
+  type ComponenteLookup,
   type CentroCustoLookup,
   type ProjetoLookup,
 } from '@/services/requisicoesApi';
@@ -24,12 +24,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import type { TipoRequisicao, PrioridadeRequisicao } from '@/types/requisicoes';
 
 interface Linha {
-  produto: ProdutoLookup | null;
+  componente: ComponenteLookup | null;
   codcmp: string;
   descricao: string;
   unidade: string;
-  codder: string;
-  codfam: string;
   quantidade: number;
   deposito_origem: string;
   deposito_destino: string;
@@ -38,11 +36,12 @@ interface Linha {
 }
 
 const linhaVazia = (): Linha => ({
-  produto: null,
-  codcmp: '', descricao: '', unidade: '', codder: '', codfam: '',
+  componente: null,
+  codcmp: '', descricao: '', unidade: '',
   quantidade: 0, deposito_origem: '', deposito_destino: '',
   lote: '', observacao: '',
 });
+
 
 // Tipos que exigem centro de custo (consumo interno, manutenção, administrativo, emergencial).
 const CC_OBRIGATORIO: TipoRequisicao[] = ['CONSUMO', 'EMERGENCIAL'];
@@ -68,39 +67,33 @@ export default function NovaRequisicaoAvulsaPage() {
   // Ao trocar a empresa, o CC deixa de ser válido
   useEffect(() => { setCc(null); }, [codemp]);
 
-  // Fase pré-preenchida (readonly) quando o projeto trouxer
-  useEffect(() => {
-    if (projeto?.codfpj) setFase(projeto.codfpj);
-  }, [projeto]);
-
   const setLinha = (i: number, patch: Partial<Linha>) =>
     setLinhas((arr) => arr.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
   const addLinha = () => setLinhas((arr) => [...arr, linhaVazia()]);
   const delLinha = (i: number) => setLinhas((arr) => arr.filter((_, idx) => idx !== i));
 
-  const aplicarProduto = (i: number, p: ProdutoLookup | null) => {
-    if (!p) {
-      setLinha(i, { produto: null, codcmp: '', descricao: '', unidade: '', codder: '', codfam: '', deposito_origem: '', deposito_destino: '', lote: '' });
+  const aplicarComponente = (i: number, c: ComponenteLookup | null) => {
+    if (!c) {
+      setLinha(i, { componente: null, codcmp: '', descricao: '', unidade: '', deposito_origem: '', deposito_destino: '', lote: '' });
       return;
     }
     setLinha(i, {
-      produto: p,
-      codcmp: p.codpro,
-      descricao: p.despro,
-      unidade: p.unimed ?? '',
-      codder: p.codder ?? '',
-      codfam: p.codfam ?? '',
-      // Regra 6: limpar dados dependentes ao trocar o produto
+      componente: c,
+      codcmp: c.codigo,
+      descricao: c.descricao,
+      unidade: c.um,
+      // Regra: limpar dados dependentes ao trocar o componente
       deposito_origem: '', deposito_destino: '', lote: '',
     });
   };
 
   const ccObrigatorio = CC_OBRIGATORIO.includes(tipo);
   const linhasValidas = useMemo(
-    () => linhas.filter((l) => l.produto && l.codcmp.trim() && l.quantidade > 0),
+    () => linhas.filter((l) => l.componente && l.codcmp.trim() && l.quantidade > 0),
     [linhas],
   );
-  const temLinhaInvalida = linhas.some((l) => (l.codcmp || l.quantidade > 0) && !l.produto);
+  const temLinhaInvalida = linhas.some((l) => (l.codcmp || l.quantidade > 0) && !l.componente);
+
 
   const disableSubmit =
     busy ||
@@ -134,23 +127,22 @@ export default function NovaRequisicaoAvulsaPage() {
         centro_custo_descricao: cc?.desccu ?? null,
         projeto: projeto ? String(projeto.numprj) : null,
         projeto_descricao: projeto?.desprj ?? null,
-        obra: projeto?.obra ?? null,
-        fase: fase || projeto?.codfpj || null,
+        obra: null,
+        fase: fase || null,
         justificativa: justificativa || null,
         observacoes: obs || null,
         itens: linhasValidas.map((l, i) => ({
           seq: i + 1,
           codcmp: l.codcmp,
-          codder: l.codder || null,
           descricao: l.descricao || null,
           unidade: l.unidade || null,
-          codfam: l.codfam || null,
           quantidade: l.quantidade,
           deposito_origem: l.deposito_origem ? Number(l.deposito_origem) : null,
           deposito_destino: l.deposito_destino ? Number(l.deposito_destino) : null,
           lote: l.lote || null,
           observacao: l.observacao || null,
         })),
+
       };
       const criada = await requisicoesApi.criar(payload as any);
       if (enviar) {
@@ -167,7 +159,7 @@ export default function NovaRequisicaoAvulsaPage() {
     } finally { setBusy(false); }
   };
 
-  const empresaNum = Number(codemp) || undefined;
+  
 
   return (
     <div className="space-y-4">
@@ -225,13 +217,16 @@ export default function NovaRequisicaoAvulsaPage() {
             <RemoteCombobox<CentroCustoLookup>
               value={cc}
               onSelect={setCc}
-              fetcher={(q) => requisicoesApi.buscarCentrosCusto({ q, codemp: empresaNum })}
+              fetcher={(q) => requisicoesApi.buscarCentrosCusto({ q })}
               getKey={(i) => i.codccu}
               getLabel={(i) => `${i.codccu} — ${i.desccu}`}
               renderItem={(i, q) => (
                 <div className="flex flex-col">
                   <span className="font-mono text-xs font-semibold">{highlight(i.codccu, q)}</span>
-                  <span className="truncate text-xs text-muted-foreground">{highlight(i.desccu, q)}</span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    {highlight(i.desccu, q)}
+                    {i.abreviacao ? ` · ${i.abreviacao}` : ''}
+                  </span>
                 </div>
               )}
               placeholder="Buscar centro de custo por código ou descrição"
@@ -248,13 +243,19 @@ export default function NovaRequisicaoAvulsaPage() {
               onSelect={setProjeto}
               fetcher={(q) => requisicoesApi.buscarProjetos({ q })}
               getKey={(i) => String(i.numprj)}
-              getLabel={(i) => [i.obra, i.desprj].filter(Boolean).join(' — ') || `Projeto ${i.numprj}`}
+              getLabel={(i) => `${i.numprj} — ${i.desprj ?? ''}`.trim()}
               renderItem={(i, q) => (
                 <div className="flex flex-col">
                   <span className="text-xs font-semibold">
-                    {highlight([i.obra, i.desprj].filter(Boolean).join(' — ') || `Projeto ${i.numprj}`, q)}
+                    <span className="font-mono">{highlight(String(i.numprj), q)}</span>
+                    {' — '}
+                    {highlight(i.desprj ?? '', q)}
                   </span>
-                  <span className="text-[11px] text-muted-foreground">Projeto: {i.numprj}{i.codfpj ? ` · Fase ${i.codfpj}` : ''}</span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {i.abreviacao ? `${i.abreviacao}` : ''}
+                    {i.abreviacao && i.situacao_desc ? ' · ' : ''}
+                    {i.situacao_desc ?? ''}
+                  </span>
                 </div>
               )}
               placeholder="Buscar projeto ou obra"
@@ -262,9 +263,10 @@ export default function NovaRequisicaoAvulsaPage() {
             />
           </div>
 
+
           <div className="md:col-span-2">
             <Label>Fase</Label>
-            <Input value={fase} onChange={(e) => setFase(e.target.value)} readOnly={!!projeto?.codfpj} placeholder={projeto?.codfpj ? '' : 'Opcional'} />
+            <Input value={fase} onChange={(e) => setFase(e.target.value)} placeholder="Opcional" />
           </div>
 
           <div className="md:col-span-4">
@@ -288,7 +290,6 @@ export default function NovaRequisicaoAvulsaPage() {
             <TableRow>
               <TableHead className="min-w-[280px]">Produto / componente</TableHead>
               <TableHead className="min-w-[220px]">Descrição</TableHead>
-              <TableHead className="w-20">Deriv.</TableHead>
               <TableHead className="w-16">UM</TableHead>
               <TableHead className="w-24 text-right">Qtd</TableHead>
               <TableHead className="w-24">Dep. orig.</TableHead>
@@ -300,29 +301,25 @@ export default function NovaRequisicaoAvulsaPage() {
           </TableHeader>
           <TableBody>
             {linhas.map((l, i) => (
-              <TableRow key={i} className={l.codcmp && !l.produto ? 'bg-destructive/5' : undefined}>
+              <TableRow key={i} className={l.codcmp && !l.componente ? 'bg-destructive/5' : undefined}>
                 <TableCell>
-                  <RemoteCombobox<ProdutoLookup>
-                    value={l.produto}
-                    onSelect={(p) => aplicarProduto(i, p)}
-                    fetcher={(q) => requisicoesApi.buscarProdutos({ q, codemp: empresaNum, incluir_derivacoes: true })}
-                    getKey={(p) => p.codpro}
-                    getLabel={(p) => `${p.codpro} — ${p.despro}`}
-                    renderItem={(p, q) => (
+                  <RemoteCombobox<ComponenteLookup>
+                    value={l.componente}
+                    onSelect={(c) => aplicarComponente(i, c)}
+                    fetcher={(q) => requisicoesApi.buscarComponentes({ q })}
+                    getKey={(c) => c.codigo}
+                    getLabel={(c) => `${c.codigo} — ${c.descricao}`}
+                    renderItem={(c, q) => (
                       <div className="flex flex-col">
                         <span className="text-xs font-semibold">
-                          <span className="font-mono">{highlight(p.codpro, q)}</span>
+                          <span className="font-mono">{highlight(c.codigo, q)}</span>
                           {' — '}
-                          {highlight(p.despro, q)}
+                          {highlight(c.descricao, q)}
                         </span>
-                        <span className="text-[11px] text-muted-foreground">
-                          {p.codfam && <>Família: {p.codfam}{p.desfam ? ` (${p.desfam})` : ''} · </>}
-                          Unidade: {p.unimed ?? '—'}
-                          {p.codder && <> · Deriv.: {p.codder}</>}
-                        </span>
+                        <span className="text-[11px] text-muted-foreground">UM: {c.um || '—'}</span>
                       </div>
                     )}
-                    placeholder="Buscar produto por código ou descrição"
+                    placeholder="Buscar componente por código ou descrição"
                     popoverWidth={460}
                   />
                 </TableCell>
@@ -330,11 +327,9 @@ export default function NovaRequisicaoAvulsaPage() {
                   <Input value={l.descricao} readOnly placeholder="—" className="h-8 bg-muted/40" />
                 </TableCell>
                 <TableCell>
-                  <Input value={l.codder} readOnly placeholder="—" className="h-8 bg-muted/40" />
-                </TableCell>
-                <TableCell>
                   <Input value={l.unidade} readOnly placeholder="—" className="h-8 w-14 bg-muted/40" />
                 </TableCell>
+
                 <TableCell>
                   <Input type="number" step="0.001" value={l.quantidade || ''} onChange={(e) => setLinha(i, { quantidade: Number(e.target.value) || 0 })} className="h-8 text-right" />
                 </TableCell>
