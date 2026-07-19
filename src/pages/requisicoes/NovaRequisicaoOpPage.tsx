@@ -379,7 +379,7 @@ export default function NovaRequisicaoOpPage() {
                   ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
                   : 'border-destructive/40 bg-destructive/10 text-destructive',
               )}>
-                Situação: {op.data.situacao}
+                Situação: {op.data.situacao_desc ?? op.data.situacao}
               </Badge>
             </div>
             <div className="flex gap-2">
@@ -393,11 +393,12 @@ export default function NovaRequisicaoOpPage() {
           <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-3">
             <Field label="Produto final" value={op.data.produto_final} />
             <Field label="Descrição" value={op.data.descricao} className="sm:col-span-2" />
-            <Field label="Derivação" value={op.data.codder} />
-            <Field label="Projeto/Obra" value={op.data.projeto} />
+            <Field label="Derivação" value={op.data.derivacao ?? op.data.codder} />
+            <Field label="Projeto/Obra" value={op.data.projeto_obra ?? op.data.projeto} />
+            <Field label="Centro de custo" value={op.data.centro_custo} />
             <Field label="Qtd. prevista" value={op.data.quantidade_prevista} />
             <Field label="Qtd. produzida" value={op.data.quantidade_produzida} />
-            <Field label="Saldo da OP" value={saldo} />
+            <Field label="Saldo da OP" value={op.data.saldo ?? saldo} />
           </dl>
 
           {!podeRequisitar && (
