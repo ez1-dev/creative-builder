@@ -290,7 +290,6 @@ export default function NovaRequisicaoAvulsaPage() {
             <TableRow>
               <TableHead className="min-w-[280px]">Produto / componente</TableHead>
               <TableHead className="min-w-[220px]">Descrição</TableHead>
-              <TableHead className="w-20">Deriv.</TableHead>
               <TableHead className="w-16">UM</TableHead>
               <TableHead className="w-24 text-right">Qtd</TableHead>
               <TableHead className="w-24">Dep. orig.</TableHead>
@@ -302,29 +301,25 @@ export default function NovaRequisicaoAvulsaPage() {
           </TableHeader>
           <TableBody>
             {linhas.map((l, i) => (
-              <TableRow key={i} className={l.codcmp && !l.produto ? 'bg-destructive/5' : undefined}>
+              <TableRow key={i} className={l.codcmp && !l.componente ? 'bg-destructive/5' : undefined}>
                 <TableCell>
-                  <RemoteCombobox<ProdutoLookup>
-                    value={l.produto}
-                    onSelect={(p) => aplicarProduto(i, p)}
-                    fetcher={(q) => requisicoesApi.buscarProdutos({ q, codemp: empresaNum, incluir_derivacoes: true })}
-                    getKey={(p) => p.codpro}
-                    getLabel={(p) => `${p.codpro} — ${p.despro}`}
-                    renderItem={(p, q) => (
+                  <RemoteCombobox<ComponenteLookup>
+                    value={l.componente}
+                    onSelect={(c) => aplicarComponente(i, c)}
+                    fetcher={(q) => requisicoesApi.buscarComponentes({ q })}
+                    getKey={(c) => c.codigo}
+                    getLabel={(c) => `${c.codigo} — ${c.descricao}`}
+                    renderItem={(c, q) => (
                       <div className="flex flex-col">
                         <span className="text-xs font-semibold">
-                          <span className="font-mono">{highlight(p.codpro, q)}</span>
+                          <span className="font-mono">{highlight(c.codigo, q)}</span>
                           {' — '}
-                          {highlight(p.despro, q)}
+                          {highlight(c.descricao, q)}
                         </span>
-                        <span className="text-[11px] text-muted-foreground">
-                          {p.codfam && <>Família: {p.codfam}{p.desfam ? ` (${p.desfam})` : ''} · </>}
-                          Unidade: {p.unimed ?? '—'}
-                          {p.codder && <> · Deriv.: {p.codder}</>}
-                        </span>
+                        <span className="text-[11px] text-muted-foreground">UM: {c.um || '—'}</span>
                       </div>
                     )}
-                    placeholder="Buscar produto por código ou descrição"
+                    placeholder="Buscar componente por código ou descrição"
                     popoverWidth={460}
                   />
                 </TableCell>
@@ -332,11 +327,9 @@ export default function NovaRequisicaoAvulsaPage() {
                   <Input value={l.descricao} readOnly placeholder="—" className="h-8 bg-muted/40" />
                 </TableCell>
                 <TableCell>
-                  <Input value={l.codder} readOnly placeholder="—" className="h-8 bg-muted/40" />
-                </TableCell>
-                <TableCell>
                   <Input value={l.unidade} readOnly placeholder="—" className="h-8 w-14 bg-muted/40" />
                 </TableCell>
+
                 <TableCell>
                   <Input type="number" step="0.001" value={l.quantidade || ''} onChange={(e) => setLinha(i, { quantidade: Number(e.target.value) || 0 })} className="h-8 text-right" />
                 </TableCell>
