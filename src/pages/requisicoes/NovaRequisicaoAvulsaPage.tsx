@@ -222,9 +222,16 @@ export default function NovaRequisicaoAvulsaPage() {
 
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={() => submit(false)} disabled={busy}>Salvar rascunho</Button>
-        <Button onClick={() => submit(true)} disabled={busy}>
-          {busy ? 'Enviando…' : 'Criar e enviar'}
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>
+              <Button onClick={() => submit(true)} disabled={busy || !sidWrite.enabled}>
+                {busy ? 'Enviando…' : 'Criar e enviar'}
+              </Button>
+            </span>
+          </TooltipTrigger>
+          {!sidWrite.enabled && sidWrite.reason && <TooltipContent>{sidWrite.reason}</TooltipContent>}
+        </Tooltip>
       </div>
     </div>
   );
