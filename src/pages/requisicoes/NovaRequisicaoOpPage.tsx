@@ -140,6 +140,27 @@ export default function NovaRequisicaoOpPage() {
     [sel],
   );
 
+  // Componente vem incompleto do backend?
+  const componenteInvalido = (c: ComponenteOP | undefined): string | null => {
+    if (!c) return 'Componente não encontrado na OP.';
+    if (!c.codcmp) return 'codcmp ausente';
+    if (c.codetg == null || c.codetg === ('' as any)) return 'codetg ausente';
+    if (c.deposito == null) return 'depósito de origem ausente';
+    if (!c.unidade) return 'unidade de medida ausente';
+    return null;
+  };
+
+  const itensInvalidos = useMemo(() => {
+    const comps = op.data?.componentes ?? [];
+    const out: { seqcmp: number; codcmp?: string; motivo: string }[] = [];
+    for (const it of itensSelecionados) {
+      const c = comps.find((x) => x.seqcmp === it.seqcmp);
+      const motivo = componenteInvalido(c);
+      if (motivo) out.push({ seqcmp: it.seqcmp, codcmp: c?.codcmp, motivo });
+    }
+    return out;
+  }, [itensSelecionados, op.data]);
+
   // Estatísticas
   const stats = useMemo(() => {
     const comps = op.data?.componentes ?? [];
@@ -173,7 +194,7 @@ export default function NovaRequisicaoOpPage() {
     });
   }, [itensSelecionados, op.data, justif]);
 
-  const canStep2To3 = itensSelecionados.length > 0 && !justificativasFaltando;
+  const canStep2To3 = itensSelecionados.length > 0 && !justificativasFaltando && itensInvalidos.length === 0;
   const canStep3To4 = tipo === 'BAIXAR_DIRETO' || (tipo === 'TRANSFERIR' && Boolean(depositoDestino.trim()));
   const canContinue =
     step === 1 ? Boolean(op.data && podeRequisitar) :
@@ -223,6 +244,15 @@ export default function NovaRequisicaoOpPage() {
   const salvarRascunho = async () => {
     const payload = buildPayload();
     if (!payload || payload.itens.length === 0) return;
+    if (itensInvalidos.length > 0) {
+      const inv = itensInvalidos[0];
+      toast({
+        title: 'Componente com dados incompletos',
+        description: `${inv.codcmp ?? `seq ${inv.seqcmp}`}: ${inv.motivo}. Recarregue a OP ou peça ao suporte do backend para preencher os campos-chave (codetg, codcmp, unidade, depósito).`,
+        variant: 'destructive',
+      });
+      return;
+    }
     setEnviando(true);
     try {
       const criada = await requisicoesApi.criar(payload as any);
@@ -238,6 +268,15 @@ export default function NovaRequisicaoOpPage() {
   const enviar = async () => {
     const payload = buildPayload();
     if (!payload || payload.itens.length === 0) return;
+    if (itensInvalidos.length > 0) {
+      const inv = itensInvalidos[0];
+      toast({
+        title: 'Componente com dados incompletos',
+        description: `${inv.codcmp ?? `seq ${inv.seqcmp}`}: ${inv.motivo}. Não é possível enviar ao ERP até o backend devolver o componente completo.`,
+        variant: 'destructive',
+      });
+      return;
+    }
     setEnviando(true); setPendenteIntegr(null);
     try {
       const criada = await requisicoesApi.criar(payload as any);
@@ -488,6 +527,7 @@ export default function NovaRequisicaoOpPage() {
                 const qtd = sel[c.seqcmp] ?? 0;
                 const excede = qtd > c.quantidade_disponivel;
                 const selecionado = qtd > 0;
+                const invMotivo = componenteInvalido(c);
                 return (
                   <TableRow
                     key={c.seqcmp}
@@ -495,16 +535,26 @@ export default function NovaRequisicaoOpPage() {
                       'border-l-4',
                       rowToneClass(c),
                       selecionado && 'bg-primary/5',
+                      invMotivo && 'opacity-70',
                     )}
                   >
                     <TableCell>
-                      <Checkbox
-                        checked={selecionado}
-                        onCheckedChange={(v) =>
-                          setSel((s) => ({ ...s, [c.seqcmp]: v ? Math.max(1, c.quantidade_disponivel) : 0 }))
-                        }
-                        disabled={!podeRequisitar}
-                      />
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>
+                            <Checkbox
+                              checked={selecionado}
+                              onCheckedChange={(v) =>
+                                setSel((s) => ({ ...s, [c.seqcmp]: v ? Math.max(1, c.quantidade_disponivel) : 0 }))
+                              }
+                              disabled={!podeRequisitar || !!invMotivo}
+                            />
+                          </span>
+                        </TooltipTrigger>
+                        {invMotivo && (
+                          <TooltipContent>Componente incompleto ({invMotivo}). Recarregue a OP ou contate o backend.</TooltipContent>
+                        )}
+                      </Tooltip>
                     </TableCell>
                     <TableCell>{c.seqcmp}</TableCell>
                     <TableCell>{c.codetg}</TableCell>
@@ -680,10 +730,16 @@ export default function NovaRequisicaoOpPage() {
               <TableBody>
                 {itensSelecionados.map((it) => {
                   const c = comps.find((x) => x.seqcmp === it.seqcmp);
+                  const inv = componenteInvalido(c);
                   return (
-                    <TableRow key={it.seqcmp}>
-                      <TableCell className="font-mono text-xs">{c?.codcmp}</TableCell>
-                      <TableCell>{c?.descricao ?? '—'}</TableCell>
+                    <TableRow key={it.seqcmp} className={cn(inv && 'bg-destructive/5')}>
+                      <TableCell className="font-mono text-xs">
+                        {c?.codcmp}
+                        {inv && (
+                          <Badge variant="destructive" className="ml-2 align-middle text-[10px]">Dados incompletos</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>{c?.descricao ?? (inv ? <span className="text-destructive text-xs">{inv}</span> : '—')}</TableCell>
                       <TableCell className="text-right tabular-nums">{it.quantidade} {c?.unidade ?? ''}</TableCell>
                       <TableCell>{c?.deposito ?? '—'}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{justif[it.seqcmp] || '—'}</TableCell>
@@ -694,7 +750,16 @@ export default function NovaRequisicaoOpPage() {
             </Table>
           </div>
 
-          {!sidWrite.enabled && (
+          {itensInvalidos.length > 0 && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+              <div className="font-medium">Não é possível enviar: {itensInvalidos.length} componente(s) sem dados-chave.</div>
+              <div className="text-xs mt-1">
+                O backend não devolveu <code>codetg</code>, <code>codcmp</code>, <code>unidade</code> ou <code>depósito</code> para os itens marcados. Clique em <b>Atualizar dados</b> no topo ou peça ao suporte do backend para corrigir a consulta desta OP.
+              </div>
+            </div>
+          )}
+
+          {!sidWrite.enabled && itensInvalidos.length === 0 && (
             <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-200">
               A integração com o ERP está desabilitada. A requisição será salva como pendente de integração.
             </div>
