@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { PageHeader } from '@/components/PageHeader';
+import { PageHeader } from '@/components/erp/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
