@@ -12,7 +12,10 @@ interface Props {
   fetcher: (q: string) => Promise<OpcaoOp[]>;
   disabled?: boolean;
   placeholder?: string;
+  selectedKey?: string;
+  loading?: boolean;
 }
+
 
 const formatOp = (op: OpcaoOp) =>
   op.label ||
@@ -24,7 +27,7 @@ const formatOp = (op: OpcaoOp) =>
     op.descricao_produto,
   ].filter(Boolean).join(' - ');
 
-export function OpAutocomplete({ value, displayLabel, onSelect, fetcher, disabled, placeholder = 'Buscar O.P...' }: Props) {
+export function OpAutocomplete({ value, displayLabel, onSelect, fetcher, disabled, placeholder = 'Buscar O.P...', selectedKey, loading: externalLoading }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<OpcaoOp[]>([]);
@@ -48,6 +51,18 @@ export function OpAutocomplete({ value, displayLabel, onSelect, fetcher, disable
     return () => { if (debRef.current) window.clearTimeout(debRef.current); };
   }, [open, query, fetcher]);
 
+  const orderedResults = (() => {
+    if (!selectedKey) return results;
+    const idx = results.findIndex((op) => `${op.cod_emp ?? ''}-${op.cod_ori ?? ''}-${op.num_orp ?? ''}` === selectedKey || `${op.cod_ori ?? ''}-${op.num_orp ?? ''}` === selectedKey);
+    if (idx <= 0) return results;
+    const copy = results.slice();
+    const [item] = copy.splice(idx, 1);
+    copy.unshift(item);
+    return copy;
+  })();
+
+  const hasSelection = !!value;
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -58,14 +73,17 @@ export function OpAutocomplete({ value, displayLabel, onSelect, fetcher, disable
           className={cn(
             'flex h-8 w-full items-center justify-between rounded-md border border-input bg-background px-2 text-xs ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
             !value && 'text-muted-foreground',
+            hasSelection && 'border-primary/40 bg-primary/5 ring-1 ring-primary/20',
           )}
         >
           <span className="truncate">{value ? (displayLabel || value) : placeholder}</span>
           <span className="ml-1 flex shrink-0 items-center gap-1">
-            {value && !disabled && (
+            {value && !disabled && !externalLoading && (
               <X className="h-3 w-3 opacity-60 hover:opacity-100" onClick={(e) => { e.stopPropagation(); onSelect(null); }} />
             )}
-            <ChevronsUpDown className="h-3 w-3 opacity-50" />
+            {externalLoading
+              ? <Loader2 className="h-3 w-3 animate-spin text-primary" />
+              : <ChevronsUpDown className="h-3 w-3 opacity-50" />}
           </span>
         </button>
       </PopoverTrigger>
@@ -75,23 +93,25 @@ export function OpAutocomplete({ value, displayLabel, onSelect, fetcher, disable
           <CommandList>
             {loading ? (
               <div className="flex items-center justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
-            ) : results.length === 0 ? (
+            ) : orderedResults.length === 0 ? (
               <CommandEmpty className="py-3 text-center text-xs text-muted-foreground">
                 {query ? 'Nenhuma O.P. encontrada' : 'Digite para buscar'}
               </CommandEmpty>
             ) : (
               <CommandGroup>
-                {results.slice(0, 100).map((op) => {
+                {orderedResults.slice(0, 100).map((op) => {
                   const key = `${op.cod_emp ?? ''}-${op.cod_ori ?? ''}-${op.num_orp ?? ''}`;
+                  const shortKey = `${op.cod_ori ?? ''}-${op.num_orp ?? ''}`;
+                  const isSelected = selectedKey === key || selectedKey === shortKey;
                   const label = formatOp(op);
                   return (
                     <CommandItem
                       key={key}
                       value={key}
                       onSelect={() => { onSelect(op); setOpen(false); setQuery(''); }}
-                      className="text-xs"
+                      className={cn('text-xs', isSelected && 'bg-primary/10 font-medium')}
                     >
-                      <Check className={cn('mr-1 h-3 w-3', String(op.num_orp ?? '') === value ? 'opacity-100' : 'opacity-0')} />
+                      <Check className={cn('mr-1 h-3 w-3', isSelected ? 'opacity-100 text-primary' : 'opacity-0')} />
                       <span className="truncate">{label}</span>
                     </CommandItem>
                   );
@@ -104,3 +124,4 @@ export function OpAutocomplete({ value, displayLabel, onSelect, fetcher, disable
     </Popover>
   );
 }
+
