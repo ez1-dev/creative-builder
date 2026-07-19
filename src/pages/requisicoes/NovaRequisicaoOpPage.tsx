@@ -772,12 +772,17 @@ export default function NovaRequisicaoOpPage() {
 
   const primeiroDepositoOrigem = useMemo(() => {
     const comps = op.data?.componentes ?? [];
+    const uniq = new Set<number>();
     for (const it of itensSelecionados) {
       const c = comps.find((x) => x.seqcmp === it.seqcmp);
-      if (c?.deposito != null) return String(c.deposito);
+      const d = depositoEscolhido(c);
+      if (d != null) uniq.add(d);
     }
-    return '—';
-  }, [itensSelecionados, op.data]);
+    if (uniq.size === 0) return '—';
+    if (uniq.size === 1) return String([...uniq][0]);
+    return `${uniq.size} depósitos`;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itensSelecionados, op.data, depositosPorItem]);
 
   const renderStep3 = () => (
     <Card className="shadow-sm">
