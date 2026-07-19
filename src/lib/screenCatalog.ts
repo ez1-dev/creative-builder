@@ -60,6 +60,7 @@ const EXACT: Record<string, ScreenInfo> = {
   '/requisicoes/almoxarifado':  { codigo: 'REQ_ALMOX',      nome: 'Requisições — Almoxarifado' },
   '/requisicoes/agrupadas':     { codigo: 'REQ_AGRUP',      nome: 'Requisições — Separação Agrupada' },
   '/requisicoes/configuracoes': { codigo: 'REQ_CFG',        nome: 'Requisições — Configurações' },
+  '/requisicoes/configuracoes/teste-sid': { codigo: 'REQ_TESTE_SID', nome: 'Requisições — Teste SID (admin)' },
 
 
 };
