@@ -63,6 +63,8 @@ export default function AlmoxarifadoFilaPage() {
   return (
     <div className="space-y-4">
       <PageHeader title="Fila do almoxarifado" description="Assumir, reservar, separar, atender total/parcial, transferir, baixar OP, registrar falta ou enviar para compras." />
+      <IntegracaoOfflineBanner />
+
 
       <Card>
         <CardContent className="grid gap-3 p-4 md:grid-cols-4">
