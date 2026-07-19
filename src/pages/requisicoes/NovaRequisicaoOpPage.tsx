@@ -124,7 +124,20 @@ export default function NovaRequisicaoOpPage() {
 
 
       <Card>
-        <CardContent className="grid gap-3 p-4 md:grid-cols-4">
+        <CardContent className="grid gap-3 p-4 md:grid-cols-6">
+          <div className="md:col-span-3">
+            <Label>Ordem de Produção</Label>
+            <OpAutocomplete
+              value={numorp}
+              displayLabel={opLabel}
+              onSelect={handleSelectOp}
+              fetcher={fetchOps}
+              placeholder="Buscar OP por número, produto ou descrição..."
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Seleção pré-carregada. CODORI e NUMORP abaixo preenchem automaticamente.
+            </p>
+          </div>
           <div>
             <Label>Origem (CODORI)</Label>
             <Input value={codori} onChange={(e) => setCodori(e.target.value)} placeholder="Ex.: 100" />
