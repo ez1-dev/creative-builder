@@ -151,7 +151,8 @@ export default function AlmoxarifadoFilaPage() {
                         <Button
                           size="sm" variant="outline"
                           onClick={() => iniciar.mutate({ id: f.requisicao_id, seq: f.item_seq })}
-                          disabled={iniciar.isPending}
+                          disabled={iniciar.isPending || !sidWrite.enabled}
+                          title={!sidWrite.enabled ? sidWrite.reason : undefined}
                         >
                           <HandMetal className="mr-1 h-3.5 w-3.5" /> Assumir
                         </Button>
@@ -161,18 +162,26 @@ export default function AlmoxarifadoFilaPage() {
                           <Button size="sm" variant="ghost"><MoreHorizontal className="h-4 w-4" /></Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Movimentar</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => setDialog({ acao: 'reservar', item: f })}>Reservar</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setDialog({ acao: 'separar', item: f })}>Separar</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setDialog({ acao: 'atender', item: f })}>Atender (total/parcial)</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setDialog({ acao: 'transferir', item: f })}>Transferir depósito</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setDialog({ acao: 'baixar', item: f })}>Baixar componente na OP</DropdownMenuItem>
+                          <DropdownMenuLabel>
+                            Movimentar {!sidWrite.enabled && <span className="text-xs text-amber-700">(SID off)</span>}
+                          </DropdownMenuLabel>
+                          <DropdownMenuItem
+                            disabled
+                            title="Operação E900RCP/F900RCP não utilizada neste ambiente"
+                          >
+                            Reservar (experimental)
+                          </DropdownMenuItem>
+                          <DropdownMenuItem disabled={!sidWrite.enabled} onClick={() => setDialog({ acao: 'separar', item: f })}>Separar</DropdownMenuItem>
+                          <DropdownMenuItem disabled={!sidWrite.enabled} onClick={() => setDialog({ acao: 'atender', item: f })}>Atender (total/parcial)</DropdownMenuItem>
+                          <DropdownMenuItem disabled={!sidWrite.enabled} onClick={() => setDialog({ acao: 'transferir', item: f })}>Transferir depósito</DropdownMenuItem>
+                          <DropdownMenuItem disabled={!sidWrite.enabled} onClick={() => setDialog({ acao: 'baixar', item: f })}>Baixar componente na OP</DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => setDialog({ acao: 'falta', item: f })}>Registrar falta</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setDialog({ acao: 'compras', item: f })}>Enviar para compras</DropdownMenuItem>
+                          <DropdownMenuItem disabled={!sidWrite.enabled} onClick={() => setDialog({ acao: 'falta', item: f })}>Registrar falta</DropdownMenuItem>
+                          <DropdownMenuItem disabled={!sidWrite.enabled} onClick={() => setDialog({ acao: 'compras', item: f })}>Enviar para compras</DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-red-700"
+                            disabled={!sidWrite.enabled}
                             onClick={() => estornar.mutate({ id: f.requisicao_id, seq: f.item_seq })}
                           >
                             Estornar item
