@@ -109,6 +109,17 @@ import AbsenteismoPage from "@/pages/rh/AbsenteismoPage";
 import FormulariosPage from "@/pages/rh/FormulariosPage";
 import RelatorioGerencialPage from "@/pages/rh/RelatorioGerencialPage";
 
+import RequisicoesListPage from "@/pages/requisicoes/RequisicoesListPage";
+import NovaRequisicaoPage from "@/pages/requisicoes/NovaRequisicaoPage";
+import NovaRequisicaoOpPage from "@/pages/requisicoes/NovaRequisicaoOpPage";
+import NovaRequisicaoAvulsaPage from "@/pages/requisicoes/NovaRequisicaoAvulsaPage";
+import RequisicaoDetalhePage from "@/pages/requisicoes/RequisicaoDetalhePage";
+import AprovacoesPage from "@/pages/requisicoes/AprovacoesPage";
+import AlmoxarifadoFilaPage from "@/pages/requisicoes/AlmoxarifadoFilaPage";
+import SeparacaoAgrupadaPage from "@/pages/requisicoes/SeparacaoAgrupadaPage";
+import ConfiguracoesRequisicoesPage from "@/pages/requisicoes/ConfiguracoesRequisicoesPage";
+
+
 import NotFound from "@/pages/NotFound";
 import { ProtectedRoute, PostLoginRedirect } from "@/components/ProtectedRoute";
 import { UserTrackingProvider } from "@/components/UserTrackingProvider";
@@ -257,9 +268,20 @@ const App = () => (
 
               <Route path="/rh/formularios" element={<ProtectedRoute path="/rh/formularios"><FormulariosPage /></ProtectedRoute>} />
               <Route path="/rh/relatorio-gerencial" element={<ProtectedRoute path="/rh/relatorio-gerencial"><RelatorioGerencialPage /></ProtectedRoute>} />
+              {/* Requisição de Materiais */}
+              <Route path="/requisicoes" element={<ProtectedRoute path="/requisicoes"><RequisicoesListPage /></ProtectedRoute>} />
+              <Route path="/requisicoes/nova" element={<ProtectedRoute path="/requisicoes"><NovaRequisicaoPage /></ProtectedRoute>} />
+              <Route path="/requisicoes/nova-op" element={<ProtectedRoute path="/requisicoes"><NovaRequisicaoOpPage /></ProtectedRoute>} />
+              <Route path="/requisicoes/nova-avulsa" element={<ProtectedRoute path="/requisicoes"><NovaRequisicaoAvulsaPage /></ProtectedRoute>} />
+              <Route path="/requisicoes/aprovacoes" element={<ProtectedRoute path="/requisicoes/aprovacoes"><AprovacoesPage /></ProtectedRoute>} />
+              <Route path="/requisicoes/almoxarifado" element={<ProtectedRoute path="/requisicoes/almoxarifado"><AlmoxarifadoFilaPage /></ProtectedRoute>} />
+              <Route path="/requisicoes/agrupadas" element={<ProtectedRoute path="/requisicoes/almoxarifado"><SeparacaoAgrupadaPage /></ProtectedRoute>} />
+              <Route path="/requisicoes/configuracoes" element={<ProtectedRoute path="/requisicoes/configuracoes"><ConfiguracoesRequisicoesPage /></ProtectedRoute>} />
+              <Route path="/requisicoes/:id" element={<ProtectedRoute path="/requisicoes"><RequisicaoDetalhePage /></ProtectedRoute>} />
               {/* Redirect old route */}
               <Route path="/engenharia-producao" element={<Navigate to="/producao/engenharia" replace />} />
             </Route>
+
             <Route path="*" element={<NotFound />} />
           </Routes>
           </AiPageContextProvider>

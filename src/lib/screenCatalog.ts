@@ -52,6 +52,15 @@ const EXACT: Record<string, ScreenInfo> = {
   '/rh/absenteismo':            { codigo: 'RH_ABSENTEISMO', nome: 'RH — Absenteísmo / Afastamentos' },
   '/rh/formularios':            { codigo: 'RH_FORM',       nome: 'RH — Formulários' },
   '/rh/relatorio-gerencial':    { codigo: 'RH_RELATORIO_GERENCIAL', nome: 'RH — Relatório Gerencial (PDF+IA)' },
+  '/requisicoes':               { codigo: 'REQ_MAT',        nome: 'Requisição de Materiais' },
+  '/requisicoes/nova':          { codigo: 'REQ_NOVA',       nome: 'Nova Requisição' },
+  '/requisicoes/nova-op':       { codigo: 'REQ_NOVA_OP',    nome: 'Nova Requisição — OP' },
+  '/requisicoes/nova-avulsa':   { codigo: 'REQ_NOVA_AVULSA', nome: 'Nova Requisição — Sem OP' },
+  '/requisicoes/aprovacoes':    { codigo: 'REQ_APROV',      nome: 'Requisições — Aprovações' },
+  '/requisicoes/almoxarifado':  { codigo: 'REQ_ALMOX',      nome: 'Requisições — Almoxarifado' },
+  '/requisicoes/agrupadas':     { codigo: 'REQ_AGRUP',      nome: 'Requisições — Separação Agrupada' },
+  '/requisicoes/configuracoes': { codigo: 'REQ_CFG',        nome: 'Requisições — Configurações' },
+
 
 };
 
@@ -61,6 +70,7 @@ const PREFIX: Array<[string, ScreenInfo]> = [
   ['/configuracoes',            { codigo: 'CONFIG',          nome: 'Configurações' }],
   ['/dashboard',                { codigo: 'DASH',            nome: 'Dashboard' }],
   ['/cadastros',                { codigo: 'CAD',             nome: 'Cadastros' }],
+  ['/requisicoes',              { codigo: 'REQ',             nome: 'Requisição de Materiais' }],
 ];
 
 const titleCase = (s: string) =>

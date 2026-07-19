@@ -62,6 +62,11 @@ export const TOP_MENUS: TopMenu[] = [
           { title: 'Onde Usa', url: '/onde-usa', icon: SearchIcon },
           { title: 'Estrutura de Produto — BOM', url: '/bom', icon: Boxes },
           { title: 'Reserva de Número de Série', url: '/numero-serie', icon: Boxes },
+          { title: 'Requisição de Materiais', url: '/requisicoes', icon: Boxes },
+          { title: 'Requisições — Aprovações', url: '/requisicoes/aprovacoes', icon: Boxes },
+          { title: 'Requisições — Almoxarifado', url: '/requisicoes/almoxarifado', icon: Boxes },
+          { title: 'Requisições — Separação agrupada', url: '/requisicoes/agrupadas', icon: Boxes },
+          { title: 'Requisições — Configurações', url: '/requisicoes/configuracoes', icon: Settings },
         ],
       },
       {
