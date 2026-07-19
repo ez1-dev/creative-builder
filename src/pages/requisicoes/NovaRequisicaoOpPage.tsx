@@ -30,6 +30,7 @@ export default function NovaRequisicaoOpPage() {
   const [pendenteIntegr, setPendenteIntegr] = useState<string | null>(null);
 
   const op = useOpConsulta(buscar?.codori, buscar?.numorp);
+  const sidWrite = useSidWriteEnabled();
 
   const podeRequisitar = op.data?.pode_requisitar ?? false;
 
