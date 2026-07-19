@@ -77,6 +77,33 @@ export default function NovaRequisicaoOpPage() {
   const sidWrite = useSidWriteEnabled();
   const { searchOps } = useOpcoesImpressaoOp();
 
+  // Lookup de depósitos (cacheado) — usado apenas para o seletor por item quando
+  // o componente vem sem depósito de origem (precisa_deposito=true).
+  const depositosQuery = useQuery({
+    queryKey: ['requisicoes', 'lookup', 'depositos'],
+    queryFn: () => requisicoesApi.buscarDepositos({ limit: 100 }),
+    staleTime: 5 * 60 * 1000,
+  });
+  const depositosOpcoes = depositosQuery.data ?? [];
+
+  // Pré-seleciona depósito 1 para itens que precisam
+  useEffect(() => {
+    const comps = op.data?.componentes ?? [];
+    if (comps.length === 0) return;
+    setDepositosPorItem((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const c of comps) {
+        if (c.precisa_deposito && next[c.seqcmp] == null) {
+          next[c.seqcmp] = 1;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [op.data]);
+
+
   useEffect(() => { searchOps('', { cod_emp: '1', sit_orp: 'A' }).catch(() => {}); }, [searchOps]);
   const fetchOps = (q: string) => searchOps(q, { cod_emp: '1', sit_orp: 'A' });
 
