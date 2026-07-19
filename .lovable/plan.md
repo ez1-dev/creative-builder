@@ -1,63 +1,56 @@
-## Por que a integração aparece "Desabilitada"
+## Escopo
 
-O chip **Integração: Desabilitada** e o banner amarelo ("A integração com o ERP está desabilitada. A requisição será salva como pendente de integração.") são acionados por `sidWrite.enabled = false`, que vem de `GET /api/requisicoes/sid/ping` retornando `sid_habilitado: false`.
+Ajustar a tela `src/pages/requisicoes/NovaRequisicaoOpPage.tsx` (passos 2 e 4) para trabalhar com o novo payload de componentes vindo de `GET /api/requisicoes/op/{codori}/{numorp}` e permitir escolher o Depósito de origem por item. Sem tocar em regras de negócio: apenas mapeamento de campos, UI de seleção de depósito e clareza do "Salvar rascunho".
 
-Isso é **intencional** — o backend FastAPI :8070 está com a flag `SID_HABILITADO=N` no `.env`. Enquanto essa flag não for virada para `S` e o serviço reiniciado, todo `POST /api/requisicoes/sid/*` é bloqueado com 503 antes mesmo de chegar no ERP. Por isso o botão **Enviar requisição** fica desabilitado — está funcionando como projetado (gate de segurança).
+## 1. Tipos e normalização (`src/types/requisicoes.ts` + `src/services/requisicoesApi.ts`)
 
-Nesse estado, a única ação disponível deveria ser **Salvar rascunho** (grava a requisição no backend em status "pendente de integração", sem falar com o SID).
+Estender `ComponenteOP` com os campos limpos que o backend passou a devolver:
 
-## Por que o "Salvar rascunho" falhou com "Informe ao menos um item válido"
+- `componente: string` (código já limpo — substitui uso de `codcmp` cru na UI)
+- `transacao: number | null`
+- `derivacao: string | null` (já existia como `codder`; expor também como `derivacao`)
+- `qtd_disponivel_requisitar: number`
+- `precisa_deposito: boolean`
+- Manter `deposito: number | null` (agora vem null de propósito).
 
-Essa mensagem **não vem do frontend** — vem do backend (`POST /api/requisicoes`). Olhando o print:
+Ajustar `normalizeOpConsulta` para copiar esses campos do payload sem alterar a lógica de `pode_requisitar` / `motivo_bloqueio`.
 
-- Sidebar mostra 1 item, quantidade 4, "Sem saldo: 1".
-- Na tabela de revisão as colunas **Descrição** e **Dep. origem** aparecem como `—`, mesmo o item tendo sido encontrado (`comps.find(...)` achou, senão o resumo não teria contado).
+## 2. Passo 2 — Selecionar componentes
 
-Isso indica que a resposta de `GET /api/requisicoes/op/{codori}/{numorp}` está devolvendo o componente **BR125-G** com `descricao = null` e `deposito = null` (e provavelmente `codetg`/`codcmp` também nulos ou incompletos). Como o `buildPayload` copia esses campos direto do componente:
+- Substituir referências a `c.codcmp` na exibição por `c.componente` (fallback `codcmp`). Descrição/UM/Derivação/Transação/Disponível vêm dos novos campos.
+- Coluna "Disponível" passa a usar `qtd_disponivel_requisitar`.
+- Coluna "Depósito": se `precisa_deposito === true` e `deposito` está null, renderizar um `Select`/`Combobox` populado por `GET /api/requisicoes/lookup/depositos?q=&limit=100` (novo fetcher `buscarDepositos` em `requisicoesApi.ts`, com cache via TanStack Query). Sugerir depósito `"1"` como default pré-selecionado. O valor escolhido é guardado no estado local do wizard (`depositosPorItem: Record<number /*seqcmp*/, number>`).
+- Remover `deposito ausente` da função `componenteInvalido` — item não é mais inválido por isso. Manter checagem apenas para `codetg`/`codcmp`/`unidade`.
+- Tooltip de checkbox continua bloqueando só quando o item for realmente inválido.
 
-```ts
-codetg: comp.codetg,
-codcmp: comp.codcmp,
-codder: comp.codder,
-unidade: comp.unidade,
-deposito_origem: comp.deposito,
-```
+## 3. Passo 4 — Revisão e envio
 
-o payload enviado tem chaves obrigatórias vazias, e o validador do FastAPI descarta o item, sobrando `itens: []` na visão dele — daí o erro **"Informe ao menos um item válido"**.
+- Tabela de revisão mostra o depósito escolhido pelo usuário (`depositosPorItem[seqcmp] ?? c.deposito`).
+- Ao montar o payload em `useMemo` (linha ~186) e em `enviar()` (linha ~230), usar o depósito escolhido em `deposito_origem`.
+- Novo gate de envio: se algum item selecionado tiver `precisa_deposito` e nenhum depósito escolhido, desabilitar "Enviar requisição" com mensagem clara: `Escolha o depósito de origem do componente {componente}`. Banner acima dos botões lista os componentes pendentes.
+- Ajustar o banner atual "Dados incompletos" para não mencionar mais `depósito` na lista de campos exigidos do backend.
 
-Ou seja, são dois problemas independentes:
+## 4. "Salvar rascunho"
 
-1. **SID desligado** (esperado, aguardando flip do `.env`).
-2. **Componente da OP 110/1969 vem incompleto** do endpoint de consulta de OP — o item aparece na tela mas sem os campos-chave que o POST exige.
+Como não existe `POST /api/requisicoes`, transformar o botão em rascunho **local**:
 
-## Plano de correção
+- Renomear para "Salvar rascunho (local)" com ícone e tooltip explicando que fica no navegador.
+- Persistir `{ codori, numorp, tipo, itensSelecionados, depositosPorItem, depositoDestino }` em `localStorage` sob chave `requisicoes:rascunho:{codori}:{numorp}`.
+- Ao abrir a tela com uma OP que tem rascunho salvo, oferecer botão "Restaurar rascunho".
+- Remover qualquer texto/toast que sugira gravação no servidor.
 
-### Etapa 1 — Confirmar o payload que o backend rejeita
-- Abrir DevTools → Network → repetir "Salvar rascunho" e capturar:
-  - Resposta de `GET /api/requisicoes/op/110/1969` (ver quais campos do componente vêm `null`).
-  - Corpo do `POST /api/requisicoes` e o `detail` completo da resposta 4xx.
-- Isso confirma se o culpado é `codcmp`/`codetg` nulos, `unidade` faltando, ou outro campo.
+## 5. Integração SID
 
-### Etapa 2 — Endurecer o frontend contra componente incompleto
-Em `src/pages/requisicoes/NovaRequisicaoOpPage.tsx`:
-- Em `buildPayload`, validar antes de enviar: se `!comp.codcmp || !comp.codetg || comp.deposito == null`, marcar o item como inválido e bloquear o envio com mensagem específica ("Componente BR125-G está sem código de estágio/depósito — recarregue a OP ou contate o backend").
-- Não permitir que o item apareça marcável no Step 2 se ele vier sem `codcmp`/`codetg` (desabilitar checkbox + tooltip explicando).
-- Na tabela de revisão, se `descricao`/`deposito` estiverem vazios, exibir um badge vermelho "Dados incompletos" em vez de `—`, para o usuário não achar que é só cosmético.
+Sem mudança de código. O chip "Desabilitada" continua vindo de `/api/requisicoes/sid/ping` e permanece até `SID_HABILITADO=S` + restart.
 
-### Etapa 3 — Registrar no docs do backend
-- Anotar em `docs/` (novo arquivo `backend-requisicoes-op-consulta-campos-obrigatorios.md`) quais campos o `GET /api/requisicoes/op/{codori}/{numorp}` precisa devolver preenchidos para o `POST /api/requisicoes` aceitar o item: `codemp, codfil, codori, numorp, codetg, seqcmp, codcmp, unidade, deposito`.
-- Servirá de referência para o time do backend corrigir a query que hoje devolve `descricao`/`deposito` nulos para essa OP.
+## Fora de escopo
 
-### Etapa 4 — Aguardar `SID_HABILITADO=S`
-Sem alterações de código do nosso lado. Assim que o `.env` for atualizado e o serviço reiniciado, o chip vira "Habilitada", o botão **Enviar requisição** libera e o fluxo completo (criar + `sid/requisitar`) passa a rodar.
+- Backend / novos endpoints (usar apenas `/api/requisicoes/lookup/depositos` já existente).
+- Fluxo "sem OP", Portal, e telas de aprovação.
+- Alterar cálculos de disponibilidade.
 
-## Detalhes técnicos
+## Verificação
 
-- **Arquivos afetados na Etapa 2:** `src/pages/requisicoes/NovaRequisicaoOpPage.tsx` (funções `buildPayload`, `renderStep2`, `renderStep4`).
-- **Nada muda em** `src/services/requisicoesApi.ts` — o normalizador já preserva `null` fielmente; o problema é dado ausente na origem.
-- **Nada muda em regra de negócio nem em cálculo** — apenas validação e feedback visual.
-
-## Fora do escopo
-
-- Alterar o `SID_HABILITADO` (é operação de infra, não código).
-- Corrigir a query do backend que popula `descricao`/`deposito` (é responsabilidade do FastAPI, apenas documentamos).
+- `tsgo` limpo.
+- Preview: selecionar OP com componentes `precisa_deposito=true` → escolher depósito → botão "Enviar" habilita; deixar em branco → botão bloqueia com mensagem citando o componente.
+- Rascunho local salva/restaura pelo `localStorage` sem chamada de rede.
