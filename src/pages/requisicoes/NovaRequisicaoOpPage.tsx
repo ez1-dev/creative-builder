@@ -194,7 +194,7 @@ export default function NovaRequisicaoOpPage() {
     });
   }, [itensSelecionados, op.data, justif]);
 
-  const canStep2To3 = itensSelecionados.length > 0 && !justificativasFaltando;
+  const canStep2To3 = itensSelecionados.length > 0 && !justificativasFaltando && itensInvalidos.length === 0;
   const canStep3To4 = tipo === 'BAIXAR_DIRETO' || (tipo === 'TRANSFERIR' && Boolean(depositoDestino.trim()));
   const canContinue =
     step === 1 ? Boolean(op.data && podeRequisitar) :
