@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,11 +16,15 @@ import { toast } from '@/hooks/use-toast';
 import { IntegracaoOfflineBanner } from '@/components/requisicoes/IntegracaoOfflineBanner';
 import { useNavigate } from 'react-router-dom';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { OpAutocomplete } from '@/components/producao/OpAutocomplete';
+import { useOpcoesImpressaoOp } from '@/hooks/useOpcoesImpressaoOp';
+import type { OpcaoOp } from '@/lib/producao/opcoesImpressao';
 
 export default function NovaRequisicaoOpPage() {
   const nav = useNavigate();
   const [codori, setCodori] = useState('');
   const [numorp, setNumorp] = useState('');
+  const [opLabel, setOpLabel] = useState<string>('');
   const [buscar, setBuscar] = useState<{ codori: string; numorp: string } | undefined>();
   const [sel, setSel] = useState<Record<number, number>>({}); // seqcmp -> qtd
   const [justif, setJustif] = useState<Record<number, string>>({});
@@ -31,6 +35,28 @@ export default function NovaRequisicaoOpPage() {
 
   const op = useOpConsulta(buscar?.codori, buscar?.numorp);
   const sidWrite = useSidWriteEnabled();
+  const { searchOps } = useOpcoesImpressaoOp();
+
+  // Pré-carrega a lista inicial de OPs para o autocomplete
+  useEffect(() => { searchOps('').catch(() => {}); }, [searchOps]);
+
+  const fetchOps = (q: string) => searchOps(q);
+
+  const handleSelectOp = (o: OpcaoOp | null) => {
+    if (!o) {
+      setCodori(''); setNumorp(''); setOpLabel(''); setBuscar(undefined);
+      return;
+    }
+    const co = String(o.cod_ori ?? '').trim();
+    const no = String(o.num_orp ?? '').trim();
+    setCodori(co);
+    setNumorp(no);
+    setOpLabel(
+      o.label ||
+      [[co, no].filter(Boolean).join(' / '), o.produto, o.descricao_produto].filter(Boolean).join(' - '),
+    );
+    if (co && no) setBuscar({ codori: co, numorp: no });
+  };
 
   const podeRequisitar = op.data?.pode_requisitar ?? false;
 
@@ -98,7 +124,20 @@ export default function NovaRequisicaoOpPage() {
 
 
       <Card>
-        <CardContent className="grid gap-3 p-4 md:grid-cols-4">
+        <CardContent className="grid gap-3 p-4 md:grid-cols-6">
+          <div className="md:col-span-3">
+            <Label>Ordem de Produção</Label>
+            <OpAutocomplete
+              value={numorp}
+              displayLabel={opLabel}
+              onSelect={handleSelectOp}
+              fetcher={fetchOps}
+              placeholder="Buscar OP por número, produto ou descrição..."
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Seleção pré-carregada. CODORI e NUMORP abaixo preenchem automaticamente.
+            </p>
+          </div>
           <div>
             <Label>Origem (CODORI)</Label>
             <Input value={codori} onChange={(e) => setCodori(e.target.value)} placeholder="Ex.: 100" />
