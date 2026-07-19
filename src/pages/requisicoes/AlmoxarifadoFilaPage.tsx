@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
-import { useFilaAlmox, useIniciarSeparacao, useReservarItem, useSepararItem, useAtenderItem, useTransferirItem, useBaixarOpItem, useRegistrarFaltaItem, useEnviarComprasItem, useEstornarItem } from '@/hooks/requisicoes';
+import { useFilaAlmox, useIniciarSeparacao, useReservarItem, useSepararItem, useAtenderItem, useTransferirItem, useBaixarOpItem, useRegistrarFaltaItem, useEnviarComprasItem, useEstornarItem, useSidWriteEnabled } from '@/hooks/requisicoes';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, HandMetal, Lock } from 'lucide-react';
 import { AcaoItemDialog, type AcaoItem } from '@/components/requisicoes/AcaoItemDialog';
+import { IntegracaoOfflineBanner } from '@/components/requisicoes/IntegracaoOfflineBanner';
 import type { FilaAlmoxItem } from '@/types/requisicoes';
 
 export default function AlmoxarifadoFilaPage() {
