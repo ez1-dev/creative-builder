@@ -5,6 +5,7 @@
 import { getApiUrl } from '@/lib/api';
 import type {
   ApiListResponse,
+  ComponenteOP,
   ConfigRequisicoes,
   FilaAlmoxItem,
   HistoricoEvento,
