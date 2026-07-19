@@ -191,8 +191,9 @@ export default function PortalRequisicoesPage() {
             <CardContent className="text-sm space-y-1">
               <div><strong>Produto:</strong> {op.data.produto_final ?? '—'} {op.data.descricao ? `— ${op.data.descricao}` : ''}</div>
               <div className="text-muted-foreground">
-                Empresa {op.data.codemp} · Filial {op.data.codfil} · Derivação {op.data.derivacao ?? op.data.codder ?? '—'} ·
-                Projeto {op.data.projeto_obra ?? op.data.projeto ?? '—'} · Prevista {op.data.quantidade_prevista} · Produzida {op.data.quantidade_produzida}
+                Empresa {op.data.codemp} · Filial {op.data.codfil} · Derivação {op.data.derivacao ?? '—'} ·
+                Projeto {op.data.projeto_obra ?? '—'} · Prevista {op.data.quantidade_prevista} · Produzida {op.data.quantidade_produzida}
+
                 {op.data.saldo != null ? ` · Saldo ${op.data.saldo}` : ''}
                 {op.data.centro_custo ? ` · CC ${op.data.centro_custo}` : ''}
               </div>
