@@ -226,3 +226,31 @@ export function useCriarRequisicao() {
     onError: (e) => handleMutationError(e, 'criar requisição'),
   });
 }
+
+/* ---- SID (portal) ---- */
+
+function useSidMutation<T = any>(
+  fn: (payload: any, key?: string) => Promise<T>,
+  successMsg: string,
+  ctx: string,
+) {
+  return useMutation({
+    mutationFn: (payload: any) => fn(payload, requisicoesApi.newIdempotencyKey()),
+    onSuccess: () => { toast({ title: successMsg }); },
+    onError: (e) => handleMutationError(e, ctx),
+  });
+}
+
+export const useSidRequisitar = () =>
+  useSidMutation(requisicoesApi.sidRequisitar, 'Requisição enviada ao ERP', 'requisitar no SID');
+export const useSidRateio = () =>
+  useSidMutation(requisicoesApi.sidRateio, 'Rateio registrado', 'registrar rateio');
+export const useSidAtender = () =>
+  useSidMutation(requisicoesApi.sidAtender, 'Atendimento registrado', 'atender no SID');
+export const useSidReservarComponente = () =>
+  useSidMutation(requisicoesApi.sidReservarComponente, 'Reserva de componente registrada', 'reservar componente');
+export const useSidBaixarComponentes = () =>
+  useSidMutation(requisicoesApi.sidBaixarComponentes, 'Baixa de componente registrada', 'baixar componente');
+export const useSidExcluir = () =>
+  useSidMutation(requisicoesApi.sidExcluir, 'Requisição excluída no ERP', 'excluir no SID');
+
