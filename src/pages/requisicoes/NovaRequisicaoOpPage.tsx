@@ -8,13 +8,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { useOpConsulta } from '@/hooks/requisicoes';
+import { useOpConsulta, useSidWriteEnabled } from '@/hooks/requisicoes';
 import { AlertTriangle, Search } from 'lucide-react';
 import { requisicoesApi, IntegracaoDesabilitadaError } from '@/services/requisicoesApi';
 import type { TipoAtendimentoOP } from '@/types/requisicoes';
 import { toast } from '@/hooks/use-toast';
 import { IntegracaoOfflineBanner } from '@/components/requisicoes/IntegracaoOfflineBanner';
 import { useNavigate } from 'react-router-dom';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function NovaRequisicaoOpPage() {
   const nav = useNavigate();
