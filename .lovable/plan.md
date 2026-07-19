@@ -1,18 +1,27 @@
-## Objetivo
-Na tela **Nova requisição — com OP**, permitir escolher a OP num autocomplete pré-carregado (em vez de digitar CODORI e NUMORP manualmente), preenchendo automaticamente os dois campos e disparando a consulta.
+## Problema
 
-## Mudanças
-Arquivo único: `src/pages/requisicoes/NovaRequisicaoOpPage.tsx`.
+No `NovaRequisicaoOpPage`, o autocomplete de OP não popula CODORI/NUMORP porque:
 
-1. Usar o componente já existente `OpAutocomplete` (`src/components/producao/OpAutocomplete.tsx`) alimentado pelo hook `useOpcoesImpressaoOp().searchOps` — mesma fonte usada nas telas de Impressão de OP, que traz OPs com `cod_ori` + `num_orp` + produto/descrição.
-2. Pré-carga: ao montar a página, disparar `searchOps('')` para trazer a lista inicial (limite 1000, já sanitizada — sem OPs canceladas e sem origem 100).
-3. Layout do card de busca:
-   - Campo principal: `OpAutocomplete` (busca por número, produto ou descrição).
-   - Campos `CODORI` e `NUMORP` continuam visíveis, porém preenchidos automaticamente ao selecionar uma OP; permanecem editáveis para quem quiser digitar manualmente.
-   - Ao selecionar uma OP no autocomplete: setar `codori`/`numorp` e já executar `setBuscar(...)` para carregar componentes sem precisar clicar em "Consultar OP".
-   - Botão "Consultar OP" mantido como fallback para entrada manual.
-4. Nada de mudança em regras, cálculos, envio ao SID, ou payload — só a UX de seleção da OP.
+1. `searchOps('')` é chamado **sem `cod_emp`**, e o endpoint `/api/producao/ordem-producao/opcoes` normalmente exige `cod_emp` — a lista volta vazia, então o usuário nunca consegue selecionar nada, e vê o rótulo "Seleção pré-carregada..." mas a lista está vazia.
+2. Mesmo com resultados, `OpcaoOp.num_orp` pode vir como número; o `handleSelectOp` faz `String(...).trim()` (ok), mas o `OpAutocomplete` usa `String(op.num_orp ?? '') === value` para o check — sem impacto no preenchimento, mas confirma que o dado chega.
 
-## Fora de escopo
-- Alterar contrato de API, payload do POST ou lógica de atendimento.
-- Alterar a página `Nova requisição sem OP` ou o Portal.
+## Correção
+
+Editar apenas `src/pages/requisicoes/NovaRequisicaoOpPage.tsx`:
+
+1. **Passar `cod_emp` default `'1'`** em `fetchOps` e no pré-carregamento:
+   ```ts
+   const fetchOps = (q: string) => searchOps(q, { cod_emp: '1' });
+   useEffect(() => { searchOps('', { cod_emp: '1' }).catch(() => {}); }, [searchOps]);
+   ```
+2. **Filtrar situações requisitáveis** (`sit_orp: 'L'` como padrão, já que a UI depois valida com `pode_requisitar`) — opcional, mas evita mostrar OPs canceladas/encerradas na lista. Vou incluir passando `sit_orp` só quando útil (na chamada de busca com query, deixar todos; no pré-carregamento também deixar todos para não frustrar o usuário).
+3. **Guardar `cod_emp` do item selecionado** no state e usá-lo caso a consulta precise (hoje `useOpConsulta` só usa codori/numorp, então nenhum ajuste extra necessário aqui).
+4. **Sincronizar edição manual**: se o usuário digitar em CODORI/NUMORP manualmente, limpar `opLabel` para não mostrar um rótulo desatualizado.
+
+## Verificação
+
+- Abrir `/requisicoes/nova-op`, abrir o combobox: lista deve carregar OPs (com `cod_emp=1`).
+- Selecionar uma OP: campos CODORI e NUMORP preenchem, e a consulta dispara automaticamente exibindo cabeçalho + componentes.
+- Digitar manualmente CODORI/NUMORP e clicar "Consultar OP": segue funcionando; o rótulo do combobox limpa.
+
+Sem mudanças em backend, contratos ou lógica de negócio.

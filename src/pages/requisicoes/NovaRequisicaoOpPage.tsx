@@ -38,9 +38,9 @@ export default function NovaRequisicaoOpPage() {
   const { searchOps } = useOpcoesImpressaoOp();
 
   // Pré-carrega a lista inicial de OPs para o autocomplete
-  useEffect(() => { searchOps('').catch(() => {}); }, [searchOps]);
+  useEffect(() => { searchOps('', { cod_emp: '1' }).catch(() => {}); }, [searchOps]);
 
-  const fetchOps = (q: string) => searchOps(q);
+  const fetchOps = (q: string) => searchOps(q, { cod_emp: '1' });
 
   const handleSelectOp = (o: OpcaoOp | null) => {
     if (!o) {
@@ -140,11 +140,11 @@ export default function NovaRequisicaoOpPage() {
           </div>
           <div>
             <Label>Origem (CODORI)</Label>
-            <Input value={codori} onChange={(e) => setCodori(e.target.value)} placeholder="Ex.: 100" />
+            <Input value={codori} onChange={(e) => { setCodori(e.target.value); setOpLabel(''); }} placeholder="Ex.: 100" />
           </div>
           <div>
             <Label>Número da OP (NUMORP)</Label>
-            <Input value={numorp} onChange={(e) => setNumorp(e.target.value)} placeholder="Ex.: 65958" />
+            <Input value={numorp} onChange={(e) => { setNumorp(e.target.value); setOpLabel(''); }} placeholder="Ex.: 65958" />
           </div>
           <div className="flex items-end">
             <Button
