@@ -12,6 +12,8 @@ import { Plus, Trash2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { requisicoesApi, IntegracaoDesabilitadaError } from '@/services/requisicoesApi';
 import { IntegracaoOfflineBanner } from '@/components/requisicoes/IntegracaoOfflineBanner';
+import { useSidWriteEnabled } from '@/hooks/requisicoes';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { TipoRequisicao, PrioridadeRequisicao } from '@/types/requisicoes';
 
 interface Linha {
