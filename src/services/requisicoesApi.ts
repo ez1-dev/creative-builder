@@ -353,7 +353,31 @@ function normalizeOpConsulta(raw: any, codori: string, numorp: string): OpConsul
   const op: any = raw && typeof raw === 'object' && raw.op && typeof raw.op === 'object'
     ? raw.op
     : (raw && typeof raw === 'object' ? raw : {});
-  const componentes: ComponenteOP[] = Array.isArray(raw?.componentes) ? raw.componentes : [];
+  const componentesRaw: any[] = Array.isArray(raw?.componentes) ? raw.componentes : [];
+  const componentes: ComponenteOP[] = componentesRaw.map((c) => ({
+    seqcmp: toNum(c?.seqcmp),
+    codetg: c?.codetg ?? '',
+    codcmp: String(c?.codcmp ?? c?.componente ?? ''),
+    componente: c?.componente ?? c?.codcmp ?? null,
+    codder: c?.codder ?? c?.derivacao ?? null,
+    derivacao: c?.derivacao ?? c?.codder ?? null,
+    descricao: c?.descricao ?? null,
+    unidade: c?.unidade ?? null,
+    deposito: c?.deposito == null ? null : Number(c.deposito),
+    precisa_deposito: c?.precisa_deposito === true,
+    transacao: c?.transacao == null ? null : Number(c.transacao),
+    quantidade_prevista: toNum(c?.quantidade_prevista),
+    quantidade_utilizada: toNum(c?.quantidade_utilizada),
+    quantidade_requisitada: toNum(c?.quantidade_requisitada),
+    quantidade_transferida: toNum(c?.quantidade_transferida),
+    quantidade_disponivel: toNum(c?.quantidade_disponivel ?? c?.qtd_disponivel_requisitar),
+    qtd_disponivel_requisitar: c?.qtd_disponivel_requisitar == null
+      ? toNum(c?.quantidade_disponivel)
+      : toNum(c?.qtd_disponivel_requisitar),
+    saldo_fisico: c?.saldo_fisico == null ? null : Number(c.saldo_fisico),
+    saldo_reservado: c?.saldo_reservado == null ? null : Number(c.saldo_reservado),
+    saldo_disponivel: c?.saldo_disponivel == null ? null : Number(c.saldo_disponivel),
+  }));
   const prev = toNum(op.qtd_prevista ?? op.quantidade_prevista);
   const prod = toNum(op.qtd_produzida ?? op.quantidade_produzida);
   const saldoRaw = op.saldo;
