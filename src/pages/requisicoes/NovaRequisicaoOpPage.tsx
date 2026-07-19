@@ -38,9 +38,9 @@ export default function NovaRequisicaoOpPage() {
   const { searchOps } = useOpcoesImpressaoOp();
 
   // Pré-carrega a lista inicial de OPs para o autocomplete
-  useEffect(() => { searchOps('').catch(() => {}); }, [searchOps]);
+  useEffect(() => { searchOps('', { cod_emp: '1' }).catch(() => {}); }, [searchOps]);
 
-  const fetchOps = (q: string) => searchOps(q);
+  const fetchOps = (q: string) => searchOps(q, { cod_emp: '1' });
 
   const handleSelectOp = (o: OpcaoOp | null) => {
     if (!o) {
