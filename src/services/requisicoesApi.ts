@@ -528,4 +528,34 @@ async function buscarComponentes(params: { q?: string }): Promise<ComponenteLook
   }
 }
 
+async function buscarDepositos(params: { q?: string; limit?: number }): Promise<DepositoLookup[]> {
+  const q = (params.q ?? '').trim();
+  const query: Record<string, unknown> = { limit: params.limit ?? 100 };
+  if (q) query.q = q;
+  try {
+    const res = await apiGet<any>('/api/requisicoes/lookup/depositos', query);
+    const list: any[] = Array.isArray(res?.itens) ? res.itens : Array.isArray(res) ? res : [];
+    const out: DepositoLookup[] = [];
+    const seen = new Set<number>();
+    for (const item of list) {
+      const raw = item?.codigo ?? item?.coddep;
+      if (raw == null || raw === '') continue;
+      const codigo = Number(raw);
+      if (!Number.isFinite(codigo) || seen.has(codigo)) continue;
+      seen.add(codigo);
+      out.push({
+        codigo,
+        descricao: String(item?.descricao ?? item?.desdep ?? ''),
+      });
+    }
+    return out;
+  } catch (err) {
+    if (err instanceof RequisicaoApiError && err.status === 404) {
+      throw new EndpointIndisponivelError('depositos');
+    }
+    throw err;
+  }
+}
+
+
 
