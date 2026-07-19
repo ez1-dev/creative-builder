@@ -246,7 +246,29 @@ export const requisicoesApi = {
   reprocessarIntegracao(id: string, key?: string) {
     return apiWrite('POST', `/api/requisicoes/integracoes/${encodeURIComponent(id)}/reprocessar`, undefined, key ?? newIdempotencyKey());
   },
+  /** Diagnóstico da integração SID. Não grava nada no ERP. */
+  pingSid(): Promise<SidStatusResponse> {
+    return apiGet<SidStatusResponse>('/api/requisicoes/sid/ping');
+  },
   sidRequisitar(payload: unknown, key?: string) {
     return apiWrite('POST', '/api/requisicoes/sid/requisitar', payload, key ?? newIdempotencyKey());
+  },
+  sidRateio(payload: unknown, key?: string) {
+    return apiWrite('POST', '/api/requisicoes/sid/rateio', payload, key ?? newIdempotencyKey());
+  },
+  sidAtender(payload: unknown, key?: string) {
+    return apiWrite('POST', '/api/requisicoes/sid/atender', payload, key ?? newIdempotencyKey());
+  },
+  sidMovimentar(payload: unknown, key?: string) {
+    return apiWrite('POST', '/api/requisicoes/sid/movimentar', payload, key ?? newIdempotencyKey());
+  },
+  sidBaixarComponentes(payload: unknown, key?: string) {
+    return apiWrite('POST', '/api/requisicoes/sid/baixar-componentes', payload, key ?? newIdempotencyKey());
+  },
+  sidReservarComponente(payload: unknown, key?: string) {
+    return apiWrite('POST', '/api/requisicoes/sid/reservar-componente', payload, key ?? newIdempotencyKey());
+  },
+  sidExcluir(payload: unknown, key?: string) {
+    return apiWrite('POST', '/api/requisicoes/sid/excluir', payload, key ?? newIdempotencyKey());
   },
 };
