@@ -283,12 +283,34 @@ export default function NovaRequisicaoOpPage() {
               displayLabel={opLabel}
               onSelect={handleSelectOp}
               fetcher={fetchOps}
+              selectedKey={codori && numorp ? `${codori}-${numorp}` : undefined}
+              loading={op.isFetching}
               placeholder="Buscar por número da OP, produto ou descrição"
             />
+            {buscar && op.isFetching && (
+              <div className="flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs text-primary">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <span>Consultando OP {buscar.codori}/{buscar.numorp}…</span>
+              </div>
+            )}
+            {buscar && !op.isFetching && op.isError && (
+              <div className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-1.5 text-xs text-destructive">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                <span>Falha ao consultar OP {buscar.codori}/{buscar.numorp}.</span>
+                <Button size="sm" variant="outline" className="ml-auto h-6 px-2 text-xs" onClick={() => op.refetch()}>Tentar novamente</Button>
+              </div>
+            )}
+            {buscar && !op.isFetching && op.data && (
+              <div className="flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-700 dark:text-emerald-300">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                <span>OP {op.data.codori}/{op.data.numorp} carregada.</span>
+              </div>
+            )}
             <p className="text-xs text-muted-foreground">
-              Digite para filtrar. A seleção carrega automaticamente os dados da OP.
+              A seleção dispara a consulta automaticamente.
             </p>
           </TabsContent>
+
 
           <TabsContent value="manual" className="mt-4">
             <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
