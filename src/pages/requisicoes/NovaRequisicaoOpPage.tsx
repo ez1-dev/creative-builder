@@ -663,11 +663,45 @@ export default function NovaRequisicaoOpPage() {
                     </TableCell>
                     <TableCell>{c.seqcmp}</TableCell>
                     <TableCell>{c.codetg}</TableCell>
-                    <TableCell className="font-mono text-xs">{c.codcmp}</TableCell>
+                    <TableCell className="font-mono text-xs">{c.componente ?? c.codcmp}</TableCell>
                     <TableCell className="text-sm">{c.descricao ?? '—'}</TableCell>
-                    <TableCell>{c.codder ?? '—'}</TableCell>
+                    <TableCell>{c.derivacao ?? c.codder ?? '—'}</TableCell>
                     <TableCell>{c.unidade ?? '—'}</TableCell>
-                    <TableCell>{c.deposito ?? '—'}</TableCell>
+                    <TableCell>
+                      {c.precisa_deposito ? (
+                        <Select
+                          value={depositosPorItem[c.seqcmp] != null ? String(depositosPorItem[c.seqcmp]) : ''}
+                          onValueChange={(v) =>
+                            setDepositosPorItem((prev) => ({ ...prev, [c.seqcmp]: Number(v) }))
+                          }
+                          disabled={!podeRequisitar}
+                        >
+                          <SelectTrigger
+                            className={cn(
+                              'h-8 text-xs',
+                              selecionado && depositosPorItem[c.seqcmp] == null && 'border-destructive',
+                            )}
+                          >
+                            <SelectValue placeholder={depositosQuery.isLoading ? 'Carregando…' : 'Escolher'} />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-72">
+                            {depositosOpcoes.map((d) => (
+                              <SelectItem key={d.codigo} value={String(d.codigo)}>
+                                {d.codigo} — {d.descricao || '(sem descrição)'}
+                              </SelectItem>
+                            ))}
+                            {depositosOpcoes.length === 0 && (
+                              <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                                {depositosQuery.isLoading ? 'Carregando depósitos…' : 'Nenhum depósito disponível.'}
+                              </div>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="text-sm">{c.deposito ?? '—'}</span>
+                      )}
+                    </TableCell>
+                    <TableCell>{c.transacao ?? '—'}</TableCell>
                     <TableCell className="text-right tabular-nums">{c.quantidade_prevista}</TableCell>
                     <TableCell className="text-right tabular-nums">{c.quantidade_utilizada}</TableCell>
                     <TableCell className="text-right tabular-nums">{c.quantidade_requisitada}</TableCell>
