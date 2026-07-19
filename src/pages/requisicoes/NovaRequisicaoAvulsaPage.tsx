@@ -67,39 +67,33 @@ export default function NovaRequisicaoAvulsaPage() {
   // Ao trocar a empresa, o CC deixa de ser válido
   useEffect(() => { setCc(null); }, [codemp]);
 
-  // Fase pré-preenchida (readonly) quando o projeto trouxer
-  useEffect(() => {
-    if (projeto?.codfpj) setFase(projeto.codfpj);
-  }, [projeto]);
-
   const setLinha = (i: number, patch: Partial<Linha>) =>
     setLinhas((arr) => arr.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
   const addLinha = () => setLinhas((arr) => [...arr, linhaVazia()]);
   const delLinha = (i: number) => setLinhas((arr) => arr.filter((_, idx) => idx !== i));
 
-  const aplicarProduto = (i: number, p: ProdutoLookup | null) => {
-    if (!p) {
-      setLinha(i, { produto: null, codcmp: '', descricao: '', unidade: '', codder: '', codfam: '', deposito_origem: '', deposito_destino: '', lote: '' });
+  const aplicarComponente = (i: number, c: ComponenteLookup | null) => {
+    if (!c) {
+      setLinha(i, { componente: null, codcmp: '', descricao: '', unidade: '', deposito_origem: '', deposito_destino: '', lote: '' });
       return;
     }
     setLinha(i, {
-      produto: p,
-      codcmp: p.codpro,
-      descricao: p.despro,
-      unidade: p.unimed ?? '',
-      codder: p.codder ?? '',
-      codfam: p.codfam ?? '',
-      // Regra 6: limpar dados dependentes ao trocar o produto
+      componente: c,
+      codcmp: c.codigo,
+      descricao: c.descricao,
+      unidade: c.um,
+      // Regra: limpar dados dependentes ao trocar o componente
       deposito_origem: '', deposito_destino: '', lote: '',
     });
   };
 
   const ccObrigatorio = CC_OBRIGATORIO.includes(tipo);
   const linhasValidas = useMemo(
-    () => linhas.filter((l) => l.produto && l.codcmp.trim() && l.quantidade > 0),
+    () => linhas.filter((l) => l.componente && l.codcmp.trim() && l.quantidade > 0),
     [linhas],
   );
-  const temLinhaInvalida = linhas.some((l) => (l.codcmp || l.quantidade > 0) && !l.produto);
+  const temLinhaInvalida = linhas.some((l) => (l.codcmp || l.quantidade > 0) && !l.componente);
+
 
   const disableSubmit =
     busy ||
