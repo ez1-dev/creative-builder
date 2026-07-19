@@ -244,6 +244,15 @@ export default function NovaRequisicaoOpPage() {
   const salvarRascunho = async () => {
     const payload = buildPayload();
     if (!payload || payload.itens.length === 0) return;
+    if (itensInvalidos.length > 0) {
+      const inv = itensInvalidos[0];
+      toast({
+        title: 'Componente com dados incompletos',
+        description: `${inv.codcmp ?? `seq ${inv.seqcmp}`}: ${inv.motivo}. Recarregue a OP ou peça ao suporte do backend para preencher os campos-chave (codetg, codcmp, unidade, depósito).`,
+        variant: 'destructive',
+      });
+      return;
+    }
     setEnviando(true);
     try {
       const criada = await requisicoesApi.criar(payload as any);
