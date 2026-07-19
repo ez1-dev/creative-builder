@@ -127,23 +127,22 @@ export default function NovaRequisicaoAvulsaPage() {
         centro_custo_descricao: cc?.desccu ?? null,
         projeto: projeto ? String(projeto.numprj) : null,
         projeto_descricao: projeto?.desprj ?? null,
-        obra: projeto?.obra ?? null,
-        fase: fase || projeto?.codfpj || null,
+        obra: null,
+        fase: fase || null,
         justificativa: justificativa || null,
         observacoes: obs || null,
         itens: linhasValidas.map((l, i) => ({
           seq: i + 1,
           codcmp: l.codcmp,
-          codder: l.codder || null,
           descricao: l.descricao || null,
           unidade: l.unidade || null,
-          codfam: l.codfam || null,
           quantidade: l.quantidade,
           deposito_origem: l.deposito_origem ? Number(l.deposito_origem) : null,
           deposito_destino: l.deposito_destino ? Number(l.deposito_destino) : null,
           lote: l.lote || null,
           observacao: l.observacao || null,
         })),
+
       };
       const criada = await requisicoesApi.criar(payload as any);
       if (enviar) {
