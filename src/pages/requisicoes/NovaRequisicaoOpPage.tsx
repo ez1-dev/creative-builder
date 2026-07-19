@@ -268,6 +268,15 @@ export default function NovaRequisicaoOpPage() {
   const enviar = async () => {
     const payload = buildPayload();
     if (!payload || payload.itens.length === 0) return;
+    if (itensInvalidos.length > 0) {
+      const inv = itensInvalidos[0];
+      toast({
+        title: 'Componente com dados incompletos',
+        description: `${inv.codcmp ?? `seq ${inv.seqcmp}`}: ${inv.motivo}. Não é possível enviar ao ERP até o backend devolver o componente completo.`,
+        variant: 'destructive',
+      });
+      return;
+    }
     setEnviando(true); setPendenteIntegr(null);
     try {
       const criada = await requisicoesApi.criar(payload as any);
