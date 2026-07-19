@@ -126,11 +126,19 @@ export interface OpConsultaResponse {
   codder: string | null;
   projeto: string | null;
   situacao: string;               // SITORP
+  situacao_desc?: string | null;  // Descrição por extenso (Liberada/Aberta/Finalizada/…)
   quantidade_prevista: number;
   quantidade_produzida: number;
+  saldo?: number | null;
+  centro_custo?: string | null;
+  codfam?: string | null;
+  numped?: number | string | null;
+  projeto_obra?: string | null;
+  derivacao?: string | null;
   pode_requisitar: boolean;
   motivo_bloqueio?: string | null;
   componentes: ComponenteOP[];
+  total_componentes?: number;
 }
 
 export type TipoAtendimentoOP = 'TRANSFERIR' | 'BAIXAR_DIRETO';

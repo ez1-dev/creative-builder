@@ -185,20 +185,22 @@ export default function PortalRequisicoesPage() {
                 <CardTitle className="text-base">
                   OP {op.data.codori} / {op.data.numorp}
                 </CardTitle>
-                <Badge variant={podeReq ? 'default' : 'destructive'}>Situação: {op.data.situacao}</Badge>
+                <Badge variant={podeReq ? 'default' : 'destructive'}>Situação: {op.data.situacao_desc ?? op.data.situacao}</Badge>
               </div>
             </CardHeader>
             <CardContent className="text-sm space-y-1">
               <div><strong>Produto:</strong> {op.data.produto_final ?? '—'} {op.data.descricao ? `— ${op.data.descricao}` : ''}</div>
               <div className="text-muted-foreground">
-                Empresa {op.data.codemp} · Filial {op.data.codfil} · Derivação {op.data.codder ?? '—'} ·
-                Projeto {op.data.projeto ?? '—'} · Prevista {op.data.quantidade_prevista} · Produzida {op.data.quantidade_produzida}
+                Empresa {op.data.codemp} · Filial {op.data.codfil} · Derivação {op.data.derivacao ?? op.data.codder ?? '—'} ·
+                Projeto {op.data.projeto_obra ?? op.data.projeto ?? '—'} · Prevista {op.data.quantidade_prevista} · Produzida {op.data.quantidade_produzida}
+                {op.data.saldo != null ? ` · Saldo ${op.data.saldo}` : ''}
+                {op.data.centro_custo ? ` · CC ${op.data.centro_custo}` : ''}
               </div>
-              {!podeReq && (
+              {op.data.pode_requisitar === false && (
                 <Alert className="mt-2 border-amber-300 bg-amber-50 text-amber-900">
                   <AlertTitle>OP não aceita requisição</AlertTitle>
                   <AlertDescription>
-                    Situação {op.data.situacao}. {op.data.motivo_bloqueio ?? 'Ações de reserva e baixa estão desabilitadas.'}
+                    {op.data.motivo_bloqueio ?? `Situação ${op.data.situacao_desc ?? op.data.situacao}. Ações de reserva e baixa estão desabilitadas.`}
                   </AlertDescription>
                 </Alert>
               )}
