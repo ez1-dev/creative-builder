@@ -56,6 +56,7 @@ const EXACT: Record<string, ScreenInfo> = {
   '/requisicoes/nova':          { codigo: 'REQ_NOVA',       nome: 'Nova Requisição' },
   '/requisicoes/nova-op':       { codigo: 'REQ_NOVA_OP',    nome: 'Nova Requisição — OP' },
   '/requisicoes/nova-avulsa':   { codigo: 'REQ_NOVA_AVULSA', nome: 'Nova Requisição — Sem OP' },
+  '/requisicoes/portal':        { codigo: 'REQ_PORTAL',     nome: 'Portal de Requisições' },
   '/requisicoes/aprovacoes':    { codigo: 'REQ_APROV',      nome: 'Requisições — Aprovações' },
   '/requisicoes/almoxarifado':  { codigo: 'REQ_ALMOX',      nome: 'Requisições — Almoxarifado' },
   '/requisicoes/agrupadas':     { codigo: 'REQ_AGRUP',      nome: 'Requisições — Separação Agrupada' },
