@@ -273,6 +273,7 @@ export default function NovaRequisicaoOpPage() {
       observacao: obsGeral || undefined,
       itens: itensSelecionados.map((it) => {
         const comp = op.data!.componentes.find((c) => c.seqcmp === it.seqcmp)!;
+        const depOrigem = depositoEscolhido(comp);
         return {
           seq: it.seqcmp,
           codemp: op.data!.codemp,
@@ -281,11 +282,11 @@ export default function NovaRequisicaoOpPage() {
           numorp: op.data!.numorp,
           codetg: comp.codetg,
           seqcmp: comp.seqcmp,
-          codcmp: comp.codcmp,
+          codcmp: comp.componente ?? comp.codcmp,
           codder: comp.codder,
           unidade: comp.unidade,
           quantidade: it.quantidade,
-          deposito_origem: comp.deposito,
+          deposito_origem: depOrigem,
           deposito_destino: tipo === 'TRANSFERIR' ? (depositoDestino ? Number(depositoDestino) : null) : null,
           tipo_atendimento_op: tipo,
           observacao: obs[it.seqcmp] || undefined,
@@ -295,28 +296,67 @@ export default function NovaRequisicaoOpPage() {
     };
   };
 
-  const salvarRascunho = async () => {
-    const payload = buildPayload();
-    if (!payload || payload.itens.length === 0) return;
-    if (itensInvalidos.length > 0) {
-      const inv = itensInvalidos[0];
-      toast({
-        title: 'Componente com dados incompletos',
-        description: `${inv.codcmp ?? `seq ${inv.seqcmp}`}: ${inv.motivo}. Recarregue a OP ou peça ao suporte do backend para preencher os campos-chave (codetg, codcmp, unidade, depósito).`,
-        variant: 'destructive',
-      });
+  // ---------------- Rascunho LOCAL (localStorage) ----------------
+  const rascunhoKey = buscar ? `requisicoes:rascunho:${buscar.codori}:${buscar.numorp}` : null;
+
+  useEffect(() => {
+    if (!rascunhoKey) { setRascunhoDisponivel(false); return; }
+    setRascunhoDisponivel(Boolean(localStorage.getItem(rascunhoKey)));
+  }, [rascunhoKey]);
+
+  const salvarRascunho = () => {
+    if (!rascunhoKey) return;
+    if (itensSelecionados.length === 0) {
+      toast({ title: 'Nada a salvar', description: 'Selecione ao menos um componente antes de salvar o rascunho.', variant: 'destructive' });
       return;
     }
-    setEnviando(true);
+    const dump = {
+      salvo_em: new Date().toISOString(),
+      codori: buscar!.codori,
+      numorp: buscar!.numorp,
+      tipo,
+      depositoDestino,
+      obsGeral,
+      dataNecessaria,
+      sel,
+      justif,
+      obs,
+      depositosPorItem,
+    };
     try {
-      const criada = await requisicoesApi.criar(payload as any);
-      toast({ title: 'Rascunho salvo', description: `Nº ${criada.numero} — pendente de integração.` });
-      nav(`/requisicoes/${encodeURIComponent(criada.id)}`);
-    } catch (err: any) {
-      toast({ title: 'Não foi possível salvar', description: err?.message ?? 'Erro desconhecido', variant: 'destructive' });
-    } finally {
-      setEnviando(false);
+      localStorage.setItem(rascunhoKey, JSON.stringify(dump));
+      setRascunhoDisponivel(true);
+      toast({ title: 'Rascunho salvo neste navegador', description: 'O rascunho fica apenas no seu computador — o servidor ainda não persiste requisições em aberto.' });
+    } catch {
+      toast({ title: 'Não foi possível salvar o rascunho local', variant: 'destructive' });
     }
+  };
+
+  const restaurarRascunho = () => {
+    if (!rascunhoKey) return;
+    const raw = localStorage.getItem(rascunhoKey);
+    if (!raw) return;
+    try {
+      const dump = JSON.parse(raw);
+      setTipo(dump.tipo ?? 'TRANSFERIR');
+      setDepositoDestino(dump.depositoDestino ?? '');
+      setObsGeral(dump.obsGeral ?? '');
+      setDataNecessaria(dump.dataNecessaria ?? '');
+      setSel(dump.sel ?? {});
+      setJustif(dump.justif ?? {});
+      setObs(dump.obs ?? {});
+      setDepositosPorItem(dump.depositosPorItem ?? {});
+      toast({ title: 'Rascunho restaurado' });
+    } catch {
+      toast({ title: 'Rascunho local corrompido', variant: 'destructive' });
+    }
+  };
+
+  const descartarRascunho = () => {
+    if (!rascunhoKey) return;
+    localStorage.removeItem(rascunhoKey);
+    setRascunhoDisponivel(false);
+    toast({ title: 'Rascunho local descartado' });
   };
 
   const enviar = async () => {
@@ -327,6 +367,14 @@ export default function NovaRequisicaoOpPage() {
       toast({
         title: 'Componente com dados incompletos',
         description: `${inv.codcmp ?? `seq ${inv.seqcmp}`}: ${inv.motivo}. Não é possível enviar ao ERP até o backend devolver o componente completo.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (itensSemDeposito.length > 0) {
+      toast({
+        title: 'Escolha o depósito de origem',
+        description: `Escolha o depósito de origem do componente ${itensSemDeposito[0].codigo} antes de enviar.`,
         variant: 'destructive',
       });
       return;
@@ -344,6 +392,8 @@ export default function NovaRequisicaoOpPage() {
         }
       }
       toast({ title: 'Requisição criada', description: `Nº ${criada.numero}` });
+      // Envio bem-sucedido → descarta rascunho local para não confundir na próxima entrada
+      if (rascunhoKey) { localStorage.removeItem(rascunhoKey); setRascunhoDisponivel(false); }
       nav(`/requisicoes/${encodeURIComponent(criada.id)}`);
     } catch (err: any) {
       toast({ title: 'Não foi possível criar a requisição', description: err?.message ?? 'Erro desconhecido', variant: 'destructive' });
