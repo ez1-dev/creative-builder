@@ -13,7 +13,7 @@ import { toast } from '@/hooks/use-toast';
 import {
   requisicoesApi,
   IntegracaoDesabilitadaError,
-  type ProdutoLookup,
+  type ComponenteLookup,
   type CentroCustoLookup,
   type ProjetoLookup,
 } from '@/services/requisicoesApi';
@@ -24,12 +24,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import type { TipoRequisicao, PrioridadeRequisicao } from '@/types/requisicoes';
 
 interface Linha {
-  produto: ProdutoLookup | null;
+  componente: ComponenteLookup | null;
   codcmp: string;
   descricao: string;
   unidade: string;
-  codder: string;
-  codfam: string;
   quantidade: number;
   deposito_origem: string;
   deposito_destino: string;
@@ -38,11 +36,12 @@ interface Linha {
 }
 
 const linhaVazia = (): Linha => ({
-  produto: null,
-  codcmp: '', descricao: '', unidade: '', codder: '', codfam: '',
+  componente: null,
+  codcmp: '', descricao: '', unidade: '',
   quantidade: 0, deposito_origem: '', deposito_destino: '',
   lote: '', observacao: '',
 });
+
 
 // Tipos que exigem centro de custo (consumo interno, manutenção, administrativo, emergencial).
 const CC_OBRIGATORIO: TipoRequisicao[] = ['CONSUMO', 'EMERGENCIAL'];
