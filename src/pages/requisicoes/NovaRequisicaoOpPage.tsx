@@ -724,73 +724,91 @@ export default function NovaRequisicaoOpPage() {
     );
   };
 
+  const sidebar = (
+    <aside className="md:sticky md:top-4 md:self-start">
+      <ResumoRequisicaoLateral
+        stats={stats}
+        step={step}
+        canContinue={canContinue}
+        canEnviar={sidWrite.enabled && itensSelecionados.length > 0}
+        enviando={enviando}
+        onContinue={handleContinue}
+        onBack={handleBack}
+        onCancel={() => nav('/requisicoes')}
+        onSalvarRascunho={salvarRascunho}
+        onEnviar={enviar}
+      />
+    </aside>
+  );
+
   return (
-    <div className="mx-auto max-w-[1200px] space-y-4 pb-24 md:pb-4">
+    <div className="mx-auto max-w-[1400px] space-y-4 pb-24 md:pb-4">
       <PageHeader
         title="Nova requisição — com OP"
-        description="Consulte a OP, selecione componentes e escolha o tipo de atendimento."
+        description="Consulte uma Ordem de Produção, selecione os componentes e defina como o material será atendido."
       />
 
-      <RequisicaoStepper steps={stepsDef} current={step} onGo={(id) => setStep(id as 1 | 2 | 3 | 4)} />
-
-      <IntegracaoStatusChip detail={pendenteIntegr ?? undefined} />
-
-      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="space-y-4 min-w-0">
-          {step === 1 && (
-            <>
-              {renderStep1()}
-              {(buscar || op.isLoading) && renderResumoOp()}
-            </>
-          )}
-          {step >= 2 && op.data && (
-            <>
-              {renderResumoOp()}
-              {step === 2 && renderStep2()}
-              {step === 3 && renderStep3()}
-              {step === 4 && renderStep4()}
-              {step === 2 && (
-                <div className="flex justify-between">
-                  <Button variant="ghost" onClick={handleBack}>
-                    <ArrowLeft className="mr-1 h-4 w-4" /> Voltar
-                  </Button>
-                  <Button onClick={handleContinue} disabled={!canContinue}>
-                    Continuar <ArrowRight className="ml-1 h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-              {step === 3 && (
-                <div className="flex justify-between">
-                  <Button variant="ghost" onClick={handleBack}>
-                    <ArrowLeft className="mr-1 h-4 w-4" /> Voltar
-                  </Button>
-                  <Button onClick={handleContinue} disabled={!canContinue}>
-                    Continuar <ArrowRight className="ml-1 h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-            </>
-          )}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <RequisicaoStepper steps={stepsDef} current={step} onGo={(id) => setStep(id as 1 | 2 | 3 | 4)} />
         </div>
-
-        <aside className="md:sticky md:top-4 md:self-start">
-          <ResumoRequisicaoLateral
-            stats={stats}
-            step={step}
-            canContinue={canContinue}
-            canEnviar={sidWrite.enabled && itensSelecionados.length > 0}
-            enviando={enviando}
-            onContinue={handleContinue}
-            onBack={handleBack}
-            onCancel={() => nav('/requisicoes')}
-            onSalvarRascunho={salvarRascunho}
-            onEnviar={enviar}
-          />
-        </aside>
+        <IntegracaoStatusChip detail={pendenteIntegr ?? undefined} />
       </div>
+
+      {step === 1 ? (
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_320px]">
+          <div className="min-w-0">{renderStep1()}</div>
+          <div className="min-w-0">
+            {(buscar || op.isLoading) ? renderResumoOp() : (
+              <Card className="flex h-full min-h-[320px] items-center justify-center border-dashed shadow-none">
+                <CardContent className="p-6 text-center text-sm text-muted-foreground">
+                  <PackageSearch className="mx-auto mb-2 h-8 w-8 opacity-40" />
+                  Selecione uma OP à esquerda para ver o resumo aqui.
+                </CardContent>
+              </Card>
+            )}
+          </div>
+          {sidebar}
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="space-y-4 min-w-0">
+            {op.data && (
+              <>
+                {renderResumoOp()}
+                {step === 2 && renderStep2()}
+                {step === 3 && renderStep3()}
+                {step === 4 && renderStep4()}
+                {step === 2 && (
+                  <div className="flex justify-between">
+                    <Button variant="ghost" onClick={handleBack}>
+                      <ArrowLeft className="mr-1 h-4 w-4" /> Voltar
+                    </Button>
+                    <Button onClick={handleContinue} disabled={!canContinue}>
+                      Continuar <ArrowRight className="ml-1 h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+                {step === 3 && (
+                  <div className="flex justify-between">
+                    <Button variant="ghost" onClick={handleBack}>
+                      <ArrowLeft className="mr-1 h-4 w-4" /> Voltar
+                    </Button>
+                    <Button onClick={handleContinue} disabled={!canContinue}>
+                      Continuar <ArrowRight className="ml-1 h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          {sidebar}
+        </div>
+      )}
     </div>
   );
 }
+
 
 function Field({ label, value, className }: { label: string; value: React.ReactNode; className?: string }) {
   return (
