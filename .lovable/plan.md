@@ -1,37 +1,59 @@
-## Diagnóstico (verificado)
-
-O autocomplete da tela `Nova requisição — com OP` chama `GET /api/producao/ordem-producao/opcoes?cod_emp=1&limite_ops=1000` (com opcional `q`). Confirmei no network que a resposta traz `empresas`, `origens`, `pedidos`, `relatorios_producao`, `situacoes` — mas **não** traz `ordens_producao`.
-
-Isso bate com o contrato documentado em `docs/backend-impressao-ordem-producao.md` (linhas 151–163): o backend só popula `ordens_producao` quando a chamada inclui pelo menos um filtro de escopo (`cod_ori`, `num_ped`, `rel_prd`, `sit_orp`). Como a tela nova envia só `cod_emp` (+ eventual `q`), a lista volta vazia — por isso "não traz as OPs".
-
-Na tela de Impressão de OP esse problema não existe porque o usuário escolhe primeiro Pedido/Origem/Relatório e só depois o combo de OPs é populado.
-
 ## Objetivo
 
-Fazer o autocomplete retornar OPs úteis assim que o usuário abre a tela, sem exigir passo extra, mantendo compatibilidade com o backend atual (sem depender de mudança na FastAPI).
+Redesenhar a página **Nova Requisição — com OP** (`/requisicoes/nova-op`) seguindo o layout de referência enviado: layout mais denso e informativo, com 3 colunas, tabela de OPs à esquerda, painel "Resumo da OP" ao centro, "Resumo da Requisição" à direita, e tabela de componentes ampla embaixo com legenda de saldo colorida.
 
-## O que fazer
+## Mudanças de layout (visual only — sem tocar em regras de negócio)
 
-1. **Passar um filtro de escopo padrão no fetcher**
-   Alterar `fetchOps` em `src/pages/requisicoes/NovaRequisicaoOpPage.tsx` para chamar `searchOps(q, { cod_emp: '1', sit_orp: 'A' })` — situação "Aberta" é o único estado em que faz sentido criar requisição, e satisfaz a exigência do backend de ter algum filtro de escopo.
-   Idem para o `useEffect` de warm-up.
+### Passo 1 — Selecionar OP
+Trocar o layout atual (autocomplete + campos manuais empilhados) por um layout de 3 colunas:
 
-2. **Fallback quando `sit_orp` sozinho ainda não retornar OPs**
-   Se após o item 1 a resposta seguir vindo sem `ordens_producao` (backend restrito à combinação `cod_ori + sit_orp`), acrescentar no autocomplete um seletor compacto de **Origem** (obrigatório antes de buscar OPs), reaproveitando o combo já disponível via `useOpcoesImpressaoOp().origens`. O `fetchOps` passa a enviar `{ cod_emp, cod_ori, sit_orp: 'A' }`. A UI mostra "Escolha a Origem para listar OPs" enquanto `cod_ori` estiver vazio.
+```text
+┌──────────────────────────┬───────────────────────┬───────────────────────┐
+│ [Buscar OP] [Manual]     │ Resumo da OP          │ Resumo da Requisição  │
+│ 🔍 campo de busca        │ selecionada           │ (sticky)              │
+│ Lista de resultados      │ Origem / Nº OP        │ Itens selecionados    │
+│  100/65958  Estrutura    │ Produto final         │ Quantidade total      │
+│  100/65960  Suporte      │ Derivação             │ Itens com/sem saldo   │
+│  200/12020  Base fixação │ Projeto/Obra          │ Acima da necessidade  │
+│  ...                     │ Qtd prevista/produzida│ Tipo atendimento      │
+│  (rows clicáveis c/      │ Saldo da OP           │ Depósito destino      │
+│   badge de situação)     │ [Trocar OP][Atualizar]│ [Salvar rascunho]     │
+│                          │                       │ [Cancelar][Continuar] │
+└──────────────────────────┴───────────────────────┴───────────────────────┘
+```
 
-3. **Aviso visual quando a busca retorna vazia**
-   No `CommandEmpty` do `OpAutocomplete`, quando `results.length === 0` **e** já houve chamada, mostrar mensagem clara ("Nenhuma OP em aberto encontrada para os filtros atuais") em vez do genérico "Digite para buscar", ajudando o usuário a entender por que a lista está vazia.
+- **Coluna esquerda**: tabs "Buscar OP" / "Informar manualmente" + campo de busca grande + lista de resultados (usa `searchOps` já existente com `sit_orp: 'A'`). Cada linha mostra Origem/Nº, produto, projeto, badge "Previsto X un" e situação colorida. Clicar = selecionar OP.
+- **Coluna central "Resumo da OP selecionada"**: card com todos os metadados vindos de `useImpressaoOrdemProducao` (origem, nº, produto final, derivação, projeto/obra, qtd prevista, qtd produzida, saldo da OP). Badge "Liberada / Aberta / Em execução". Botões "Trocar OP" e "Atualizar dados".
+- **Coluna direita "Resumo da Requisição"** (sticky): KPIs zerados até seleção de componentes (itens selecionados, quantidade total, itens com/sem saldo, acima da necessidade, tipo de atendimento, depósito destino) + botões Salvar rascunho / Cancelar / Continuar.
 
-4. **Validação no preview**
-   Após a mudança do item 1, abrir `/requisicoes/nova-op`, abrir o autocomplete, conferir no Network que a chamada agora vai com `sit_orp=A` e que a resposta traz `ordens_producao` com itens. Se vier vazia, aplicar o item 2 no mesmo turno.
+### Tabela de componentes (largura total, abaixo dos 3 painéis)
+- Toolbar: `Filtros` | busca por produto | checkboxes "Somente pendentes" / "Com saldo" | "Selecionar todos".
+- Colunas: Sel · Seq · Estágio · Componente · Descrição · Deriv · Depósito · Prev · Utiliz · Requis · Transf · Disponível · **Solicitar** (input) · Obs.
+- Ponto colorido no início da linha indicando saldo (`sem saldo` vermelho, `parcial` laranja, `suficiente` verde, `já atendido` cinza).
+- Linha destacada em amarelo quando `Solicitar > Disponível` (aviso "Acima da necessidade") e em vermelho quando `Fora de saldo`.
+- Legenda de status embaixo + "Total de itens: N".
 
-## Fora de escopo
+### Banner de integração
+- Manter o `IntegracaoStatusChip` admin no topo, mas em versão compacta (ícone + texto curto) alinhada à direita do stepper.
+- Manter o banner informativo azul embaixo ("A integração com o ERP está desabilitada. As requisições serão salvas como pendentes de integração…") — reaproveitar componente existente.
 
-- Nenhuma alteração no backend / FastAPI.
-- Nenhuma mudança em cálculos, regras de requisição, gating do SID, tabela de componentes ou etapas seguintes.
-- Nenhuma mudança na tela de Impressão de OP (que já funciona com fluxo em cascata).
+## Componentes a criar/ajustar (só apresentação)
 
-## Arquivos que devem mudar
+- `src/pages/requisicoes/NovaRequisicaoOpPage.tsx` — reorganizar em grid 3 colunas + tabela full-width. Nada muda na lógica de fetch, mutações, gating de SID ou cálculos.
+- `src/components/requisicoes/OpSearchList.tsx` (novo) — lista visual de OPs (usa `searchOps` existente).
+- `src/components/requisicoes/ResumoOpCard.tsx` (novo) — extrai a apresentação do painel central. Consome os dados já retornados por `useImpressaoOrdemProducao`.
+- `src/components/requisicoes/ComponentesTable.tsx` — ajustar visual (ponto colorido, highlight de linhas, colunas conforme imagem). Mantém mesmos campos e cálculos.
+- `ResumoRequisicaoLateral.tsx` — leve reestilização para bater com a referência (labels/tipografia); sem novas métricas.
 
-- `src/pages/requisicoes/NovaRequisicaoOpPage.tsx` — `fetchOps`, warm-up, e (se necessário) combo de Origem na aba "Buscar OP".
-- `src/components/producao/OpAutocomplete.tsx` — apenas se precisar diferenciar o `CommandEmpty` "sem resultado" vs "digite para buscar" (mudança visual mínima).
+## O que NÃO muda
+
+- Endpoints e payloads (`/api/producao/ordem-producao/opcoes`, `/impressao`, mutações de requisição).
+- Regras de gating do SID, integração, aprovações.
+- Cálculos de saldo, "Acima da necessidade", tipo de atendimento.
+- Stepper de 4 etapas (continua igual, só reposicionado no topo do card).
+
+## Observações
+
+- Os dados exibidos na imagem (100/65958, projetos GS-11661, etc.) são exemplos — o layout aceita qualquer OP real vinda da API.
+- Todas as cores via tokens semânticos do design system (nada de `bg-white`/`text-black` hardcoded).
+- Trabalho puramente frontend/presentational.
