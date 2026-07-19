@@ -71,6 +71,29 @@ export function useConfigRequisicoes() {
   });
 }
 
+/** Status da integração SID (endpoint de diagnóstico — não grava nada). */
+export function useSidStatus() {
+  return useQuery({
+    queryKey: [KEY, 'sid', 'ping'],
+    queryFn: () => requisicoesApi.pingSid(),
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+    refetchOnWindowFocus: true,
+    retry: 1,
+  });
+}
+
+/** true quando escrita SID está liberada (habilitada + WSDL do co_ger_sid acessível). */
+export function useSidWriteEnabled(): { enabled: boolean; loading: boolean; reason?: string } {
+  const q = useSidStatus();
+  if (q.isLoading) return { enabled: false, loading: true };
+  const s = q.data;
+  if (!s) return { enabled: false, loading: false, reason: 'Não foi possível verificar a integração SID.' };
+  if (!s.sid_habilitado) return { enabled: false, loading: false, reason: 'Integração de escrita SID desabilitada no backend.' };
+  if (!s.ger_sid?.wsdl_ok) return { enabled: false, loading: false, reason: 'Serviço co_ger_sid indisponível.' };
+  return { enabled: true, loading: false };
+}
+
 /* ============================== Mutations ============================== */
 
 function useInvalidateAll() {
