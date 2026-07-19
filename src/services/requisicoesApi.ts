@@ -287,6 +287,7 @@ export const requisicoesApi = {
   buscarCentrosCusto: buscarCentrosCusto,
   buscarProjetos: buscarProjetos,
   buscarComponentes: buscarComponentes,
+  buscarDepositos: buscarDepositos,
 };
 
 /* ============================== Lookups ============================== */
