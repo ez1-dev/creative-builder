@@ -12,7 +12,10 @@ interface Props {
   fetcher: (q: string) => Promise<OpcaoOp[]>;
   disabled?: boolean;
   placeholder?: string;
+  selectedKey?: string;
+  loading?: boolean;
 }
+
 
 const formatOp = (op: OpcaoOp) =>
   op.label ||
