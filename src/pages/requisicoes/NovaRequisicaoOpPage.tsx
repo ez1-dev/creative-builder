@@ -20,13 +20,13 @@ import { useOpConsulta, useSidWriteEnabled } from '@/hooks/requisicoes';
 import { requisicoesApi, IntegracaoDesabilitadaError } from '@/services/requisicoesApi';
 import type { TipoAtendimentoOP, ComponenteOP } from '@/types/requisicoes';
 import { toast } from '@/hooks/use-toast';
-import { OpAutocomplete } from '@/components/producao/OpAutocomplete';
 import { useOpcoesImpressaoOp } from '@/hooks/useOpcoesImpressaoOp';
 import type { OpcaoOp } from '@/lib/producao/opcoesImpressao';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { RequisicaoStepper } from '@/components/requisicoes/RequisicaoStepper';
 import { IntegracaoStatusChip } from '@/components/requisicoes/IntegracaoStatusChip';
 import { ResumoRequisicaoLateral } from '@/components/requisicoes/ResumoRequisicaoLateral';
+import { OpSearchList } from '@/components/requisicoes/OpSearchList';
 import { cn } from '@/lib/utils';
 
 type SaldoFilter = 'todos' | 'com' | 'sem';
