@@ -94,8 +94,12 @@ export default function NovaRequisicaoOpPage() {
       o.label ||
       [[co, no].filter(Boolean).join(' / '), o.produto, o.descricao_produto].filter(Boolean).join(' - '),
     );
-    if (co && no) setBuscar({ codori: co, numorp: no });
+    if (co && no) {
+      setBuscar({ codori: co, numorp: no });
+      toast({ title: `OP ${co}/${no} selecionada`, description: 'Consultando dados da ordem…' });
+    }
   };
+
 
   const consultarManual = () => {
     if (!codori.trim() || !numorp.trim()) return;
