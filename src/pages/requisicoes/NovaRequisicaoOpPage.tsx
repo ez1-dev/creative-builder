@@ -875,17 +875,22 @@ export default function NovaRequisicaoOpPage() {
                 {itensSelecionados.map((it) => {
                   const c = comps.find((x) => x.seqcmp === it.seqcmp);
                   const inv = componenteInvalido(c);
+                  const dep = depositoEscolhido(c);
+                  const semDep = c?.precisa_deposito && dep == null;
                   return (
-                    <TableRow key={it.seqcmp} className={cn(inv && 'bg-destructive/5')}>
+                    <TableRow key={it.seqcmp} className={cn((inv || semDep) && 'bg-destructive/5')}>
                       <TableCell className="font-mono text-xs">
-                        {c?.codcmp}
+                        {c?.componente ?? c?.codcmp}
                         {inv && (
                           <Badge variant="destructive" className="ml-2 align-middle text-[10px]">Dados incompletos</Badge>
+                        )}
+                        {!inv && semDep && (
+                          <Badge variant="destructive" className="ml-2 align-middle text-[10px]">Depósito pendente</Badge>
                         )}
                       </TableCell>
                       <TableCell>{c?.descricao ?? (inv ? <span className="text-destructive text-xs">{inv}</span> : '—')}</TableCell>
                       <TableCell className="text-right tabular-nums">{it.quantidade} {c?.unidade ?? ''}</TableCell>
-                      <TableCell>{c?.deposito ?? '—'}</TableCell>
+                      <TableCell>{dep ?? <span className="text-destructive text-xs">escolher</span>}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{justif[it.seqcmp] || '—'}</TableCell>
                     </TableRow>
                   );
@@ -898,14 +903,23 @@ export default function NovaRequisicaoOpPage() {
             <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
               <div className="font-medium">Não é possível enviar: {itensInvalidos.length} componente(s) sem dados-chave.</div>
               <div className="text-xs mt-1">
-                O backend não devolveu <code>codetg</code>, <code>codcmp</code>, <code>unidade</code> ou <code>depósito</code> para os itens marcados. Clique em <b>Atualizar dados</b> no topo ou peça ao suporte do backend para corrigir a consulta desta OP.
+                O backend não devolveu <code>codetg</code>, <code>codcmp</code> ou <code>unidade</code> para os itens marcados. Clique em <b>Atualizar dados</b> no topo ou peça ao suporte do backend para corrigir a consulta desta OP.
               </div>
             </div>
           )}
 
-          {!sidWrite.enabled && itensInvalidos.length === 0 && (
+          {itensSemDeposito.length > 0 && itensInvalidos.length === 0 && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+              <div className="font-medium">Escolha o depósito de origem antes de enviar.</div>
+              <div className="text-xs mt-1">
+                Componentes sem depósito: {itensSemDeposito.map((i) => i.codigo).join(', ')}. Volte ao passo <b>Selecionar componentes</b> e escolha o depósito na coluna <b>Dep. origem</b>.
+              </div>
+            </div>
+          )}
+
+          {!sidWrite.enabled && itensInvalidos.length === 0 && itensSemDeposito.length === 0 && (
             <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-200">
-              A integração com o ERP está desabilitada. A requisição será salva como pendente de integração.
+              A integração com o ERP está desabilitada. Aguarde o SID ser habilitado no backend antes de enviar.
             </div>
           )}
 
@@ -914,17 +928,35 @@ export default function NovaRequisicaoOpPage() {
               <ArrowLeft className="mr-1 h-4 w-4" /> Voltar
             </Button>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={salvarRascunho} disabled={enviando}>Salvar rascunho</Button>
+              {rascunhoDisponivel && (
+                <Button variant="ghost" size="sm" onClick={descartarRascunho} disabled={enviando}>
+                  Descartar rascunho local
+                </Button>
+              )}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" onClick={salvarRascunho} disabled={enviando || itensSelecionados.length === 0}>
+                    Salvar rascunho (local)
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Salva apenas neste navegador — o servidor ainda não persiste requisições em aberto.</TooltipContent>
+              </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span>
-                    <Button onClick={enviar} disabled={!sidWrite.enabled || enviando}>
+                    <Button
+                      onClick={enviar}
+                      disabled={!sidWrite.enabled || enviando || itensSemDeposito.length > 0 || itensInvalidos.length > 0}
+                    >
                       {enviando ? 'Enviando…' : 'Enviar requisição'}
                     </Button>
                   </span>
                 </TooltipTrigger>
                 {!sidWrite.enabled && sidWrite.reason && (
                   <TooltipContent>{sidWrite.reason}</TooltipContent>
+                )}
+                {sidWrite.enabled && itensSemDeposito.length > 0 && (
+                  <TooltipContent>Escolha o depósito de origem do componente {itensSemDeposito[0].codigo}.</TooltipContent>
                 )}
               </Tooltip>
             </div>
