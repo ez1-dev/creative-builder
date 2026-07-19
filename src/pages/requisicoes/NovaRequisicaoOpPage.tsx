@@ -615,7 +615,8 @@ export default function NovaRequisicaoOpPage() {
                 <TableHead className="text-xs uppercase tracking-wide">Descrição</TableHead>
                 <TableHead className="text-xs uppercase tracking-wide">Deriv.</TableHead>
                 <TableHead className="text-xs uppercase tracking-wide">UM</TableHead>
-                <TableHead className="text-xs uppercase tracking-wide">Dep.</TableHead>
+                <TableHead className="text-xs uppercase tracking-wide w-40">Dep. origem</TableHead>
+                <TableHead className="text-xs uppercase tracking-wide">Trans.</TableHead>
                 <TableHead className="text-xs uppercase tracking-wide text-right">Prev.</TableHead>
                 <TableHead className="text-xs uppercase tracking-wide text-right">Util.</TableHead>
                 <TableHead className="text-xs uppercase tracking-wide text-right">Req.</TableHead>
