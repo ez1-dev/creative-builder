@@ -1,33 +1,63 @@
-## Objetivo
-Ao selecionar uma OP no autocomplete (aba "Buscar OP"), o usuário precisa perceber duas coisas imediatamente:
-1. A consulta da OP disparou automaticamente (feedback visual claro).
-2. A OP escolhida fica destacada no campo e no dropdown quando reaberto.
 
-## Diagnóstico
-Em `src/components/producao/OpAutocomplete.tsx` o check da seleção compara `String(op.num_orp) === value`, mas `value` recebido do container é apenas `numorp` sem `codori` — colisões e falha em destacar. Além disso, ao selecionar, o popover fecha e nada sinaliza que a consulta começou; o `renderResumoOp` só aparece abaixo quando `op.isLoading/data` mudam, sem indicação visual no próprio campo.
+# Teste guiado do fluxo SID (requisitar → conferir → excluir)
 
-Em `src/pages/requisicoes/NovaRequisicaoOpPage.tsx` o `handleSelectOp` já dispara `setBuscar(...)` (o que aciona `useOpConsulta`), então a consulta *acontece* — só falta comunicá-la.
+Objetivo: validar de ponta a ponta o `SID_HABILITADO=S` disparando duas chamadas controladas no 8070 e confirmando o efeito no ERP Senior, sem tocar em produção.
 
-## Mudanças
+## Pré-checks (antes de qualquer POST)
 
-### 1. `OpAutocomplete.tsx`
-- Adicionar props opcionais `selectedKey?: string` e `loading?: boolean` para o container informar a OP atualmente selecionada (`${cod_ori}-${num_orp}`) e se há consulta em andamento.
-- Trocar o critério do ícone `Check` para comparar contra `selectedKey` (mesma chave usada em `CommandItem`).
-- Reordenar `results` colocando o item selecionado no topo quando o popover abrir.
-- No botão trigger:
-  - Quando `loading`, mostrar `Loader2` girando ao lado do texto e trocar o `ChevronsUpDown` por spinner.
-  - Quando há `value`, aplicar destaque visual (borda `ring-1 ring-primary/40` + `bg-primary/5`) para deixar claro que há OP selecionada.
-- Manter debounce/limpeza atuais.
+1. `GET /api/requisicoes/sid/ping` — abortar se `sid_habilitado !== true` ou se algum `wsdl_ok !== true`. Registrar `sid_ger_operacao` e as duas URLs de serviço no retorno pra auditoria.
+2. Confirmar identidade do chamador via `has_role(auth.uid(), 'admin')` na edge function; qualquer outro papel recebe 403.
 
-### 2. `NovaRequisicaoOpPage.tsx`
-- Passar `selectedKey={codori && numorp ? \`${codori}-${numorp}\` : undefined}` e `loading={op.isFetching}` ao `<OpAutocomplete>`.
-- Logo abaixo do autocomplete (aba "Buscar OP"), renderizar um chip inline de status quando houver `buscar`:
-  - `op.isFetching`: "Consultando OP {codori}/{numorp}…" com spinner.
-  - `op.isError`: "Falha ao consultar" + botão "Tentar novamente".
-  - `op.data`: "OP {codori}/{numorp} carregada" em verde.
-- Emitir `toast.success('OP {codori}/{numorp} selecionada, consultando…')` dentro de `handleSelectOp` quando `co && no` (usa o `sonner` já disponível no projeto).
-- Ajustar o texto auxiliar para: "A seleção dispara a consulta automaticamente."
+## Payload do teste (baixo valor, alinhado ao combinado)
 
-## Fora do escopo
-- Não alterar `useOpConsulta`, o serviço de busca (`searchOps`), nem regras de negócio/gating.
-- Aba "Informar manualmente" segue como está (já tem botão explícito).
+- Componente: **CHA022**
+- Quantidade: **1**
+- TNS: **90250**
+- Depósito: **1**
+- OP de origem: campo `codori`/`numorp` a confirmar com você antes do disparo (uso proposto: a mesma OP que já validamos no autocomplete pra facilitar a conferência no ERP).
+
+## Fluxo automatizado
+
+```text
+[Preview admin] ──► edge fn `sid-teste-guiado` ──► ngrok 8070
+                                    │
+                                    ├─ 1) POST /api/requisicoes/sid/requisitar
+                                    │       └─ captura numeme + payload bruto
+                                    ├─ 2) pausa manual (você confere no ERP)
+                                    └─ 3) POST /api/requisicoes/sid/excluir
+                                            └─ confirma remoção
+```
+
+A edge function é **admin-only**, roda em duas etapas separadas (`step: "requisitar" | "excluir"`) pra você abrir o Senior entre elas, e devolve sempre o JSON cru do 8070 mais os headers relevantes.
+
+## Entregáveis
+
+1. Nova edge function `sid-teste-guiado` (Cloud) com:
+   - Validação de admin.
+   - `step=requisitar`: chama `/sid/ping`, valida flags, chama `/sid/requisitar` com o payload acima, persiste o retorno em `sid_teste_execucoes` (nova tabela admin-only) e devolve `{ ok, numeme, raw }`.
+   - `step=excluir`: recebe `numeme` (ou lê da última execução aberta), chama `/sid/excluir` e atualiza a linha correspondente.
+2. Tabela `sid_teste_execucoes` (admin-only, RLS + GRANT completos) com colunas: `id`, `created_at`, `created_by`, `payload_req`, `resposta_requisitar`, `numeme`, `resposta_excluir`, `status` (`aberto`/`excluido`/`erro`).
+3. Painel mínimo em `/requisicoes/teste-sid` (a página já existe, admin-only): dois botões (“Requisitar” e “Excluir”), histórico das últimas execuções e JSON bruto expandível.
+4. Após o retorno real do primeiro `requisitar`, ajusto o parser do `numeme` no endpoint definitivo `POST /api/requisicoes/nova-op` (frontend + serviço) caso o campo venha em nome/local diferente do assumido hoje.
+
+## Passo a passo que você vai ver na tela
+
+1. Abrir `/requisicoes/teste-sid` como admin.
+2. Clicar **Disparar requisição SID (CHA022 · 1 · TNS 90250 · Dep 1)**.
+   - UI mostra: status HTTP, `numeme`, JSON completo, link “Copiar payload”.
+3. Abrir o Senior → Estoque → Requisições e localizar o `numeme` retornado. Você confirma manualmente.
+4. Voltar na tela e clicar **Excluir requisição de teste**.
+   - UI mostra: status HTTP e JSON de retorno.
+5. Reabrir o Senior e confirmar a exclusão.
+
+## Detalhes técnicos
+
+- Edge function usa `Deno.env.get('ERP_API_URL')` (fallback: `app_settings.erp_api_url`) + login `RENATO/123` já usado no fluxo atual, com header `ngrok-skip-browser-warning: true`.
+- Nenhuma alteração em `/api/requisicoes/nova-op` até termos o retorno real em mãos — só ajuste de parser depois da observação.
+- Logs de cada chamada gravados em `error_logs` quando `status >= 400` pra manter o padrão do projeto.
+- Sem impacto em regras de negócio existentes, só leitura/escrita da nova tabela e chamadas SID controladas.
+
+## Fora do escopo deste plano
+
+- Refatorar o endpoint definitivo `nova-op` (fica pra próximo turno, dependente do payload real).
+- Qualquer teste em massa ou automação recorrente — este fluxo é pontual, disparado sob demanda pelo admin.
