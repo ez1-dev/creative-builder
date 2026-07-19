@@ -179,7 +179,8 @@ export const requisicoesApi = {
   // -------- Consulta de OP --------
   async consultarOp(codori: string, numorp: string): Promise<OpConsultaResponse> {
     if (USE_MOCK) return requisicoesMock.consultarOp(codori, numorp);
-    return apiGet(`/api/requisicoes/op/${encodeURIComponent(codori)}/${encodeURIComponent(numorp)}`);
+    const raw = await apiGet<any>(`/api/requisicoes/op/${encodeURIComponent(codori)}/${encodeURIComponent(numorp)}`);
+    return normalizeOpConsulta(raw, codori, numorp);
   },
 
   // -------- Ações --------
