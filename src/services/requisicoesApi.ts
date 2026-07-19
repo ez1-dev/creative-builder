@@ -89,7 +89,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
   return (await res.json()) as T;
 }
 
-async function apiGet<T>(path: string, params?: Record<string, unknown>): Promise<T> {
+async function apiGet<T>(path: string, params?: Record<string, any>): Promise<T> {
   try {
     const res = await fetch(`${getApiUrl()}${path}${qs(params)}`, {
       method: 'GET',
