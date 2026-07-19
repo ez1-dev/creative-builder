@@ -553,6 +553,17 @@ export default function NovaRequisicaoOpPage() {
             </div>
           )}
 
+          {rascunhoDisponivel && (
+            <div className="mt-3 flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 p-2 text-xs text-primary">
+              <InfoIcon className="h-4 w-4 shrink-0" />
+              <span className="flex-1">Existe um rascunho local salvo para esta OP neste navegador.</span>
+              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={restaurarRascunho}>Restaurar</Button>
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={descartarRascunho}>Descartar</Button>
+            </div>
+          )}
+
+
+
         </CardContent>
       </Card>
     );
