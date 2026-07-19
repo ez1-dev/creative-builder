@@ -225,13 +225,16 @@ export default function NovaRequisicaoAvulsaPage() {
             <RemoteCombobox<CentroCustoLookup>
               value={cc}
               onSelect={setCc}
-              fetcher={(q) => requisicoesApi.buscarCentrosCusto({ q, codemp: empresaNum })}
+              fetcher={(q) => requisicoesApi.buscarCentrosCusto({ q })}
               getKey={(i) => i.codccu}
               getLabel={(i) => `${i.codccu} — ${i.desccu}`}
               renderItem={(i, q) => (
                 <div className="flex flex-col">
                   <span className="font-mono text-xs font-semibold">{highlight(i.codccu, q)}</span>
-                  <span className="truncate text-xs text-muted-foreground">{highlight(i.desccu, q)}</span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    {highlight(i.desccu, q)}
+                    {i.abreviacao ? ` · ${i.abreviacao}` : ''}
+                  </span>
                 </div>
               )}
               placeholder="Buscar centro de custo por código ou descrição"
@@ -248,19 +251,26 @@ export default function NovaRequisicaoAvulsaPage() {
               onSelect={setProjeto}
               fetcher={(q) => requisicoesApi.buscarProjetos({ q })}
               getKey={(i) => String(i.numprj)}
-              getLabel={(i) => [i.obra, i.desprj].filter(Boolean).join(' — ') || `Projeto ${i.numprj}`}
+              getLabel={(i) => `${i.numprj} — ${i.desprj ?? ''}`.trim()}
               renderItem={(i, q) => (
                 <div className="flex flex-col">
                   <span className="text-xs font-semibold">
-                    {highlight([i.obra, i.desprj].filter(Boolean).join(' — ') || `Projeto ${i.numprj}`, q)}
+                    <span className="font-mono">{highlight(String(i.numprj), q)}</span>
+                    {' — '}
+                    {highlight(i.desprj ?? '', q)}
                   </span>
-                  <span className="text-[11px] text-muted-foreground">Projeto: {i.numprj}{i.codfpj ? ` · Fase ${i.codfpj}` : ''}</span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {i.abreviacao ? `${i.abreviacao}` : ''}
+                    {i.abreviacao && i.situacao_desc ? ' · ' : ''}
+                    {i.situacao_desc ?? ''}
+                  </span>
                 </div>
               )}
               placeholder="Buscar projeto ou obra"
               unavailableMessage="A busca de projetos ainda não foi disponibilizada pela API."
             />
           </div>
+
 
           <div className="md:col-span-2">
             <Label>Fase</Label>
