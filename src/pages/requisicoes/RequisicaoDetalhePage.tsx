@@ -7,9 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StatusBadge } from '@/components/requisicoes/StatusBadge';
 import { JustificativaDialog } from '@/components/requisicoes/JustificativaDialog';
 import { IntegracaoOfflineBanner } from '@/components/requisicoes/IntegracaoOfflineBanner';
-import { useRequisicao, useHistoricoRequisicao, useEnviarRequisicao, useCancelarRequisicao, useEstornarRequisicao, useReprocessarIntegracao } from '@/hooks/requisicoes';
+import { useRequisicao, useHistoricoRequisicao, useEnviarRequisicao, useCancelarRequisicao, useEstornarRequisicao, useReprocessarIntegracao, useSidWriteEnabled } from '@/hooks/requisicoes';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Send, Ban, RotateCcw, RefreshCw } from 'lucide-react';
 
 export default function RequisicaoDetalhePage() {
