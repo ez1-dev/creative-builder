@@ -742,7 +742,7 @@ export default function NovaRequisicaoOpPage() {
               })}
               {componentesPagina.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={16} className="py-8 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={17} className="py-8 text-center text-sm text-muted-foreground">
                     Nenhum componente com estes filtros.
                   </TableCell>
                 </TableRow>
