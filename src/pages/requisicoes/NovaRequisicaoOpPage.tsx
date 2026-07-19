@@ -140,6 +140,27 @@ export default function NovaRequisicaoOpPage() {
     [sel],
   );
 
+  // Componente vem incompleto do backend?
+  const componenteInvalido = (c: ComponenteOP | undefined): string | null => {
+    if (!c) return 'Componente não encontrado na OP.';
+    if (!c.codcmp) return 'codcmp ausente';
+    if (c.codetg == null || c.codetg === ('' as any)) return 'codetg ausente';
+    if (c.deposito == null) return 'depósito de origem ausente';
+    if (!c.unidade) return 'unidade de medida ausente';
+    return null;
+  };
+
+  const itensInvalidos = useMemo(() => {
+    const comps = op.data?.componentes ?? [];
+    const out: { seqcmp: number; codcmp?: string; motivo: string }[] = [];
+    for (const it of itensSelecionados) {
+      const c = comps.find((x) => x.seqcmp === it.seqcmp);
+      const motivo = componenteInvalido(c);
+      if (motivo) out.push({ seqcmp: it.seqcmp, codcmp: c?.codcmp, motivo });
+    }
+    return out;
+  }, [itensSelecionados, op.data]);
+
   // Estatísticas
   const stats = useMemo(() => {
     const comps = op.data?.componentes ?? [];
