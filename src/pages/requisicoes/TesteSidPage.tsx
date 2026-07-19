@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle, PlugZap, Trash2, Play } from 'lucide-react';
 import { useSidStatus } from '@/hooks/requisicoes';
-import { usePermissions } from '@/contexts/PermissionsContext';
+import { usePermissionsContext } from '@/contexts/PermissionsContext';
 import { requisicoesApi, IntegracaoDesabilitadaError, RequisicaoApiError } from '@/services/requisicoesApi';
 import { toast } from '@/hooks/use-toast';
 
