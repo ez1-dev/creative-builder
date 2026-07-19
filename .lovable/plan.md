@@ -1,60 +1,63 @@
-## Parte 1 — Detalhe da OP
+## Por que a integração aparece "Desabilitada"
 
-**Arquivo:** `src/services/requisicoesApi.ts` (função `normalizeOpConsulta`)
+O chip **Integração: Desabilitada** e o banner amarelo ("A integração com o ERP está desabilitada. A requisição será salva como pendente de integração.") são acionados por `sidWrite.enabled = false`, que vem de `GET /api/requisicoes/sid/ping` retornando `sid_habilitado: false`.
 
-Reescrever a normalização para ler **estritamente** de `raw.op.*` quando `raw.op` for objeto (com fallback para o topo só quando `raw.op` não existir, para compatibilidade com mock):
+Isso é **intencional** — o backend FastAPI :8070 está com a flag `SID_HABILITADO=N` no `.env`. Enquanto essa flag não for virada para `S` e o serviço reiniciado, todo `POST /api/requisicoes/sid/*` é bloqueado com 503 antes mesmo de chegar no ERP. Por isso o botão **Enviar requisição** fica desabilitado — está funcionando como projetado (gate de segurança).
 
-- `produto_final ← op.produto_final`
-- `descricao ← op.descricao`
-- `situacao ← op.sitorp`
-- `situacao_desc ← op.situacao_desc`
-- `quantidade_prevista ← op.qtd_prevista`
-- `quantidade_produzida ← op.qtd_produzida`
-- `saldo ← op.saldo` (fallback: prev − prod)
-- `centro_custo ← op.centro_custo`
-- `codfam ← op.codfam`, `numped ← op.numped`
-- `projeto_obra ← op.projeto_obra` (permitir `null` → UI mostra "—")
-- `derivacao / codder ← op.derivacao` (permitir `null` → UI mostra "—")
-- `pode_requisitar ← op.pode_requisitar === true` (default `false` só quando estritamente `false`; se ausente e a OP veio, tratar como `true` sim/não? — **manter `=== true` estrito**, como o backend garante o campo)
-- `motivo_bloqueio ← op.motivo_bloqueio` (string ou `null`)
-- `componentes ← raw.componentes` (fica no topo)
-- `total_componentes ← raw.total_componentes`
+Nesse estado, a única ação disponível deveria ser **Salvar rascunho** (grava a requisição no backend em status "pendente de integração", sem falar com o SID).
 
-Corrigir também o helper `pick`: hoje descarta `false` como "vazio" ao usar `v !== ''` só em combinação — validar; e evitar leitura duplicada com spread `{...raw, ...raw.op}` que hoje faz o topo poluir os campos aninhados.
+## Por que o "Salvar rascunho" falhou com "Informe ao menos um item válido"
 
-**Arquivos:** `src/pages/requisicoes/NovaRequisicaoOpPage.tsx` e `src/pages/requisicoes/PortalRequisicoesPage.tsx`
+Essa mensagem **não vem do frontend** — vem do backend (`POST /api/requisicoes`). Olhando o print:
 
-- Trocar `Field label="Derivação" value={op.data.derivacao ?? op.data.codder}` por `value={op.data.derivacao}` (permitir `null` → "—" via componente `Field`).
-- Trocar `Projeto/Obra` para ler somente `op.data.projeto_obra`.
-- Banner de bloqueio só quando `op.data.pode_requisitar === false`; texto do aviso = `op.data.motivo_bloqueio` (sem sufixo "no momento" quando existir motivo do backend).
-- Badge "Situação" usa `situacao_desc` (fallback para `situacao`).
+- Sidebar mostra 1 item, quantidade 4, "Sem saldo: 1".
+- Na tabela de revisão as colunas **Descrição** e **Dep. origem** aparecem como `—`, mesmo o item tendo sido encontrado (`comps.find(...)` achou, senão o resumo não teria contado).
 
-## Parte 2 — Lookups via `/api/requisicoes/lookup/*`
+Isso indica que a resposta de `GET /api/requisicoes/op/{codori}/{numorp}` está devolvendo o componente **BR125-G** com `descricao = null` e `deposito = null` (e provavelmente `codetg`/`codcmp` também nulos ou incompletos). Como o `buildPayload` copia esses campos direto do componente:
 
-**Arquivo:** `src/services/requisicoesApi.ts`
+```ts
+codetg: comp.codetg,
+codcmp: comp.codcmp,
+codder: comp.codder,
+unidade: comp.unidade,
+deposito_origem: comp.deposito,
+```
 
-Reescrever as três funções para usar os endpoints do módulo requisições (não `/api/cadastros/*`), com shape `{ total, itens: [...] }`:
+o payload enviado tem chaves obrigatórias vazias, e o validador do FastAPI descarta o item, sobrando `itens: []` na visão dele — daí o erro **"Informe ao menos um item válido"**.
 
-1. `buscarCentrosCusto({ q })` → `GET /api/requisicoes/lookup/centros-custo?q=&limit=50`  
-   Item: `{ codigo, descricao, abreviacao }` → mapear para `{ codccu: codigo, desccu: descricao, abreviacao }` (adicionar `abreviacao` ao tipo `CentroCustoLookup`).
+Ou seja, são dois problemas independentes:
 
-2. `buscarProjetos({ q })` → `GET /api/requisicoes/lookup/projetos?q=&limit=50`  
-   Item: `{ numero, nome, abreviacao, situacao_desc }` → mapear para `{ numprj: numero, desprj: nome, abreviacao, situacao_desc }` (estender `ProjetoLookup`).
+1. **SID desligado** (esperado, aguardando flip do `.env`).
+2. **Componente da OP 110/1969 vem incompleto** do endpoint de consulta de OP — o item aparece na tela mas sem os campos-chave que o POST exige.
 
-3. **Novo** `buscarComponentes({ q })` → `GET /api/requisicoes/lookup/componentes?q=&limit=50`  
-   Item: `{ codigo, descricao, um }` → tipo novo `ComponenteLookup { codigo, descricao, um }`. Exportar em `requisicoesApi`.
+## Plano de correção
 
-Manter debounce 300ms e minChars=2 (já são padrões do `RemoteCombobox`). Manter tratamento `EndpointIndisponivelError` em 404.
+### Etapa 1 — Confirmar o payload que o backend rejeita
+- Abrir DevTools → Network → repetir "Salvar rascunho" e capturar:
+  - Resposta de `GET /api/requisicoes/op/110/1969` (ver quais campos do componente vêm `null`).
+  - Corpo do `POST /api/requisicoes` e o `detail` completo da resposta 4xx.
+- Isso confirma se o culpado é `codcmp`/`codetg` nulos, `unidade` faltando, ou outro campo.
 
-**Arquivo:** `src/pages/requisicoes/NovaRequisicaoAvulsaPage.tsx`
+### Etapa 2 — Endurecer o frontend contra componente incompleto
+Em `src/pages/requisicoes/NovaRequisicaoOpPage.tsx`:
+- Em `buildPayload`, validar antes de enviar: se `!comp.codcmp || !comp.codetg || comp.deposito == null`, marcar o item como inválido e bloquear o envio com mensagem específica ("Componente BR125-G está sem código de estágio/depósito — recarregue a OP ou contate o backend").
+- Não permitir que o item apareça marcável no Step 2 se ele vier sem `codcmp`/`codetg` (desabilitar checkbox + tooltip explicando).
+- Na tabela de revisão, se `descricao`/`deposito` estiverem vazios, exibir um badge vermelho "Dados incompletos" em vez de `—`, para o usuário não achar que é só cosmético.
 
-- Substituir o `RemoteCombobox<ProdutoLookup>` do produto pelo novo `RemoteCombobox<ComponenteLookup>` usando `requisicoesApi.buscarComponentes`.
-- Ao selecionar componente: setar `codcmp = codigo`, `descricao = descricao`, `unidade = um` (readonly, sem input manual de UM).
-- Ajustar exibição para `codigo — descricao` e helper mostrando `UM: um`.
-- Atualizar `RemoteCombobox` de Centro de Custo / Projeto para exibir novos labels (`codigo — descricao`, `numero — nome`) e usar `abreviacao/situacao_desc` como linha secundária.
+### Etapa 3 — Registrar no docs do backend
+- Anotar em `docs/` (novo arquivo `backend-requisicoes-op-consulta-campos-obrigatorios.md`) quais campos o `GET /api/requisicoes/op/{codori}/{numorp}` precisa devolver preenchidos para o `POST /api/requisicoes` aceitar o item: `codemp, codfil, codori, numorp, codetg, seqcmp, codcmp, unidade, deposito`.
+- Servirá de referência para o time do backend corrigir a query que hoje devolve `descricao`/`deposito` nulos para essa OP.
 
-## Verificação
+### Etapa 4 — Aguardar `SID_HABILITADO=S`
+Sem alterações de código do nosso lado. Assim que o `.env` for atualizado e o serviço reiniciado, o chip vira "Habilitada", o botão **Enviar requisição** libera e o fluxo completo (criar + `sid/requisitar`) passa a rodar.
 
-- `tsgo` para checar tipos.
-- Testar visualmente `/requisicoes/nova-op` com uma OP liberada (campos preenchidos, sem banner) e uma bloqueada (banner com `motivo_bloqueio`).
-- Testar `/requisicoes/nova` autocomplete de componente / CC / projeto.
+## Detalhes técnicos
+
+- **Arquivos afetados na Etapa 2:** `src/pages/requisicoes/NovaRequisicaoOpPage.tsx` (funções `buildPayload`, `renderStep2`, `renderStep4`).
+- **Nada muda em** `src/services/requisicoesApi.ts` — o normalizador já preserva `null` fielmente; o problema é dado ausente na origem.
+- **Nada muda em regra de negócio nem em cálculo** — apenas validação e feedback visual.
+
+## Fora do escopo
+
+- Alterar o `SID_HABILITADO` (é operação de infra, não código).
+- Corrigir a query do backend que popula `descricao`/`deposito` (é responsabilidade do FastAPI, apenas documentamos).
