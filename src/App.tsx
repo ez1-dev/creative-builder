@@ -118,6 +118,7 @@ import AprovacoesPage from "@/pages/requisicoes/AprovacoesPage";
 import AlmoxarifadoFilaPage from "@/pages/requisicoes/AlmoxarifadoFilaPage";
 import SeparacaoAgrupadaPage from "@/pages/requisicoes/SeparacaoAgrupadaPage";
 import ConfiguracoesRequisicoesPage from "@/pages/requisicoes/ConfiguracoesRequisicoesPage";
+import TesteSidPage from "@/pages/requisicoes/TesteSidPage";
 
 
 import NotFound from "@/pages/NotFound";
