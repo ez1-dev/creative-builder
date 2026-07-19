@@ -275,6 +275,7 @@ const App = () => (
               <Route path="/requisicoes/nova" element={<ProtectedRoute path="/requisicoes"><NovaRequisicaoPage /></ProtectedRoute>} />
               <Route path="/requisicoes/nova-op" element={<ProtectedRoute path="/requisicoes"><NovaRequisicaoOpPage /></ProtectedRoute>} />
               <Route path="/requisicoes/nova-avulsa" element={<ProtectedRoute path="/requisicoes"><NovaRequisicaoAvulsaPage /></ProtectedRoute>} />
+              <Route path="/requisicoes/portal" element={<ProtectedRoute path="/requisicoes"><PortalRequisicoesPage /></ProtectedRoute>} />
               <Route path="/requisicoes/aprovacoes" element={<ProtectedRoute path="/requisicoes/aprovacoes"><AprovacoesPage /></ProtectedRoute>} />
               <Route path="/requisicoes/almoxarifado" element={<ProtectedRoute path="/requisicoes/almoxarifado"><AlmoxarifadoFilaPage /></ProtectedRoute>} />
               <Route path="/requisicoes/agrupadas" element={<ProtectedRoute path="/requisicoes/almoxarifado"><SeparacaoAgrupadaPage /></ProtectedRoute>} />
