@@ -49,6 +49,9 @@ export default function NovaRequisicaoAvulsaPage() {
   const [linhas, setLinhas] = useState<Linha[]>([linhaVazia()]);
   const [busy, setBusy] = useState(false);
   const [pendenteIntegr, setPendenteIntegr] = useState<string | null>(null);
+  const sidWrite = useSidWriteEnabled();
+
+
 
   const setLinha = (i: number, patch: Partial<Linha>) =>
     setLinhas((arr) => arr.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
