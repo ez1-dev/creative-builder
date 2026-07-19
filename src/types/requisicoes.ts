@@ -102,15 +102,20 @@ export interface ComponenteOP {
   seqcmp: number;
   codetg: string | number;
   codcmp: string;         // código do COMPONENTE (não usar CODPRO)
+  componente?: string | null;   // código limpo (novo payload)
   codder: string | null;
+  derivacao?: string | null;    // alias limpo de codder
   descricao: string | null;
   unidade: string | null;
-  deposito: number | null;
+  deposito: number | null;      // vem null quando precisa_deposito=true
+  precisa_deposito?: boolean;
+  transacao?: number | null;
   quantidade_prevista: number;
   quantidade_utilizada: number;
   quantidade_requisitada: number;
   quantidade_transferida: number;
   quantidade_disponivel: number;   // vem calculada da API — não recalcular
+  qtd_disponivel_requisitar?: number;
   saldo_fisico: number | null;
   saldo_reservado: number | null;
   saldo_disponivel: number | null;
