@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { PageHeader } from '@/components/erp/PageHeader';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -8,10 +9,56 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
-import { useConfigRequisicoes, useAtualizarConfiguracoes } from '@/hooks/requisicoes';
-import type { ConfigRequisicoes, TipoRequisicao } from '@/types/requisicoes';
+import { Badge } from '@/components/ui/badge';
+import { RefreshCw, CircleCheck, CircleAlert, CircleX, CircleDashed, FlaskConical } from 'lucide-react';
+import { useConfigRequisicoes, useAtualizarConfiguracoes, useSidStatus } from '@/hooks/requisicoes';
+import { usePermissionsContext } from '@/contexts/PermissionsContext';
+import type { ConfigRequisicoes, TipoRequisicao, SidServicoStatus } from '@/types/requisicoes';
 
 const TIPOS: TipoRequisicao[] = ['OP', 'CONSUMO', 'TRANSFERENCIA', 'DEVOLUCAO', 'EMERGENCIAL'];
+
+type Cor = 'verde' | 'amarelo' | 'vermelho' | 'azul';
+
+function corGeral(loading: boolean, data: ReturnType<typeof useSidStatus>['data']): { cor: Cor; label: string } {
+  if (loading || !data) return { cor: 'azul', label: 'Verificando…' };
+  const gerOk = !!data.ger_sid?.wsdl_ok;
+  const chaOk = !!data.cha_separacao?.wsdl_ok;
+  if (!gerOk || !chaOk) return { cor: 'vermelho', label: 'Serviço inacessível' };
+  if (!data.sid_habilitado) return { cor: 'amarelo', label: 'Escrita desabilitada' };
+  return { cor: 'verde', label: 'Integração operacional' };
+}
+
+const CORES: Record<Cor, string> = {
+  verde:    'bg-emerald-100 text-emerald-800 border-emerald-200',
+  amarelo:  'bg-amber-100 text-amber-800 border-amber-200',
+  vermelho: 'bg-red-100 text-red-800 border-red-200',
+  azul:     'bg-blue-100 text-blue-800 border-blue-200',
+};
+
+const ICONES: Record<Cor, JSX.Element> = {
+  verde:    <CircleCheck className="h-4 w-4" />,
+  amarelo:  <CircleAlert className="h-4 w-4" />,
+  vermelho: <CircleX className="h-4 w-4" />,
+  azul:     <CircleDashed className="h-4 w-4 animate-spin" />,
+};
+
+function LinhaServico({ nome, s }: { nome: string; s: SidServicoStatus | undefined }) {
+  if (!s) return null;
+  const ok = !!s.wsdl_ok;
+  return (
+    <div className="flex items-start justify-between gap-3 rounded-md border bg-card p-3">
+      <div className="text-sm">
+        <div className="font-medium">{nome}</div>
+        <div className="text-xs text-muted-foreground">Operação: <code>{s.operacao}</code></div>
+        {!ok && s.erro && <div className="mt-1 text-xs text-red-700">Erro: {s.erro}</div>}
+      </div>
+      <Badge variant="outline" className={ok ? CORES.verde : CORES.vermelho}>
+        {ok ? 'WSDL OK' : 'Indisponível'}
+      </Badge>
+    </div>
+  );
+}
+
 
 export default function ConfiguracoesRequisicoesPage() {
   const q = useConfigRequisicoes();
