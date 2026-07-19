@@ -266,13 +266,23 @@ export default function NovaRequisicaoOpPage() {
           </Card>
 
           <div className="flex justify-end gap-2">
-            <Button
-              onClick={enviar}
-              disabled={!podeRequisitar || itensSelecionados.length === 0 || enviando}
-            >
-              {enviando ? 'Enviando…' : 'Criar e enviar requisição'}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Button
+                    onClick={enviar}
+                    disabled={!podeRequisitar || itensSelecionados.length === 0 || enviando || !sidWrite.enabled}
+                  >
+                    {enviando ? 'Enviando…' : 'Criar e enviar requisição'}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {!sidWrite.enabled && sidWrite.reason && (
+                <TooltipContent>{sidWrite.reason}</TooltipContent>
+              )}
+            </Tooltip>
           </div>
+
         </>
       )}
     </div>
