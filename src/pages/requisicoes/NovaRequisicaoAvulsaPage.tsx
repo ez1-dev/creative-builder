@@ -159,7 +159,7 @@ export default function NovaRequisicaoAvulsaPage() {
     } finally { setBusy(false); }
   };
 
-  const empresaNum = Number(codemp) || undefined;
+  
 
   return (
     <div className="space-y-4">
