@@ -266,7 +266,7 @@ export default function NovaRequisicaoAvulsaPage() {
 
           <div className="md:col-span-2">
             <Label>Fase</Label>
-            <Input value={fase} onChange={(e) => setFase(e.target.value)} readOnly={!!projeto?.codfpj} placeholder={projeto?.codfpj ? '' : 'Opcional'} />
+            <Input value={fase} onChange={(e) => setFase(e.target.value)} placeholder="Opcional" />
           </div>
 
           <div className="md:col-span-4">
