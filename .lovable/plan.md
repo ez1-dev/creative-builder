@@ -1,63 +1,37 @@
+## Diagnóstico (verificado)
 
-# Teste guiado do fluxo SID (requisitar → conferir → excluir)
+O autocomplete da tela `Nova requisição — com OP` chama `GET /api/producao/ordem-producao/opcoes?cod_emp=1&limite_ops=1000` (com opcional `q`). Confirmei no network que a resposta traz `empresas`, `origens`, `pedidos`, `relatorios_producao`, `situacoes` — mas **não** traz `ordens_producao`.
 
-Objetivo: validar de ponta a ponta o `SID_HABILITADO=S` disparando duas chamadas controladas no 8070 e confirmando o efeito no ERP Senior, sem tocar em produção.
+Isso bate com o contrato documentado em `docs/backend-impressao-ordem-producao.md` (linhas 151–163): o backend só popula `ordens_producao` quando a chamada inclui pelo menos um filtro de escopo (`cod_ori`, `num_ped`, `rel_prd`, `sit_orp`). Como a tela nova envia só `cod_emp` (+ eventual `q`), a lista volta vazia — por isso "não traz as OPs".
 
-## Pré-checks (antes de qualquer POST)
+Na tela de Impressão de OP esse problema não existe porque o usuário escolhe primeiro Pedido/Origem/Relatório e só depois o combo de OPs é populado.
 
-1. `GET /api/requisicoes/sid/ping` — abortar se `sid_habilitado !== true` ou se algum `wsdl_ok !== true`. Registrar `sid_ger_operacao` e as duas URLs de serviço no retorno pra auditoria.
-2. Confirmar identidade do chamador via `has_role(auth.uid(), 'admin')` na edge function; qualquer outro papel recebe 403.
+## Objetivo
 
-## Payload do teste (baixo valor, alinhado ao combinado)
+Fazer o autocomplete retornar OPs úteis assim que o usuário abre a tela, sem exigir passo extra, mantendo compatibilidade com o backend atual (sem depender de mudança na FastAPI).
 
-- Componente: **CHA022**
-- Quantidade: **1**
-- TNS: **90250**
-- Depósito: **1**
-- OP de origem: campo `codori`/`numorp` a confirmar com você antes do disparo (uso proposto: a mesma OP que já validamos no autocomplete pra facilitar a conferência no ERP).
+## O que fazer
 
-## Fluxo automatizado
+1. **Passar um filtro de escopo padrão no fetcher**
+   Alterar `fetchOps` em `src/pages/requisicoes/NovaRequisicaoOpPage.tsx` para chamar `searchOps(q, { cod_emp: '1', sit_orp: 'A' })` — situação "Aberta" é o único estado em que faz sentido criar requisição, e satisfaz a exigência do backend de ter algum filtro de escopo.
+   Idem para o `useEffect` de warm-up.
 
-```text
-[Preview admin] ──► edge fn `sid-teste-guiado` ──► ngrok 8070
-                                    │
-                                    ├─ 1) POST /api/requisicoes/sid/requisitar
-                                    │       └─ captura numeme + payload bruto
-                                    ├─ 2) pausa manual (você confere no ERP)
-                                    └─ 3) POST /api/requisicoes/sid/excluir
-                                            └─ confirma remoção
-```
+2. **Fallback quando `sit_orp` sozinho ainda não retornar OPs**
+   Se após o item 1 a resposta seguir vindo sem `ordens_producao` (backend restrito à combinação `cod_ori + sit_orp`), acrescentar no autocomplete um seletor compacto de **Origem** (obrigatório antes de buscar OPs), reaproveitando o combo já disponível via `useOpcoesImpressaoOp().origens`. O `fetchOps` passa a enviar `{ cod_emp, cod_ori, sit_orp: 'A' }`. A UI mostra "Escolha a Origem para listar OPs" enquanto `cod_ori` estiver vazio.
 
-A edge function é **admin-only**, roda em duas etapas separadas (`step: "requisitar" | "excluir"`) pra você abrir o Senior entre elas, e devolve sempre o JSON cru do 8070 mais os headers relevantes.
+3. **Aviso visual quando a busca retorna vazia**
+   No `CommandEmpty` do `OpAutocomplete`, quando `results.length === 0` **e** já houve chamada, mostrar mensagem clara ("Nenhuma OP em aberto encontrada para os filtros atuais") em vez do genérico "Digite para buscar", ajudando o usuário a entender por que a lista está vazia.
 
-## Entregáveis
+4. **Validação no preview**
+   Após a mudança do item 1, abrir `/requisicoes/nova-op`, abrir o autocomplete, conferir no Network que a chamada agora vai com `sit_orp=A` e que a resposta traz `ordens_producao` com itens. Se vier vazia, aplicar o item 2 no mesmo turno.
 
-1. Nova edge function `sid-teste-guiado` (Cloud) com:
-   - Validação de admin.
-   - `step=requisitar`: chama `/sid/ping`, valida flags, chama `/sid/requisitar` com o payload acima, persiste o retorno em `sid_teste_execucoes` (nova tabela admin-only) e devolve `{ ok, numeme, raw }`.
-   - `step=excluir`: recebe `numeme` (ou lê da última execução aberta), chama `/sid/excluir` e atualiza a linha correspondente.
-2. Tabela `sid_teste_execucoes` (admin-only, RLS + GRANT completos) com colunas: `id`, `created_at`, `created_by`, `payload_req`, `resposta_requisitar`, `numeme`, `resposta_excluir`, `status` (`aberto`/`excluido`/`erro`).
-3. Painel mínimo em `/requisicoes/teste-sid` (a página já existe, admin-only): dois botões (“Requisitar” e “Excluir”), histórico das últimas execuções e JSON bruto expandível.
-4. Após o retorno real do primeiro `requisitar`, ajusto o parser do `numeme` no endpoint definitivo `POST /api/requisicoes/nova-op` (frontend + serviço) caso o campo venha em nome/local diferente do assumido hoje.
+## Fora de escopo
 
-## Passo a passo que você vai ver na tela
+- Nenhuma alteração no backend / FastAPI.
+- Nenhuma mudança em cálculos, regras de requisição, gating do SID, tabela de componentes ou etapas seguintes.
+- Nenhuma mudança na tela de Impressão de OP (que já funciona com fluxo em cascata).
 
-1. Abrir `/requisicoes/teste-sid` como admin.
-2. Clicar **Disparar requisição SID (CHA022 · 1 · TNS 90250 · Dep 1)**.
-   - UI mostra: status HTTP, `numeme`, JSON completo, link “Copiar payload”.
-3. Abrir o Senior → Estoque → Requisições e localizar o `numeme` retornado. Você confirma manualmente.
-4. Voltar na tela e clicar **Excluir requisição de teste**.
-   - UI mostra: status HTTP e JSON de retorno.
-5. Reabrir o Senior e confirmar a exclusão.
+## Arquivos que devem mudar
 
-## Detalhes técnicos
-
-- Edge function usa `Deno.env.get('ERP_API_URL')` (fallback: `app_settings.erp_api_url`) + login `RENATO/123` já usado no fluxo atual, com header `ngrok-skip-browser-warning: true`.
-- Nenhuma alteração em `/api/requisicoes/nova-op` até termos o retorno real em mãos — só ajuste de parser depois da observação.
-- Logs de cada chamada gravados em `error_logs` quando `status >= 400` pra manter o padrão do projeto.
-- Sem impacto em regras de negócio existentes, só leitura/escrita da nova tabela e chamadas SID controladas.
-
-## Fora do escopo deste plano
-
-- Refatorar o endpoint definitivo `nova-op` (fica pra próximo turno, dependente do payload real).
-- Qualquer teste em massa ou automação recorrente — este fluxo é pontual, disparado sob demanda pelo admin.
+- `src/pages/requisicoes/NovaRequisicaoOpPage.tsx` — `fetchOps`, warm-up, e (se necessário) combo de Origem na aba "Buscar OP".
+- `src/components/producao/OpAutocomplete.tsx` — apenas se precisar diferenciar o `CommandEmpty` "sem resultado" vs "digite para buscar" (mudança visual mínima).

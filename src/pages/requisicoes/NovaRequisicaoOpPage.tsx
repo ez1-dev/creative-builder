@@ -71,8 +71,8 @@ export default function NovaRequisicaoOpPage() {
   const sidWrite = useSidWriteEnabled();
   const { searchOps } = useOpcoesImpressaoOp();
 
-  useEffect(() => { searchOps('', { cod_emp: '1' }).catch(() => {}); }, [searchOps]);
-  const fetchOps = (q: string) => searchOps(q, { cod_emp: '1' });
+  useEffect(() => { searchOps('', { cod_emp: '1', sit_orp: 'A' }).catch(() => {}); }, [searchOps]);
+  const fetchOps = (q: string) => searchOps(q, { cod_emp: '1', sit_orp: 'A' });
 
   const podeRequisitar = op.data?.pode_requisitar ?? false;
 
