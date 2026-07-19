@@ -287,6 +287,7 @@ export const requisicoesApi = {
   buscarCentrosCusto: buscarCentrosCusto,
   buscarProjetos: buscarProjetos,
   buscarComponentes: buscarComponentes,
+  buscarDepositos: buscarDepositos,
 };
 
 /* ============================== Lookups ============================== */
@@ -321,6 +322,12 @@ export interface ComponenteLookup {
   um: string;
 }
 
+export interface DepositoLookup {
+  codigo: number;
+  descricao: string;
+}
+
+
 
 function pick(obj: any, ...keys: string[]): any {
   for (const k of keys) {
@@ -346,7 +353,31 @@ function normalizeOpConsulta(raw: any, codori: string, numorp: string): OpConsul
   const op: any = raw && typeof raw === 'object' && raw.op && typeof raw.op === 'object'
     ? raw.op
     : (raw && typeof raw === 'object' ? raw : {});
-  const componentes: ComponenteOP[] = Array.isArray(raw?.componentes) ? raw.componentes : [];
+  const componentesRaw: any[] = Array.isArray(raw?.componentes) ? raw.componentes : [];
+  const componentes: ComponenteOP[] = componentesRaw.map((c) => ({
+    seqcmp: toNum(c?.seqcmp),
+    codetg: c?.codetg ?? '',
+    codcmp: String(c?.codcmp ?? c?.componente ?? ''),
+    componente: c?.componente ?? c?.codcmp ?? null,
+    codder: c?.codder ?? c?.derivacao ?? null,
+    derivacao: c?.derivacao ?? c?.codder ?? null,
+    descricao: c?.descricao ?? null,
+    unidade: c?.unidade ?? null,
+    deposito: c?.deposito == null ? null : Number(c.deposito),
+    precisa_deposito: c?.precisa_deposito === true,
+    transacao: c?.transacao == null ? null : Number(c.transacao),
+    quantidade_prevista: toNum(c?.quantidade_prevista),
+    quantidade_utilizada: toNum(c?.quantidade_utilizada),
+    quantidade_requisitada: toNum(c?.quantidade_requisitada),
+    quantidade_transferida: toNum(c?.quantidade_transferida),
+    quantidade_disponivel: toNum(c?.quantidade_disponivel ?? c?.qtd_disponivel_requisitar),
+    qtd_disponivel_requisitar: c?.qtd_disponivel_requisitar == null
+      ? toNum(c?.quantidade_disponivel)
+      : toNum(c?.qtd_disponivel_requisitar),
+    saldo_fisico: c?.saldo_fisico == null ? null : Number(c.saldo_fisico),
+    saldo_reservado: c?.saldo_reservado == null ? null : Number(c.saldo_reservado),
+    saldo_disponivel: c?.saldo_disponivel == null ? null : Number(c.saldo_disponivel),
+  }));
   const prev = toNum(op.qtd_prevista ?? op.quantidade_prevista);
   const prod = toNum(op.qtd_produzida ?? op.quantidade_produzida);
   const saldoRaw = op.saldo;
@@ -520,5 +551,35 @@ async function buscarComponentes(params: { q?: string }): Promise<ComponenteLook
     throw err;
   }
 }
+
+async function buscarDepositos(params: { q?: string; limit?: number }): Promise<DepositoLookup[]> {
+  const q = (params.q ?? '').trim();
+  const query: Record<string, unknown> = { limit: params.limit ?? 100 };
+  if (q) query.q = q;
+  try {
+    const res = await apiGet<any>('/api/requisicoes/lookup/depositos', query);
+    const list: any[] = Array.isArray(res?.itens) ? res.itens : Array.isArray(res) ? res : [];
+    const out: DepositoLookup[] = [];
+    const seen = new Set<number>();
+    for (const item of list) {
+      const raw = item?.codigo ?? item?.coddep;
+      if (raw == null || raw === '') continue;
+      const codigo = Number(raw);
+      if (!Number.isFinite(codigo) || seen.has(codigo)) continue;
+      seen.add(codigo);
+      out.push({
+        codigo,
+        descricao: String(item?.descricao ?? item?.desdep ?? ''),
+      });
+    }
+    return out;
+  } catch (err) {
+    if (err instanceof RequisicaoApiError && err.status === 404) {
+      throw new EndpointIndisponivelError('depositos');
+    }
+    throw err;
+  }
+}
+
 
 

@@ -16,10 +16,12 @@ import {
   Info as InfoIcon, Loader2, CheckCircle2,
 } from 'lucide-react';
 
+import { useQuery } from '@tanstack/react-query';
 import { useOpConsulta, useSidWriteEnabled } from '@/hooks/requisicoes';
 import { requisicoesApi, IntegracaoDesabilitadaError } from '@/services/requisicoesApi';
 import type { TipoAtendimentoOP, ComponenteOP } from '@/types/requisicoes';
 import { toast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useOpcoesImpressaoOp } from '@/hooks/useOpcoesImpressaoOp';
 import type { OpcaoOp } from '@/lib/producao/opcoesImpressao';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
@@ -50,6 +52,10 @@ export default function NovaRequisicaoOpPage() {
   const [sel, setSel] = useState<Record<number, number>>({});
   const [justif, setJustif] = useState<Record<number, string>>({});
   const [obs, setObs] = useState<Record<number, string>>({});
+  // depósito de origem escolhido pelo usuário (seqcmp -> coddep)
+  const [depositosPorItem, setDepositosPorItem] = useState<Record<number, number>>({});
+  const [rascunhoDisponivel, setRascunhoDisponivel] = useState(false);
+
 
   // atendimento
   const [tipo, setTipo] = useState<TipoAtendimentoOP>('TRANSFERIR');
@@ -70,6 +76,33 @@ export default function NovaRequisicaoOpPage() {
   const op = useOpConsulta(buscar?.codori, buscar?.numorp);
   const sidWrite = useSidWriteEnabled();
   const { searchOps } = useOpcoesImpressaoOp();
+
+  // Lookup de depósitos (cacheado) — usado apenas para o seletor por item quando
+  // o componente vem sem depósito de origem (precisa_deposito=true).
+  const depositosQuery = useQuery({
+    queryKey: ['requisicoes', 'lookup', 'depositos'],
+    queryFn: () => requisicoesApi.buscarDepositos({ limit: 100 }),
+    staleTime: 5 * 60 * 1000,
+  });
+  const depositosOpcoes = depositosQuery.data ?? [];
+
+  // Pré-seleciona depósito 1 para itens que precisam
+  useEffect(() => {
+    const comps = op.data?.componentes ?? [];
+    if (comps.length === 0) return;
+    setDepositosPorItem((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const c of comps) {
+        if (c.precisa_deposito && next[c.seqcmp] == null) {
+          next[c.seqcmp] = 1;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [op.data]);
+
 
   useEffect(() => { searchOps('', { cod_emp: '1', sit_orp: 'A' }).catch(() => {}); }, [searchOps]);
   const fetchOps = (q: string) => searchOps(q, { cod_emp: '1', sit_orp: 'A' });
@@ -143,11 +176,17 @@ export default function NovaRequisicaoOpPage() {
   // Componente vem incompleto do backend?
   const componenteInvalido = (c: ComponenteOP | undefined): string | null => {
     if (!c) return 'Componente não encontrado na OP.';
-    if (!c.codcmp) return 'codcmp ausente';
+    if (!c.codcmp && !c.componente) return 'codcmp ausente';
     if (c.codetg == null || c.codetg === ('' as any)) return 'codetg ausente';
-    if (c.deposito == null) return 'depósito de origem ausente';
     if (!c.unidade) return 'unidade de medida ausente';
     return null;
+  };
+
+  // Depósito escolhido pelo usuário (ou o que veio do backend)
+  const depositoEscolhido = (c: ComponenteOP | undefined): number | null => {
+    if (!c) return null;
+    if (depositosPorItem[c.seqcmp] != null) return depositosPorItem[c.seqcmp];
+    return c.deposito ?? null;
   };
 
   const itensInvalidos = useMemo(() => {
@@ -156,10 +195,25 @@ export default function NovaRequisicaoOpPage() {
     for (const it of itensSelecionados) {
       const c = comps.find((x) => x.seqcmp === it.seqcmp);
       const motivo = componenteInvalido(c);
-      if (motivo) out.push({ seqcmp: it.seqcmp, codcmp: c?.codcmp, motivo });
+      if (motivo) out.push({ seqcmp: it.seqcmp, codcmp: c?.componente ?? c?.codcmp, motivo });
     }
     return out;
   }, [itensSelecionados, op.data]);
+
+  // Itens selecionados que ainda não têm depósito de origem definido
+  const itensSemDeposito = useMemo(() => {
+    const comps = op.data?.componentes ?? [];
+    const out: { seqcmp: number; codigo: string }[] = [];
+    for (const it of itensSelecionados) {
+      const c = comps.find((x) => x.seqcmp === it.seqcmp);
+      if (!c) continue;
+      if (depositoEscolhido(c) == null) {
+        out.push({ seqcmp: it.seqcmp, codigo: c.componente ?? c.codcmp ?? String(c.seqcmp) });
+      }
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itensSelecionados, op.data, depositosPorItem]);
 
   // Estatísticas
   const stats = useMemo(() => {
@@ -219,6 +273,7 @@ export default function NovaRequisicaoOpPage() {
       observacao: obsGeral || undefined,
       itens: itensSelecionados.map((it) => {
         const comp = op.data!.componentes.find((c) => c.seqcmp === it.seqcmp)!;
+        const depOrigem = depositoEscolhido(comp);
         return {
           seq: it.seqcmp,
           codemp: op.data!.codemp,
@@ -227,11 +282,11 @@ export default function NovaRequisicaoOpPage() {
           numorp: op.data!.numorp,
           codetg: comp.codetg,
           seqcmp: comp.seqcmp,
-          codcmp: comp.codcmp,
+          codcmp: comp.componente ?? comp.codcmp,
           codder: comp.codder,
           unidade: comp.unidade,
           quantidade: it.quantidade,
-          deposito_origem: comp.deposito,
+          deposito_origem: depOrigem,
           deposito_destino: tipo === 'TRANSFERIR' ? (depositoDestino ? Number(depositoDestino) : null) : null,
           tipo_atendimento_op: tipo,
           observacao: obs[it.seqcmp] || undefined,
@@ -241,28 +296,67 @@ export default function NovaRequisicaoOpPage() {
     };
   };
 
-  const salvarRascunho = async () => {
-    const payload = buildPayload();
-    if (!payload || payload.itens.length === 0) return;
-    if (itensInvalidos.length > 0) {
-      const inv = itensInvalidos[0];
-      toast({
-        title: 'Componente com dados incompletos',
-        description: `${inv.codcmp ?? `seq ${inv.seqcmp}`}: ${inv.motivo}. Recarregue a OP ou peça ao suporte do backend para preencher os campos-chave (codetg, codcmp, unidade, depósito).`,
-        variant: 'destructive',
-      });
+  // ---------------- Rascunho LOCAL (localStorage) ----------------
+  const rascunhoKey = buscar ? `requisicoes:rascunho:${buscar.codori}:${buscar.numorp}` : null;
+
+  useEffect(() => {
+    if (!rascunhoKey) { setRascunhoDisponivel(false); return; }
+    setRascunhoDisponivel(Boolean(localStorage.getItem(rascunhoKey)));
+  }, [rascunhoKey]);
+
+  const salvarRascunho = () => {
+    if (!rascunhoKey) return;
+    if (itensSelecionados.length === 0) {
+      toast({ title: 'Nada a salvar', description: 'Selecione ao menos um componente antes de salvar o rascunho.', variant: 'destructive' });
       return;
     }
-    setEnviando(true);
+    const dump = {
+      salvo_em: new Date().toISOString(),
+      codori: buscar!.codori,
+      numorp: buscar!.numorp,
+      tipo,
+      depositoDestino,
+      obsGeral,
+      dataNecessaria,
+      sel,
+      justif,
+      obs,
+      depositosPorItem,
+    };
     try {
-      const criada = await requisicoesApi.criar(payload as any);
-      toast({ title: 'Rascunho salvo', description: `Nº ${criada.numero} — pendente de integração.` });
-      nav(`/requisicoes/${encodeURIComponent(criada.id)}`);
-    } catch (err: any) {
-      toast({ title: 'Não foi possível salvar', description: err?.message ?? 'Erro desconhecido', variant: 'destructive' });
-    } finally {
-      setEnviando(false);
+      localStorage.setItem(rascunhoKey, JSON.stringify(dump));
+      setRascunhoDisponivel(true);
+      toast({ title: 'Rascunho salvo neste navegador', description: 'O rascunho fica apenas no seu computador — o servidor ainda não persiste requisições em aberto.' });
+    } catch {
+      toast({ title: 'Não foi possível salvar o rascunho local', variant: 'destructive' });
     }
+  };
+
+  const restaurarRascunho = () => {
+    if (!rascunhoKey) return;
+    const raw = localStorage.getItem(rascunhoKey);
+    if (!raw) return;
+    try {
+      const dump = JSON.parse(raw);
+      setTipo(dump.tipo ?? 'TRANSFERIR');
+      setDepositoDestino(dump.depositoDestino ?? '');
+      setObsGeral(dump.obsGeral ?? '');
+      setDataNecessaria(dump.dataNecessaria ?? '');
+      setSel(dump.sel ?? {});
+      setJustif(dump.justif ?? {});
+      setObs(dump.obs ?? {});
+      setDepositosPorItem(dump.depositosPorItem ?? {});
+      toast({ title: 'Rascunho restaurado' });
+    } catch {
+      toast({ title: 'Rascunho local corrompido', variant: 'destructive' });
+    }
+  };
+
+  const descartarRascunho = () => {
+    if (!rascunhoKey) return;
+    localStorage.removeItem(rascunhoKey);
+    setRascunhoDisponivel(false);
+    toast({ title: 'Rascunho local descartado' });
   };
 
   const enviar = async () => {
@@ -273,6 +367,14 @@ export default function NovaRequisicaoOpPage() {
       toast({
         title: 'Componente com dados incompletos',
         description: `${inv.codcmp ?? `seq ${inv.seqcmp}`}: ${inv.motivo}. Não é possível enviar ao ERP até o backend devolver o componente completo.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (itensSemDeposito.length > 0) {
+      toast({
+        title: 'Escolha o depósito de origem',
+        description: `Escolha o depósito de origem do componente ${itensSemDeposito[0].codigo} antes de enviar.`,
         variant: 'destructive',
       });
       return;
@@ -290,6 +392,8 @@ export default function NovaRequisicaoOpPage() {
         }
       }
       toast({ title: 'Requisição criada', description: `Nº ${criada.numero}` });
+      // Envio bem-sucedido → descarta rascunho local para não confundir na próxima entrada
+      if (rascunhoKey) { localStorage.removeItem(rascunhoKey); setRascunhoDisponivel(false); }
       nav(`/requisicoes/${encodeURIComponent(criada.id)}`);
     } catch (err: any) {
       toast({ title: 'Não foi possível criar a requisição', description: err?.message ?? 'Erro desconhecido', variant: 'destructive' });
@@ -449,6 +553,17 @@ export default function NovaRequisicaoOpPage() {
             </div>
           )}
 
+          {rascunhoDisponivel && (
+            <div className="mt-3 flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 p-2 text-xs text-primary">
+              <InfoIcon className="h-4 w-4 shrink-0" />
+              <span className="flex-1">Existe um rascunho local salvo para esta OP neste navegador.</span>
+              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={restaurarRascunho}>Restaurar</Button>
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={descartarRascunho}>Descartar</Button>
+            </div>
+          )}
+
+
+
         </CardContent>
       </Card>
     );
@@ -511,7 +626,8 @@ export default function NovaRequisicaoOpPage() {
                 <TableHead className="text-xs uppercase tracking-wide">Descrição</TableHead>
                 <TableHead className="text-xs uppercase tracking-wide">Deriv.</TableHead>
                 <TableHead className="text-xs uppercase tracking-wide">UM</TableHead>
-                <TableHead className="text-xs uppercase tracking-wide">Dep.</TableHead>
+                <TableHead className="text-xs uppercase tracking-wide w-40">Dep. origem</TableHead>
+                <TableHead className="text-xs uppercase tracking-wide">Trans.</TableHead>
                 <TableHead className="text-xs uppercase tracking-wide text-right">Prev.</TableHead>
                 <TableHead className="text-xs uppercase tracking-wide text-right">Util.</TableHead>
                 <TableHead className="text-xs uppercase tracking-wide text-right">Req.</TableHead>
@@ -558,16 +674,50 @@ export default function NovaRequisicaoOpPage() {
                     </TableCell>
                     <TableCell>{c.seqcmp}</TableCell>
                     <TableCell>{c.codetg}</TableCell>
-                    <TableCell className="font-mono text-xs">{c.codcmp}</TableCell>
+                    <TableCell className="font-mono text-xs">{c.componente ?? c.codcmp}</TableCell>
                     <TableCell className="text-sm">{c.descricao ?? '—'}</TableCell>
-                    <TableCell>{c.codder ?? '—'}</TableCell>
+                    <TableCell>{c.derivacao ?? c.codder ?? '—'}</TableCell>
                     <TableCell>{c.unidade ?? '—'}</TableCell>
-                    <TableCell>{c.deposito ?? '—'}</TableCell>
+                    <TableCell>
+                      {c.precisa_deposito ? (
+                        <Select
+                          value={depositosPorItem[c.seqcmp] != null ? String(depositosPorItem[c.seqcmp]) : ''}
+                          onValueChange={(v) =>
+                            setDepositosPorItem((prev) => ({ ...prev, [c.seqcmp]: Number(v) }))
+                          }
+                          disabled={!podeRequisitar}
+                        >
+                          <SelectTrigger
+                            className={cn(
+                              'h-8 text-xs',
+                              selecionado && depositosPorItem[c.seqcmp] == null && 'border-destructive',
+                            )}
+                          >
+                            <SelectValue placeholder={depositosQuery.isLoading ? 'Carregando…' : 'Escolher'} />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-72">
+                            {depositosOpcoes.map((d) => (
+                              <SelectItem key={d.codigo} value={String(d.codigo)}>
+                                {d.codigo} — {d.descricao || '(sem descrição)'}
+                              </SelectItem>
+                            ))}
+                            {depositosOpcoes.length === 0 && (
+                              <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                                {depositosQuery.isLoading ? 'Carregando depósitos…' : 'Nenhum depósito disponível.'}
+                              </div>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="text-sm">{c.deposito ?? '—'}</span>
+                      )}
+                    </TableCell>
+                    <TableCell>{c.transacao ?? '—'}</TableCell>
                     <TableCell className="text-right tabular-nums">{c.quantidade_prevista}</TableCell>
                     <TableCell className="text-right tabular-nums">{c.quantidade_utilizada}</TableCell>
                     <TableCell className="text-right tabular-nums">{c.quantidade_requisitada}</TableCell>
                     <TableCell className="text-right tabular-nums">{c.quantidade_transferida}</TableCell>
-                    <TableCell className="text-right font-medium tabular-nums">{c.quantidade_disponivel}</TableCell>
+                    <TableCell className="text-right font-medium tabular-nums">{c.qtd_disponivel_requisitar ?? c.quantidade_disponivel}</TableCell>
                     <TableCell className="text-right tabular-nums">{c.saldo_fisico ?? '—'}</TableCell>
                     <TableCell>
                       <Input
@@ -603,7 +753,7 @@ export default function NovaRequisicaoOpPage() {
               })}
               {componentesPagina.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={16} className="py-8 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={17} className="py-8 text-center text-sm text-muted-foreground">
                     Nenhum componente com estes filtros.
                   </TableCell>
                 </TableRow>
@@ -633,12 +783,17 @@ export default function NovaRequisicaoOpPage() {
 
   const primeiroDepositoOrigem = useMemo(() => {
     const comps = op.data?.componentes ?? [];
+    const uniq = new Set<number>();
     for (const it of itensSelecionados) {
       const c = comps.find((x) => x.seqcmp === it.seqcmp);
-      if (c?.deposito != null) return String(c.deposito);
+      const d = depositoEscolhido(c);
+      if (d != null) uniq.add(d);
     }
-    return '—';
-  }, [itensSelecionados, op.data]);
+    if (uniq.size === 0) return '—';
+    if (uniq.size === 1) return String([...uniq][0]);
+    return `${uniq.size} depósitos`;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itensSelecionados, op.data, depositosPorItem]);
 
   const renderStep3 = () => (
     <Card className="shadow-sm">
@@ -731,17 +886,22 @@ export default function NovaRequisicaoOpPage() {
                 {itensSelecionados.map((it) => {
                   const c = comps.find((x) => x.seqcmp === it.seqcmp);
                   const inv = componenteInvalido(c);
+                  const dep = depositoEscolhido(c);
+                  const semDep = c?.precisa_deposito && dep == null;
                   return (
-                    <TableRow key={it.seqcmp} className={cn(inv && 'bg-destructive/5')}>
+                    <TableRow key={it.seqcmp} className={cn((inv || semDep) && 'bg-destructive/5')}>
                       <TableCell className="font-mono text-xs">
-                        {c?.codcmp}
+                        {c?.componente ?? c?.codcmp}
                         {inv && (
                           <Badge variant="destructive" className="ml-2 align-middle text-[10px]">Dados incompletos</Badge>
+                        )}
+                        {!inv && semDep && (
+                          <Badge variant="destructive" className="ml-2 align-middle text-[10px]">Depósito pendente</Badge>
                         )}
                       </TableCell>
                       <TableCell>{c?.descricao ?? (inv ? <span className="text-destructive text-xs">{inv}</span> : '—')}</TableCell>
                       <TableCell className="text-right tabular-nums">{it.quantidade} {c?.unidade ?? ''}</TableCell>
-                      <TableCell>{c?.deposito ?? '—'}</TableCell>
+                      <TableCell>{dep ?? <span className="text-destructive text-xs">escolher</span>}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{justif[it.seqcmp] || '—'}</TableCell>
                     </TableRow>
                   );
@@ -754,14 +914,23 @@ export default function NovaRequisicaoOpPage() {
             <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
               <div className="font-medium">Não é possível enviar: {itensInvalidos.length} componente(s) sem dados-chave.</div>
               <div className="text-xs mt-1">
-                O backend não devolveu <code>codetg</code>, <code>codcmp</code>, <code>unidade</code> ou <code>depósito</code> para os itens marcados. Clique em <b>Atualizar dados</b> no topo ou peça ao suporte do backend para corrigir a consulta desta OP.
+                O backend não devolveu <code>codetg</code>, <code>codcmp</code> ou <code>unidade</code> para os itens marcados. Clique em <b>Atualizar dados</b> no topo ou peça ao suporte do backend para corrigir a consulta desta OP.
               </div>
             </div>
           )}
 
-          {!sidWrite.enabled && itensInvalidos.length === 0 && (
+          {itensSemDeposito.length > 0 && itensInvalidos.length === 0 && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+              <div className="font-medium">Escolha o depósito de origem antes de enviar.</div>
+              <div className="text-xs mt-1">
+                Componentes sem depósito: {itensSemDeposito.map((i) => i.codigo).join(', ')}. Volte ao passo <b>Selecionar componentes</b> e escolha o depósito na coluna <b>Dep. origem</b>.
+              </div>
+            </div>
+          )}
+
+          {!sidWrite.enabled && itensInvalidos.length === 0 && itensSemDeposito.length === 0 && (
             <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-200">
-              A integração com o ERP está desabilitada. A requisição será salva como pendente de integração.
+              A integração com o ERP está desabilitada. Aguarde o SID ser habilitado no backend antes de enviar.
             </div>
           )}
 
@@ -770,17 +939,35 @@ export default function NovaRequisicaoOpPage() {
               <ArrowLeft className="mr-1 h-4 w-4" /> Voltar
             </Button>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={salvarRascunho} disabled={enviando}>Salvar rascunho</Button>
+              {rascunhoDisponivel && (
+                <Button variant="ghost" size="sm" onClick={descartarRascunho} disabled={enviando}>
+                  Descartar rascunho local
+                </Button>
+              )}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" onClick={salvarRascunho} disabled={enviando || itensSelecionados.length === 0}>
+                    Salvar rascunho (local)
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Salva apenas neste navegador — o servidor ainda não persiste requisições em aberto.</TooltipContent>
+              </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span>
-                    <Button onClick={enviar} disabled={!sidWrite.enabled || enviando}>
+                    <Button
+                      onClick={enviar}
+                      disabled={!sidWrite.enabled || enviando || itensSemDeposito.length > 0 || itensInvalidos.length > 0}
+                    >
                       {enviando ? 'Enviando…' : 'Enviar requisição'}
                     </Button>
                   </span>
                 </TooltipTrigger>
                 {!sidWrite.enabled && sidWrite.reason && (
                   <TooltipContent>{sidWrite.reason}</TooltipContent>
+                )}
+                {sidWrite.enabled && itensSemDeposito.length > 0 && (
+                  <TooltipContent>Escolha o depósito de origem do componente {itensSemDeposito[0].codigo}.</TooltipContent>
                 )}
               </Tooltip>
             </div>
@@ -796,7 +983,7 @@ export default function NovaRequisicaoOpPage() {
         stats={stats}
         step={step}
         canContinue={canContinue}
-        canEnviar={sidWrite.enabled && itensSelecionados.length > 0}
+        canEnviar={sidWrite.enabled && itensSelecionados.length > 0 && itensSemDeposito.length === 0 && itensInvalidos.length === 0}
         enviando={enviando}
         onContinue={handleContinue}
         onBack={handleBack}
