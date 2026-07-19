@@ -76,10 +76,9 @@ export default function NovaRequisicaoOpPage() {
 
   const podeRequisitar = op.data?.pode_requisitar ?? false;
 
-  // Avança para etapa 2 ao carregar OP válida
-  useEffect(() => {
-    if (op.data && podeRequisitar && step === 1) setStep(2);
-  }, [op.data, podeRequisitar]); // eslint-disable-line
+  // Avança automaticamente ao carregar componentes suficientes? Mantemos o usuário no passo 1
+  // para permitir revisar o "Resumo da OP" antes de prosseguir.
+
 
   const handleSelectOp = (o: OpcaoOp | null) => {
     if (!o) {
