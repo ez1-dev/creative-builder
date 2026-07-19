@@ -118,6 +118,7 @@ import AprovacoesPage from "@/pages/requisicoes/AprovacoesPage";
 import AlmoxarifadoFilaPage from "@/pages/requisicoes/AlmoxarifadoFilaPage";
 import SeparacaoAgrupadaPage from "@/pages/requisicoes/SeparacaoAgrupadaPage";
 import ConfiguracoesRequisicoesPage from "@/pages/requisicoes/ConfiguracoesRequisicoesPage";
+import TesteSidPage from "@/pages/requisicoes/TesteSidPage";
 
 
 import NotFound from "@/pages/NotFound";
@@ -277,6 +278,7 @@ const App = () => (
               <Route path="/requisicoes/almoxarifado" element={<ProtectedRoute path="/requisicoes/almoxarifado"><AlmoxarifadoFilaPage /></ProtectedRoute>} />
               <Route path="/requisicoes/agrupadas" element={<ProtectedRoute path="/requisicoes/almoxarifado"><SeparacaoAgrupadaPage /></ProtectedRoute>} />
               <Route path="/requisicoes/configuracoes" element={<ProtectedRoute path="/requisicoes/configuracoes"><ConfiguracoesRequisicoesPage /></ProtectedRoute>} />
+              <Route path="/requisicoes/configuracoes/teste-sid" element={<ProtectedRoute path="/requisicoes/configuracoes"><TesteSidPage /></ProtectedRoute>} />
               <Route path="/requisicoes/:id" element={<ProtectedRoute path="/requisicoes"><RequisicaoDetalhePage /></ProtectedRoute>} />
               {/* Redirect old route */}
               <Route path="/engenharia-producao" element={<Navigate to="/producao/engenharia" replace />} />

@@ -8,13 +8,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { useOpConsulta } from '@/hooks/requisicoes';
+import { useOpConsulta, useSidWriteEnabled } from '@/hooks/requisicoes';
 import { AlertTriangle, Search } from 'lucide-react';
 import { requisicoesApi, IntegracaoDesabilitadaError } from '@/services/requisicoesApi';
 import type { TipoAtendimentoOP } from '@/types/requisicoes';
 import { toast } from '@/hooks/use-toast';
 import { IntegracaoOfflineBanner } from '@/components/requisicoes/IntegracaoOfflineBanner';
 import { useNavigate } from 'react-router-dom';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function NovaRequisicaoOpPage() {
   const nav = useNavigate();
@@ -29,6 +30,7 @@ export default function NovaRequisicaoOpPage() {
   const [pendenteIntegr, setPendenteIntegr] = useState<string | null>(null);
 
   const op = useOpConsulta(buscar?.codori, buscar?.numorp);
+  const sidWrite = useSidWriteEnabled();
 
   const podeRequisitar = op.data?.pode_requisitar ?? false;
 
@@ -91,7 +93,9 @@ export default function NovaRequisicaoOpPage() {
     <div className="space-y-4">
       <PageHeader title="Nova requisição — com OP" description="Consulte a OP, selecione componentes e escolha o tipo de atendimento." />
 
-      {pendenteIntegr !== null && <IntegracaoOfflineBanner detail={pendenteIntegr || undefined} />}
+      {pendenteIntegr !== null && <IntegracaoOfflineBanner detail={pendenteIntegr || undefined} force />}
+      <IntegracaoOfflineBanner />
+
 
       <Card>
         <CardContent className="grid gap-3 p-4 md:grid-cols-4">
@@ -262,13 +266,23 @@ export default function NovaRequisicaoOpPage() {
           </Card>
 
           <div className="flex justify-end gap-2">
-            <Button
-              onClick={enviar}
-              disabled={!podeRequisitar || itensSelecionados.length === 0 || enviando}
-            >
-              {enviando ? 'Enviando…' : 'Criar e enviar requisição'}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Button
+                    onClick={enviar}
+                    disabled={!podeRequisitar || itensSelecionados.length === 0 || enviando || !sidWrite.enabled}
+                  >
+                    {enviando ? 'Enviando…' : 'Criar e enviar requisição'}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {!sidWrite.enabled && sidWrite.reason && (
+                <TooltipContent>{sidWrite.reason}</TooltipContent>
+              )}
+            </Tooltip>
           </div>
+
         </>
       )}
     </div>

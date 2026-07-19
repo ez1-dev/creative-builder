@@ -7,9 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StatusBadge } from '@/components/requisicoes/StatusBadge';
 import { JustificativaDialog } from '@/components/requisicoes/JustificativaDialog';
 import { IntegracaoOfflineBanner } from '@/components/requisicoes/IntegracaoOfflineBanner';
-import { useRequisicao, useHistoricoRequisicao, useEnviarRequisicao, useCancelarRequisicao, useEstornarRequisicao, useReprocessarIntegracao } from '@/hooks/requisicoes';
+import { useRequisicao, useHistoricoRequisicao, useEnviarRequisicao, useCancelarRequisicao, useEstornarRequisicao, useReprocessarIntegracao, useSidWriteEnabled } from '@/hooks/requisicoes';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Send, Ban, RotateCcw, RefreshCw } from 'lucide-react';
 
 export default function RequisicaoDetalhePage() {
@@ -20,6 +21,7 @@ export default function RequisicaoDetalhePage() {
   const cancelar = useCancelarRequisicao();
   const estornar = useEstornarRequisicao();
   const reprocessar = useReprocessarIntegracao();
+  const sidWrite = useSidWriteEnabled();
   const [askCancel, setAskCancel] = useState(false);
   const [askEstorno, setAskEstorno] = useState(false);
 
@@ -40,12 +42,19 @@ export default function RequisicaoDetalhePage() {
           <div className="flex flex-wrap items-center gap-2">
             {req.data && <StatusBadge status={req.data.situacao} />}
             {id && podeEnviar && (
-              <Button size="sm" onClick={() => enviar.mutate(id)} disabled={enviar.isPending}>
-                <Send className="mr-1 h-3.5 w-3.5" /> Enviar
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button size="sm" onClick={() => enviar.mutate(id)} disabled={enviar.isPending || !sidWrite.enabled}>
+                      <Send className="mr-1 h-3.5 w-3.5" /> Enviar
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {!sidWrite.enabled && sidWrite.reason && <TooltipContent>{sidWrite.reason}</TooltipContent>}
+              </Tooltip>
             )}
             {id && erroIntegr && (
-              <Button size="sm" variant="outline" onClick={() => reprocessar.mutate(id)} disabled={reprocessar.isPending}>
+              <Button size="sm" variant="outline" onClick={() => reprocessar.mutate(id)} disabled={reprocessar.isPending || !sidWrite.enabled}>
                 <RefreshCw className="mr-1 h-3.5 w-3.5" /> Reprocessar integração
               </Button>
             )}
@@ -55,7 +64,7 @@ export default function RequisicaoDetalhePage() {
               </Button>
             )}
             {id && podeEstornar && (
-              <Button size="sm" variant="outline" onClick={() => setAskEstorno(true)}>
+              <Button size="sm" variant="outline" onClick={() => setAskEstorno(true)} disabled={!sidWrite.enabled}>
                 <RotateCcw className="mr-1 h-3.5 w-3.5" /> Estornar
               </Button>
             )}

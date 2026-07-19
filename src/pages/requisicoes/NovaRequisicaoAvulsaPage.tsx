@@ -12,6 +12,8 @@ import { Plus, Trash2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { requisicoesApi, IntegracaoDesabilitadaError } from '@/services/requisicoesApi';
 import { IntegracaoOfflineBanner } from '@/components/requisicoes/IntegracaoOfflineBanner';
+import { useSidWriteEnabled } from '@/hooks/requisicoes';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { TipoRequisicao, PrioridadeRequisicao } from '@/types/requisicoes';
 
 interface Linha {
@@ -47,6 +49,9 @@ export default function NovaRequisicaoAvulsaPage() {
   const [linhas, setLinhas] = useState<Linha[]>([linhaVazia()]);
   const [busy, setBusy] = useState(false);
   const [pendenteIntegr, setPendenteIntegr] = useState<string | null>(null);
+  const sidWrite = useSidWriteEnabled();
+
+
 
   const setLinha = (i: number, patch: Partial<Linha>) =>
     setLinhas((arr) => arr.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
@@ -107,7 +112,8 @@ export default function NovaRequisicaoAvulsaPage() {
         description="Consumo interno, manutenção, qualidade, administrativo ou transferência entre depósitos."
       />
 
-      {pendenteIntegr !== null && <IntegracaoOfflineBanner detail={pendenteIntegr || undefined} />}
+      {pendenteIntegr !== null && <IntegracaoOfflineBanner detail={pendenteIntegr || undefined} force />}
+      <IntegracaoOfflineBanner />
 
       <Card>
         <CardContent className="grid gap-3 p-4 md:grid-cols-4">
@@ -216,9 +222,16 @@ export default function NovaRequisicaoAvulsaPage() {
 
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={() => submit(false)} disabled={busy}>Salvar rascunho</Button>
-        <Button onClick={() => submit(true)} disabled={busy}>
-          {busy ? 'Enviando…' : 'Criar e enviar'}
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>
+              <Button onClick={() => submit(true)} disabled={busy || !sidWrite.enabled}>
+                {busy ? 'Enviando…' : 'Criar e enviar'}
+              </Button>
+            </span>
+          </TooltipTrigger>
+          {!sidWrite.enabled && sidWrite.reason && <TooltipContent>{sidWrite.reason}</TooltipContent>}
+        </Tooltip>
       </div>
     </div>
   );

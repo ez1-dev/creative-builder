@@ -16,7 +16,26 @@ export type StatusRequisicao =
   | 'ATENDIDA'
   | 'CANCELADA'
   | 'ESTORNADA'
+  | 'NAO_ENVIADA'
+  | 'PENDENTE_INTEGRACAO'
+  | 'PROCESSANDO'
+  | 'INTEGRADA'
   | 'ERRO_INTEGRACAO';
+
+/** Status dos serviços SID retornado por GET /api/requisicoes/sid/ping. */
+export interface SidServicoStatus {
+  url: string;
+  operacao: string;
+  wsdl_ok: boolean;
+  erro?: string | null;
+}
+
+export interface SidStatusResponse {
+  sid_habilitado: boolean;
+  ger_sid: SidServicoStatus;
+  cha_separacao: SidServicoStatus;
+  proximo_passo?: string;
+}
 
 export type TipoRequisicao =
   | 'OP'

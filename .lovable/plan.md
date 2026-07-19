@@ -1,112 +1,88 @@
-## Requisição de Materiais — Fases 2, 3 e 4
+## Objetivo
 
-Base da Fase 1 (services, tipos, hooks, rotas, menu, listagem) já entregue. Estas fases completam o módulo consumindo os 7 endpoints SID gated + read-only da OP no FastAPI :8070. Nenhuma escrita SOAP no navegador, nenhum recálculo local, nenhum fallback silencioso pra mock quando a API falhar. Todas as mutations passam pelo `requisicoesApi` com `X-Idempotency-Key`, e todo 503 vira `IntegracaoOfflineBanner` + status `ERRO_INTEGRACAO`, sem stack trace pro usuário.
+Fechar a integração do módulo Requisição de Materiais com a FastAPI :8070, expondo o status do SID, bloqueando escritas quando o backend estiver com `SID_HABILITADO=false` e adicionando uma tela restrita de teste controlado. Nada de SOAP no navegador, nada de recriar módulo.
 
-### Fase 2 — Fluxo OP completo (`/requisicoes/nova` + `/requisicoes/nova-op`)
+## O que já existe (não recriar)
 
-Objetivo: sair do placeholder atual e permitir criar/enviar requisição vinculada a OP real, respeitando `SITORP`/`pode_requisitar` e as quantidades vindas da API (nunca recalcular).
+- `src/services/requisicoesApi.ts` com `IntegracaoDesabilitadaError` (503), `X-Idempotency-Key` em todo POST, e stubs `sidRequisitar` + `reprocessarIntegracao`.
+- `src/types/requisicoes.ts` com `StatusRequisicao` (`ERRO_INTEGRACAO` presente; falta `PENDENTE_INTEGRACAO`, `PROCESSANDO`, `NAO_ENVIADA`, `INTEGRADA`).
+- 9 páginas em `src/pages/requisicoes/` + `IntegracaoOfflineBanner`, `AcaoItemDialog`, `JustificativaDialog`, `StatusBadge`.
+- `src/hooks/requisicoes/index.ts` com mutations idempotentes por ação.
 
-- `src/pages/requisicoes/NovaRequisicaoPage.tsx`: dois cards (Com OP / Avulsa) — só navegação, sem lógica.
-- `src/pages/requisicoes/NovaComOpPage.tsx` (refinamento do stub):
-  - Formulário de busca `codori` + `numorp` → `requisicoesApi.consultarOp` (já existe).
-  - `OpHeaderCard` (novo) com produto final, projeto, `SITORP`, qtd prevista/produzida, badge de bloqueio quando `pode_requisitar=false` mostrando `motivo_bloqueio`.
-  - `OpComponentesGrid` (novo): tabela editável dos `componentes[]`. Colunas: `CODCMP`, descrição, unidade, qtd prevista, utilizada, requisitada, transferida, **disponível (readonly, direto da API)**, qtd a requisitar (input). Bloqueia linha se `pode_requisitar=false` ou disponível ≤ 0.
-  - Validação: `qtd_a_requisitar ≤ quantidade_disponivel` (usando o número da API, sem somar nada). Excesso exige `justificativa_excesso` (tolerância vem de `ConfigRequisicoes.tolerancia_op_pct`).
-  - `TipoAtendimentoOpSelector` (novo): rádio Transferir vs Baixar Direto, aplicado por item ou em massa.
-  - Campos gerais: centro de custo, projeto, fase, prioridade, data necessária, observações. Todos vindos de selects reutilizando `ComboboxFilter`/hooks de cadastros já existentes.
-  - Ações: **Salvar Rascunho** (`criar`), **Enviar** (`criar` + `enviar` na mesma cadeia com a mesma idempotency key). Toast + navegação para `/requisicoes/:id`. 503 mostra `IntegracaoOfflineBanner` e mantém rascunho.
-- Componentes novos em `src/components/requisicoes/`: `OpHeaderCard.tsx`, `OpComponentesGrid.tsx`, `TipoAtendimentoOpSelector.tsx`, `JustificativaDialog.tsx`.
-- Hooks novos em `src/hooks/requisicoes/`: `useConsultarOp`, `useCriarEEnviar` (mutation composta que reusa a idempotency key entre `criar` e `enviar`).
+## Mudanças
 
-### Fase 3 — Aprovações + Fila do Almoxarifado + Separação Agrupada
+### 1. Tipos e serviço (`src/types/requisicoes.ts`, `src/services/requisicoesApi.ts`)
 
-Objetivo: cobrir o meio do fluxo (aprovar/rejeitar/devolver → separar → atender parcial → transferir/baixar → registrar falta → enviar pra compras), com **lock de separação** e **preservação de saldo pendente**.
+- Adicionar `SidServicoStatus` e `SidStatusResponse` conforme spec (campos: `sid_habilitado`, `ger_sid`, `cha_separacao`, `proximo_passo`; cada serviço tem `url`, `operacao`, `wsdl_ok`, `erro?`).
+- Complementar `StatusRequisicao` com `NAO_ENVIADA`, `PENDENTE_INTEGRACAO`, `PROCESSANDO`, `INTEGRADA` (mantendo os atuais).
+- Em `requisicoesApi`: adicionar `pingSid(): Promise<SidStatusResponse>` chamando `GET /api/requisicoes/sid/ping`, e os 6 métodos restantes (`sidRateio`, `sidAtender`, `sidMovimentar`, `sidBaixarComponentes`, `sidReservarComponente`, `sidExcluir`) mapeando para os endpoints listados.
+- Manter regra: 503 → `IntegracaoDesabilitadaError` → mapear no chamador para `PENDENTE_INTEGRACAO`; falha SOAP real (4xx/5xx com detalhe) → `ERRO_INTEGRACAO`. Não misturar os dois.
 
-- `src/pages/requisicoes/AprovacoesPage.tsx`:
-  - Lista filtrada `situacao=AGUARDANDO_APROVACAO` (reusa `useRequisicoes` com filtro fixo).
-  - `AprovacaoActionsBar` (novo): Aprovar / Aprovar com ajuste / Rejeitar / Devolver p/ ajuste — todos exigem `JustificativaDialog` quando negativos.
-  - Detalhe inline expandindo linha (itens com qtd solicitada vs aprovada editável). Chama `requisicoesApi.aprovar/rejeitar` por requisição, uma idempotency key por ação.
-- `src/pages/requisicoes/AlmoxarifadoPage.tsx`:
-  - `FilaAlmoxTable` (novo) consumindo `filaAlmox`. Colunas conforme `FilaAlmoxItem`: número, item, `CODCMP`, OP, CC, qtd solicitada/aprovada/separada/atendida/**pendente**, saldos (readonly da API), depósito origem/destino, prazo, prioridade, `LockOwnerBadge` (mostra `separacao_por` + `separacao_desde`).
-  - Ações por linha (habilitadas conforme situação do item):
-    - **Assumir** → `iniciarSeparacao` (cria lock; se outro usuário já detém, mostra toast "em separação por X" e desabilita).
-    - **Reservar** → `SepararDialog` novo (informa qtd + lote/endereço) → `reservar` + `separar`.
-    - **Atender (total/parcial)** → `AtenderDialog` novo. Parcial mantém `qtd_pendente` na fila (não recalcular; usar valor retornado pela API).
-    - **Transferir** → `TransferirDialog` (depósito destino sugerido pela API, editável).
-    - **Baixar OP** → `BaixarOpDialog` (usa `POST .../baixar-op` que roteia pro SID `BaixarComponentes`).
-    - **Registrar falta** → `RegistrarFaltaDialog` (qtd faltante + observação).
-    - **Enviar p/ compras** → `enviarCompras`.
-    - **Estornar item** → confirmação simples.
-  - Filtros: OP, produto, CC, depósito, prioridade, apenas com falta, apenas com meu lock.
-- `src/pages/requisicoes/AgrupadasPage.tsx`:
-  - `SeparacaoAgrupadaView` (novo): consome `requisicoesApi.agrupadas`, agrupa visualmente por produto+derivação+depósito, mostra as OPs/estágios/seqs que compõem cada linha (rateio preservado pela API — só exibir).
-  - Ação em massa `agrupadasSeparar` com payload = seleção do usuário. `X-Idempotency-Key` único por lote.
-- Componentes novos: `AprovacaoActionsBar`, `FilaAlmoxTable`, `LockOwnerBadge`, `SepararDialog`, `AtenderDialog`, `TransferirDialog`, `BaixarOpDialog`, `RegistrarFaltaDialog`, `SeparacaoAgrupadaView`.
-- Hooks novos: `useFilaAlmox`, `useAgrupadas`, mutations `useIniciarSeparacao/useReservar/useSeparar/useAtender/useTransferir/useBaixarOp/useRegistrarFalta/useEnviarCompras/useEstornarItem/useAgrupadasSeparar` — cada uma invalida `requisicoes`, `requisicao(id)`, `filaAlmox`, `agrupadas`, `kpis` no `onSuccess`.
+### 2. Hook de status (`src/hooks/requisicoes/index.ts`)
 
-### Fase 4 — Detalhe + Histórico + Configurações + Avulsa completa
+- `useSidStatus()`: React Query key `['requisicoes','sid','ping']`, `staleTime` 60s, `refetchInterval` 2min, `refetchOnWindowFocus` true. Expor `{ status, isLoading, isError, refetch, lastCheckedAt }`.
+- `useSidWriteEnabled()`: derivado — `sid_habilitado && ger_sid.wsdl_ok`. Usado por todos os botões de escrita.
 
-Objetivo: fechar o módulo com visão 360º da requisição, criação sem OP e parâmetros administráveis.
+### 3. Banner global (`src/components/requisicoes/IntegracaoOfflineBanner.tsx`)
 
-- `src/pages/requisicoes/DetalhePage.tsx` (`/requisicoes/:id`):
-  - Header com número, tipo, `StatusBadge`, prioridade, solicitante, aprovador, datas, % atendido, botões contextuais (Enviar, Cancelar, Estornar, Reprocessar integração).
-  - Abas: **Itens** (tabela readonly com todos os campos + qtd pendente), **Histórico** (`HistoricoTimeline` novo consumindo `historico`), **Integração** (mostra `mensagem_integracao`/`movimento_senior` do último evento com erro + botão `reprocessarIntegracao` quando `situacao=ERRO_INTEGRACAO`).
-  - `IntegracaoOfflineBanner` no topo se qualquer ação recebeu 503 recentemente.
-- `src/pages/requisicoes/NovaAvulsaPage.tsx` (refinamento):
-  - Cabeçalho: tipo (CONSUMO/TRANSFERENCIA/DEVOLUCAO/EMERGENCIAL), empresa/filial, setor, prioridade, data necessária, CC/projeto/fase, justificativa.
-  - `ItensAvulsosEditor` (novo): adicionar itens buscando produto por autocomplete (reusa `useCadastrosErp`), depósito origem/destino, lote, série, observação, qtd. Sem consulta de OP.
-  - Ações: Salvar Rascunho / Enviar (mesma composição idempotente da Fase 2).
-- `src/pages/requisicoes/ConfiguracoesPage.tsx`:
-  - Formulário editando `ConfigRequisicoes`: tipos habilitados (multi-check), depósitos permitidos (multi-select), exige aprovação (switch), limite aprovação automática, tolerância OP %, SLA horas, famílias bloqueadas, observações.
-  - Restrito a `admin` via `useRequisicoesRole()`.
-  - `useConfigRequisicoes` (query) + `useAtualizarConfiguracoes` (mutation com invalidação da própria query).
-- Componentes novos: `HistoricoTimeline`, `ItensAvulsosEditor`, mais os dialogs de cancelar/estornar reutilizando `JustificativaDialog`.
+- Refatorar para consumir `useSidStatus()` e exibir automaticamente quando `sid_habilitado === false` ou WSDL indisponível, com texto padrão da spec.
+- Incluir nas páginas: `NovaRequisicaoOpPage`, `NovaRequisicaoAvulsaPage`, `AlmoxarifadoFilaPage`, `RequisicaoDetalhePage` (aba Integração), e no topo de `AprovacoesPage`.
+- Consultas (OP, saldos, histórico, KPIs) permanecem funcionando.
 
-### Papéis e visibilidade (aplicado nas 3 fases)
+### 4. Gating dos botões de escrita
 
-- Novo hook `src/hooks/requisicoes/useRequisicoesRole.ts` derivando papéis (`solicitante`, `aprovador`, `almoxarifado`, `pcp`, `compras`, `admin`) a partir de `useUserPermissions` + `screenCatalog`. Só controla habilitar/desabilitar botão e exibir aba — **autoridade final é o backend**.
-- Menu (`src/config/menuCatalog.ts`) e `screenCatalog.ts` já têm as 9 rotas registradas na Fase 1; nada a mexer além de garantir que Aprovações/Almoxarifado/Agrupadas/Configurações fiquem visíveis apenas para os papéis correspondentes (via `screenCatalog` permission keys).
+- Criar util `disableIfSidOff(status)` retornando `{ disabled, tooltip }`. Aplicar em:
+  - `NovaRequisicaoOpPage` / `NovaRequisicaoAvulsaPage`: "Enviar" desabilitado; permite "Salvar rascunho".
+  - `AprovacoesPage`: aprovar/rejeitar continuam (não são SID) — não bloquear.
+  - `AlmoxarifadoFilaPage` e `AcaoItemDialog`: reservar/separar/atender/transferir/baixar/registrar falta desabilitados com tooltip explicativo.
+  - `RequisicaoDetalhePage`: "Enviar", "Reprocessar integração", "Estornar" desabilitados.
+- Todos os handlers já usam `X-Idempotency-Key`; garantir que o botão bloqueia clique duplo via `isPending`.
 
-### Contratos com o backend
+### 5. Seção "Integração Senior SID" em `/requisicoes/configuracoes`
 
-Todas as chamadas usam endpoints já expostos em `requisicoesApi`:
+- Nova seção acima das configurações atuais em `ConfiguracoesRequisicoesPage.tsx`:
+  - Cabeçalho com badge geral (Verde WSDL OK / Amarelo escrita off / Vermelho serviço fora / Azul verificando).
+  - Duas linhas: `co_ger_sid` e `cha_separacao` — mostrar operação, `wsdl_ok`, mensagem tratada em `erro` (sem stack/XML).
+  - "Última verificação" (horário local) e botão **Testar conexão** → `refetch()`.
+  - "Próximo passo" quando `proximo_passo` vier preenchido.
+- Nunca renderizar credenciais, URL com senha, XML, headers ou stack.
 
-```text
-GET  /api/requisicoes                       lista + kpis (?só_kpis via /kpis)
-GET  /api/requisicoes/:id                   detalhe
-GET  /api/requisicoes/:id/historico         timeline
-GET  /api/requisicoes/op/:codori/:numorp    consulta OP (já ok)
-POST /api/requisicoes                       criar (idempotente)
-PUT  /api/requisicoes/:id                   atualizar rascunho
-POST /api/requisicoes/:id/enviar            envia p/ aprovação/almox
-POST /api/requisicoes/:id/aprovar|rejeitar|cancelar|estornar
-GET  /api/requisicoes/almoxarifado/fila
-POST /api/requisicoes/:id/itens/:seq/{iniciar-separacao|reservar|separar|atender|transferir|baixar-op|registrar-falta|enviar-compras|estornar}
-GET  /api/requisicoes/agrupadas             + POST /agrupadas/separar
-GET/PUT /api/requisicoes/configuracoes
-POST /api/requisicoes/integracoes/:id/reprocessar
-```
+### 6. Nova tela `/requisicoes/configuracoes/teste-sid`
 
-Cada POST que dispara ação SID pode retornar 503 (`SID_HABILITADO=N`); a UI cai no fluxo "integração desabilitada" — banner + status persistido — sem duplicar a criação nem chamar SID direto.
+- Rota nova em `src/App.tsx`, protegida por `ProtectedRoute` + gate `useIsAdmin()` (redireciona não-admin).
+- Registrar em `src/lib/screenCatalog.ts` e como filho em `src/config/menuCatalog.ts` (subitem em Configurações Requisições, visível só a admin).
+- Formulário: empresa, filial, produto, derivação, quantidade, transação, depósito, observação — nada hardcoded.
+- Alerta laranja + input obrigatório digitando `CONFIRMAR TESTE SID` para habilitar "Executar".
+- Fluxo:
+  1. Botão "Ping" → chama `pingSid()` e mostra o resultado tratado.
+  2. Botão "Executar requisição" (habilitado só com `sid_habilitado` + confirmação digitada) → `sidRequisitar(...)`. Exibe `NUMEME` / `SEQEME` do retorno.
+  3. Botão "Excluir requisição de teste" → `sidExcluir({ numeme, seqeme })`.
+- Exibir retorno bruto tratado (JSON já sanitizado pelo backend), sem SOAP.
 
-### Regras rígidas revalidadas
+### 7. Histórico e status
 
-- Nunca somar/recalcular `quantidade_disponivel`, `qtd_pendente`, saldos — sempre exibir o número da API.
-- Componente da OP é `CODCMP` (nunca `CODPRO`).
-- Depósito/transação sugeridos pela API; UI mostra e aceita o que voltar.
-- Sem fallback silencioso pra mock quando API der erro (`ApiOfflineError` vira toast + estado de erro, não mock).
-- Sem exibir XML/stack trace pro usuário — só mensagens amigáveis.
-- Nenhuma escrita direta em `E207EME`, `E210MVP`, `E900CMO` a partir do frontend.
+- Ao chamar qualquer SID: registrar localmente (cache do detalhe) `{ acao, timestamp, usuario, idempotency_key, numeme?, seqeme?, movimento?, status }` para renderizar em `RequisicaoDetalhePage` → aba Integração.
+- Em `catch`: se `IntegracaoDesabilitadaError` → marcar item como `PENDENTE_INTEGRACAO` no cache local e mostrar toast neutro; se `RequisicaoApiError` → `ERRO_INTEGRACAO` com mensagem tratada. Nenhum retry automático.
+- Idempotência: chave gerada uma vez por tentativa e mantida no cache da mutation; em timeout, botão "Reprocessar" reenvia com a MESMA chave.
 
-### Arquivos que serão criados/alterados
+### 8. `ReservaSeparacaoComponente`
 
-- **Novos componentes** (`src/components/requisicoes/`): `OpHeaderCard`, `OpComponentesGrid`, `TipoAtendimentoOpSelector`, `JustificativaDialog`, `AprovacaoActionsBar`, `FilaAlmoxTable`, `LockOwnerBadge`, `SepararDialog`, `AtenderDialog`, `TransferirDialog`, `BaixarOpDialog`, `RegistrarFaltaDialog`, `SeparacaoAgrupadaView`, `HistoricoTimeline`, `ItensAvulsosEditor`.
-- **Páginas refinadas** (`src/pages/requisicoes/`): `NovaRequisicaoPage`, `NovaComOpPage`, `AprovacoesPage`, `AlmoxarifadoPage`, `AgrupadasPage`, `DetalhePage`, `NovaAvulsaPage`, `ConfiguracoesPage`.
-- **Novos hooks** (`src/hooks/requisicoes/`): `useConsultarOp`, `useCriarEEnviar`, `useFilaAlmox`, `useAgrupadas`, `useRequisicoesRole`, `useConfigRequisicoes`, e uma mutation por ação SID (com invalidação consistente).
-- **Sem alterar**: `requisicoesApi.ts`, `types/requisicoes.ts`, `menuCatalog.ts`, `screenCatalog.ts`, `App.tsx` (todos já preparados na Fase 1).
+- Marcar o botão correspondente na fila como "Experimental" e desabilitado por padrão, com tooltip: "Operação E900RCP/F900RCP não utilizada neste ambiente".
 
-### Estratégia de entrega
+## Fora de escopo
 
-Entrego as 3 fases numa passada só, em commits lógicos por fase, para você validar em ordem: Fase 2 primeiro (fluxo OP end-to-end), depois Fase 3 (aprovações + almox + agrupadas), depois Fase 4 (detalhe + avulsa + config). Se preferir uma fase por turno pra testar cada uma antes de seguir, me avisa que eu quebro.
+- Alterar backend, WSDL, envelopes SOAP.
+- Expor / controlar `SID_HABILITADO` pelo frontend.
+- Redesign visual do módulo.
+- Chamar Middleware Senior direto do navegador.
 
-Confirma que posso implementar as 3 fases numa passada só?
+## Critérios de aceite (validação final)
+
+- `/requisicoes/configuracoes` mostra status dos dois serviços com badge colorido e botão "Testar conexão".
+- Banner global aparece nas telas listadas quando `sid_habilitado=false`.
+- Botões de escrita desabilitados com tooltip quando SID off; consultas seguem OK.
+- 503 → `PENDENTE_INTEGRACAO`; erro real → `ERRO_INTEGRACAO`.
+- Retentativa reaproveita `X-Idempotency-Key`.
+- Nenhuma credencial/XML aparece na UI.
+- `/requisicoes/configuracoes/teste-sid` só para admin, exige confirmação digitada, aceita parâmetros do formulário, exibe NUMEME/SEQEME e permite excluir.
+- Sem controle de `SID_HABILITADO` no frontend.
