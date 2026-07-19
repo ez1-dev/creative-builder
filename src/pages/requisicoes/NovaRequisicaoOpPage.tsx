@@ -706,7 +706,7 @@ export default function NovaRequisicaoOpPage() {
                     <TableCell className="text-right tabular-nums">{c.quantidade_utilizada}</TableCell>
                     <TableCell className="text-right tabular-nums">{c.quantidade_requisitada}</TableCell>
                     <TableCell className="text-right tabular-nums">{c.quantidade_transferida}</TableCell>
-                    <TableCell className="text-right font-medium tabular-nums">{c.quantidade_disponivel}</TableCell>
+                    <TableCell className="text-right font-medium tabular-nums">{c.qtd_disponivel_requisitar ?? c.quantidade_disponivel}</TableCell>
                     <TableCell className="text-right tabular-nums">{c.saldo_fisico ?? '—'}</TableCell>
                     <TableCell>
                       <Input
