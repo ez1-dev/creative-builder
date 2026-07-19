@@ -1,59 +1,118 @@
 ## Objetivo
 
-Redesenhar a página **Nova Requisição — com OP** (`/requisicoes/nova-op`) seguindo o layout de referência enviado: layout mais denso e informativo, com 3 colunas, tabela de OPs à esquerda, painel "Resumo da OP" ao centro, "Resumo da Requisição" à direita, e tabela de componentes ampla embaixo com legenda de saldo colorida.
+Substituir os campos de texto livre de **produto/componente**, **centro de custo** e **projeto/obra** nas telas de requisição por autocompletes remotos ligados aos endpoints reais do backend, mantendo o serviço centralizado, o layout atual e as regras de negócio.
 
-## Mudanças de layout (visual only — sem tocar em regras de negócio)
+## Contratos reais confirmados (docs/backend-cadastros-*)
 
-### Passo 1 — Selecionar OP
-Trocar o layout atual (autocomplete + campos manuais empilhados) por um layout de 3 colunas:
+- **`GET /api/cadastros/produtos`** — resposta paginada `{ dados: [...] }`. Campos: `codigo_produto`, `descricao_produto`, `unidade_medida`, `codigo_familia`, `descricao_familia`, `codigo_derivacao` (quando `incluir_derivacoes=true`). Filtros: `codpro`, `despro`, `codfam`, `codori`, `somente_ativos`, `pagina`, `tamanho_pagina`.
+- **`GET /api/cadastros/centros-custo?q=`** — array `[{ codigo, descricao, label }]` (padrão `CodCcu/DesCcu`). Já existe `fetchCentrosCusto` em `src/hooks/useCadastrosErp.ts`.
+- **`GET /api/cadastros/projetos?q=`** — **NÃO documentado**. Vamos chamá-lo; se retornar 404, mostrar mensagem e desabilitar o autocomplete (sem fallback silencioso).
 
-```text
-┌──────────────────────────┬───────────────────────┬───────────────────────┐
-│ [Buscar OP] [Manual]     │ Resumo da OP          │ Resumo da Requisição  │
-│ 🔍 campo de busca        │ selecionada           │ (sticky)              │
-│ Lista de resultados      │ Origem / Nº OP        │ Itens selecionados    │
-│  100/65958  Estrutura    │ Produto final         │ Quantidade total      │
-│  100/65960  Suporte      │ Derivação             │ Itens com/sem saldo   │
-│  200/12020  Base fixação │ Projeto/Obra          │ Acima da necessidade  │
-│  ...                     │ Qtd prevista/produzida│ Tipo atendimento      │
-│  (rows clicáveis c/      │ Saldo da OP           │ Depósito destino      │
-│   badge de situação)     │ [Trocar OP][Atualizar]│ [Salvar rascunho]     │
-│                          │                       │ [Cancelar][Continuar] │
-└──────────────────────────┴───────────────────────┴───────────────────────┘
+## Onde entra
+
+Telas afetadas:
+- `src/pages/requisicoes/NovaRequisicaoAvulsaPage.tsx` — troca CC (`Input`), Projeto (`Input`) e a coluna Componente da tabela (`Input codcmp`) por autocompletes. Descrição e UM viram readonly e são preenchidas ao selecionar produto.
+- Considerar habilitar CC/Projeto do cabeçalho na `NovaRequisicaoOpPage.tsx` **somente onde já existe hoje** (não hoje) — não vamos adicionar novos campos; o produto na tela de OP continua vindo da E900CMO (não trocar, conforme regra 6).
+
+## Serviço centralizado (`src/services/requisicoesApi.ts`)
+
+Adicionar três funções de lookup (todas usando o `apiGet` existente):
+
+```ts
+export interface ProdutoLookup {
+  codpro: string;         // codigo_produto
+  despro: string;         // descricao_produto
+  unimed?: string;        // unidade_medida
+  codfam?: string;        // codigo_familia
+  desfam?: string;        // descricao_familia
+  codder?: string;        // codigo_derivacao (quando incluir_derivacoes)
+}
+export interface CentroCustoLookup { codccu: string; desccu: string; }
+export interface ProjetoLookup {
+  numprj: number | string;
+  desprj?: string;
+  obra?: string;
+  codfpj?: string;        // fase quando presente
+}
+
+buscarProdutos(params: { q?: string; codemp?: number; codori?: string; codfam?: string; incluir_derivacoes?: boolean; tamanho_pagina?: number }): Promise<ProdutoLookup[]>
+buscarCentrosCusto(params: { q?: string; codemp?: number }): Promise<CentroCustoLookup[]>
+buscarProjetos(params: { q?: string }): Promise<ProjetoLookup[]>
 ```
 
-- **Coluna esquerda**: tabs "Buscar OP" / "Informar manualmente" + campo de busca grande + lista de resultados (usa `searchOps` já existente com `sit_orp: 'A'`). Cada linha mostra Origem/Nº, produto, projeto, badge "Previsto X un" e situação colorida. Clicar = selecionar OP.
-- **Coluna central "Resumo da OP selecionada"**: card com todos os metadados vindos de `useImpressaoOrdemProducao` (origem, nº, produto final, derivação, projeto/obra, qtd prevista, qtd produzida, saldo da OP). Badge "Liberada / Aberta / Em execução". Botões "Trocar OP" e "Atualizar dados".
-- **Coluna direita "Resumo da Requisição"** (sticky): KPIs zerados até seleção de componentes (itens selecionados, quantidade total, itens com/sem saldo, acima da necessidade, tipo de atendimento, depósito destino) + botões Salvar rascunho / Cancelar / Continuar.
+- `buscarProdutos` monta query: se `q` parece numérico usa `codpro=q`, senão `despro=q`; sempre envia `somente_ativos=true` e `tamanho_pagina=50`. Faz mapeamento explícito das chaves `codigo_produto → codpro`, `unidade_medida → unimed`, etc.
+- `buscarCentrosCusto` reaproveita `/api/cadastros/centros-custo?q=…&codemp=…`, mapeando `codigo/CodCcu → codccu`, `descricao/DesCcu → desccu`.
+- `buscarProjetos` chama `/api/cadastros/projetos?q=…`. Ao receber `RequisicaoApiError` com status 404, lança `ProjetosIndisponiveisError` (nova classe pequena) para a UI mostrar mensagem tratada.
 
-### Tabela de componentes (largura total, abaixo dos 3 painéis)
-- Toolbar: `Filtros` | busca por produto | checkboxes "Somente pendentes" / "Com saldo" | "Selecionar todos".
-- Colunas: Sel · Seq · Estágio · Componente · Descrição · Deriv · Depósito · Prev · Utiliz · Requis · Transf · Disponível · **Solicitar** (input) · Obs.
-- Ponto colorido no início da linha indicando saldo (`sem saldo` vermelho, `parcial` laranja, `suficiente` verde, `já atendido` cinza).
-- Linha destacada em amarelo quando `Solicitar > Disponível` (aviso "Acima da necessidade") e em vermelho quando `Fora de saldo`.
-- Legenda de status embaixo + "Total de itens: N".
+## Componente novo `RemoteCombobox` (`src/components/requisicoes/RemoteCombobox.tsx`)
 
-### Banner de integração
-- Manter o `IntegracaoStatusChip` admin no topo, mas em versão compacta (ícone + texto curto) alinhada à direita do stepper.
-- Manter o banner informativo azul embaixo ("A integração com o ERP está desabilitada. As requisições serão salvas como pendentes de integração…") — reaproveitar componente existente.
+Genérico e tipado, baseado no padrão do `AutocompleteAsync` já existente, mas mais adequado às regras 5/6/7:
 
-## Componentes a criar/ajustar (só apresentação)
+- Props: `value`, `label`, `onSelect(item)`, `fetcher(q) => Promise<T[]>`, `renderItem(item)`, `getKey(item)`, `getLabel(item)`, `getSecondaryText?(item)`, `minChars` (default 2), `debounceMs` (default 350), `disabled`, `placeholder`, `emptyMessage`, `errorMessage`, `unavailableMessage`.
+- Estados internos: idle → typing (`Digite pelo menos 2 caracteres`), loading (`Buscando…`), empty (`Nenhum resultado encontrado`), error (`Não foi possível consultar a API`), unavailable (mensagem tratada quando o fetcher rejeitar com `EndpointIndisponivelError`).
+- Navegação por teclado (setas/Enter) via `cmdk`, botão limpar (X), highlight do termo, primeira busca só após `minChars`.
+- Nunca faz debounce zero; nunca engole erro silenciosamente (regra 10).
 
-- `src/pages/requisicoes/NovaRequisicaoOpPage.tsx` — reorganizar em grid 3 colunas + tabela full-width. Nada muda na lógica de fetch, mutações, gating de SID ou cálculos.
-- `src/components/requisicoes/OpSearchList.tsx` (novo) — lista visual de OPs (usa `searchOps` existente).
-- `src/components/requisicoes/ResumoOpCard.tsx` (novo) — extrai a apresentação do painel central. Consome os dados já retornados por `useImpressaoOrdemProducao`.
-- `src/components/requisicoes/ComponentesTable.tsx` — ajustar visual (ponto colorido, highlight de linhas, colunas conforme imagem). Mantém mesmos campos e cálculos.
-- `ResumoRequisicaoLateral.tsx` — leve reestilização para bater com a referência (labels/tipografia); sem novas métricas.
+Reutilizado nos três casos, apenas mudando `fetcher` e renderer:
 
-## O que NÃO muda
+- Produto: `CHA022 — Chapa de aço 3,00 mm` + `Família: … · Unidade: …`.
+- CC: `311020003 — Oficina / Corte`.
+- Projeto: `GS-11661 — Galpão Industrial` + `Projeto: 11661`.
 
-- Endpoints e payloads (`/api/producao/ordem-producao/opcoes`, `/impressao`, mutações de requisição).
-- Regras de gating do SID, integração, aprovações.
-- Cálculos de saldo, "Acima da necessidade", tipo de atendimento.
-- Stepper de 4 etapas (continua igual, só reposicionado no topo do card).
+## Ajustes na `NovaRequisicaoAvulsaPage.tsx`
 
-## Observações
+Cabeçalho:
+- Trocar `<Input>` do **Centro de custo** por `<RemoteCombobox<CentroCustoLookup>>` com `fetcher={(q) => requisicoesApi.buscarCentrosCusto({ q, codemp: Number(codemp) })}`. Armazenar `{ codccu, desccu }` em estado (`cc` vira `{ codigo, descricao } | null`). Ao mudar `codemp`, limpar o CC.
+- Trocar `<Input>` do **Projeto/Obra** por `<RemoteCombobox<ProjetoLookup>>`. Se o fetcher lançar `ProjetosIndisponiveisError`, mostrar `unavailableMessage`. Armazenar `{ numprj, desprj, obra, codfpj }`. Se retornar `codfpj`, pré-preencher **Fase** e deixá-la em modo readonly com botão "Alterar" só para admin.
+- **Obrigatoriedade** (regra 7/8):
+  - CC obrigatório quando `tipo` ∈ `CONSUMO`, `EMERGENCIAL` (equivalente a manutenção/consumo interno/administrativo). Opcional para `TRANSFERENCIA` e `DEVOLUCAO`.
+  - Projeto obrigatório só se `codemp` estiver marcada como "exige projeto" (config carregada de `requisicoesApi.configuracoes()` — usar campo já existente se houver; caso não haja, deixar sempre opcional). Sem chumbar.
+  - Marcar `*` no label conforme a regra ativa. Botão "Criar/Enviar" bloqueia com mensagem específica quando obrigatório e vazio.
 
-- Os dados exibidos na imagem (100/65958, projetos GS-11661, etc.) são exemplos — o layout aceita qualquer OP real vinda da API.
-- Todas as cores via tokens semânticos do design system (nada de `bg-white`/`text-black` hardcoded).
-- Trabalho puramente frontend/presentational.
+Tabela de itens (`Linha`):
+- Adicionar `codpro`, `codder`, `codfam` ao tipo `Linha`; manter `descricao` e `unidade` (agora **readonly**).
+- Coluna **Componente**: `<RemoteCombobox<ProdutoLookup>>` com `fetcher={(q) => requisicoesApi.buscarProdutos({ q, codemp: Number(codemp), incluir_derivacoes: true })}`. Ao selecionar:
+  - Preencher `codcmp = codpro`, `descricao = despro`, `unidade = unimed`, `codfam`, `codder`.
+  - Limpar `deposito_origem`, `deposito_destino`, `lote` da linha (dados dependentes — regra 6).
+- Colunas **Descrição** e **UM** viram `readonly`/exibição (sem `<Input onChange>`).
+- Bloquear submit se alguma linha tiver `codcmp` sem `codpro` selecionado (não permite produto "digitado à mão" — regra 6/11).
+
+Reordenar colunas conforme regra 9: Componente · Descrição · Derivação · UM · Qtd · Dep. origem · Dep. destino · Lote · Obs.
+
+## Layout (regra 9)
+
+- Cabeçalho da avulsa em grid `md:grid-cols-12`: Tipo (2), Prioridade (2), Empresa (2), Filial (2), Setor (4), CC (6), Projeto (4), Fase (2), Data (4), Justificativa (8), Observações (12).
+- Mobile: `grid-cols-1` (empilhado).
+- Tabela mantém layout atual; produto ocupa a coluna mais larga.
+
+## Regras que NÃO mudam
+
+- Autenticação, permissões (`useUserPermissions`), tema, tokens, `PageHeader`, `IntegracaoOfflineBanner`, `useSidWriteEnabled`, gating do botão Enviar.
+- Produto vindo da OP (E900CMO) na `NovaRequisicaoOpPage` **não é substituído** — o autocomplete só aparece na avulsa e em qualquer futura tela de material alternativo (fora do escopo agora).
+- Nenhum mock nem fallback silencioso. `VITE_USE_REQUISICOES_MOCK` continua controlando só o resto do módulo.
+
+## Critérios de aceite mapeados
+
+- Produto pesquisável por código/descrição ✔ (`buscarProdutos`).
+- Descrição/UM autopreenchidas e readonly ✔.
+- Produto inválido/manual não pode ser salvo ✔ (valida `codpro` presente).
+- CC/Projeto com busca remota, código+descrição armazenados juntos ✔.
+- CC filtrado pela empresa e limpo ao trocar `codemp` ✔.
+- Trocar produto limpa dados dependentes ✔.
+- Sem `fetch`/`axios` direto nos componentes — tudo via `requisicoesApi` ✔.
+- Debounce, loading, vazio, erro no combobox ✔.
+- Sem fallback para mock ao 404 do endpoint de projetos ✔.
+- Layout atual preservado ✔.
+- Campos vindos da OP não são alterados ✔.
+
+## Riscos e mitigações
+
+- Nomes reais das chaves do endpoint de produtos foram confirmados via `docs/backend-cadastros-produtos.md`. Se o backend retornar chaves diferentes (`CodPro`, `DesPro`…), o normalizador no serviço aceita ambos formatos (tenta `codigo_produto` e depois `CodPro`).
+- Endpoint de projetos pode não existir → tratamento explícito com `ProjetosIndisponiveisError` e mensagem "A busca de projetos ainda não foi disponibilizada pela API."; campo fica desabilitado (não vira input livre).
+
+## Arquivos a criar/alterar
+
+- **novo** `src/components/requisicoes/RemoteCombobox.tsx`
+- **alterar** `src/services/requisicoesApi.ts` — adicionar tipos e funções `buscarProdutos`, `buscarCentrosCusto`, `buscarProjetos`, classe `ProjetosIndisponiveisError`.
+- **alterar** `src/pages/requisicoes/NovaRequisicaoAvulsaPage.tsx` — substituir os três campos, reordenar cabeçalho, aplicar readonly, aplicar regras de obrigatoriedade e validação de submit.
+- Nenhum arquivo removido; sem migração no backend.

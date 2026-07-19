@@ -31,6 +31,14 @@ export class IntegracaoDesabilitadaError extends Error {
   }
 }
 
+/** Endpoint de cadastro ainda não publicado pela API. */
+export class EndpointIndisponivelError extends Error {
+  constructor(readonly recurso: string, message?: string) {
+    super(message ?? `Este cadastro ainda não está disponível no backend.`);
+    this.name = 'EndpointIndisponivelError';
+  }
+}
+
 export class ApiOfflineError extends Error {
   constructor() {
     super('Não foi possível contatar o servidor. Verifique sua conexão.');
@@ -271,4 +279,157 @@ export const requisicoesApi = {
   sidExcluir(payload: unknown, key?: string) {
     return apiWrite('POST', '/api/requisicoes/sid/excluir', payload, key ?? newIdempotencyKey());
   },
+
+  // -------- Lookups de cadastros (autocompletes) --------
+  buscarProdutos: buscarProdutos,
+  buscarCentrosCusto: buscarCentrosCusto,
+  buscarProjetos: buscarProjetos,
 };
+
+/* ============================== Lookups ============================== */
+
+export interface ProdutoLookup {
+  codpro: string;
+  despro: string;
+  unimed?: string;
+  codfam?: string;
+  desfam?: string;
+  codder?: string;
+}
+
+export interface CentroCustoLookup {
+  codccu: string;
+  desccu: string;
+}
+
+export interface ProjetoLookup {
+  numprj: number | string;
+  desprj?: string;
+  obra?: string;
+  codfpj?: string;
+}
+
+function pick(obj: any, ...keys: string[]): any {
+  for (const k of keys) {
+    const v = obj?.[k];
+    if (v !== undefined && v !== null && v !== '') return v;
+  }
+  return undefined;
+}
+
+async function buscarProdutos(params: {
+  q?: string;
+  codemp?: number;
+  codori?: string;
+  codfam?: string;
+  incluir_derivacoes?: boolean;
+  tamanho_pagina?: number;
+}): Promise<ProdutoLookup[]> {
+  const query: Record<string, unknown> = {
+    somente_ativos: true,
+    tamanho_pagina: params.tamanho_pagina ?? 50,
+    pagina: 1,
+  };
+  if (params.codemp != null) query.codemp = params.codemp;
+  if (params.codori) query.codori = params.codori;
+  if (params.codfam) query.codfam = params.codfam;
+  if (params.incluir_derivacoes) query.incluir_derivacoes = true;
+  const q = (params.q ?? '').trim();
+  if (q) {
+    // Numérico/curto sem espaços → filtra por código; senão por descrição
+    if (/^[A-Za-z0-9._-]+$/.test(q) && q.length <= 20) query.codpro = q;
+    else query.despro = q;
+  }
+  try {
+    const res = await apiGet<any>('/api/cadastros/produtos', query);
+    const list: any[] = Array.isArray(res) ? res : res?.dados ?? res?.data ?? res?.itens ?? [];
+    const out: ProdutoLookup[] = [];
+    const seen = new Set<string>();
+    for (const item of list) {
+      const codpro = pick(item, 'codigo_produto', 'CodPro', 'codpro', 'codigo');
+      if (!codpro) continue;
+      const key = String(codpro);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({
+        codpro: key,
+        despro: String(pick(item, 'descricao_produto', 'DesPro', 'despro', 'descricao') ?? ''),
+        unimed: pick(item, 'unidade_medida', 'UniMed', 'unimed', 'CodUni', 'coduni'),
+        codfam: pick(item, 'codigo_familia', 'CodFam', 'codfam'),
+        desfam: pick(item, 'descricao_familia', 'DesFam', 'desfam'),
+        codder: pick(item, 'codigo_derivacao', 'CodDer', 'codder'),
+      });
+    }
+    return out;
+  } catch (err) {
+    if (err instanceof RequisicaoApiError && err.status === 404) {
+      throw new EndpointIndisponivelError('produtos');
+    }
+    throw err;
+  }
+}
+
+async function buscarCentrosCusto(params: {
+  q?: string;
+  codemp?: number;
+}): Promise<CentroCustoLookup[]> {
+  const query: Record<string, unknown> = {};
+  const q = (params.q ?? '').trim();
+  if (q) query.q = q;
+  if (params.codemp != null) query.codemp = params.codemp;
+  try {
+    const res = await apiGet<any>('/api/cadastros/centros-custo', query);
+    const list: any[] = Array.isArray(res) ? res : res?.dados ?? res?.data ?? res?.itens ?? [];
+    const out: CentroCustoLookup[] = [];
+    const seen = new Set<string>();
+    for (const item of list) {
+      const codccu = pick(item, 'codigo', 'CodCcu', 'codccu');
+      if (!codccu) continue;
+      const key = String(codccu);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({
+        codccu: key,
+        desccu: String(pick(item, 'descricao', 'DesCcu', 'desccu') ?? ''),
+      });
+    }
+    return out;
+  } catch (err) {
+    if (err instanceof RequisicaoApiError && err.status === 404) {
+      throw new EndpointIndisponivelError('centros-custo');
+    }
+    throw err;
+  }
+}
+
+async function buscarProjetos(params: { q?: string }): Promise<ProjetoLookup[]> {
+  const query: Record<string, unknown> = {};
+  const q = (params.q ?? '').trim();
+  if (q) query.q = q;
+  try {
+    const res = await apiGet<any>('/api/cadastros/projetos', query);
+    const list: any[] = Array.isArray(res) ? res : res?.dados ?? res?.data ?? res?.itens ?? [];
+    const out: ProjetoLookup[] = [];
+    const seen = new Set<string>();
+    for (const item of list) {
+      const numprj = pick(item, 'numprj', 'NumPrj', 'numero', 'codigo');
+      if (numprj == null) continue;
+      const key = String(numprj);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({
+        numprj: numprj,
+        desprj: pick(item, 'desprj', 'DesPrj', 'descricao'),
+        obra: pick(item, 'obra', 'CodObr', 'codobr'),
+        codfpj: pick(item, 'codfpj', 'CodFpj', 'fase'),
+      });
+    }
+    return out;
+  } catch (err) {
+    if (err instanceof RequisicaoApiError && err.status === 404) {
+      throw new EndpointIndisponivelError('projetos', 'A busca de projetos ainda não foi disponibilizada pela API.');
+    }
+    throw err;
+  }
+}
+

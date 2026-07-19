@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,16 +10,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Trash2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { requisicoesApi, IntegracaoDesabilitadaError } from '@/services/requisicoesApi';
+import {
+  requisicoesApi,
+  IntegracaoDesabilitadaError,
+  type ProdutoLookup,
+  type CentroCustoLookup,
+  type ProjetoLookup,
+} from '@/services/requisicoesApi';
 import { IntegracaoOfflineBanner } from '@/components/requisicoes/IntegracaoOfflineBanner';
+import { RemoteCombobox, highlight } from '@/components/requisicoes/RemoteCombobox';
 import { useSidWriteEnabled } from '@/hooks/requisicoes';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { TipoRequisicao, PrioridadeRequisicao } from '@/types/requisicoes';
 
 interface Linha {
+  produto: ProdutoLookup | null;
   codcmp: string;
   descricao: string;
   unidade: string;
+  codder: string;
+  codfam: string;
   quantidade: number;
   deposito_origem: string;
   deposito_destino: string;
@@ -28,10 +38,14 @@ interface Linha {
 }
 
 const linhaVazia = (): Linha => ({
-  codcmp: '', descricao: '', unidade: '',
+  produto: null,
+  codcmp: '', descricao: '', unidade: '', codder: '', codfam: '',
   quantidade: 0, deposito_origem: '', deposito_destino: '',
   lote: '', observacao: '',
 });
+
+// Tipos que exigem centro de custo (consumo interno, manutenção, administrativo, emergencial).
+const CC_OBRIGATORIO: TipoRequisicao[] = ['CONSUMO', 'EMERGENCIAL'];
 
 export default function NovaRequisicaoAvulsaPage() {
   const nav = useNavigate();
@@ -40,8 +54,8 @@ export default function NovaRequisicaoAvulsaPage() {
   const [codemp, setCodemp] = useState('1');
   const [codfil, setCodfil] = useState('1');
   const [setor, setSetor] = useState('');
-  const [cc, setCc] = useState('');
-  const [projeto, setProjeto] = useState('');
+  const [cc, setCc] = useState<CentroCustoLookup | null>(null);
+  const [projeto, setProjeto] = useState<ProjetoLookup | null>(null);
   const [fase, setFase] = useState('');
   const [dataNecessaria, setDataNecessaria] = useState('');
   const [justificativa, setJustificativa] = useState('');
@@ -51,17 +65,60 @@ export default function NovaRequisicaoAvulsaPage() {
   const [pendenteIntegr, setPendenteIntegr] = useState<string | null>(null);
   const sidWrite = useSidWriteEnabled();
 
+  // Ao trocar a empresa, o CC deixa de ser válido
+  useEffect(() => { setCc(null); }, [codemp]);
 
+  // Fase pré-preenchida (readonly) quando o projeto trouxer
+  useEffect(() => {
+    if (projeto?.codfpj) setFase(projeto.codfpj);
+  }, [projeto]);
 
   const setLinha = (i: number, patch: Partial<Linha>) =>
     setLinhas((arr) => arr.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
   const addLinha = () => setLinhas((arr) => [...arr, linhaVazia()]);
   const delLinha = (i: number) => setLinhas((arr) => arr.filter((_, idx) => idx !== i));
 
+  const aplicarProduto = (i: number, p: ProdutoLookup | null) => {
+    if (!p) {
+      setLinha(i, { produto: null, codcmp: '', descricao: '', unidade: '', codder: '', codfam: '', deposito_origem: '', deposito_destino: '', lote: '' });
+      return;
+    }
+    setLinha(i, {
+      produto: p,
+      codcmp: p.codpro,
+      descricao: p.despro,
+      unidade: p.unimed ?? '',
+      codder: p.codder ?? '',
+      codfam: p.codfam ?? '',
+      // Regra 6: limpar dados dependentes ao trocar o produto
+      deposito_origem: '', deposito_destino: '', lote: '',
+    });
+  };
+
+  const ccObrigatorio = CC_OBRIGATORIO.includes(tipo);
+  const linhasValidas = useMemo(
+    () => linhas.filter((l) => l.produto && l.codcmp.trim() && l.quantidade > 0),
+    [linhas],
+  );
+  const temLinhaInvalida = linhas.some((l) => (l.codcmp || l.quantidade > 0) && !l.produto);
+
+  const disableSubmit =
+    busy ||
+    linhasValidas.length === 0 ||
+    temLinhaInvalida ||
+    (ccObrigatorio && !cc);
+
   const submit = async (enviar: boolean) => {
-    const itensValidos = linhas.filter((l) => l.codcmp.trim() && l.quantidade > 0);
-    if (itensValidos.length === 0) {
+    if (linhasValidas.length === 0) {
       toast({ title: 'Adicione ao menos um item válido', variant: 'destructive' });
+      return;
+    }
+    if (temLinhaInvalida) {
+      toast({ title: 'Selecione o produto da lista', description: 'Não é permitido digitar código manualmente.', variant: 'destructive' });
+      return;
+    }
+    if (ccObrigatorio && !cc) {
+      toast({ title: 'Centro de custo obrigatório', description: 'Este tipo de requisição exige centro de custo.', variant: 'destructive' });
       return;
     }
     setBusy(true); setPendenteIntegr(null);
@@ -73,16 +130,21 @@ export default function NovaRequisicaoAvulsaPage() {
         setor: setor || null,
         prioridade,
         data_necessaria: dataNecessaria || null,
-        centro_custo: cc || null,
-        projeto: projeto || null,
-        fase: fase || null,
+        centro_custo: cc?.codccu ?? null,
+        centro_custo_descricao: cc?.desccu ?? null,
+        projeto: projeto ? String(projeto.numprj) : null,
+        projeto_descricao: projeto?.desprj ?? null,
+        obra: projeto?.obra ?? null,
+        fase: fase || projeto?.codfpj || null,
         justificativa: justificativa || null,
         observacoes: obs || null,
-        itens: itensValidos.map((l, i) => ({
+        itens: linhasValidas.map((l, i) => ({
           seq: i + 1,
           codcmp: l.codcmp,
+          codder: l.codder || null,
           descricao: l.descricao || null,
           unidade: l.unidade || null,
+          codfam: l.codfam || null,
           quantidade: l.quantidade,
           deposito_origem: l.deposito_origem ? Number(l.deposito_origem) : null,
           deposito_destino: l.deposito_destino ? Number(l.deposito_destino) : null,
@@ -105,6 +167,8 @@ export default function NovaRequisicaoAvulsaPage() {
     } finally { setBusy(false); }
   };
 
+  const empresaNum = Number(codemp) || undefined;
+
   return (
     <div className="space-y-4">
       <PageHeader
@@ -116,8 +180,8 @@ export default function NovaRequisicaoAvulsaPage() {
       <IntegracaoOfflineBanner />
 
       <Card>
-        <CardContent className="grid gap-3 p-4 md:grid-cols-4">
-          <div>
+        <CardContent className="grid gap-3 p-4 md:grid-cols-12">
+          <div className="md:col-span-2">
             <Label>Tipo</Label>
             <Select value={tipo} onValueChange={(v) => setTipo(v as TipoRequisicao)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
@@ -129,7 +193,7 @@ export default function NovaRequisicaoAvulsaPage() {
               </SelectContent>
             </Select>
           </div>
-          <div>
+          <div className="md:col-span-2">
             <Label>Prioridade</Label>
             <Select value={prioridade} onValueChange={(v) => setPrioridade(v as PrioridadeRequisicao)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
@@ -141,39 +205,77 @@ export default function NovaRequisicaoAvulsaPage() {
               </SelectContent>
             </Select>
           </div>
-          <div>
+          <div className="md:col-span-2">
             <Label>Empresa</Label>
             <Input value={codemp} onChange={(e) => setCodemp(e.target.value)} />
           </div>
-          <div>
+          <div className="md:col-span-2">
             <Label>Filial</Label>
             <Input value={codfil} onChange={(e) => setCodfil(e.target.value)} />
           </div>
-          <div>
+          <div className="md:col-span-4">
             <Label>Setor</Label>
             <Input value={setor} onChange={(e) => setSetor(e.target.value)} />
           </div>
-          <div>
-            <Label>Centro de custo</Label>
-            <Input value={cc} onChange={(e) => setCc(e.target.value)} />
+
+          <div className="md:col-span-6">
+            <Label>
+              Centro de custo{ccObrigatorio && <span className="ml-0.5 text-destructive">*</span>}
+            </Label>
+            <RemoteCombobox<CentroCustoLookup>
+              value={cc}
+              onSelect={setCc}
+              fetcher={(q) => requisicoesApi.buscarCentrosCusto({ q, codemp: empresaNum })}
+              getKey={(i) => i.codccu}
+              getLabel={(i) => `${i.codccu} — ${i.desccu}`}
+              renderItem={(i, q) => (
+                <div className="flex flex-col">
+                  <span className="font-mono text-xs font-semibold">{highlight(i.codccu, q)}</span>
+                  <span className="truncate text-xs text-muted-foreground">{highlight(i.desccu, q)}</span>
+                </div>
+              )}
+              placeholder="Buscar centro de custo por código ou descrição"
+            />
+            {ccObrigatorio && !cc && (
+              <p className="mt-1 text-[11px] text-destructive">Obrigatório para este tipo de requisição.</p>
+            )}
           </div>
-          <div>
-            <Label>Projeto/Obra</Label>
-            <Input value={projeto} onChange={(e) => setProjeto(e.target.value)} />
+
+          <div className="md:col-span-4">
+            <Label>Projeto / obra</Label>
+            <RemoteCombobox<ProjetoLookup>
+              value={projeto}
+              onSelect={setProjeto}
+              fetcher={(q) => requisicoesApi.buscarProjetos({ q })}
+              getKey={(i) => String(i.numprj)}
+              getLabel={(i) => [i.obra, i.desprj].filter(Boolean).join(' — ') || `Projeto ${i.numprj}`}
+              renderItem={(i, q) => (
+                <div className="flex flex-col">
+                  <span className="text-xs font-semibold">
+                    {highlight([i.obra, i.desprj].filter(Boolean).join(' — ') || `Projeto ${i.numprj}`, q)}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">Projeto: {i.numprj}{i.codfpj ? ` · Fase ${i.codfpj}` : ''}</span>
+                </div>
+              )}
+              placeholder="Buscar projeto ou obra"
+              unavailableMessage="A busca de projetos ainda não foi disponibilizada pela API."
+            />
           </div>
-          <div>
-            <Label>Fase</Label>
-            <Input value={fase} onChange={(e) => setFase(e.target.value)} />
-          </div>
+
           <div className="md:col-span-2">
+            <Label>Fase</Label>
+            <Input value={fase} onChange={(e) => setFase(e.target.value)} readOnly={!!projeto?.codfpj} placeholder={projeto?.codfpj ? '' : 'Opcional'} />
+          </div>
+
+          <div className="md:col-span-4">
             <Label>Data necessária</Label>
             <Input type="datetime-local" value={dataNecessaria} onChange={(e) => setDataNecessaria(e.target.value)} />
           </div>
-          <div className="md:col-span-2">
+          <div className="md:col-span-8">
             <Label>Justificativa</Label>
             <Input value={justificativa} onChange={(e) => setJustificativa(e.target.value)} placeholder="Motivo da requisição (opcional em CONSUMO, obrigatório em EMERGENCIAL)" />
           </div>
-          <div className="md:col-span-4">
+          <div className="md:col-span-12">
             <Label>Observações</Label>
             <Textarea rows={2} value={obs} onChange={(e) => setObs(e.target.value)} />
           </div>
@@ -184,10 +286,11 @@ export default function NovaRequisicaoAvulsaPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Componente (CODCMP)</TableHead>
-              <TableHead>Descrição</TableHead>
-              <TableHead>UM</TableHead>
-              <TableHead className="text-right w-24">Qtd</TableHead>
+              <TableHead className="min-w-[280px]">Produto / componente</TableHead>
+              <TableHead className="min-w-[220px]">Descrição</TableHead>
+              <TableHead className="w-20">Deriv.</TableHead>
+              <TableHead className="w-16">UM</TableHead>
+              <TableHead className="w-24 text-right">Qtd</TableHead>
               <TableHead className="w-24">Dep. orig.</TableHead>
               <TableHead className="w-24">Dep. dest.</TableHead>
               <TableHead>Lote</TableHead>
@@ -197,11 +300,44 @@ export default function NovaRequisicaoAvulsaPage() {
           </TableHeader>
           <TableBody>
             {linhas.map((l, i) => (
-              <TableRow key={i}>
-                <TableCell><Input value={l.codcmp} onChange={(e) => setLinha(i, { codcmp: e.target.value })} className="h-8 font-mono text-xs" /></TableCell>
-                <TableCell><Input value={l.descricao} onChange={(e) => setLinha(i, { descricao: e.target.value })} className="h-8" /></TableCell>
-                <TableCell><Input value={l.unidade} onChange={(e) => setLinha(i, { unidade: e.target.value })} className="h-8 w-14" /></TableCell>
-                <TableCell><Input type="number" step="0.001" value={l.quantidade} onChange={(e) => setLinha(i, { quantidade: Number(e.target.value) || 0 })} className="h-8 text-right" /></TableCell>
+              <TableRow key={i} className={l.codcmp && !l.produto ? 'bg-destructive/5' : undefined}>
+                <TableCell>
+                  <RemoteCombobox<ProdutoLookup>
+                    value={l.produto}
+                    onSelect={(p) => aplicarProduto(i, p)}
+                    fetcher={(q) => requisicoesApi.buscarProdutos({ q, codemp: empresaNum, incluir_derivacoes: true })}
+                    getKey={(p) => p.codpro}
+                    getLabel={(p) => `${p.codpro} — ${p.despro}`}
+                    renderItem={(p, q) => (
+                      <div className="flex flex-col">
+                        <span className="text-xs font-semibold">
+                          <span className="font-mono">{highlight(p.codpro, q)}</span>
+                          {' — '}
+                          {highlight(p.despro, q)}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                          {p.codfam && <>Família: {p.codfam}{p.desfam ? ` (${p.desfam})` : ''} · </>}
+                          Unidade: {p.unimed ?? '—'}
+                          {p.codder && <> · Deriv.: {p.codder}</>}
+                        </span>
+                      </div>
+                    )}
+                    placeholder="Buscar produto por código ou descrição"
+                    popoverWidth={460}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Input value={l.descricao} readOnly placeholder="—" className="h-8 bg-muted/40" />
+                </TableCell>
+                <TableCell>
+                  <Input value={l.codder} readOnly placeholder="—" className="h-8 bg-muted/40" />
+                </TableCell>
+                <TableCell>
+                  <Input value={l.unidade} readOnly placeholder="—" className="h-8 w-14 bg-muted/40" />
+                </TableCell>
+                <TableCell>
+                  <Input type="number" step="0.001" value={l.quantidade || ''} onChange={(e) => setLinha(i, { quantidade: Number(e.target.value) || 0 })} className="h-8 text-right" />
+                </TableCell>
                 <TableCell><Input value={l.deposito_origem} onChange={(e) => setLinha(i, { deposito_origem: e.target.value })} className="h-8" /></TableCell>
                 <TableCell><Input value={l.deposito_destino} onChange={(e) => setLinha(i, { deposito_destino: e.target.value })} className="h-8" /></TableCell>
                 <TableCell><Input value={l.lote} onChange={(e) => setLinha(i, { lote: e.target.value })} className="h-8" /></TableCell>
@@ -225,7 +361,7 @@ export default function NovaRequisicaoAvulsaPage() {
         <Tooltip>
           <TooltipTrigger asChild>
             <span>
-              <Button onClick={() => submit(true)} disabled={busy || !sidWrite.enabled}>
+              <Button onClick={() => submit(true)} disabled={disableSubmit || !sidWrite.enabled}>
                 {busy ? 'Enviando…' : 'Criar e enviar'}
               </Button>
             </span>
