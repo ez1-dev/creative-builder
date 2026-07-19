@@ -13,8 +13,9 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   AlertTriangle, Search, RefreshCw, ArrowLeft, ArrowRight, Truck, PackageSearch,
-  Info as InfoIcon,
+  Info as InfoIcon, Loader2, CheckCircle2,
 } from 'lucide-react';
+
 import { useOpConsulta, useSidWriteEnabled } from '@/hooks/requisicoes';
 import { requisicoesApi, IntegracaoDesabilitadaError } from '@/services/requisicoesApi';
 import type { TipoAtendimentoOP, ComponenteOP } from '@/types/requisicoes';
