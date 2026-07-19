@@ -52,6 +52,10 @@ export default function NovaRequisicaoOpPage() {
   const [sel, setSel] = useState<Record<number, number>>({});
   const [justif, setJustif] = useState<Record<number, string>>({});
   const [obs, setObs] = useState<Record<number, string>>({});
+  // depósito de origem escolhido pelo usuário (seqcmp -> coddep)
+  const [depositosPorItem, setDepositosPorItem] = useState<Record<number, number>>({});
+  const [rascunhoDisponivel, setRascunhoDisponivel] = useState(false);
+
 
   // atendimento
   const [tipo, setTipo] = useState<TipoAtendimentoOP>('TRANSFERIR');
