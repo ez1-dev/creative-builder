@@ -430,28 +430,25 @@ async function buscarProdutos(params: {
   }
 }
 
-async function buscarCentrosCusto(params: {
-  q?: string;
-  codemp?: number;
-}): Promise<CentroCustoLookup[]> {
-  const query: Record<string, unknown> = {};
+async function buscarCentrosCusto(params: { q?: string }): Promise<CentroCustoLookup[]> {
   const q = (params.q ?? '').trim();
+  const query: Record<string, unknown> = { limit: 50 };
   if (q) query.q = q;
-  if (params.codemp != null) query.codemp = params.codemp;
   try {
-    const res = await apiGet<any>('/api/cadastros/centros-custo', query);
-    const list: any[] = Array.isArray(res) ? res : res?.dados ?? res?.data ?? res?.itens ?? [];
+    const res = await apiGet<any>('/api/requisicoes/lookup/centros-custo', query);
+    const list: any[] = Array.isArray(res?.itens) ? res.itens : Array.isArray(res) ? res : [];
     const out: CentroCustoLookup[] = [];
     const seen = new Set<string>();
     for (const item of list) {
-      const codccu = pick(item, 'codigo', 'CodCcu', 'codccu');
-      if (!codccu) continue;
-      const key = String(codccu);
+      const codigo = item?.codigo ?? item?.codccu;
+      if (codigo == null || codigo === '') continue;
+      const key = String(codigo);
       if (seen.has(key)) continue;
       seen.add(key);
       out.push({
         codccu: key,
-        desccu: String(pick(item, 'descricao', 'DesCcu', 'desccu') ?? ''),
+        desccu: String(item?.descricao ?? item?.desccu ?? ''),
+        abreviacao: item?.abreviacao ?? null,
       });
     }
     return out;
@@ -464,25 +461,25 @@ async function buscarCentrosCusto(params: {
 }
 
 async function buscarProjetos(params: { q?: string }): Promise<ProjetoLookup[]> {
-  const query: Record<string, unknown> = {};
   const q = (params.q ?? '').trim();
+  const query: Record<string, unknown> = { limit: 50 };
   if (q) query.q = q;
   try {
-    const res = await apiGet<any>('/api/cadastros/projetos', query);
-    const list: any[] = Array.isArray(res) ? res : res?.dados ?? res?.data ?? res?.itens ?? [];
+    const res = await apiGet<any>('/api/requisicoes/lookup/projetos', query);
+    const list: any[] = Array.isArray(res?.itens) ? res.itens : Array.isArray(res) ? res : [];
     const out: ProjetoLookup[] = [];
     const seen = new Set<string>();
     for (const item of list) {
-      const numprj = pick(item, 'numprj', 'NumPrj', 'numero', 'codigo');
-      if (numprj == null) continue;
-      const key = String(numprj);
+      const numero = item?.numero ?? item?.numprj;
+      if (numero == null || numero === '') continue;
+      const key = String(numero);
       if (seen.has(key)) continue;
       seen.add(key);
       out.push({
-        numprj: numprj,
-        desprj: pick(item, 'desprj', 'DesPrj', 'descricao'),
-        obra: pick(item, 'obra', 'CodObr', 'codobr'),
-        codfpj: pick(item, 'codfpj', 'CodFpj', 'fase'),
+        numprj: numero,
+        desprj: item?.nome ?? item?.desprj ?? '',
+        abreviacao: item?.abreviacao ?? null,
+        situacao_desc: item?.situacao_desc ?? null,
       });
     }
     return out;
@@ -493,4 +490,35 @@ async function buscarProjetos(params: { q?: string }): Promise<ProjetoLookup[]> 
     throw err;
   }
 }
+
+async function buscarComponentes(params: { q?: string }): Promise<ComponenteLookup[]> {
+  const q = (params.q ?? '').trim();
+  const query: Record<string, unknown> = { limit: 50 };
+  if (q) query.q = q;
+  try {
+    const res = await apiGet<any>('/api/requisicoes/lookup/componentes', query);
+    const list: any[] = Array.isArray(res?.itens) ? res.itens : Array.isArray(res) ? res : [];
+    const out: ComponenteLookup[] = [];
+    const seen = new Set<string>();
+    for (const item of list) {
+      const codigo = item?.codigo ?? item?.codpro;
+      if (codigo == null || codigo === '') continue;
+      const key = String(codigo);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({
+        codigo: key,
+        descricao: String(item?.descricao ?? item?.despro ?? ''),
+        um: String(item?.um ?? item?.unimed ?? ''),
+      });
+    }
+    return out;
+  } catch (err) {
+    if (err instanceof RequisicaoApiError && err.status === 404) {
+      throw new EndpointIndisponivelError('componentes');
+    }
+    throw err;
+  }
+}
+
 
