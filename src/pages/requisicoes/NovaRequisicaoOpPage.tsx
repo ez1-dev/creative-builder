@@ -16,10 +16,12 @@ import {
   Info as InfoIcon, Loader2, CheckCircle2,
 } from 'lucide-react';
 
+import { useQuery } from '@tanstack/react-query';
 import { useOpConsulta, useSidWriteEnabled } from '@/hooks/requisicoes';
 import { requisicoesApi, IntegracaoDesabilitadaError } from '@/services/requisicoesApi';
 import type { TipoAtendimentoOP, ComponenteOP } from '@/types/requisicoes';
 import { toast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useOpcoesImpressaoOp } from '@/hooks/useOpcoesImpressaoOp';
 import type { OpcaoOp } from '@/lib/producao/opcoesImpressao';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
