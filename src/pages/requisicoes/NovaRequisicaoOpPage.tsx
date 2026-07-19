@@ -268,24 +268,20 @@ export default function NovaRequisicaoOpPage() {
 
   // Renderers
   const renderStep1 = () => (
-    <Card className="shadow-sm">
+    <Card className="shadow-sm h-full">
       <CardContent className="p-4">
-        <Tabs defaultValue="buscar">
+        <Tabs defaultValue="buscar" className="flex h-full flex-col">
           <TabsList>
-            <TabsTrigger value="buscar">Buscar OP</TabsTrigger>
+            <TabsTrigger value="buscar"><Search className="mr-1 h-3.5 w-3.5" /> Buscar OP</TabsTrigger>
             <TabsTrigger value="manual">Informar manualmente</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="buscar" className="mt-4 space-y-2">
-            <Label>Ordem de Produção</Label>
-            <OpAutocomplete
-              value={numorp}
-              displayLabel={opLabel}
-              onSelect={handleSelectOp}
+          <TabsContent value="buscar" className="mt-3 flex-1 space-y-2">
+            <OpSearchList
               fetcher={fetchOps}
+              onSelect={handleSelectOp}
               selectedKey={codori && numorp ? `${codori}-${numorp}` : undefined}
               loading={op.isFetching}
-              placeholder="Buscar por número da OP, produto ou descrição"
             />
             {buscar && op.isFetching && (
               <div className="flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs text-primary">
@@ -306,14 +302,11 @@ export default function NovaRequisicaoOpPage() {
                 <span>OP {op.data.codori}/{op.data.numorp} carregada.</span>
               </div>
             )}
-            <p className="text-xs text-muted-foreground">
-              A seleção dispara a consulta automaticamente.
-            </p>
           </TabsContent>
 
 
-          <TabsContent value="manual" className="mt-4">
-            <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+          <TabsContent value="manual" className="mt-3">
+            <div className="grid gap-3">
               <div>
                 <div className="flex items-center gap-1">
                   <Label>Origem da OP</Label>
@@ -338,7 +331,7 @@ export default function NovaRequisicaoOpPage() {
                 </div>
                 <Input value={numorp} onChange={(e) => { setNumorp(e.target.value); setOpLabel(''); }} placeholder="Ex.: 65958" />
               </div>
-              <Button onClick={consultarManual} disabled={!codori || !numorp || op.isFetching}>
+              <Button onClick={consultarManual} disabled={!codori || !numorp || op.isFetching} className="w-full">
                 {op.isFetching ? (
                   <><RefreshCw className="mr-1 h-4 w-4 animate-spin" /> Consultando…</>
                 ) : op.isError && buscar ? (
@@ -353,6 +346,7 @@ export default function NovaRequisicaoOpPage() {
       </CardContent>
     </Card>
   );
+
 
   const renderResumoOp = () => {
     if (op.isLoading) {
