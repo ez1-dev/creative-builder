@@ -28,6 +28,8 @@ export default function AlmoxarifadoFilaPage() {
   const falta = useRegistrarFaltaItem();
   const compras = useEnviarComprasItem();
   const estornar = useEstornarItem();
+  const sidWrite = useSidWriteEnabled();
+
 
   const [dialog, setDialog] = useState<{ acao: AcaoItem; item: FilaAlmoxItem } | null>(null);
 
