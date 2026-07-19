@@ -112,7 +112,8 @@ export default function NovaRequisicaoAvulsaPage() {
         description="Consumo interno, manutenção, qualidade, administrativo ou transferência entre depósitos."
       />
 
-      {pendenteIntegr !== null && <IntegracaoOfflineBanner detail={pendenteIntegr || undefined} />}
+      {pendenteIntegr !== null && <IntegracaoOfflineBanner detail={pendenteIntegr || undefined} force />}
+      <IntegracaoOfflineBanner />
 
       <Card>
         <CardContent className="grid gap-3 p-4 md:grid-cols-4">
