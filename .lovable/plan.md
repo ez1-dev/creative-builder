@@ -1,88 +1,71 @@
-## Objetivo
+# Portal de Requisições — `/requisicoes/portal`
 
-Fechar a integração do módulo Requisição de Materiais com a FastAPI :8070, expondo o status do SID, bloqueando escritas quando o backend estiver com `SID_HABILITADO=false` e adicionando uma tela restrita de teste controlado. Nada de SOAP no navegador, nada de recriar módulo.
+Página única de consulta de OP + preparação/execução das ações SID, tratando 503 como "aguardando habilitação" (não erro do usuário). Reaproveita a API já existente em `src/services/requisicoesApi.ts` e o hook `useSidStatus` / `useSidWriteEnabled`.
 
-## O que já existe (não recriar)
+## Arquivos novos
 
-- `src/services/requisicoesApi.ts` com `IntegracaoDesabilitadaError` (503), `X-Idempotency-Key` em todo POST, e stubs `sidRequisitar` + `reprocessarIntegracao`.
-- `src/types/requisicoes.ts` com `StatusRequisicao` (`ERRO_INTEGRACAO` presente; falta `PENDENTE_INTEGRACAO`, `PROCESSANDO`, `NAO_ENVIADA`, `INTEGRADA`).
-- 9 páginas em `src/pages/requisicoes/` + `IntegracaoOfflineBanner`, `AcaoItemDialog`, `JustificativaDialog`, `StatusBadge`.
-- `src/hooks/requisicoes/index.ts` com mutations idempotentes por ação.
+- `src/pages/requisicoes/PortalRequisicoesPage.tsx` — página principal.
+- `src/components/requisicoes/portal/ConsultaOpCard.tsx` — input `codori` + `numorp` (com suporte a leitura de código de barras via `Enter` no input único no formato `codori|numorp` ou `codori-numorp`), botão "Consultar", loading/erro.
+- `src/components/requisicoes/portal/OpCabecalhoCard.tsx` — mostra produto, `sitorp` com `StatusBadge` customizado, banner de bloqueio quando `pode_requisitar=false`.
+- `src/components/requisicoes/portal/ComponentesTable.tsx` — tabela com `codcmp, codder, unimed, coddep, qtdprv, qtduti, qtdreq, qtdtrf, qtd_disponivel_requisitar` (destacada), input "Qtd a requisitar" (max=disponível, `step="any"`), botões **Reservar** e **Baixar** por linha.
+- `src/components/requisicoes/portal/SidStatusMiniCard.tsx` — card discreto com `sid_habilitado` (badge) e ícone verde/vermelho por serviço (`ger_sid`, `cha_separacao`) usando `wsdl_ok`. Reusa `useSidStatus`.
+- `src/components/requisicoes/portal/RequisitarAvulsoDialog.tsx` — formulário para `POST /sid/requisitar` (`codpro, codder, qtdeme, codtns, coddep, ccures, obseme`).
+- `src/components/requisicoes/portal/RateioDialog.tsx` — formulário para `POST /sid/rateio` (uma linha: `codccu|numprj|ctared` + `perrat|qtdrat|vlrrat`, valida "só um por grupo").
+- `src/components/requisicoes/portal/AtenderDialog.tsx` — formulário para `POST /sid/atender` (`numeme, seqeme, qtdatd, coddep, deptrf, codtns, codlot`).
+- `src/components/requisicoes/portal/ExcluirDialog.tsx` — `POST /sid/excluir` com confirmação por texto.
 
-## Mudanças
+## Arquivos editados
 
-### 1. Tipos e serviço (`src/types/requisicoes.ts`, `src/services/requisicoesApi.ts`)
+- `src/App.tsx` — registrar rota `/requisicoes/portal` (lazy) protegida por permissão.
+- `src/lib/screenCatalog.ts` — registrar `REQ_PORTAL` (`Requisições — Portal`).
+- `src/config/menuCatalog.ts` — adicionar item "Portal de Requisições" no grupo Requisições.
+- `src/hooks/requisicoes/index.ts` — adicionar hooks `useConsultaOp(codori, numorp)`, `useSidRequisitar`, `useSidRateio`, `useSidAtender`, `useSidReservarComponente`, `useSidBaixarComponentes`, `useSidExcluir`. Cada mutation captura `IntegracaoDesabilitadaError` (503) e sinaliza estado "aguardando habilitação" via toast informativo (não `toast.error`).
 
-- Adicionar `SidServicoStatus` e `SidStatusResponse` conforme spec (campos: `sid_habilitado`, `ger_sid`, `cha_separacao`, `proximo_passo`; cada serviço tem `url`, `operacao`, `wsdl_ok`, `erro?`).
-- Complementar `StatusRequisicao` com `NAO_ENVIADA`, `PENDENTE_INTEGRACAO`, `PROCESSANDO`, `INTEGRADA` (mantendo os atuais).
-- Em `requisicoesApi`: adicionar `pingSid(): Promise<SidStatusResponse>` chamando `GET /api/requisicoes/sid/ping`, e os 6 métodos restantes (`sidRateio`, `sidAtender`, `sidMovimentar`, `sidBaixarComponentes`, `sidReservarComponente`, `sidExcluir`) mapeando para os endpoints listados.
-- Manter regra: 503 → `IntegracaoDesabilitadaError` → mapear no chamador para `PENDENTE_INTEGRACAO`; falha SOAP real (4xx/5xx com detalhe) → `ERRO_INTEGRACAO`. Não misturar os dois.
+## Comportamento
 
-### 2. Hook de status (`src/hooks/requisicoes/index.ts`)
+### Consulta de OP
+- Input duplo `codori` + `numorp`, ou input único "código de barras" que aceita `codori|numorp`, `codori-numorp`, `codori numorp`.
+- `useConsultaOp` chama `requisicoesApi.consultaOp(codori, numorp)` (já existe em `apiGet /api/requisicoes/op/{codori}/{numorp}`).
+- Estados: idle / loading (skeleton) / erro (404 = "OP não encontrada") / sucesso.
 
-- `useSidStatus()`: React Query key `['requisicoes','sid','ping']`, `staleTime` 60s, `refetchInterval` 2min, `refetchOnWindowFocus` true. Expor `{ status, isLoading, isError, refetch, lastCheckedAt }`.
-- `useSidWriteEnabled()`: derivado — `sid_habilitado && ger_sid.wsdl_ok`. Usado por todos os botões de escrita.
+### Cabeçalho
+- Produto, `sitorp` com badge.
+- Se `op.pode_requisitar === false`: banner amber "OP não aceita requisição (situação {sitorp})", desabilita todos os inputs de quantidade e botões Reservar/Baixar/Atender.
 
-### 3. Banner global (`src/components/requisicoes/IntegracaoOfflineBanner.tsx`)
+### Componentes
+- Coluna "Disponível" destacada (bold, cor primária).
+- Input "Qtd a requisitar" com `max={qtd_disponivel_requisitar}` e validação client-side.
+- Botão **Reservar** → abre confirmação e chama `POST /sid/reservar-componente` com `{codori, numorp, codetg, seqcmp, qtd, codcmp, coddep, lotes: []}`.
+- Botão **Baixar** → abre confirmação e chama `POST /sid/baixar-componentes` com `{codori, numorp, codetg, seqcmp, qtd, codlot?}`.
+- Botões **Reservar/Baixar/Atender/Requisitar** ficam `disabled` quando `useSidWriteEnabled().enabled === false`, com tooltip do motivo. Banner `IntegracaoOfflineBanner` no topo se offline.
 
-- Refatorar para consumir `useSidStatus()` e exibir automaticamente quando `sid_habilitado === false` ou WSDL indisponível, com texto padrão da spec.
-- Incluir nas páginas: `NovaRequisicaoOpPage`, `NovaRequisicaoAvulsaPage`, `AlmoxarifadoFilaPage`, `RequisicaoDetalhePage` (aba Integração), e no topo de `AprovacoesPage`.
-- Consultas (OP, saldos, histórico, KPIs) permanecem funcionando.
+### Ações auxiliares
+- Botão global **Requisição avulsa** abre `RequisitarAvulsoDialog` (defaults úteis pré-preenchidos: `codtns=90250` para consumo). Aviso: valor é apenas default; ERP valida.
+- Botão **Rateio** por item da requisição já emitida (abre com `numeme/seqeme` retornados).
+- Botão **Excluir requisição** (aparece após sucesso do requisitar) → `sid/excluir`.
 
-### 4. Gating dos botões de escrita
+### Defaults de TNS
+- Constante local em `src/lib/requisicoes/tnsDefaults.ts` (novo arquivo pequeno): `TNS_DEFAULTS = { CONSUMO_AVULSO: '90250', TRANSFERENCIA: '90253', BAIXA_OP: '90251' }`. Usados apenas como sugestão inicial nos dialogs; usuário pode alterar. Nenhuma regra de negócio adicional no frontend.
 
-- Criar util `disableIfSidOff(status)` retornando `{ disabled, tooltip }`. Aplicar em:
-  - `NovaRequisicaoOpPage` / `NovaRequisicaoAvulsaPage`: "Enviar" desabilitado; permite "Salvar rascunho".
-  - `AprovacoesPage`: aprovar/rejeitar continuam (não são SID) — não bloquear.
-  - `AlmoxarifadoFilaPage` e `AcaoItemDialog`: reservar/separar/atender/transferir/baixar/registrar falta desabilitados com tooltip explicativo.
-  - `RequisicaoDetalhePage`: "Enviar", "Reprocessar integração", "Estornar" desabilitados.
-- Todos os handlers já usam `X-Idempotency-Key`; garantir que o botão bloqueia clique duplo via `isPending`.
+### Tratamento 503
+- Interceptor: `requisicoesApi` já lança `IntegracaoDesabilitadaError` em 503. Nos dialogs e handlers, `catch (e)`:
+  - `if (e instanceof IntegracaoDesabilitadaError)` → `toast.message("Aguardando habilitação SID", { description: e.message })` e mantém formulário aberto.
+  - `else` (400) → `toast.error(detail || 'Falha')`.
+- Após sucesso: `toast.success` com `numEme` retornado (e `seqEme` quando aplicável). Copia `numEme` para clipboard via botão.
 
-### 5. Seção "Integração Senior SID" em `/requisicoes/configuracoes`
+### Status da integração
+- `SidStatusMiniCard` no topo direito da página: badge `sid_habilitado` (verde/amarelo) e dois ícones para `ger_sid` / `cha_separacao` (verde se `wsdl_ok`, vermelho caso contrário). Atualiza junto com `useSidStatus` (polling 2min já configurado).
 
-- Nova seção acima das configurações atuais em `ConfiguracoesRequisicoesPage.tsx`:
-  - Cabeçalho com badge geral (Verde WSDL OK / Amarelo escrita off / Vermelho serviço fora / Azul verificando).
-  - Duas linhas: `co_ger_sid` e `cha_separacao` — mostrar operação, `wsdl_ok`, mensagem tratada em `erro` (sem stack/XML).
-  - "Última verificação" (horário local) e botão **Testar conexão** → `refetch()`.
-  - "Próximo passo" quando `proximo_passo` vier preenchido.
-- Nunca renderizar credenciais, URL com senha, XML, headers ou stack.
+## Detalhes técnicos
 
-### 6. Nova tela `/requisicoes/configuracoes/teste-sid`
-
-- Rota nova em `src/App.tsx`, protegida por `ProtectedRoute` + gate `useIsAdmin()` (redireciona não-admin).
-- Registrar em `src/lib/screenCatalog.ts` e como filho em `src/config/menuCatalog.ts` (subitem em Configurações Requisições, visível só a admin).
-- Formulário: empresa, filial, produto, derivação, quantidade, transação, depósito, observação — nada hardcoded.
-- Alerta laranja + input obrigatório digitando `CONFIRMAR TESTE SID` para habilitar "Executar".
-- Fluxo:
-  1. Botão "Ping" → chama `pingSid()` e mostra o resultado tratado.
-  2. Botão "Executar requisição" (habilitado só com `sid_habilitado` + confirmação digitada) → `sidRequisitar(...)`. Exibe `NUMEME` / `SEQEME` do retorno.
-  3. Botão "Excluir requisição de teste" → `sidExcluir({ numeme, seqeme })`.
-- Exibir retorno bruto tratado (JSON já sanitizado pelo backend), sem SOAP.
-
-### 7. Histórico e status
-
-- Ao chamar qualquer SID: registrar localmente (cache do detalhe) `{ acao, timestamp, usuario, idempotency_key, numeme?, seqeme?, movimento?, status }` para renderizar em `RequisicaoDetalhePage` → aba Integração.
-- Em `catch`: se `IntegracaoDesabilitadaError` → marcar item como `PENDENTE_INTEGRACAO` no cache local e mostrar toast neutro; se `RequisicaoApiError` → `ERRO_INTEGRACAO` com mensagem tratada. Nenhum retry automático.
-- Idempotência: chave gerada uma vez por tentativa e mantida no cache da mutation; em timeout, botão "Reprocessar" reenvia com a MESMA chave.
-
-### 8. `ReservaSeparacaoComponente`
-
-- Marcar o botão correspondente na fila como "Experimental" e desabilitado por padrão, com tooltip: "Operação E900RCP/F900RCP não utilizada neste ambiente".
+- Todas as mutations usam `X-Idempotency-Key` gerado com `crypto.randomUUID()` (padrão já existente em `sidRequisitar` etc.).
+- Sem chamadas diretas ao Supabase — toda escrita passa pelo FastAPI.
+- Nenhuma alteração em edge functions, RLS ou tabelas do backend Cloud.
+- Sem mudança nas outras páginas de Requisições.
+- Typecheck: `tsgo --noEmit` deve passar.
 
 ## Fora de escopo
 
-- Alterar backend, WSDL, envelopes SOAP.
-- Expor / controlar `SID_HABILITADO` pelo frontend.
-- Redesign visual do módulo.
-- Chamar Middleware Senior direto do navegador.
-
-## Critérios de aceite (validação final)
-
-- `/requisicoes/configuracoes` mostra status dos dois serviços com badge colorido e botão "Testar conexão".
-- Banner global aparece nas telas listadas quando `sid_habilitado=false`.
-- Botões de escrita desabilitados com tooltip quando SID off; consultas seguem OK.
-- 503 → `PENDENTE_INTEGRACAO`; erro real → `ERRO_INTEGRACAO`.
-- Retentativa reaproveita `X-Idempotency-Key`.
-- Nenhuma credencial/XML aparece na UI.
-- `/requisicoes/configuracoes/teste-sid` só para admin, exige confirmação digitada, aceita parâmetros do formulário, exibe NUMEME/SEQEME e permite excluir.
-- Sem controle de `SID_HABILITADO` no frontend.
+- Não altera fluxo de aprovações, fila de almoxarifado ou detalhamento existente.
+- Não adiciona persistência local de rascunhos do portal (pode ser fase 2).
+- Não implementa leitor de câmera (só aceita entrada de teclado / scanner USB via input).
