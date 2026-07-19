@@ -13,6 +13,7 @@ import type {
   RequisicaoFiltros,
   RequisicaoKpis,
   RequisicaoListItem,
+  SidStatusResponse,
 } from '@/types/requisicoes';
 import { requisicoesMock } from '@/mocks/requisicoes';
 
