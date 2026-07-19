@@ -176,11 +176,17 @@ export default function NovaRequisicaoOpPage() {
   // Componente vem incompleto do backend?
   const componenteInvalido = (c: ComponenteOP | undefined): string | null => {
     if (!c) return 'Componente não encontrado na OP.';
-    if (!c.codcmp) return 'codcmp ausente';
+    if (!c.codcmp && !c.componente) return 'codcmp ausente';
     if (c.codetg == null || c.codetg === ('' as any)) return 'codetg ausente';
-    if (c.deposito == null) return 'depósito de origem ausente';
     if (!c.unidade) return 'unidade de medida ausente';
     return null;
+  };
+
+  // Depósito escolhido pelo usuário (ou o que veio do backend)
+  const depositoEscolhido = (c: ComponenteOP | undefined): number | null => {
+    if (!c) return null;
+    if (depositosPorItem[c.seqcmp] != null) return depositosPorItem[c.seqcmp];
+    return c.deposito ?? null;
   };
 
   const itensInvalidos = useMemo(() => {
@@ -189,10 +195,25 @@ export default function NovaRequisicaoOpPage() {
     for (const it of itensSelecionados) {
       const c = comps.find((x) => x.seqcmp === it.seqcmp);
       const motivo = componenteInvalido(c);
-      if (motivo) out.push({ seqcmp: it.seqcmp, codcmp: c?.codcmp, motivo });
+      if (motivo) out.push({ seqcmp: it.seqcmp, codcmp: c?.componente ?? c?.codcmp, motivo });
     }
     return out;
   }, [itensSelecionados, op.data]);
+
+  // Itens selecionados que ainda não têm depósito de origem definido
+  const itensSemDeposito = useMemo(() => {
+    const comps = op.data?.componentes ?? [];
+    const out: { seqcmp: number; codigo: string }[] = [];
+    for (const it of itensSelecionados) {
+      const c = comps.find((x) => x.seqcmp === it.seqcmp);
+      if (!c) continue;
+      if (depositoEscolhido(c) == null) {
+        out.push({ seqcmp: it.seqcmp, codigo: c.componente ?? c.codcmp ?? String(c.seqcmp) });
+      }
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itensSelecionados, op.data, depositosPorItem]);
 
   // Estatísticas
   const stats = useMemo(() => {
