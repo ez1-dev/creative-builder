@@ -20,13 +20,13 @@ import { useOpConsulta, useSidWriteEnabled } from '@/hooks/requisicoes';
 import { requisicoesApi, IntegracaoDesabilitadaError } from '@/services/requisicoesApi';
 import type { TipoAtendimentoOP, ComponenteOP } from '@/types/requisicoes';
 import { toast } from '@/hooks/use-toast';
-import { OpAutocomplete } from '@/components/producao/OpAutocomplete';
 import { useOpcoesImpressaoOp } from '@/hooks/useOpcoesImpressaoOp';
 import type { OpcaoOp } from '@/lib/producao/opcoesImpressao';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { RequisicaoStepper } from '@/components/requisicoes/RequisicaoStepper';
 import { IntegracaoStatusChip } from '@/components/requisicoes/IntegracaoStatusChip';
 import { ResumoRequisicaoLateral } from '@/components/requisicoes/ResumoRequisicaoLateral';
+import { OpSearchList } from '@/components/requisicoes/OpSearchList';
 import { cn } from '@/lib/utils';
 
 type SaldoFilter = 'todos' | 'com' | 'sem';
@@ -76,10 +76,9 @@ export default function NovaRequisicaoOpPage() {
 
   const podeRequisitar = op.data?.pode_requisitar ?? false;
 
-  // Avança para etapa 2 ao carregar OP válida
-  useEffect(() => {
-    if (op.data && podeRequisitar && step === 1) setStep(2);
-  }, [op.data, podeRequisitar]); // eslint-disable-line
+  // Avança automaticamente ao carregar componentes suficientes? Mantemos o usuário no passo 1
+  // para permitir revisar o "Resumo da OP" antes de prosseguir.
+
 
   const handleSelectOp = (o: OpcaoOp | null) => {
     if (!o) {
@@ -268,24 +267,20 @@ export default function NovaRequisicaoOpPage() {
 
   // Renderers
   const renderStep1 = () => (
-    <Card className="shadow-sm">
+    <Card className="shadow-sm h-full">
       <CardContent className="p-4">
-        <Tabs defaultValue="buscar">
+        <Tabs defaultValue="buscar" className="flex h-full flex-col">
           <TabsList>
-            <TabsTrigger value="buscar">Buscar OP</TabsTrigger>
+            <TabsTrigger value="buscar"><Search className="mr-1 h-3.5 w-3.5" /> Buscar OP</TabsTrigger>
             <TabsTrigger value="manual">Informar manualmente</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="buscar" className="mt-4 space-y-2">
-            <Label>Ordem de Produção</Label>
-            <OpAutocomplete
-              value={numorp}
-              displayLabel={opLabel}
-              onSelect={handleSelectOp}
+          <TabsContent value="buscar" className="mt-3 flex-1 space-y-2">
+            <OpSearchList
               fetcher={fetchOps}
+              onSelect={handleSelectOp}
               selectedKey={codori && numorp ? `${codori}-${numorp}` : undefined}
               loading={op.isFetching}
-              placeholder="Buscar por número da OP, produto ou descrição"
             />
             {buscar && op.isFetching && (
               <div className="flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs text-primary">
@@ -306,14 +301,11 @@ export default function NovaRequisicaoOpPage() {
                 <span>OP {op.data.codori}/{op.data.numorp} carregada.</span>
               </div>
             )}
-            <p className="text-xs text-muted-foreground">
-              A seleção dispara a consulta automaticamente.
-            </p>
           </TabsContent>
 
 
-          <TabsContent value="manual" className="mt-4">
-            <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+          <TabsContent value="manual" className="mt-3">
+            <div className="grid gap-3">
               <div>
                 <div className="flex items-center gap-1">
                   <Label>Origem da OP</Label>
@@ -338,7 +330,7 @@ export default function NovaRequisicaoOpPage() {
                 </div>
                 <Input value={numorp} onChange={(e) => { setNumorp(e.target.value); setOpLabel(''); }} placeholder="Ex.: 65958" />
               </div>
-              <Button onClick={consultarManual} disabled={!codori || !numorp || op.isFetching}>
+              <Button onClick={consultarManual} disabled={!codori || !numorp || op.isFetching} className="w-full">
                 {op.isFetching ? (
                   <><RefreshCw className="mr-1 h-4 w-4 animate-spin" /> Consultando…</>
                 ) : op.isError && buscar ? (
@@ -353,6 +345,7 @@ export default function NovaRequisicaoOpPage() {
       </CardContent>
     </Card>
   );
+
 
   const renderResumoOp = () => {
     if (op.isLoading) {
@@ -731,73 +724,91 @@ export default function NovaRequisicaoOpPage() {
     );
   };
 
+  const sidebar = (
+    <aside className="md:sticky md:top-4 md:self-start">
+      <ResumoRequisicaoLateral
+        stats={stats}
+        step={step}
+        canContinue={canContinue}
+        canEnviar={sidWrite.enabled && itensSelecionados.length > 0}
+        enviando={enviando}
+        onContinue={handleContinue}
+        onBack={handleBack}
+        onCancel={() => nav('/requisicoes')}
+        onSalvarRascunho={salvarRascunho}
+        onEnviar={enviar}
+      />
+    </aside>
+  );
+
   return (
-    <div className="mx-auto max-w-[1200px] space-y-4 pb-24 md:pb-4">
+    <div className="mx-auto max-w-[1400px] space-y-4 pb-24 md:pb-4">
       <PageHeader
         title="Nova requisição — com OP"
-        description="Consulte a OP, selecione componentes e escolha o tipo de atendimento."
+        description="Consulte uma Ordem de Produção, selecione os componentes e defina como o material será atendido."
       />
 
-      <RequisicaoStepper steps={stepsDef} current={step} onGo={(id) => setStep(id as 1 | 2 | 3 | 4)} />
-
-      <IntegracaoStatusChip detail={pendenteIntegr ?? undefined} />
-
-      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="space-y-4 min-w-0">
-          {step === 1 && (
-            <>
-              {renderStep1()}
-              {(buscar || op.isLoading) && renderResumoOp()}
-            </>
-          )}
-          {step >= 2 && op.data && (
-            <>
-              {renderResumoOp()}
-              {step === 2 && renderStep2()}
-              {step === 3 && renderStep3()}
-              {step === 4 && renderStep4()}
-              {step === 2 && (
-                <div className="flex justify-between">
-                  <Button variant="ghost" onClick={handleBack}>
-                    <ArrowLeft className="mr-1 h-4 w-4" /> Voltar
-                  </Button>
-                  <Button onClick={handleContinue} disabled={!canContinue}>
-                    Continuar <ArrowRight className="ml-1 h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-              {step === 3 && (
-                <div className="flex justify-between">
-                  <Button variant="ghost" onClick={handleBack}>
-                    <ArrowLeft className="mr-1 h-4 w-4" /> Voltar
-                  </Button>
-                  <Button onClick={handleContinue} disabled={!canContinue}>
-                    Continuar <ArrowRight className="ml-1 h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-            </>
-          )}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <RequisicaoStepper steps={stepsDef} current={step} onGo={(id) => setStep(id as 1 | 2 | 3 | 4)} />
         </div>
-
-        <aside className="md:sticky md:top-4 md:self-start">
-          <ResumoRequisicaoLateral
-            stats={stats}
-            step={step}
-            canContinue={canContinue}
-            canEnviar={sidWrite.enabled && itensSelecionados.length > 0}
-            enviando={enviando}
-            onContinue={handleContinue}
-            onBack={handleBack}
-            onCancel={() => nav('/requisicoes')}
-            onSalvarRascunho={salvarRascunho}
-            onEnviar={enviar}
-          />
-        </aside>
+        <IntegracaoStatusChip detail={pendenteIntegr ?? undefined} />
       </div>
+
+      {step === 1 ? (
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_320px]">
+          <div className="min-w-0">{renderStep1()}</div>
+          <div className="min-w-0">
+            {(buscar || op.isLoading) ? renderResumoOp() : (
+              <Card className="flex h-full min-h-[320px] items-center justify-center border-dashed shadow-none">
+                <CardContent className="p-6 text-center text-sm text-muted-foreground">
+                  <PackageSearch className="mx-auto mb-2 h-8 w-8 opacity-40" />
+                  Selecione uma OP à esquerda para ver o resumo aqui.
+                </CardContent>
+              </Card>
+            )}
+          </div>
+          {sidebar}
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="space-y-4 min-w-0">
+            {op.data && (
+              <>
+                {renderResumoOp()}
+                {step === 2 && renderStep2()}
+                {step === 3 && renderStep3()}
+                {step === 4 && renderStep4()}
+                {step === 2 && (
+                  <div className="flex justify-between">
+                    <Button variant="ghost" onClick={handleBack}>
+                      <ArrowLeft className="mr-1 h-4 w-4" /> Voltar
+                    </Button>
+                    <Button onClick={handleContinue} disabled={!canContinue}>
+                      Continuar <ArrowRight className="ml-1 h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+                {step === 3 && (
+                  <div className="flex justify-between">
+                    <Button variant="ghost" onClick={handleBack}>
+                      <ArrowLeft className="mr-1 h-4 w-4" /> Voltar
+                    </Button>
+                    <Button onClick={handleContinue} disabled={!canContinue}>
+                      Continuar <ArrowRight className="ml-1 h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          {sidebar}
+        </div>
+      )}
     </div>
   );
 }
+
 
 function Field({ label, value, className }: { label: string; value: React.ReactNode; className?: string }) {
   return (
