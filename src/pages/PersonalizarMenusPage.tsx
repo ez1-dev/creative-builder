@@ -505,6 +505,18 @@ export default function PersonalizarMenusPage() {
               >
                 <Upload className="mr-2 h-4 w-4" /> Publicar para todos agora
               </Button>
+              <CopyUserToGlobalButton
+                disabled={isLayoutEmpty(userLayout)}
+                onConfirm={async () => {
+                  try {
+                    await setLayout('global', () => structuredClone(userLayout));
+                    await publishGlobal();
+                    toast.success('Padrão global atualizado com o layout do seu usuário.');
+                  } catch (e: any) {
+                    toast.error(e?.message ?? 'Falha ao copiar layout do usuário');
+                  }
+                }}
+              />
             </div>
           </TabsContent>
         )}
