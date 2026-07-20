@@ -45,8 +45,8 @@ function randomId(prefix: string) {
 export default function PersonalizarMenusPage() {
   const { isAdmin } = useUserPermissions();
   const {
-    userLayout, globalLayout, merged, effectiveMenus, editorMenus, loaded,
-    setLayout, resetLayout, refresh,
+    userLayout, globalLayout, globalMeta, merged, effectiveMenus, editorMenus, loaded,
+    setLayout, resetLayout, publishGlobal, refresh,
   } = useMenuLayout();
 
   const [scope, setScope] = useState<MenuScope>('user');
@@ -55,9 +55,22 @@ export default function PersonalizarMenusPage() {
   const mutate = async (updater: (prev: MenuLayoutV2) => MenuLayoutV2) => {
     try {
       await setLayout(scope, updater);
+      if (scope === 'global') toast.success('Padrão global salvo — vai propagar para todos.');
     } catch (e: any) {
-      toast.error(e?.message ?? 'Falha ao salvar');
+      toast.error(e?.message ?? 'Falha ao salvar padrão global');
     }
+  };
+
+  const handleScopeChange = (v: string) => {
+    const next = v as MenuScope;
+    setScope(next);
+    if (next === 'global') {
+      toast.warning('Agora você está editando o Padrão global — mudanças afetam TODOS os usuários.');
+    } else {
+      toast.info('Agora você está editando apenas o seu usuário.');
+    }
+  };
+
   };
 
   const topOptions = useMemo(
