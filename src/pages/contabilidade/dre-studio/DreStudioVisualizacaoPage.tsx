@@ -1370,14 +1370,19 @@ function Visualizacao() {
             API montar as folhas analíticas a partir do plano Senior, e depois
             em <strong>Atualizar Saldos</strong>.
           </div>
-          <Button
-            size="sm"
-            onClick={() => vincular.mutate()}
-            disabled={vincular.isPending}
-          >
-            <Link2 className="h-4 w-4 mr-1.5" />
-            {vincular.isPending ? "Vinculando..." : "Vincular contas automaticamente"}
-          </Button>
+          <div className="flex flex-col items-end gap-1">
+            <Button
+              size="sm"
+              onClick={() => vincular.mutate()}
+              disabled={vincular.isPending}
+            >
+              <Link2 className="h-4 w-4 mr-1.5" />
+              {vincular.isPending ? "Vinculando... (pode levar até 1 min)" : "Vincular contas automaticamente"}
+            </Button>
+            {vincular.isPending && (
+              <span className="text-xs text-muted-foreground">Lendo o plano Senior e criando as linhas analíticas — não feche a página.</span>
+            )}
+          </div>
         </div>
       )}
       {semContas && tipoModelo !== "BALANCO" && (
@@ -1422,14 +1427,19 @@ function Visualizacao() {
             folhas analíticas e os vínculos contábeis. Depois execute{" "}
             <strong>Atualizar Saldos</strong>.
           </div>
-          <Button
-            size="sm"
-            onClick={() => vincular.mutate()}
-            disabled={vincular.isPending}
-          >
-            <Link2 className="h-4 w-4 mr-1.5" />
-            {vincular.isPending ? "Vinculando..." : "Vincular contas automaticamente"}
-          </Button>
+          <div className="flex flex-col items-end gap-1">
+            <Button
+              size="sm"
+              onClick={() => vincular.mutate()}
+              disabled={vincular.isPending}
+            >
+              <Link2 className="h-4 w-4 mr-1.5" />
+              {vincular.isPending ? "Vinculando... (pode levar até 1 min)" : "Vincular contas automaticamente"}
+            </Button>
+            {vincular.isPending && (
+              <span className="text-xs text-muted-foreground">Lendo o plano Senior e criando as linhas analíticas — não feche a página.</span>
+            )}
+          </div>
         </div>
       )}
       {balancoSemVincular && (
@@ -1855,10 +1865,10 @@ function Visualizacao() {
                 variant="outline"
                 onClick={() => vincular.mutate()}
                 disabled={materializar.isPending || vincular.isPending || cccc106SemData}
-                title="Vincula automaticamente as contas analíticas do plano Senior a este Balanço"
+                title="Vincula automaticamente as contas analíticas do plano Senior a este Balanço (pode levar até 1 min)"
               >
                 <Link2 className="h-4 w-4 mr-1.5" />
-                {vincular.isPending ? "Vinculando..." : "Vincular contas"}
+                {vincular.isPending ? "Vinculando... (até 1 min)" : "Vincular contas"}
               </Button>
             )}
 

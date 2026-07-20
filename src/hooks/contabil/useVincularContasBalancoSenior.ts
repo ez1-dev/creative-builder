@@ -9,6 +9,9 @@ export interface VincularContasBalancoInput {
 export interface VincularContasBalancoResumo {
   linhas_criadas: number;
   contas_vinculadas: number;
+  contas_lidas_senior?: number;
+  contas_ja_existentes?: number;
+  linhas_reordenadas?: number;
 }
 
 interface ApiResponse {
@@ -16,6 +19,9 @@ interface ApiResponse {
   resumo?: Partial<VincularContasBalancoResumo>;
   linhas_criadas?: number;
   contas_vinculadas?: number;
+  contas_lidas_senior?: number;
+  contas_ja_existentes?: number;
+  linhas_reordenadas?: number;
   detail?: string;
   message?: string;
   error?: string;
@@ -74,13 +80,16 @@ export function useVincularContasBalancoSenior(modeloId: string) {
         if (!data || data.ok === false) {
           throw new Error(data?.detail ?? "Falha ao vincular contas ao Balanço.");
         }
+        const pick = (k: keyof VincularContasBalancoResumo) => {
+          const v = (data!.resumo as any)?.[k] ?? (data as any)?.[k];
+          return v == null ? undefined : Number(v);
+        };
         return {
-          linhas_criadas: Number(
-            data.resumo?.linhas_criadas ?? data.linhas_criadas ?? 0,
-          ),
-          contas_vinculadas: Number(
-            data.resumo?.contas_vinculadas ?? data.contas_vinculadas ?? 0,
-          ),
+          linhas_criadas: pick("linhas_criadas") ?? 0,
+          contas_vinculadas: pick("contas_vinculadas") ?? 0,
+          contas_lidas_senior: pick("contas_lidas_senior"),
+          contas_ja_existentes: pick("contas_ja_existentes"),
+          linhas_reordenadas: pick("linhas_reordenadas"),
         };
       } catch (e) {
         if ((e as { name?: string })?.name === "AbortError") {
@@ -99,9 +108,13 @@ export function useVincularContasBalancoSenior(modeloId: string) {
       qc.invalidateQueries({ queryKey: ["contas-vinculadas", modeloId] });
       qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === "contabil" && q.queryKey[1] === "resultado-cache" && q.queryKey.includes(modeloId) });
       qc.invalidateQueries({ queryKey: ["contabil", "resultado-pronto", modeloId] });
-      toast.success(
-        `Contas vinculadas com sucesso. Linhas criadas: ${r.linhas_criadas}. Contas vinculadas: ${r.contas_vinculadas}.`,
-      );
+      const partes: string[] = [];
+      if (r.contas_lidas_senior != null) partes.push(`Contas lidas: ${r.contas_lidas_senior}`);
+      partes.push(`Linhas criadas: ${r.linhas_criadas}`);
+      partes.push(`Contas vinculadas: ${r.contas_vinculadas}`);
+      if (r.contas_ja_existentes != null) partes.push(`Já existentes: ${r.contas_ja_existentes}`);
+      if (r.linhas_reordenadas != null) partes.push(`Reordenadas: ${r.linhas_reordenadas}`);
+      toast.success(`Contas vinculadas com sucesso. ${partes.join(" · ")}`);
     },
     onError: (e) =>
       toast.error(e.message ?? "Erro ao vincular contas ao Balanço."),

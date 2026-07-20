@@ -517,7 +517,11 @@ function VinculosTab() {
               {modelo?.tipo_modelo === "DRE" && (
                 <ActionCard
                   titulo="Vincular contas Senior (DRE)"
-                  descricao="Vincula automaticamente as contas analíticas da DRE via E045PLA."
+                  descricao={
+                    vincularDRE.isPending
+                      ? "Vinculando... pode levar até 1 minuto. Não recarregue a página."
+                      : "Vincula automaticamente as contas analíticas da DRE via E045PLA. Pode levar até 1 minuto."
+                  }
                   acao="Executar"
                   disabled={vincularDRE.isPending}
                   loading={vincularDRE.isPending}
@@ -527,7 +531,11 @@ function VinculosTab() {
               {modelo?.tipo_modelo === "BALANCO" && (
                 <ActionCard
                   titulo="Vincular contas Senior (Balanço)"
-                  descricao="Vincula automaticamente as contas analíticas do Balanço via E045PLA."
+                  descricao={
+                    vincularBal.isPending
+                      ? "Vinculando... pode levar até 1 minuto. Não recarregue a página."
+                      : "Vincula automaticamente as contas analíticas do Balanço via E045PLA. Pode levar até 1 minuto."
+                  }
                   acao="Executar"
                   disabled={vincularBal.isPending}
                   loading={vincularBal.isPending}
