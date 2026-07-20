@@ -788,6 +788,10 @@ export default function NovaRequisicaoOpPage() {
           <Legend color="border-primary bg-primary/10" label="Selecionado" />
           <Legend color="border-muted-foreground/30" label="Já atendido" />
         </div>
+        <div className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">
+          <InfoIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>O depósito é apenas uma <b>sugestão</b>. O depósito definitivo é definido pelo ERP no momento do atendimento.</span>
+        </div>
       </CardContent>
     </Card>
   );
