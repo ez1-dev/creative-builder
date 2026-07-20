@@ -126,40 +126,43 @@ export default function ResumoFolhaPage() {
   const [drillCard, setDrillCard] = useState<ResumoFolhaDrillsMenuItem | null>(null);
   const [drillCardValue, setDrillCardValue] = useState<number | null | undefined>(null);
   const [drillExtras, setDrillExtras] = useState<ResumoFolhaDrillExtras | undefined>(undefined);
+  const DRILL_ALIASES: Record<string, string> = { salario_bruto: "salario_base" };
+  const resolveDrillKey = (field: string) =>
+    drillsMap.has(field) ? field : (DRILL_ALIASES[field] && drillsMap.has(DRILL_ALIASES[field]) ? DRILL_ALIASES[field] : null);
   const openDrill = (
     field: string,
     extras?: ResumoFolhaDrillExtras,
     valueOverride?: number | null,
   ) => {
-    const item = drillsMap.get(field);
-    if (!item) {
-      const msg = `Drill "${field}" não foi devolvido pelo backend em drills_menu.`;
+    const key = resolveDrillKey(field);
+    if (!key) {
       // eslint-disable-next-line no-console
       console.warn("[RH ResumoFolha] drill ausente", {
         card: field,
         drills_menu_cards: Array.from(drillsMap.keys()),
       });
-      if (isAdmin) toast.warning(msg);
       return;
     }
+    const item = drillsMap.get(key)!;
     setDrillCard(item);
     setDrillCardValue(
       valueOverride !== undefined
         ? valueOverride
         : kpis
-          ? (kpis[field] as number | null | undefined)
+          ? (kpis[field] as number | null | undefined) ?? (kpis[key] as number | null | undefined)
           : null,
     );
     setDrillExtras(extras);
     setDrillOpen(true);
   };
   const kpiDrill = (field: string) => {
-    const drillable = drillsMap.has(field);
+    const drillable = !!resolveDrillKey(field);
     return {
       drillable,
       onClick: drillable ? () => openDrill(field) : undefined,
     };
   };
+
 
   // ============ Diagnóstico de drills faltantes (visível a admin) ============
   const EXPECTED_KPI_DRILLS = [
