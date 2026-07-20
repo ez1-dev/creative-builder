@@ -1,56 +1,47 @@
-## Escopo
+## Contexto
 
-Ajustar a tela `src/pages/requisicoes/NovaRequisicaoOpPage.tsx` (passos 2 e 4) para trabalhar com o novo payload de componentes vindo de `GET /api/requisicoes/op/{codori}/{numorp}` e permitir escolher o Depósito de origem por item. Sem tocar em regras de negócio: apenas mapeamento de campos, UI de seleção de depósito e clareza do "Salvar rascunho".
+A maior parte da spec já está implementada (mapeamento `raw.op.*`, campos limpos de componentes, `precisa_deposito`, lookups em `/api/requisicoes/lookup/*`, autocompletes de CC/Projeto/Componente com UM read-only, chip SID a partir do `/sid/ping`, rascunho local). Este plano trata só das **lacunas** contra o novo prompt.
 
-## 1. Tipos e normalização (`src/types/requisicoes.ts` + `src/services/requisicoesApi.ts`)
+## 1. Renomear "Depósito de origem" → "Depósito sugerido"
 
-Estender `ComponenteOP` com os campos limpos que o backend passou a devolver:
+Arquivo: `src/pages/requisicoes/NovaRequisicaoOpPage.tsx`.
 
-- `componente: string` (código já limpo — substitui uso de `codcmp` cru na UI)
-- `transacao: number | null`
-- `derivacao: string | null` (já existia como `codder`; expor também como `derivacao`)
-- `qtd_disponivel_requisitar: number`
-- `precisa_deposito: boolean`
-- Manter `deposito: number | null` (agora vem null de propósito).
+- Trocar o cabeçalho da coluna do Passo 2 e o label do `Select` de "Depósito de origem" para **"Depósito sugerido"**.
+- Ajustar textos de gating e toasts para: *"Escolha o depósito sugerido do componente {codigo}."*
+- Adicionar aviso discreto (helper text abaixo da coluna ou nota no rodapé da tabela e no Passo 4): *"O depósito definitivo é definido pelo ERP no momento do atendimento."*
+- Espelhar a mesma mudança no Passo 4 (revisão) — coluna passa a se chamar "Dep. sugerido" e sidebar/resumo passam a exibir o rótulo novo.
 
-Ajustar `normalizeOpConsulta` para copiar esses campos do payload sem alterar a lógica de `pode_requisitar` / `motivo_bloqueio`.
+Sem mudar o payload enviado (segue como `deposito_origem`), pois é o contrato atual do backend.
 
-## 2. Passo 2 — Selecionar componentes
+## 2. Tratamento do retorno de `POST /sid/requisitar`
 
-- Substituir referências a `c.codcmp` na exibição por `c.componente` (fallback `codcmp`). Descrição/UM/Derivação/Transação/Disponível vêm dos novos campos.
-- Coluna "Disponível" passa a usar `qtd_disponivel_requisitar`.
-- Coluna "Depósito": se `precisa_deposito === true` e `deposito` está null, renderizar um `Select`/`Combobox` populado por `GET /api/requisicoes/lookup/depositos?q=&limit=100` (novo fetcher `buscarDepositos` em `requisicoesApi.ts`, com cache via TanStack Query). Sugerir depósito `"1"` como default pré-selecionado. O valor escolhido é guardado no estado local do wizard (`depositosPorItem: Record<number /*seqcmp*/, number>`).
-- Remover `deposito ausente` da função `componenteInvalido` — item não é mais inválido por isso. Manter checagem apenas para `codetg`/`codcmp`/`unidade`.
-- Tooltip de checkbox continua bloqueando só quando o item for realmente inválido.
+Arquivo: `src/pages/requisicoes/NovaRequisicaoOpPage.tsx` (função `enviar`) e, se necessário, `src/services/requisicoesApi.ts` (não precisa mudar — o `handleResponse` já joga `RequisicaoApiError` com `detail` para 4xx).
 
-## 3. Passo 4 — Revisão e envio
+Comportamento novo:
 
-- Tabela de revisão mostra o depósito escolhido pelo usuário (`depositosPorItem[seqcmp] ?? c.deposito`).
-- Ao montar o payload em `useMemo` (linha ~186) e em `enviar()` (linha ~230), usar o depósito escolhido em `deposito_origem`.
-- Novo gate de envio: se algum item selecionado tiver `precisa_deposito` e nenhum depósito escolhido, desabilitar "Enviar requisição" com mensagem clara: `Escolha o depósito de origem do componente {componente}`. Banner acima dos botões lista os componentes pendentes.
-- Ajustar o banner atual "Dados incompletos" para não mencionar mais `depósito` na lista de campos exigidos do backend.
+- **Sucesso com `numeme` numérico**: exibir toast de sucesso `"Requisição {numeme} criada no ERP."` (usando `resultado` como fallback se `numeme` vier ausente mas `resultado` estiver preenchido) e navegar/limpar como hoje.
+- **Sucesso com `numeme: null` + `aviso_parse`**: toast neutro *"Requisição enviada — confira o número no ERP."* Não inventar número, não marcar como erro.
+- **Erro HTTP 400 (`RequisicaoApiError`)**: exibir `err.detail` (ou `err.message`) integralmente ao usuário via toast destrutivo com título "ERP recusou a requisição" e **não** limpar o formulário. Continuar tratando `IntegracaoDesabilitadaError` (503) como está.
+- Remover qualquer lógica que hoje considera resposta 200 sempre como sucesso ignorando `detail`.
 
-## 4. "Salvar rascunho"
+## 3. "Salvar rascunho" — reforçar rótulo "local"
 
-Como não existe `POST /api/requisicoes`, transformar o botão em rascunho **local**:
+Já grava em `localStorage`. Ajustes mínimos:
 
-- Renomear para "Salvar rascunho (local)" com ícone e tooltip explicando que fica no navegador.
-- Persistir `{ codori, numorp, tipo, itensSelecionados, depositosPorItem, depositoDestino }` em `localStorage` sob chave `requisicoes:rascunho:{codori}:{numorp}`.
-- Ao abrir a tela com uma OP que tem rascunho salvo, oferecer botão "Restaurar rascunho".
-- Remover qualquer texto/toast que sugira gravação no servidor.
+- Confirmar que o botão está rotulado **"Salvar rascunho (local)"** com tooltip *"Salva apenas neste navegador. O ERP não é notificado."*
+- Remover toast/label residual que ainda diga apenas "Rascunho salvo" sem indicar que é local.
 
-## 5. Integração SID
+## 4. Verificação
 
-Sem mudança de código. O chip "Desabilitada" continua vindo de `/api/requisicoes/sid/ping` e permanece até `SID_HABILITADO=S` + restart.
+- `tsgo` limpo.
+- Preview `/requisicoes/nova-op`:
+  - Coluna e mensagens de gating usam "Depósito sugerido" + disclaimer visível.
+  - Enviar OP inválida (ex.: usuário inativo) → toast mostra `detail` do backend, requisição não é dada como criada.
+  - Enviar OP válida → toast "Requisição {numeme} criada no ERP."
+- Sem tocar em regras de negócio, cálculos ou endpoints.
 
 ## Fora de escopo
 
-- Backend / novos endpoints (usar apenas `/api/requisicoes/lookup/depositos` já existente).
-- Fluxo "sem OP", Portal, e telas de aprovação.
-- Alterar cálculos de disponibilidade.
-
-## Verificação
-
-- `tsgo` limpo.
-- Preview: selecionar OP com componentes `precisa_deposito=true` → escolher depósito → botão "Enviar" habilita; deixar em branco → botão bloqueia com mensagem citando o componente.
-- Rascunho local salva/restaura pelo `localStorage` sem chamada de rede.
+- Backend/SID (já pronto).
+- Fluxo "sem OP", Portal, Aprovações, Almoxarifado.
+- Renomear campo no payload (`deposito_origem`) — mantido para não quebrar contrato.
