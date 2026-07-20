@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Star, StarOff, Search as SearchIcon, ChevronDown, LayoutDashboard,
+  Star, StarOff, Search as SearchIcon, ChevronDown,
 } from 'lucide-react';
+import { HubLogo } from '@/components/brand/HubLogo';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
 import { useUserPermissions } from '@/hooks/useUserPermissions';

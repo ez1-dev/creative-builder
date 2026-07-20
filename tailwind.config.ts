@@ -78,6 +78,16 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        brand: {
+          blue: "hsl(var(--brand-blue))",
+          cyan: "hsl(var(--brand-cyan))",
+          green: "hsl(var(--brand-green))",
+          lime: "hsl(var(--brand-lime))",
+          navy: "hsl(var(--brand-navy))",
+        },
+      },
+      fontFamily: {
+        sans: ["Poppins", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
       },
       borderRadius: {
         lg: "var(--radius)",
