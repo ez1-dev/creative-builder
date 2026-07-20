@@ -114,13 +114,15 @@ export default function NovaRequisicaoAvulsaPage() {
     linhasValidas.length === 0 ||
     (ccObrigatorio && !cc);
 
-  const submit = async () => {
-    setErroEnvio(null); setResultado(null);
+  const submit = async (apenasLinhas?: Linha[]) => {
+    setErroEnvio(null);
+    setResultado(null);
     if (!operador.ready) {
       setErroEnvio(operador.motivo ?? 'Usuário não identificado.');
       return;
     }
-    if (linhasValidas.length === 0) {
+    const alvo = apenasLinhas ?? linhasValidas;
+    if (alvo.length === 0) {
       setErroEnvio('Selecione ao menos um componente, informe quantidade e depósito sugerido.');
       primeiroErroRef.current?.focus();
       return;
@@ -130,57 +132,58 @@ export default function NovaRequisicaoAvulsaPage() {
       return;
     }
     setBusy(true);
-    const resultados: ResultadoLinha[] = [];
     try {
-      let idx = 0;
-      for (const l of linhasValidas) {
-        idx += 1;
-        const payload = {
-          codpro: l.codcmp,
-          codder: null,
-          qtdeme: l.quantidade,
-          codtns: CODTNS_CONSUMO_AVULSO,
-          coddep: l.depositoSugerido!.codigo,
-          ccures: cc?.codccu ?? undefined,
-          obseme: l.observacao || obs || justificativa || undefined,
-          // metadados de auditoria (o backend pode ignorar campos extra)
-          origem_usuario_portal: operador.portalLogin,
-          origem_usuario_erp: operador.erpUser,
-        };
-        try {
-          const res = await requisicoesApi.sidRequisitar(payload) as SidRequisitarResponse;
-          resultados.push({
-            linha: idx,
-            codigo: l.codcmp,
-            numeme: typeof res?.numeme === 'number' ? res.numeme : null,
-            seqeme: typeof res?.seqeme === 'number' ? res.seqeme : null,
-            resultado: res?.resultado ?? null,
-            aviso: res?.aviso_parse ?? null,
-          });
-        } catch (err) {
-          const detail = err instanceof RequisicaoApiError ? (err.detail ?? err.message)
-            : err instanceof IntegracaoDesabilitadaError ? (err.detail ?? err.message)
-            : err instanceof ApiOfflineError ? 'Falha de comunicação com o servidor. Não foi possível confirmar se o ERP concluiu a operação. Consulte o ERP antes de reenviar.'
-            : (err as Error)?.message ?? 'Erro desconhecido';
-          resultados.push({
-            linha: idx,
-            codigo: l.codcmp,
-            numeme: null, seqeme: null, resultado: null, aviso: null,
-            erro: detail,
-          });
-          setResultado(resultados);
-          setErroEnvio(`Falha ao enviar o item ${l.codcmp}: ${detail}`);
-          setBusy(false);
-          return;
-        }
+      const itens: SidRequisitarLoteItemInput[] = alvo.map((l) => ({
+        codpro: l.codcmp,
+        codder: null,
+        qtdeme: l.quantidade,
+        codtns: CODTNS_CONSUMO_AVULSO,
+        coddep: l.depositoSugerido!.codigo,
+        ccures: cc?.codccu ?? undefined,
+        obseme: l.observacao || obs || justificativa || undefined,
+      }));
+      const payload = {
+        itens,
+        // metadados de auditoria (o backend pode ignorar campos extra)
+        origem_usuario_portal: operador.portalLogin,
+        origem_usuario_erp: operador.erpUser,
+      };
+      const res = (await requisicoesApi.sidRequisitarLote(payload)) as SidRequisitarLoteResponse;
+      setResultado(res);
+      if (res.falhas === 0) {
+        try { localStorage.removeItem(RASCUNHO_KEY); } catch { /* noop */ }
+        toast({ title: `Requisição ${res.numeme ?? ''} criada com ${res.criados} item(ns) no ERP.` });
+      } else {
+        toast({
+          title: `Envio parcial — ${res.criados}/${res.total_solicitados} itens criados`,
+          description: 'Verifique abaixo os itens que falharam. Não reenvie os que já entraram.',
+          variant: 'destructive',
+        });
       }
-      setResultado(resultados);
-      try { localStorage.removeItem(RASCUNHO_KEY); } catch { /* noop */ }
-      toast({ title: 'Requisições enviadas ao ERP', description: `${resultados.length} item(ns) processado(s).` });
+    } catch (err) {
+      const detail =
+        err instanceof RequisicaoApiError ? err.detail ?? err.message
+        : err instanceof IntegracaoDesabilitadaError ? err.detail ?? err.message
+        : err instanceof ApiOfflineError ? 'Falha de comunicação com o servidor. Não foi possível confirmar se o ERP concluiu a operação. Consulte o ERP antes de reenviar.'
+        : (err as Error)?.message ?? 'Erro desconhecido';
+      setErroEnvio(detail);
     } finally {
       setBusy(false);
     }
   };
+
+  const reenviarFalhas = (indices: number[]) => {
+    // Os índices vêm relativos ao array `itens` enviado (0-based, na ordem de linhasValidas do envio anterior).
+    // Como o form ainda contém todas as linhas, filtramos por posição em linhasValidas.
+    const set = new Set(indices);
+    const alvo = linhasValidas.filter((_, i) => set.has(i));
+    if (alvo.length === 0) return;
+    // Substitui as linhas do form pelas que falharam para que o usuário possa corrigir e reenviar
+    setLinhas(alvo);
+    setResultado(null);
+    setErroEnvio(null);
+  };
+
 
   const limparFormulario = () => {
     setLinhas([linhaVazia()]);
