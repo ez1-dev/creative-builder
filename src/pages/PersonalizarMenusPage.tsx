@@ -21,9 +21,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import {
-  ArrowDown, ArrowUp, RotateCcw, RefreshCw, Plus, Trash2, ExternalLink, Info, ShieldAlert, Upload, User,
+  ArrowDown, ArrowUp, RotateCcw, RefreshCw, Plus, Trash2, ExternalLink, Info, ShieldAlert, Upload, User, CopyPlus,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
