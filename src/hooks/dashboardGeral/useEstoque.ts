@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData } from '@tanstack/react-query';
 import { api, type EstoqueMinMaxResponse } from '@/lib/api';
 import { statusFrom, num, safeDiv, type ModStatus } from './shared';
 import { EstoqueMinMaxResponseSchema, EMPTY_ESTOQUE } from '@/lib/dashboardGeral/schemas/estoque';
@@ -28,7 +29,7 @@ export function useEstoque(enabled: boolean) {
   const q = useQuery({
     queryKey: ['dg-est', 'minmax'],
     queryFn: () => api.get<EstoqueMinMaxResponse>('/api/estoque-min-max', { pagina: 1, tamanho_pagina: 2000 }),
-    enabled, retry: 0, staleTime: 10 * 60 * 1000,
+    enabled, retry: 0, staleTime: 10 * 60 * 1000, gcTime: 30 * 60 * 1000, placeholderData: keepPreviousData, refetchOnWindowFocus: false,
   });
 
   const data: EstoqueData = useMemo(() => {

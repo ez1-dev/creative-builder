@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
+import { keepPreviousData } from '@tanstack/react-query';
 import { api, type ContasPagarResponse, type ContasReceberResponse } from '@/lib/api';
 import { fetchDreRealizadoResumo } from '@/lib/bi/dreConfiguravelApi';
 import { MODELO_DRE_OFICIAL_ID } from '@/lib/contabilConfig';
@@ -40,7 +41,7 @@ export function useFinanceiro(periodo: Periodo, enabled: boolean) {
       {
         queryKey: ['dg-fin', 'dre', dataIni, dataFim, MODELO_DRE_OFICIAL_ID],
         queryFn: () => fetchDreRealizadoResumo({ data_ini: dataIni, data_fim: dataFim, tipo: 'MENSAL', modelo_id: MODELO_DRE_OFICIAL_ID }),
-        enabled, retry: 0, staleTime: 5 * 60 * 1000,
+        enabled, retry: 0, staleTime: 10 * 60 * 1000, gcTime: 30 * 60 * 1000, placeholderData: keepPreviousData, refetchOnWindowFocus: false,
       },
       {
         queryKey: ['dg-fin', 'cpagar', dataIni, dataFim],
@@ -49,7 +50,7 @@ export function useFinanceiro(periodo: Periodo, enabled: boolean) {
           data_vencimento_ini: dataIni, data_vencimento_fim: dataFim,
           excluir_pagos: true,
         }),
-        enabled, retry: 0, staleTime: 5 * 60 * 1000,
+        enabled, retry: 0, staleTime: 10 * 60 * 1000, gcTime: 30 * 60 * 1000, placeholderData: keepPreviousData, refetchOnWindowFocus: false,
       },
       {
         queryKey: ['dg-fin', 'creceber', dataIni, dataFim],
@@ -58,7 +59,7 @@ export function useFinanceiro(periodo: Periodo, enabled: boolean) {
           data_vencimento_ini: dataIni, data_vencimento_fim: dataFim,
           excluir_pagos: true,
         }),
-        enabled, retry: 0, staleTime: 5 * 60 * 1000,
+        enabled, retry: 0, staleTime: 10 * 60 * 1000, gcTime: 30 * 60 * 1000, placeholderData: keepPreviousData, refetchOnWindowFocus: false,
       },
     ],
   });
