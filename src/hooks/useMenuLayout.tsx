@@ -385,6 +385,7 @@ export function useMenuLayout() {
 
   const merged = useMemo(() => mergeLayouts(globalLayout, userLayout), [globalLayout, userLayout]);
   const effectiveMenus = useMemo(() => applyLayout(TOP_MENUS, merged), [merged]);
+  const editorMenus = useMemo(() => applyLayout(TOP_MENUS, merged, { keepHidden: true }), [merged]);
 
   const setLayout = useCallback(
     async (scope: MenuScope, updater: MenuLayoutV2 | ((prev: MenuLayoutV2) => MenuLayoutV2)) => {
