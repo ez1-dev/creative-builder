@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 
 /** Barra de rolagem horizontal flutuante que espelha o scroll de um container.
- *  Fica visível na base do painel enquanto a tabela estiver rolável no eixo X. */
+ *  - Em contêineres com altura contida (drawers, painéis com overflow-y), usa `sticky bottom-0`.
+ *  - Em página inteira, quando o rodapé natural do container-alvo estiver abaixo do viewport,
+ *    passa a `position: fixed` alinhada horizontalmente ao container.
+ */
 export function FloatingHScrollbar({ targetRef }: { targetRef: RefObject<HTMLDivElement> }) {
   const proxyRef = useRef<HTMLDivElement>(null);
   const [scrollWidth, setScrollWidth] = useState(0);
   const [clientWidth, setClientWidth] = useState(0);
+  const [fixedRect, setFixedRect] = useState<{ left: number; width: number } | null>(null);
   const syncingRef = useRef<"none" | "target" | "proxy">("none");
 
   const resolveScrollable = () => {
@@ -56,11 +60,23 @@ export function FloatingHScrollbar({ targetRef }: { targetRef: RefObject<HTMLDiv
         if (!nextScrollEl) {
           setScrollWidth(0);
           setClientWidth(0);
+          setFixedRect(null);
           return;
         }
 
         setScrollWidth(nextScrollEl.scrollWidth);
         setClientWidth(nextScrollEl.clientWidth);
+
+        // Decide fixed vs sticky/inline.
+        const rect = nextScrollEl.getBoundingClientRect();
+        const vh = window.innerHeight || document.documentElement.clientHeight;
+        const bottomOffscreen = rect.bottom > vh + 2;
+        const topVisible = rect.top < vh - 40;
+        if (bottomOffscreen && topVisible) {
+          setFixedRect({ left: rect.left, width: rect.width });
+        } else {
+          setFixedRect(null);
+        }
 
         const p = proxyRef.current;
         if (p && p.scrollLeft !== nextScrollEl.scrollLeft) {
@@ -72,18 +88,17 @@ export function FloatingHScrollbar({ targetRef }: { targetRef: RefObject<HTMLDiv
 
     const ro = new ResizeObserver(update);
     ro.observe(root);
-    // Observa também os filhos: quando a tabela renderiza, scrollWidth muda sem o container mudar.
     Array.from(root.children).forEach((c) => ro.observe(c as Element));
 
     const mo = new MutationObserver(update);
     mo.observe(root, { childList: true, subtree: true, characterData: true, attributes: true });
 
-    // Re-mede quando o alvo se torna visível (drawer abrindo, tab trocando etc.).
     const io = new IntersectionObserver(update);
     io.observe(root);
 
     root.addEventListener("scroll", onTargetScroll, { passive: true, capture: true });
     window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, { passive: true, capture: true });
 
     return () => {
       cancelAnimationFrame(raf);
@@ -95,6 +110,7 @@ export function FloatingHScrollbar({ targetRef }: { targetRef: RefObject<HTMLDiv
         scrollEl.removeEventListener("scroll", onTargetScroll);
       }
       window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, { capture: true } as any);
     };
   }, [targetRef]);
 
@@ -110,11 +126,20 @@ export function FloatingHScrollbar({ targetRef }: { targetRef: RefObject<HTMLDiv
   const precisa = scrollWidth > clientWidth + 1;
   if (!precisa) return null;
 
+  const isFixed = fixedRect != null;
+  const style: React.CSSProperties = isFixed
+    ? { position: "fixed", bottom: 0, left: fixedRect!.left, width: fixedRect!.width, zIndex: 40 }
+    : {};
+
   return (
     <div
       ref={proxyRef}
       onScroll={onProxyScroll}
-      className="sticky bottom-0 z-30 h-5 w-full overflow-x-auto border-y border-primary/40 bg-background shadow-[0_-3px_10px_-4px_hsl(var(--foreground)/0.45)]"
+      style={style}
+      className={
+        (isFixed ? "" : "sticky bottom-0 ") +
+        "z-30 h-5 w-full overflow-x-auto border-y border-primary/40 bg-background shadow-[0_-3px_10px_-4px_hsl(var(--foreground)/0.45)]"
+      }
       aria-label="Barra de rolagem horizontal"
     >
       <div style={{ width: scrollWidth, height: 2 }} />
