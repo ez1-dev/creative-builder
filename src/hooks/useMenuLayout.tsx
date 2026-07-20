@@ -133,9 +133,14 @@ export function orderKey(topId: string, subGroupId?: string) {
   return subGroupId ? `${topId}:${subGroupId}` : topId;
 }
 
-export function applyLayout(baseMenus: TopMenu[], layout: MenuLayoutV2): TopMenu[] {
-  const hidden = new Set(layout.hidden);
-  const hiddenGroups = new Set(layout.hiddenGroups);
+export function applyLayout(
+  baseMenus: TopMenu[],
+  layout: MenuLayoutV2,
+  opts: { keepHidden?: boolean } = {},
+): TopMenu[] {
+  const keepHidden = !!opts.keepHidden;
+  const hidden = new Set(keepHidden ? [] : layout.hidden);
+  const hiddenGroups = new Set(keepHidden ? [] : layout.hiddenGroups);
 
   // 1) Merge custom tops (as flat) into the base list
   const customTopsAsMenus: TopMenu[] = layout.customTops.map((ct) => ({
@@ -380,6 +385,7 @@ export function useMenuLayout() {
 
   const merged = useMemo(() => mergeLayouts(globalLayout, userLayout), [globalLayout, userLayout]);
   const effectiveMenus = useMemo(() => applyLayout(TOP_MENUS, merged), [merged]);
+  const editorMenus = useMemo(() => applyLayout(TOP_MENUS, merged, { keepHidden: true }), [merged]);
 
   const setLayout = useCallback(
     async (scope: MenuScope, updater: MenuLayoutV2 | ((prev: MenuLayoutV2) => MenuLayoutV2)) => {
@@ -406,7 +412,7 @@ export function useMenuLayout() {
   const refresh = useCallback(() => setTick((t) => t + 1), []);
 
   return {
-    userLayout, globalLayout, merged, effectiveMenus, loaded,
+    userLayout, globalLayout, merged, effectiveMenus, editorMenus, loaded,
     setLayout, resetLayout, refresh,
     isHidden: (url: string) => merged.hidden.includes(url),
   };

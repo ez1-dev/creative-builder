@@ -45,7 +45,7 @@ function randomId(prefix: string) {
 export default function PersonalizarMenusPage() {
   const { isAdmin } = useUserPermissions();
   const {
-    userLayout, globalLayout, merged, effectiveMenus, loaded,
+    userLayout, globalLayout, merged, effectiveMenus, editorMenus, loaded,
     setLayout, resetLayout, refresh,
   } = useMenuLayout();
 
@@ -217,7 +217,7 @@ export default function PersonalizarMenusPage() {
     const currentSubValue = currentMove?.subGroupId ?? (currentTargetTopId === originTopId ? undefined : NONE_SUB);
 
     return (
-      <div key={customId ?? leaf.url} className="flex items-center gap-2 border-b py-2 last:border-b-0 flex-wrap">
+      <div key={customId ?? leaf.url} className={`flex items-center gap-2 border-b py-2 last:border-b-0 flex-wrap ${hidden ? 'opacity-50' : ''}`}>
         <div className="flex flex-col">
           <button className="rounded p-1 hover:bg-accent disabled:opacity-30" disabled={idx === 0}
             onClick={() => reorderInBucket(bucketKey, bucketUrls, leaf.url, -1)} aria-label="Mover para cima">
@@ -243,6 +243,7 @@ export default function PersonalizarMenusPage() {
             />
             {isExternal && <Badge variant="secondary" className="gap-1"><ExternalLink className="h-3 w-3" />externo</Badge>}
             {customId && <Badge variant="outline">criado</Badge>}
+            {hidden && <Badge variant="outline" className="border-amber-500/50 text-amber-600">Oculto</Badge>}
           </div>
           <div className="text-[11px] text-muted-foreground truncate">{leaf.url}</div>
         </div>
@@ -296,7 +297,7 @@ export default function PersonalizarMenusPage() {
       : top.kind === 'flat' ? top.items.length : 1;
 
     return (
-      <Card key={top.id}>
+      <Card key={top.id} className={topHidden ? 'opacity-60 border-dashed' : ''}>
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2 flex-1 min-w-[260px]">
@@ -311,6 +312,7 @@ export default function PersonalizarMenusPage() {
                 onChange={(e) => setRename(topNodeKey, e.target.value, top.label)}
                 className="h-9 max-w-[300px] font-semibold"
               />
+              {topHidden && <Badge variant="outline" className="border-amber-500/50 text-amber-600">Oculto</Badge>}
               <span className="text-xs text-muted-foreground">
                 {totalCount} {totalCount === 1 ? 'página' : 'páginas'}
               </span>
@@ -352,7 +354,7 @@ export default function PersonalizarMenusPage() {
                 const subHidden = activeLayout.hiddenGroups.includes(subNodeKey);
                 const isCustomSub = merged.customSubGroups.some((c) => c.id === sg.id);
                 return (
-                  <div key={sg.id}>
+                  <div key={sg.id} className={subHidden ? 'opacity-60' : ''}>
                     <div className="flex items-center gap-2 mb-1">
                       <IconPicker value={subIconOverride ?? iconToName(sg.icon)}
                         onChange={(name) => setIconOverride(subNodeKey, name)}
@@ -361,6 +363,7 @@ export default function PersonalizarMenusPage() {
                         onChange={(e) => setRename(subNodeKey, e.target.value, sg.label)}
                         className="h-8 max-w-[260px] text-xs font-semibold uppercase" />
                       <span className="text-xs text-muted-foreground">({sg.items.length})</span>
+                      {subHidden && <Badge variant="outline" className="border-amber-500/50 text-amber-600">Oculto</Badge>}
                       <div className="flex-1" />
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         Visível
@@ -449,7 +452,7 @@ export default function PersonalizarMenusPage() {
       </Tabs>
 
       {!loaded && <p className="text-sm text-muted-foreground">Carregando…</p>}
-      {loaded && effectiveMenus.map(renderTop)}
+      {loaded && editorMenus.map(renderTop)}
     </div>
   );
 }
