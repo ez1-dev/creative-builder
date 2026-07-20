@@ -41,6 +41,15 @@ export default function NovaRequisicaoOpPage() {
 
   // step
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const qc = useQueryClient();
+
+  // Revalida o status da integração SID ao entrar no passo "Revisar & enviar",
+  // para não deixar uma aba antiga presa em um estado velho.
+  useEffect(() => {
+    if (step === 4) {
+      qc.invalidateQueries({ queryKey: SID_PING_QUERY_KEY });
+    }
+  }, [step, qc]);
 
   // busca
   const [codori, setCodori] = useState('');
