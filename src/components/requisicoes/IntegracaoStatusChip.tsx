@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { AlertTriangle, Info } from 'lucide-react';
+import { AlertTriangle, Info, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { useSidStatus } from '@/hooks/requisicoes';
+import { useSidStatus, useSidWriteEnabled } from '@/hooks/requisicoes';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 
 interface Props {
@@ -12,33 +12,40 @@ interface Props {
 
 /**
  * Faixa compacta de status da integração SID.
- * Detalhes técnicos (endpoints, wsdl_ok, próximo passo) só aparecem para administradores.
+ * Diferencia "backend inalcançável" (rede/URL) de "SID desabilitado" (backend online).
+ * Detalhes técnicos só aparecem para administradores.
  */
 export function IntegracaoStatusChip({ detail }: Props) {
   const { data, isLoading } = useSidStatus();
+  const sw = useSidWriteEnabled();
   const { isAdmin } = useUserPermissions();
   const [openTech, setOpenTech] = useState(false);
 
-  if (isLoading || !data) return null;
-  const habilitado = data.sid_habilitado ?? true;
-  const wsdlOk = data.ger_sid?.wsdl_ok ?? true;
-  const chaOk = data.cha_separacao?.wsdl_ok ?? true;
-  const offline = !habilitado || !wsdlOk || !chaOk || Boolean(detail);
+  if (isLoading) return null;
+  const inalcancavel = sw.kind === 'inalcancavel';
+  const habilitado = data?.sid_habilitado ?? true;
+  const wsdlOk = data?.ger_sid?.wsdl_ok ?? true;
+  const chaOk = data?.cha_separacao?.wsdl_ok ?? true;
+  const offline = inalcancavel || !habilitado || !wsdlOk || !chaOk || Boolean(detail);
   if (!offline) return null;
+
+  const Icon = inalcancavel ? WifiOff : AlertTriangle;
+  const texto = inalcancavel
+    ? 'Backend do ERP inalcançável. Verifique a URL da API ou o túnel/serviço. Rascunhos ficam salvos localmente.'
+    : 'Integração com o Senior temporariamente desabilitada. Consultas continuam disponíveis e a requisição pode ser salva como rascunho.';
 
   return (
     <>
       <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-200">
-        <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-        <span className="flex-1 min-w-0">
-          Integração com o Senior temporariamente desabilitada. Consultas continuam disponíveis e a requisição pode ser salva como rascunho.
-        </span>
+        <Icon className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+        <span className="flex-1 min-w-0">{texto}</span>
         {isAdmin && (
           <Button variant="outline" size="sm" onClick={() => setOpenTech(true)} className="h-7">
             <Info className="mr-1 h-3.5 w-3.5" /> Ver detalhes técnicos
           </Button>
         )}
       </div>
+
 
       {isAdmin && (
         <Dialog open={openTech} onOpenChange={setOpenTech}>

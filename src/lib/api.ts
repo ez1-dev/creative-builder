@@ -4,6 +4,7 @@ let _apiBaseUrl: string | null = null;
 
 const stripTrailingSlash = (u: string) => u.replace(/\/$/, "");
 
+let _warnedFallback = false;
 const getApiBaseUrl = () => {
   if (_apiBaseUrl) return stripTrailingSlash(_apiBaseUrl);
   const envBase =
@@ -11,7 +12,18 @@ const getApiBaseUrl = () => {
     (import.meta as any).env?.VITE_API_URL ||
     (import.meta as any).env?.VITE_ERP_API_URL;
   if (envBase) return stripTrailingSlash(envBase);
-  if (typeof window !== "undefined" && window.location?.origin) return window.location.origin;
+  if (typeof window !== "undefined" && window.location?.origin) {
+    if (!_warnedFallback && (import.meta as any).env?.DEV) {
+      _warnedFallback = true;
+      // eslint-disable-next-line no-console
+      console.warn(
+        "[api] VITE_API_BASE_URL não definido — usando window.location.origin como fallback (" +
+          window.location.origin +
+          "). Chamadas /api/* provavelmente retornarão 404. Defina VITE_API_BASE_URL apontando para o FastAPI."
+      );
+    }
+    return window.location.origin;
+  }
   return "http://localhost:8000";
 };
 

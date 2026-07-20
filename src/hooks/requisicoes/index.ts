@@ -84,14 +84,26 @@ export function useSidStatus() {
 }
 
 /** true quando escrita SID está liberada (habilitada + WSDL do co_ger_sid acessível). */
-export function useSidWriteEnabled(): { enabled: boolean; loading: boolean; reason?: string } {
+export type SidWriteKind = 'ok' | 'loading' | 'desabilitado' | 'inalcancavel' | 'desconhecido';
+export function useSidWriteEnabled(): { enabled: boolean; loading: boolean; reason?: string; kind: SidWriteKind } {
   const q = useSidStatus();
-  if (q.isLoading) return { enabled: false, loading: true };
+  if (q.isLoading) return { enabled: false, loading: true, kind: 'loading' };
+  if (q.error) {
+    if (q.error instanceof IntegracaoDesabilitadaError) {
+      return { enabled: false, loading: false, kind: 'desabilitado', reason: q.error.detail ?? 'Integração de escrita SID desabilitada no backend.' };
+    }
+    return {
+      enabled: false,
+      loading: false,
+      kind: 'inalcancavel',
+      reason: 'Backend do ERP inalcançável — verifique se VITE_API_BASE_URL aponta para a FastAPI e se o serviço está online.',
+    };
+  }
   const s = q.data;
-  if (!s) return { enabled: false, loading: false, reason: 'Não foi possível verificar a integração SID.' };
-  if (!s.sid_habilitado) return { enabled: false, loading: false, reason: 'Integração de escrita SID desabilitada no backend.' };
-  if (!s.ger_sid?.wsdl_ok) return { enabled: false, loading: false, reason: 'Serviço co_ger_sid indisponível.' };
-  return { enabled: true, loading: false };
+  if (!s) return { enabled: false, loading: false, kind: 'desconhecido', reason: 'Não foi possível verificar a integração SID.' };
+  if (!s.sid_habilitado) return { enabled: false, loading: false, kind: 'desabilitado', reason: 'Integração de escrita SID desabilitada no backend.' };
+  if (!s.ger_sid?.wsdl_ok) return { enabled: false, loading: false, kind: 'desabilitado', reason: 'Serviço co_ger_sid indisponível.' };
+  return { enabled: true, loading: false, kind: 'ok' };
 }
 
 /* ============================== Mutations ============================== */
