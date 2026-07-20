@@ -1509,19 +1509,34 @@ function Visualizacao() {
 
         return (
           <div className="mb-4 rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4 shadow-sm">
-            <div className="mb-3 flex items-center gap-2">
+            <div className="mb-3 flex items-start gap-2">
               <div className="rounded-full bg-blue-600 p-1.5 text-white">
                 <PlayCircle className="h-4 w-4" />
               </div>
-              <div>
+              <div className="flex-1">
                 <div className="text-sm font-semibold text-slate-900">
                   Como gerar o resultado — passo a passo
                 </div>
                 <div className="text-xs text-slate-600">
-                  Siga a ordem abaixo. O passo destacado é o próximo a executar.
+                  {autoRunning
+                    ? `Executando automaticamente · ${autoStep === "vincular" ? "Vinculando contas..." : autoStep === "cache" ? "Atualizando cache Senior..." : "Gerando resultado..."}`
+                    : "Rode o processo completo com um clique ou execute cada passo abaixo."}
                 </div>
               </div>
+              <Button
+                size="sm"
+                onClick={() => executarTudoAutomatico()}
+                disabled={autoRunning}
+                className="shrink-0"
+              >
+                {autoRunning ? (
+                  <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Executando...</>
+                ) : (
+                  <><PlayCircle className="h-3.5 w-3.5 mr-1.5" /> Executar tudo automaticamente</>
+                )}
+              </Button>
             </div>
+
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
               {passos.map((p, idx) => {
                 const done = feito(p.num);
