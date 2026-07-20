@@ -93,16 +93,14 @@ export function useDashboardGeral(periodo: Periodo = 'ytd', codemp: number = 1) 
         queryFn: () => api.get<any>('/api/faturamento-genius-dashboard', {
           anomes_ini: range.ini, anomes_fim: range.fim, codemp,
         }),
-        retry: 0,
-        staleTime: 5 * 60 * 1000,
+        ...DEFAULTS,
       },
       {
         queryKey: ['dg', 'fat-ant', rangeAnterior.ini, codemp],
         queryFn: () => api.get<any>('/api/faturamento-genius-dashboard', {
           anomes_ini: rangeAnterior.ini, anomes_fim: rangeAnterior.fim, codemp,
         }),
-        retry: 0,
-        staleTime: 5 * 60 * 1000,
+        ...DEFAULTS,
       },
       {
         queryKey: ['dg', 'compras', range.ini, range.fim],
@@ -117,32 +115,27 @@ export function useDashboardGeral(periodo: Periodo = 'ytd', codemp: number = 1) 
             data_fim: `${yFim}-${String(mFim).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`,
           });
         },
-        retry: 0,
-        staleTime: 5 * 60 * 1000,
+        ...DEFAULTS,
       },
       {
         queryKey: ['dg', 'folha', range.ini, range.fim, codemp],
         queryFn: () => fetchResumoFolhaDashboard({ anomes_ini: range.ini, anomes_fim: range.fim, codemp }),
-        retry: 0,
-        staleTime: 5 * 60 * 1000,
+        ...DEFAULTS,
       },
       {
         queryKey: ['dg', 'turnover', range.ini, range.fim, codemp],
         queryFn: () => fetchTurnoverDashboard({ anomes_ini: range.ini, anomes_fim: range.fim, codemp }),
-        retry: 0,
-        staleTime: 5 * 60 * 1000,
+        ...DEFAULTS,
       },
       {
         queryKey: ['dg', 'abs', range.ini, range.fim, codemp],
         queryFn: () => fetchAbsenteismoDashboard({ anomes_ini: range.ini, anomes_fim: range.fim, codemp }),
-        retry: 0,
-        staleTime: 5 * 60 * 1000,
+        ...DEFAULTS,
       },
       {
         queryKey: ['dg', 'quadro'],
         queryFn: () => fetchQuadroColaboradores(),
-        retry: 0,
-        staleTime: 10 * 60 * 1000,
+        ...DEFAULTS,
       },
     ],
   });
