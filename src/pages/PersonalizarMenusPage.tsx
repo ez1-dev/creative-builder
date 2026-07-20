@@ -413,6 +413,12 @@ export default function PersonalizarMenusPage() {
         </div>
         <div className="flex items-center gap-2">
           <NovoTopoDialog onCreate={addCustomTop} />
+          <Button variant="outline" onClick={() => {
+            refresh();
+            toast.success('Menus sincronizados com o servidor.');
+          }}>
+            <RefreshCw className="mr-2 h-4 w-4" /> Sincronizar agora
+          </Button>
           <Button variant="outline" onClick={async () => {
             await resetLayout(scope);
             toast.success(`Layout ${scope === 'user' ? 'pessoal' : 'global'} restaurado.`);
@@ -420,6 +426,7 @@ export default function PersonalizarMenusPage() {
             <RotateCcw className="mr-2 h-4 w-4" /> Restaurar padrão
           </Button>
         </div>
+
       </div>
 
       <Tabs value={scope} onValueChange={(v) => setScope(v as MenuScope)}>
