@@ -46,8 +46,9 @@ export default function PersonalizarMenusPage() {
   const { isAdmin } = useUserPermissions();
   const {
     userLayout, globalLayout, merged, effectiveMenus, loaded,
-    setLayout, resetLayout,
+    setLayout, resetLayout, refresh,
   } = useMenuLayout();
+
   const [scope, setScope] = useState<MenuScope>('user');
   const activeLayout = scope === 'user' ? userLayout : globalLayout;
 
