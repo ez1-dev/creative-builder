@@ -1370,14 +1370,19 @@ function Visualizacao() {
             API montar as folhas analíticas a partir do plano Senior, e depois
             em <strong>Atualizar Saldos</strong>.
           </div>
-          <Button
-            size="sm"
-            onClick={() => vincular.mutate()}
-            disabled={vincular.isPending}
-          >
-            <Link2 className="h-4 w-4 mr-1.5" />
-            {vincular.isPending ? "Vinculando..." : "Vincular contas automaticamente"}
-          </Button>
+          <div className="flex flex-col items-end gap-1">
+            <Button
+              size="sm"
+              onClick={() => vincular.mutate()}
+              disabled={vincular.isPending}
+            >
+              <Link2 className="h-4 w-4 mr-1.5" />
+              {vincular.isPending ? "Vinculando... (pode levar até 1 min)" : "Vincular contas automaticamente"}
+            </Button>
+            {vincular.isPending && (
+              <span className="text-xs text-muted-foreground">Lendo o plano Senior e criando as linhas analíticas — não feche a página.</span>
+            )}
+          </div>
         </div>
       )}
       {semContas && tipoModelo !== "BALANCO" && (
