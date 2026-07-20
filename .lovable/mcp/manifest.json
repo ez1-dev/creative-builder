@@ -13,7 +13,7 @@
     "server": {
       "name": "sapiens-erp-mcp",
       "version": "0.1.0",
-      "title": "Sapiens ERP"
+      "title": "HUB de Gestão"
     },
     "tools": [
       {

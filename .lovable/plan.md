@@ -1,29 +1,13 @@
-## Renomear produto para "HUB de Gestão"
+## Trocar marca restante para "HUB de Gestão"
 
-Trocar todas as ocorrências visíveis de marca ("Sapiens Control Center" / "EZ ERP IA" / "Sapiens") por **HUB de Gestão** nos pontos que o usuário enxerga.
+Ainda restaram ocorrências visíveis da marca antiga. Vou substituir:
 
-### Alterações
+1. **`src/components/AppSidebar.tsx`** (linha 28) — fallback do `useBrand('ERP Sapiens')` → `useBrand('HUB de Gestão')`. É o texto do cabeçalho da sidebar mostrado no print.
+2. **`src/pages/LoginPage.tsx`** (linha 79) — `<CardTitle>ERP Sapiens</CardTitle>` → `HUB de Gestão`.
+3. **`src/lib/mcp/index.ts`** — `title: "Sapiens ERP"` → `"HUB de Gestão"` e descrição trocando "Sapiens Control Center ERP" por "HUB de Gestão".
 
-1. **`index.html`**
-   - `<title>` → `HUB de Gestão`
-   - `<meta name="description">` → descrição curta do HUB
-   - `og:title` / `twitter:title` → `HUB de Gestão`
-   - `og:description` / `twitter:description` alinhadas
+Não vou mexer em:
+- `public/docs/sapiens-control-center.pdf` (binário legado de documentação; renomear/regerar exige outro pedido).
+- Identificador interno `sapiens-erp-mcp` no `defineMcp({ name })` (chave técnica do servidor MCP, não é texto visível).
 
-2. **`public/manifest.json`** (PWA)
-   - `name`: `HUB de Gestão`
-   - `short_name`: `HUB Gestão`
-   - `description`: atualizada
-
-3. **`src/components/AppLayout.tsx`**
-   - `useBrand('EZ ERP IA')` → `useBrand('HUB de Gestão')` (usado no rodapé)
-
-4. **Varredura de strings visíveis**
-   - Buscar `Sapiens Control Center`, `Sapiens`, `EZ ERP IA`, `ez-erp-ia`, `Sapiens ERP` em `src/` e substituir apenas em textos exibidos ao usuário (títulos de páginas, telas de login, loading, PWA prompts, e-mails/toasts se houver).
-   - **Não** alterar: identificadores internos como `sapiens-erp-mcp` (nome técnico do servidor MCP), nomes de tabelas, chaves de banco, URLs de deploy (`ez-erp-ia.lovable.app`), variáveis de ambiente.
-
-5. **Ícones/logos**: manter os atuais (usuário não pediu troca de identidade visual).
-
-### Fora do escopo
-- Mudança de URL de publicação, logo, paleta de cores ou reestruturação de navegação.
-- Renomear o servidor MCP interno ou tabelas do banco.
+Depois rodo `rg` final para confirmar que nenhuma string visível da marca antiga sobrou.

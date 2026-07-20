@@ -76,7 +76,7 @@ export default function LoginPage() {
           <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-primary">
             <Lock className="h-7 w-7 text-primary-foreground" />
           </div>
-          <CardTitle className="text-xl">ERP Sapiens</CardTitle>
+          <CardTitle className="text-xl">HUB de Gestão</CardTitle>
           <p className="text-sm text-muted-foreground">
             Acesso restrito a contas corporativas Microsoft
           </p>

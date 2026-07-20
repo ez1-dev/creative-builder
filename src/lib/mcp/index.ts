@@ -9,10 +9,10 @@ const projectRef =
 
 export default defineMcp({
   name: "sapiens-erp-mcp",
-  title: "Sapiens ERP",
+  title: "HUB de Gestão",
   version: "0.1.0",
   instructions:
-    "Tools for the Sapiens Control Center ERP. Use `echo` to verify connectivity, and `list_passagens_aereas` to read air travel records for the signed-in user (respects row-level security).",
+    "Tools for the HUB de Gestão. Use `echo` to verify connectivity, and `list_passagens_aereas` to read air travel records for the signed-in user (respects row-level security).",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated",

@@ -75,9 +75,9 @@ var list_passagens_aereas_default = defineTool2({
 var projectRef = "cpgyhjqufxeweyswosuw";
 var mcp_default = defineMcp({
   name: "sapiens-erp-mcp",
-  title: "Sapiens ERP",
+  title: "HUB de Gest\xE3o",
   version: "0.1.0",
-  instructions: "Tools for the Sapiens Control Center ERP. Use `echo` to verify connectivity, and `list_passagens_aereas` to read air travel records for the signed-in user (respects row-level security).",
+  instructions: "Tools for the HUB de Gest\xE3o. Use `echo` to verify connectivity, and `list_passagens_aereas` to read air travel records for the signed-in user (respects row-level security).",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated"

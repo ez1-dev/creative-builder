@@ -25,7 +25,7 @@ import { TOP_MENUS, ALWAYS_VISIBLE, allLeaves, type Leaf, type TopMenu } from '@
 import { useMenuLayout } from '@/hooks/useMenuLayout';
 
 function BrandName() {
-  const { name } = useBrand('ERP Sapiens');
+  const { name } = useBrand('HUB de Gestão');
   return <span className="text-[15px] font-semibold tracking-tight text-sidebar-foreground truncate">{name}</span>;
 }
 
