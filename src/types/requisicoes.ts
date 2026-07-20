@@ -53,6 +53,40 @@ export interface SidBaixaComponenteResponse {
   aviso_parse?: string | null;
 }
 
+/** Item de entrada do POST /api/requisicoes/sid/requisitar-lote. */
+export interface SidRequisitarLoteItemInput {
+  codpro: string;
+  codder?: string | null;
+  qtdeme: number;
+  codtns: string;
+  coddep: number | string;
+  ccures?: string | null;
+  obseme?: string | null;
+}
+
+/** Item de resposta do POST /api/requisicoes/sid/requisitar-lote. */
+export interface SidRequisitarLoteItemResult {
+  indice: number;
+  codpro: string;
+  ok: boolean;
+  numeme?: number | null;
+  seqeme?: number | null;
+  erro?: string | null;
+}
+
+/** Resposta do POST /api/requisicoes/sid/requisitar-lote. */
+export interface SidRequisitarLoteResponse {
+  numeme: number | null;
+  numemes: number[];
+  documento_unico: boolean;
+  total_solicitados: number;
+  criados: number;
+  falhas: number;
+  itens: SidRequisitarLoteItemResult[];
+}
+
+
+
 
 
 export type TipoRequisicao =

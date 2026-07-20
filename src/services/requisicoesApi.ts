@@ -263,6 +263,9 @@ export const requisicoesApi = {
   sidRequisitar(payload: unknown, key?: string) {
     return apiWrite('POST', '/api/requisicoes/sid/requisitar', payload, key ?? newIdempotencyKey());
   },
+  sidRequisitarLote(payload: unknown, key?: string) {
+    return apiWrite('POST', '/api/requisicoes/sid/requisitar-lote', payload, key ?? newIdempotencyKey());
+  },
   sidRateio(payload: unknown, key?: string) {
     return apiWrite('POST', '/api/requisicoes/sid/rateio', payload, key ?? newIdempotencyKey());
   },
