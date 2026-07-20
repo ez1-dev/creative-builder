@@ -6,7 +6,7 @@
  * Cada consulta é isolada: se um endpoint retornar 404/500 o bloco fica
  * indisponível mas o resto do dashboard continua funcional.
  */
-import { useQueries } from '@tanstack/react-query';
+import { useQueries, keepPreviousData } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { api } from '@/lib/api';
 import type { PainelComprasDashboardResponse } from '@/lib/api';
@@ -17,6 +17,14 @@ import {
   fetchQuadroColaboradores,
 } from '@/lib/rh/api';
 import { rangeFor, num, delta, labelAnomes, type Periodo } from '@/lib/dashboardGeral/aggregator';
+
+const DEFAULTS = {
+  retry: 0 as const,
+  staleTime: 10 * 60 * 1000,
+  gcTime: 30 * 60 * 1000,
+  placeholderData: keepPreviousData,
+  refetchOnWindowFocus: false as const,
+};
 
 export interface DashboardGeralData {
   kpis: {
