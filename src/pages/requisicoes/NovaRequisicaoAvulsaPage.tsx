@@ -44,15 +44,6 @@ interface Linha {
   observacao: string;
 }
 
-interface ResultadoLinha {
-  linha: number;
-  codigo: string;
-  numeme: number | null;
-  seqeme: number | null;
-  resultado: string | null;
-  aviso: string | null;
-  erro?: string;
-}
 
 const linhaVazia = (): Linha => ({
   componente: null,
