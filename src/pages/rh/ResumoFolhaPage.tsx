@@ -125,11 +125,32 @@ export default function ResumoFolhaPage() {
   const [drillOpen, setDrillOpen] = useState(false);
   const [drillCard, setDrillCard] = useState<ResumoFolhaDrillsMenuItem | null>(null);
   const [drillCardValue, setDrillCardValue] = useState<number | null | undefined>(null);
-  const openDrill = (field: string) => {
+  const [drillExtras, setDrillExtras] = useState<ResumoFolhaDrillExtras | undefined>(undefined);
+  const openDrill = (
+    field: string,
+    extras?: ResumoFolhaDrillExtras,
+    valueOverride?: number | null,
+  ) => {
     const item = drillsMap.get(field);
-    if (!item) return;
+    if (!item) {
+      const msg = `Drill "${field}" não foi devolvido pelo backend em drills_menu.`;
+      // eslint-disable-next-line no-console
+      console.warn("[RH ResumoFolha] drill ausente", {
+        card: field,
+        drills_menu_cards: Array.from(drillsMap.keys()),
+      });
+      if (isAdmin) toast.warning(msg);
+      return;
+    }
     setDrillCard(item);
-    setDrillCardValue(kpis ? (kpis[field] as number | null | undefined) : null);
+    setDrillCardValue(
+      valueOverride !== undefined
+        ? valueOverride
+        : kpis
+          ? (kpis[field] as number | null | undefined)
+          : null,
+    );
+    setDrillExtras(extras);
     setDrillOpen(true);
   };
   const kpiDrill = (field: string) => {
@@ -139,6 +160,40 @@ export default function ResumoFolhaPage() {
       onClick: drillable ? () => openDrill(field) : undefined,
     };
   };
+
+  // ============ Diagnóstico de drills faltantes (visível a admin) ============
+  const EXPECTED_KPI_DRILLS = [
+    "provento", "desconto", "total_liquido",
+    "salario_base", "salario_bruto",
+    "outras_gratificacoes", "beneficios", "va",
+    "inss_total", "fgts", "rescisoes",
+    "custo_total", "hora_extra", "provisoes", "custo_ferias",
+  ];
+  const EXPECTED_EXTRA_DRILLS = ["proventos", "descontos", "tipos_evento", "filial"];
+  const missingDrills = useMemo(() => {
+    if (!data) return [] as string[];
+    const all = [...EXPECTED_KPI_DRILLS, ...EXPECTED_EXTRA_DRILLS];
+    return all.filter((k) => !drillsMap.has(k));
+  }, [data, drillsMap]);
+  const copyDrillDiagnostico = async () => {
+    const diag = {
+      params: baseParams,
+      drills_menu_recebidos: drillsMenu,
+      cards_recebidos: Array.from(drillsMap.keys()),
+      cards_esperados: [...EXPECTED_KPI_DRILLS, ...EXPECTED_EXTRA_DRILLS],
+      cards_faltantes: missingDrills,
+      diagnostico: data?.diagnostico ?? null,
+    };
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(diag, null, 2));
+      toast.success("Diagnóstico de drills copiado.");
+    } catch {
+      toast.error("Não foi possível copiar. Veja o console.");
+      // eslint-disable-next-line no-console
+      console.log("[RH ResumoFolha] diagnóstico drills", diag);
+    }
+  };
+
 
 
   const [syncJobId, setSyncJobId] = useState<string | null>(null);
