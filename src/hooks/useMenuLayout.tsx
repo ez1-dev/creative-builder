@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -322,6 +322,7 @@ function applyOrder<T extends { url: string }>(items: T[], order?: string[]): T[
 export function useMenuLayout() {
   const { user } = useAuth();
   const userId = user?.id ?? null;
+  const realtimeChannelIdRef = useRef(`menu-layout-sync-${Math.random().toString(36).slice(2)}`);
   const [userLayout, setUserLayout] = useState<MenuLayoutV2>({ ...EMPTY });
   const [globalLayout, setGlobalLayout] = useState<MenuLayoutV2>({ ...EMPTY });
   const [globalMeta, setGlobalMeta] = useState<GlobalMeta>({ updatedAt: null, updatedBy: null });
@@ -368,23 +369,42 @@ export function useMenuLayout() {
 
   // Realtime: menu_layout_global (todos) + menu_layout_user (próprio user)
   useEffect(() => {
-    const channel = supabase
-      .channel('menu-layout-sync')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'menu_layout_global' },
-        () => setTick((t) => t + 1),
-      );
-    if (userId) {
-      channel.on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'menu_layout_user', filter: `user_id=eq.${userId}` },
-        () => setTick((t) => t + 1),
-      );
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    try {
+      const refreshFromRealtime = () => setTick((t) => t + 1);
+      const channelName = `${realtimeChannelIdRef.current}:${userId ?? 'anon'}`;
+
+      channel = supabase
+        .channel(channelName)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'menu_layout_global' },
+          refreshFromRealtime,
+        );
+
+      if (userId) {
+        channel = channel.on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'menu_layout_user', filter: `user_id=eq.${userId}` },
+          refreshFromRealtime,
+        );
+      }
+
+      channel.subscribe((status, error) => {
+        if (error) {
+          console.warn('[menu-layout] realtime indisponível; usando fallback de foco/polling.', error);
+        }
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[menu-layout] realtime não conectou; usando fallback de foco/polling.', status);
+        }
+      });
+    } catch (error) {
+      console.warn('[menu-layout] falha ao configurar realtime; usando fallback de foco/polling.', error);
     }
-    channel.subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
     };
   }, [userId]);
 
