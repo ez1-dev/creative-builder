@@ -970,13 +970,7 @@ export default function NovaRequisicaoOpPage() {
           </div>
 
           {!sidWrite.enabled && itensInvalidos.length === 0 && itensSemDeposito.length === 0 && (
-            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-200">
-              {sidWrite.kind === 'inalcancavel'
-                ? 'Backend do ERP inalcançável. Verifique a URL da API (VITE_API_BASE_URL) ou se o túnel/serviço FastAPI está online. Você pode salvar como rascunho e reenviar quando voltar.'
-                : sidWrite.kind === 'loading'
-                ? 'Verificando integração com o ERP…'
-                : 'A integração com o ERP está desabilitada. Aguarde o SID ser habilitado no backend antes de enviar.'}
-            </div>
+            <IntegracaoStatusChip />
           )}
 
           <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
