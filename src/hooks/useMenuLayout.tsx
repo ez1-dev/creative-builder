@@ -404,7 +404,8 @@ export function useMenuLayout() {
         const next = typeof updater === 'function' ? (updater as any)(globalLayout) : updater;
         setGlobalLayout(next);
         if (userId) {
-          try { await saveGlobal(userId, next); } catch (e) { throw e; }
+          await saveGlobal(userId, next);
+          setGlobalMeta({ updatedAt: new Date().toISOString(), updatedBy: userId });
         }
       }
     },
@@ -415,11 +416,18 @@ export function useMenuLayout() {
     await setLayout(scope, { ...EMPTY });
   }, [setLayout]);
 
+  const publishGlobal = useCallback(async () => {
+    if (!userId) throw new Error('Sem sessão autenticada.');
+    await saveGlobal(userId, globalLayout);
+    setGlobalMeta({ updatedAt: new Date().toISOString(), updatedBy: userId });
+  }, [userId, globalLayout]);
+
   const refresh = useCallback(() => setTick((t) => t + 1), []);
 
   return {
-    userLayout, globalLayout, merged, effectiveMenus, editorMenus, loaded,
-    setLayout, resetLayout, refresh,
+    userLayout, globalLayout, globalMeta, merged, effectiveMenus, editorMenus, loaded,
+    setLayout, resetLayout, publishGlobal, refresh,
     isHidden: (url: string) => merged.hidden.includes(url),
   };
 }
+
