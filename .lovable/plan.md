@@ -1,83 +1,48 @@
+## Fase B — Repaginação Comercial, Compras, Financeiro
 
-# Dashboard Geral — repaginação completa
+Aplicar o mesmo padrão da Visão Geral (Biblioteca BI, sparklines, alertas críticos, seções claras) nas 3 abas restantes do bloco tático.
 
-O print atual mostra a raiz do problema: KPIs zerados, gráficos vazios, layout genérico e um único spinner que trava a tela até tudo carregar. O plano ataca performance, visual e conteúdo — em todas as abas — usando a Biblioteca BI já consolidada.
+### 1. `ComercialTab.tsx`
 
-## 1. Performance (carregar rápido)
+**Estrutura:**
+1. **Faixa de alertas críticos** (topo, se houver): meta < 80% do período, desconto > 5%, faturamento negativo vs. mês anterior.
+2. **KPIs headline (4 cards)** com `KpiSparklineCard` para Faturamento (série `faturamento_meta`) e `KpiCard` variant colorida para Meta atingida, Ticket médio, Δ vs mês anterior.
+3. **KPIs secundários (grid 4 col)**: Notas emitidas, Desconto médio, Meta do período, Faturamento acumulado.
+4. **Séries temporais**: Line "Faturamento vs Meta 12m" com dupla série (`valor` + `meta`) — usar `LineChartCard` com `series` múltipla se suportado, senão dois `Line` sobrepostos.
+5. **Breakdowns (grid 3 col)**: Top revendas / Top produtos / Faturamento por UF (mantém, mas tamanho reduzido para 260px).
+6. Botão "Abrir BI Comercial" reposicionado num header discreto com título "Comercial — resumo".
 
-Hoje `useDashboardGeral` faz 7 chamadas ao mesmo tempo e a Visão Geral ainda dispara +4 hooks (`useFinanceiro`, `useContabilidade`, `useEstoque`, `useProducao`). O `loading` da página só é `false` quando TUDO chega — o endpoint mais lento (Contabilidade/DRE) domina o tempo percebido.
+### 2. `ComprasTab.tsx`
 
-Mudanças:
+**Estrutura:**
+1. **Alertas críticos**: valor atrasado > 0, OCs atrasadas > 10% do total.
+2. **KPIs headline (4 cards)**: Valor comprado (sparkline `compras_mes`), Pendente OC, Atrasado (variant danger), Total OCs.
+3. **KPIs secundários (grid 3)**: Fornecedores ativos, Ticket médio OC, % Atraso (novo, calculado).
+4. **Série temporal**: Bar "Compras 12m" mantida.
+5. **Breakdowns (grid 3)**: Donut "Por tipo de despesa", HBar "Top fornecedores", HBar "Situação OCs".
+6. Header com botão "Abrir Painel de Compras".
 
-- **Loading por bloco, não por página.** Cada `KpiCard` e cada gráfico recebe seu próprio `loading` derivado do hook que o alimenta. Cards prontos aparecem imediatamente; só o card lento mostra skeleton.
-- **Prefetch da aba Visão geral.** Ao entrar na página, pré-buscar em paralelo os hooks das abas mais acessadas (Comercial, Compras, RH) com `staleTime` alto — troca de aba fica instantânea.
-- **Cache agressivo + placeholderData.** Elevar `staleTime` para 10 min nas séries mensais/YTD (dados que não mudam intra-dia) e usar `placeholderData: keepPreviousData` para não zerar a UI durante refetch de período.
-- **Deduplicar chamadas.** Hoje `VisaoGeralTab` chama `useEstoque/useProducao/useFinanceiro/useContabilidade` que também rodam nas abas específicas — unificar em um único `QueryClient` key para evitar refetch quando o usuário troca de aba.
-- **Remover `console.log` de debug** do hook orquestrador (roda a cada render).
-- **Timeouts curtos + retry 0** já existem; adicionar `abortSignal` para cancelar em unmount/troca rápida de período.
+### 3. `FinanceiroTab.tsx`
 
-## 2. Visual (Biblioteca BI)
+**Estrutura:**
+1. **Alertas críticos**: Resultado negativo, Margem < 0%, Inadimplência > 0.
+2. **KPIs headline (4 cards)**: Resultado DRE (sparkline `resultado_mes`, variant conforme sinal), Margem %, Receita, A receber.
+3. **KPIs secundários (grid 4)**: Custos, Despesas, A pagar, Inadimplência.
+4. **Série temporal**: Line "Resultado DRE 12m" mantida, altura 260.
+5. **Nova seção — Fluxo (grid 2)**: dois `HorizontalBarChartCard` — um comparando "Receita vs Custos vs Despesas" (dados dos próprios KPIs), outro "A receber vs A pagar vs Inadimplência" (visual comparativo simples sem novo backend).
+6. Header com botões existentes (DRE Configurável, Contas a pagar/receber).
 
-Substituir os cards artesanais por componentes da Biblioteca BI (`@/components/bi`), mesmo padrão já usado no BI Comercial:
+### 4. Padronização compartilhada
 
-- **KPIs**: trocar por `KpiStatusCard` com barra lateral colorida, ícone, valor grande, delta (▲/▼) e sparkline miniatura quando houver série mensal. Estados: `loading` (skeleton), `error` (chip cinza "sem dados"), `stale` (badge "cache").
-- **Gráficos**: usar `LineChartCard`, `BarChartCard`, `DonutChartCard`, `TableCard` da biblioteca — todos já com header padronizado, empty-state, ações (expandir, exportar), tooltip formatado.
-- **Grid responsivo**: KPIs em 2/3/4/6 colunas por breakpoint com `gap-4`; gráficos em `lg:grid-cols-3` para caber 3 blocos por linha.
-- **Estados vazios** substituídos pelo `EmptyStateCard` da biblioteca (ícone + texto + CTA "Configurar fonte" quando aplicável).
-- **Tokens semânticos apenas** (nada de `text-white`/hex hardcoded).
+- Todas as abas usam `<section aria-label="…">` e mesma hierarquia visual da Visão Geral.
+- Sparklines usam a série já disponível no hook (nenhuma nova chamada de API).
+- Alertas críticos usam `Badge variant="destructive"` clicáveis quando aplicável.
+- Todos os `KpiCard` recebem `loading={loading}` do hook (que agora aproveita `keepPreviousData`, portanto não pisca ao trocar de período).
 
-## 3. Layout geral da página
+### Escopo — apenas frontend
 
-```text
-┌─ Header (título + período pills + Atualizar + botão "Personalizar") ─┐
-│                                                                       │
-├─ Faixa "Alertas críticos" (só aparece se houver: rupturas, meta <80%, │
-│   inadimplência, absenteísmo alto) — chips clicáveis                  │
-│                                                                       │
-├─ Tabs (Visão geral · Comercial · Compras · Financeiro · Contab · RH · │
-│         Produção · Estoque · Manutenção)                              │
-│                                                                       │
-├─ Aba Visão Geral                                                      │
-│   ├ Linha 1: 4 KPIs headline (Faturamento, Meta%, Resultado, Custo)   │
-│   ├ Linha 2: 4 KPIs operacionais (Headcount, Turnover, OPs, Rupturas) │
-│   ├ Linha 3: 3 gráficos (Fat 12m, Compras 12m, Turnover 12m)          │
-│   ├ Linha 4: 2 breakdowns (Top revendas · Compras por tipo)           │
-│   └ Insights IA (mantido, melhorado com skeleton)                     │
-│                                                                       │
-├─ Demais abas: mesma anatomia (KPIs → séries → breakdowns → tabela)    │
-└───────────────────────────────────────────────────────────────────────┘
-```
+Sem novos endpoints, sem migração, sem mudanças em hooks (já refatorados na Fase A). Apenas os 3 arquivos `tabs/*.tsx`.
 
-## 4. Conteúdo (o que aparece)
+### Fora do escopo
 
-Por aba, garantir a "trilha executiva" mínima usando o que o backend já expõe:
-
-- **Visão geral**: 8 KPIs headline + Faturamento vs Meta 12m + Compras 12m + Turnover 12m + Top revendas + Insights IA.
-- **Comercial**: KPIs (faturamento, meta%, ticket, clientes ativos) + série mensal + top revendas + top produtos + drill.
-- **Compras**: valor comprado, pendente, OCs, fornecedores + série 12m + por tipo + por depósito.
-- **Financeiro**: DRE resumido (receita, custo, resultado, margem%) + evolução resultado + top contas.
-- **Contabilidade**: Ativo/Passivo/PL + Resultado do exercício + composição do ativo.
-- **RH**: Headcount, admissões, demissões, turnover, absenteísmo + evolução + custo folha.
-- **Produção**: OPs em aberto, kg produzido, ocupação, lead-time + evolução + top gargalos.
-- **Estoque**: itens totais, abaixo/acima min-máx, sem política + top rupturas + valor imobilizado.
-- **Manutenção**: gasto mês, top veículos, por categoria + evolução mensal.
-
-## 5. Detalhes técnicos
-
-- Arquivos afetados (edição, sem quebrar contratos):
-  - `src/hooks/useDashboardGeral.ts` — remover log, `keepPreviousData`, `staleTime` 10 min, retornar `loadingByBlock`.
-  - `src/pages/DashboardGeralPage.tsx` — nova faixa de alertas críticos, prefetch das abas quentes.
-  - `src/pages/dashboard-geral/tabs/*.tsx` — trocar cards por componentes da Biblioteca BI, aplicar loading por bloco, adicionar breakdowns faltantes.
-  - `src/components/bi/kpis/KpiStatusCard.tsx` — evoluir para aceitar `sparkline?`, `delta?`, `hint?` (usado em todas as abas).
-- Sem mudanças em backend/edge functions. Sem migração de schema.
-- Manter tokens semânticos do design system (azul corporativo, sem cor hardcoded).
-- Testes: build + typecheck automático; validação visual via Playwright na rota `/dashboard-geral` para cada aba (screenshot antes/depois).
-
-## 6. Entrega faseada
-
-1. **Fase A (base)** — Performance + Visão Geral repaginada + KpiStatusCard evoluído.
-2. **Fase B** — Comercial, Compras, Financeiro.
-3. **Fase C** — Contabilidade, RH, Produção.
-4. **Fase D** — Estoque, Manutenção + faixa de alertas críticos + prefetch.
-
-Cada fase é entregável independente — a Fase A já resolve o "muito ruim" percebido no print.
+- Contabilidade, RH, Produção, Estoque, Manutenção → Fases C e D.
