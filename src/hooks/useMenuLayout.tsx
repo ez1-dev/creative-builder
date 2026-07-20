@@ -324,6 +324,7 @@ export function useMenuLayout() {
   const userId = user?.id ?? null;
   const [userLayout, setUserLayout] = useState<MenuLayoutV2>({ ...EMPTY });
   const [globalLayout, setGlobalLayout] = useState<MenuLayoutV2>({ ...EMPTY });
+  const [globalMeta, setGlobalMeta] = useState<GlobalMeta>({ updatedAt: null, updatedBy: null });
   const [loaded, setLoaded] = useState(false);
   const [tick, setTick] = useState(0);
 
@@ -331,11 +332,12 @@ export function useMenuLayout() {
     let cancelled = false;
     async function boot() {
       const [g, u] = await Promise.all([
-        loadGlobal().catch(() => ({ ...EMPTY })),
+        loadGlobalRow().catch(() => ({ layout: { ...EMPTY }, meta: { updatedAt: null, updatedBy: null } })),
         userId ? loadUser(userId).catch(() => ({ ...EMPTY })) : Promise.resolve({ ...EMPTY }),
       ]);
       if (cancelled) return;
-      setGlobalLayout(g);
+      setGlobalLayout(g.layout);
+      setGlobalMeta(g.meta);
       setUserLayout(u);
       setLoaded(true);
     }
