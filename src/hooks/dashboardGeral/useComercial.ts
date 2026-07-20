@@ -5,6 +5,7 @@
  */
 import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
+import { keepPreviousData } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { rangeFor, num, delta, labelAnomes, safeDiv, statusFrom, type Periodo, type ModStatus } from './shared';
 import { FaturamentoGeniusResponseSchema, EMPTY_FATURAMENTO } from '@/lib/dashboardGeral/schemas/comercial';
@@ -47,12 +48,12 @@ export function useComercial(periodo: Periodo, enabled: boolean) {
       {
         queryKey: ['dg-com', 'fat', range.ini, range.fim],
         queryFn: () => api.get<any>('/api/faturamento-genius-dashboard', { anomes_ini: range.ini, anomes_fim: range.fim }),
-        enabled, retry: 0, staleTime: 5 * 60 * 1000,
+        enabled, retry: 0, staleTime: 10 * 60 * 1000, gcTime: 30 * 60 * 1000, placeholderData: keepPreviousData, refetchOnWindowFocus: false,
       },
       {
         queryKey: ['dg-com', 'fat-ant', rangeAnt.ini, rangeAnt.fim],
         queryFn: () => api.get<any>('/api/faturamento-genius-dashboard', { anomes_ini: rangeAnt.ini, anomes_fim: rangeAnt.fim }),
-        enabled, retry: 0, staleTime: 5 * 60 * 1000,
+        enabled, retry: 0, staleTime: 10 * 60 * 1000, gcTime: 30 * 60 * 1000, placeholderData: keepPreviousData, refetchOnWindowFocus: false,
       },
     ],
   });

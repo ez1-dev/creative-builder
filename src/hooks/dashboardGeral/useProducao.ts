@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
+import { keepPreviousData } from '@tanstack/react-query';
 import { cargaApi } from '@/lib/producao/cargaApi';
 import { num, statusFrom, type Periodo, type ModStatus } from './shared';
 import { CargaCentrosResponseSchema, EMPTY_CENTROS, CargaRecursosResponseSchema, EMPTY_RECURSOS } from '@/lib/dashboardGeral/schemas/producao';
@@ -32,12 +33,12 @@ export function useProducao(_periodo: Periodo, enabled: boolean) {
       {
         queryKey: ['dg-prod', 'centros'],
         queryFn: () => cargaApi.centros({}),
-        enabled, retry: 0, staleTime: 5 * 60 * 1000,
+        enabled, retry: 0, staleTime: 10 * 60 * 1000, gcTime: 30 * 60 * 1000, placeholderData: keepPreviousData, refetchOnWindowFocus: false,
       },
       {
         queryKey: ['dg-prod', 'recursos'],
         queryFn: () => cargaApi.recursos({}),
-        enabled, retry: 0, staleTime: 5 * 60 * 1000,
+        enabled, retry: 0, staleTime: 10 * 60 * 1000, gcTime: 30 * 60 * 1000, placeholderData: keepPreviousData, refetchOnWindowFocus: false,
       },
     ],
   });

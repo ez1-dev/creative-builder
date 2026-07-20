@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
+import { keepPreviousData } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { rangeFor, num, anomesToDate, type Periodo, type ModStatus } from './shared';
 import { ManutencaoRowsSchema, EMPTY_MANUT } from '@/lib/dashboardGeral/schemas/manutencao';

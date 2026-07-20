@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
+import { keepPreviousData } from '@tanstack/react-query';
 import { api, type PainelComprasDashboardResponse } from '@/lib/api';
 import { rangeFor, num, labelAnomes, anomesToDate, safeDiv, statusFrom, type Periodo, type ModStatus } from './shared';
 import { PainelComprasResponseSchema, EMPTY_COMPRAS } from '@/lib/dashboardGeral/schemas/compras';
@@ -42,7 +43,7 @@ export function useCompras(periodo: Periodo, enabled: boolean) {
     queries: [{
       queryKey: ['dg-compras', params.data_ini, params.data_fim],
       queryFn: () => api.get<PainelComprasDashboardResponse>('/api/painel-compras-dashboard', params),
-      enabled, retry: 0, staleTime: 5 * 60 * 1000,
+      enabled, retry: 0, staleTime: 10 * 60 * 1000, gcTime: 30 * 60 * 1000, placeholderData: keepPreviousData, refetchOnWindowFocus: false,
     }],
   });
 

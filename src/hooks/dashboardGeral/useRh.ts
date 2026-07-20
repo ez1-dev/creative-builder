@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
+import { keepPreviousData } from '@tanstack/react-query';
 import {
   fetchResumoFolhaDashboard, fetchTurnoverDashboard, fetchAbsenteismoDashboard, fetchQuadroColaboradores,
 } from '@/lib/rh/api';
