@@ -450,7 +450,7 @@ export default function RelatorioExecutivoFaturamentoPage() {
         )}
 
         <footer className="rel-footer">
-          Sapiens Control Center · {new Date().toLocaleString('pt-BR')}
+          HUB de Gestão · {new Date().toLocaleString('pt-BR')}
         </footer>
       </div>
     </div>

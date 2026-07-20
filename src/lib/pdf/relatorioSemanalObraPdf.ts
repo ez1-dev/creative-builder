@@ -124,7 +124,7 @@ function addHeader(doc: jsPDF, pageTitle: string) {
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.text('Sapiens Control Center — Relatório Semanal Obra', MARGIN, 6.8);
+  doc.text('HUB de Gestão — Relatório Semanal Obra', MARGIN, 6.8);
   doc.text(pageTitle, A4_LANDSCAPE.w - MARGIN, 6.8, { align: 'right' });
   doc.setTextColor(0, 0, 0);
 }

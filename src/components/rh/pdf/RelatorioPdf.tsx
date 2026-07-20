@@ -77,7 +77,7 @@ function IaSecao({ titulo, secao }: { titulo: string; secao?: SecaoIa }) {
   );
 }
 
-export function RelatorioPdf({ dados, ia, empresa = "Sapiens Control Center" }: Props) {
+export function RelatorioPdf({ dados, ia, empresa = "HUB de Gestão" }: Props) {
   const periodoTxt = `${fmtAnoMes(dados.periodo.atual.ini)} a ${fmtAnoMes(dados.periodo.atual.fim)}`;
   const periodoAntTxt = `${fmtAnoMes(dados.periodo.anterior.ini)} a ${fmtAnoMes(dados.periodo.anterior.fim)}`;
   const geradoEm = new Date().toLocaleString("pt-BR");

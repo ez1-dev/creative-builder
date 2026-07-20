@@ -119,7 +119,7 @@ export default function ManutencaoFrotaCompartilhadoPage() {
           <FrotaDashboard data={data} shareToken={token} readOnly />
         </main>
         <footer className="text-center text-[11px] sm:text-xs text-muted-foreground py-4 px-3">
-          EZ ERP IA · Acesso somente leitura
+          HUB de Gestão · Acesso somente leitura
         </footer>
       </div>
     </PublicVisualsProvider>
