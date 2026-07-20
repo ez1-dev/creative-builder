@@ -445,7 +445,21 @@ export default function PersonalizarMenusPage() {
 
       </div>
 
-      <Tabs value={scope} onValueChange={(v) => setScope(v as MenuScope)}>
+      <div
+        className={
+          'sticky top-0 z-10 flex flex-wrap items-center gap-3 rounded-md border p-3 text-sm shadow-sm ' +
+          (scope === 'global'
+            ? 'border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-100'
+            : 'border-primary/40 bg-primary/5 text-primary')
+        }
+      >
+        {scope === 'global' ? <ShieldAlert className="h-5 w-5" /> : <User className="h-5 w-5" />}
+        <div className="font-medium">
+          Editando: {scope === 'global' ? 'Padrão global — afeta TODOS os usuários' : 'Meu usuário (só você vê)'}
+        </div>
+      </div>
+
+      <Tabs value={scope} onValueChange={handleScopeChange}>
         <TabsList>
           <TabsTrigger value="user">Meu usuário</TabsTrigger>
           {isAdmin && <TabsTrigger value="global">Padrão global (admin)</TabsTrigger>}
@@ -456,13 +470,42 @@ export default function PersonalizarMenusPage() {
           </div>
         </TabsContent>
         {isAdmin && (
-          <TabsContent value="global" className="mt-4">
-            <div className="flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/5 p-2 text-xs mb-3">
-              <Info className="h-4 w-4" /> Você está editando o layout <b>global</b> — visível para todos os usuários.
+          <TabsContent value="global" className="mt-4 space-y-3">
+            <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-xs">
+              <Info className="h-4 w-4" />
+              <div className="flex-1 min-w-[220px]">
+                {globalMeta.updatedAt ? (
+                  <>
+                    Última publicação: <b>{new Date(globalMeta.updatedAt).toLocaleString('pt-BR')}</b>
+                    {globalMeta.updatedBy && (
+                      <span className="text-muted-foreground"> por {globalMeta.updatedBy.slice(0, 8)}…</span>
+                    )}
+                  </>
+                ) : (
+                  <b>Nenhum padrão global publicado ainda.</b>
+                )}
+                <div className="text-muted-foreground mt-0.5">
+                  Usuários online recebem em segundos; quem estiver offline recebe ao abrir o app.
+                </div>
+              </div>
+              <Button
+                size="sm"
+                onClick={async () => {
+                  try {
+                    await publishGlobal();
+                    toast.success('Padrão global publicado para todos.');
+                  } catch (e: any) {
+                    toast.error(e?.message ?? 'Falha ao publicar padrão global');
+                  }
+                }}
+              >
+                <Upload className="mr-2 h-4 w-4" /> Publicar para todos agora
+              </Button>
             </div>
           </TabsContent>
         )}
       </Tabs>
+
 
       {!loaded && <p className="text-sm text-muted-foreground">Carregando…</p>}
       {loaded && editorMenus.map(renderTop)}
