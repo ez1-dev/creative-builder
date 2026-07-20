@@ -226,8 +226,9 @@ export function ResumoFolhaDrillDrawer({
                         {(data.itens ?? []).length === 0 ? (
                           <TableRow>
                             <TableCell colSpan={hasAnyQtd ? 3 : 2} className="text-center text-xs text-muted-foreground py-6">
-                              Sem itens neste agrupamento.
+                              {(total ?? 0) === 0 ? "Sem lançamentos no período." : "Sem itens neste agrupamento."}
                             </TableCell>
+
                           </TableRow>
                         ) : (
                           (data.itens ?? []).map((it, i) => (
