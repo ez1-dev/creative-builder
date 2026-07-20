@@ -26,7 +26,8 @@ import { IntegracaoOfflineBanner } from '@/components/requisicoes/IntegracaoOffl
 import { RemoteCombobox, highlight } from '@/components/requisicoes/RemoteCombobox';
 import { OperadorBadge, useOperadorInfo } from '@/components/requisicoes/OperadorBadge';
 import { ResultadoRequisicaoLote } from '@/components/requisicoes/ResultadoRequisicaoLote';
-import { useSidWriteEnabled } from '@/hooks/requisicoes';
+import { useSidWriteEnabled, SID_PING_QUERY_KEY } from '@/hooks/requisicoes';
+import { useQueryClient } from '@tanstack/react-query';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
