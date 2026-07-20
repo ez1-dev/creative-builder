@@ -1,58 +1,48 @@
-# Investigar aviso de SID desabilitado
 
-O aviso é totalmente **orientado pela resposta do backend** — o frontend só o renderiza quando o FastAPI diz que está off. Antes de qualquer alteração de código, preciso confirmar o que está sendo devolvido para o navegador.
+## Contexto
 
-## O que já se sabe pelo código
+Itens 1 a 5b desta versão já estão implementados e verificados em turnos anteriores (leitura de `resposta.op.*`, campos limpos de componente, "Depósito sugerido" como sugestão, autocompletes com `q`/`limit`, `POST /sid/requisitar-lote` com tratamento item-a-item e HTTP 400 propagando `detail`, rascunho apenas local). O último turno também passou a distinguir "backend inalcançável" (kind `inalcancavel`) de "SID desabilitado" (kind `desabilitado`) e adicionou warning em dev quando falta `VITE_API_BASE_URL`.
 
-- Fonte única do banner: hook `useSidStatus` (`src/hooks/requisicoes/index.ts`) → `requisicoesApi.pingSid()` → `GET /api/requisicoes/sid/ping`.
-- `IntegracaoStatusChip` e `IntegracaoOfflineBanner` só exibem quando **uma** destas condições é verdadeira:
-  - `sid_habilitado === false`
-  - `ger_sid.wsdl_ok === false`
-  - `cha_separacao.wsdl_ok === false`
-  - `detail` recebido de um 503 tratado
-- O botão "Enviar" fica desabilitado por `useSidWriteEnabled()`, que segue exatamente as mesmas flags.
-- Não há mock/override no cliente que force o banner — o retorno vem do FastAPI configurado em `getApiUrl()`.
-- Fluxos gravadores (`sidRequisitarLote`, `sidBaixarComponentes`, etc.) também podem devolver HTTP 503 do próprio backend; nesse caso o cliente lança `IntegracaoDesabilitadaError` com o `detail` do backend e mostra o mesmo aviso.
+O delta real deste prompt está no **item 6** — separar 401 (sessão) dos demais erros e permitir revalidar o ping sob demanda.
 
-Ou seja, a mensagem *não* é um estado local desatualizado: ela reflete o `sid/ping` real. A investigação precisa capturar essa resposta.
+## O que muda
 
-## Passos da investigação
+### 1. Detectar 401 no `handleResponse` do módulo de requisições
 
-1. **Confirmar a sessão do usuário no preview.** O session replay mostra a tela de login e as chamadas Supabase retornaram `session_not_found` (403). Se o usuário estiver deslogado, o ping ao FastAPI pode estar sendo respondido sem token e o backend pode devolver `sid_habilitado=false` como fallback. Preciso do usuário logado (Microsoft) antes de continuar.
-2. **Capturar a resposta real do `GET /api/requisicoes/sid/ping`.** Duas formas complementares:
-   - Pedir print da aba **Network** do navegador filtrando por `sid/ping` (status, corpo JSON).
-   - Reproduzir aqui via Playwright headless após restaurar a sessão, abrir `/requisicoes/nova-op` e logar a resposta do endpoint.
-3. **Interpretar o JSON:**
-   - Se `sid_habilitado=false` → configuração no backend (`SID_HABILITADO`); ação é no FastAPI, não no frontend.
-   - Se `sid_habilitado=true` porém `ger_sid.wsdl_ok=false` ou `cha_separacao.wsdl_ok=false` → o WSDL do Senior não está acessível; olhar `ger_sid.erro`/`cha_separacao.erro` retornados no mesmo payload.
-   - Se resposta for HTTP 503 → capturar o `detail`.
-   - Se o navegador estiver recebendo 401/403/404 no `sid/ping` (ex.: token expirado, path errado, CORS), o React Query devolve erro e o banner não deveria aparecer — nesse caso o aviso viria de um 503 em outra chamada (por ex. `sidRequisitarLote`); precisamos identificar qual request originou.
-4. **Correlacionar com o backend.** Uma vez identificado o motivo (flag desligada vs. WSDL fora), a correção é operacional no FastAPI:
-   - Variável `SID_HABILITADO=true` no ambiente.
-   - Conectividade / credenciais do `co_ger_sid` e `cha_separacao`.
-5. **Relatar o achado ao usuário** com o JSON exato do ping e o próximo passo (backend ou frontend). Só depois avaliar se há algum ajuste de UX (ex.: mostrar o `erro` do WSDL para admins direto no chip, hoje ele aparece só no diálogo técnico).
+Em `src/services/requisicoesApi.ts`, no `handleResponse`, tratar `res.status === 401` com uma nova classe `SessaoExpiradaError` (semelhante a `IntegracaoDesabilitadaError`), preservando o `detail` retornado.
 
-## O que este plano **não** faz
+### 2. Novo kind `sessao_expirada` no `useSidWriteEnabled`
 
-- Não altera código de frontend antes de confirmar o retorno do backend — o comportamento atual está correto conforme a spec (banner reflete `/sid/ping`).
-- Não mexe em configuração do FastAPI (fora do escopo do projeto Lovable); apenas aponta o ajuste necessário.
+Em `src/hooks/requisicoes/index.ts`:
 
-## Detalhes técnicos
+- Ampliar `SidWriteKind` com `'sessao_expirada'`.
+- Em `useSidWriteEnabled`, se `q.error instanceof SessaoExpiradaError` → retornar `kind: 'sessao_expirada'` com `reason: 'Sua sessão expirou. Faça login novamente.'`.
+- Ordem final dos casos: `loading` → `sessao_expirada` → `desabilitado` (503/`IntegracaoDesabilitadaError`) → `inalcancavel` (outros erros) → `desconhecido` (sem data) → checagens de `sid_habilitado`/`wsdl_ok` → `ok`.
 
-- Endpoint: `GET {VITE_API_BASE}/api/requisicoes/sid/ping` com header `ngrok-skip-browser-warning: true` e `Authorization: Bearer <erp_token>` quando presente.
-- Contrato esperado (`SidStatusResponse`):
+### 3. UI dos avisos com ação de retry e re-login
 
-```text
-{
-  sid_habilitado: boolean,
-  ger_sid: { url, operacao, wsdl_ok, erro? },
-  cha_separacao: { url, operacao, wsdl_ok, erro? },
-  proximo_passo?: string
-}
-```
+Em `src/components/requisicoes/IntegracaoOfflineBanner.tsx` e `src/components/requisicoes/IntegracaoStatusChip.tsx`:
 
-- Cache/refetch: `staleTime 60s`, `refetchInterval 120s`, `refetchOnWindowFocus true`. Assim que o backend responder com tudo `true`, o banner some sem reload.
+- Renderizar uma variante extra para `kind === 'sessao_expirada'` (ícone `LogIn`, cor destacada, botão **"Fazer login"** que navega para `/login` mantendo o `redirect` para a rota atual).
+- Adicionar um botão **"Tentar de novo"** em todos os estados de erro (`sessao_expirada`, `inalcancavel`, `desabilitado`, `desconhecido`) que chama `queryClient.invalidateQueries({ queryKey: ['requisicoes', 'sid', 'ping'] })` para forçar refetch imediato do `GET /sid/ping`.
 
-## Entrega da investigação
+Ajustar também o banner inline em `src/pages/requisicoes/NovaRequisicaoOpPage.tsx` (linha 963) e o equivalente em `NovaRequisicaoAvulsaPage.tsx` para mostrar o texto correto por `kind` e o botão "Tentar de novo".
 
-- Mensagem final ao usuário contendo: status HTTP do `sid/ping`, JSON recebido, causa (flag ou WSDL) e onde ajustar (backend). Se for necessário mudança de UX no frontend, abrir plano separado.
+### 4. Revalidar ping ao entrar no passo de envio
+
+O `useSidStatus` já faz `refetchOnWindowFocus: true` e `refetchInterval: 120_000` (foco da aba coberto). Falta forçar quando o usuário chega no passo final:
+
+- Em `NovaRequisicaoOpPage.tsx` e `NovaRequisicaoAvulsaPage.tsx`, disparar `queryClient.invalidateQueries({ queryKey: ['requisicoes', 'sid', 'ping'] })` num `useEffect` que roda ao entrar na etapa "Revisar & enviar" (dependência: o índice/estado do passo atual). Assim uma aba antiga não fica com estado velho na hora de enviar.
+
+### 5. Tabela final de exibição (implementada nos passos 2 e 3)
+
+| Situação                            | kind             | Mensagem/UX                                                        |
+|-------------------------------------|------------------|--------------------------------------------------------------------|
+| `200` + `sid_habilitado: true`      | `ok`             | Chip "Habilitada", botão liberado                                  |
+| `200` + `sid_habilitado: false` / 503 | `desabilitado`   | "Aguarde o SID ser habilitado no backend." + Tentar de novo        |
+| `401`                               | `sessao_expirada`| "Sua sessão expirou. Faça login novamente." + botão Fazer login    |
+| Erro de rede / 5xx / 404            | `inalcancavel`   | "Não foi possível falar com o servidor." + Tentar de novo          |
+
+## Fora de escopo
+
+Itens 1–5b (já entregues nos turnos anteriores) e o warning de fallback de `VITE_API_BASE_URL` (feito no turno anterior).
