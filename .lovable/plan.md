@@ -1,37 +1,59 @@
-## Plano para corrigir o erro em Personalizar Menus
 
-### Problema confirmado
-A tela quebra dentro de `useMenuLayout.tsx` ao montar o canal realtime `menu-layout-sync`.
+## Objetivo
 
-O código cria o canal, adiciona o callback de `menu_layout_global`, e em seguida, quando existe `userId`, tenta adicionar outro callback ao mesmo canal. Em algumas execuções o client realtime considera o canal já inscrito/assinado e lança:
+Na tela **01 — Resumo da Folha** (`/rh/resumo-folha`) o clique em qualquer card/KPI/gráfico/tabela deve abrir o drill correspondente. Hoje quase nada abre — precisamos descobrir por que os drills sumiram (não regredir o backend por conta própria) e, quando o backend confirmar que devolve o menu, garantir que 100% dos elementos visuais respondem ao clique.
 
-```text
-cannot add `postgres_changes` callbacks for realtime:menu-layout-sync after `subscribe()`
-```
+## Diagnóstico da causa (a confirmar em runtime)
 
-### Correção proposta
-1. **Reescrever a criação do canal realtime de forma atômica**
-   - Montar a cadeia completa de `.on('postgres_changes', ...)` antes de chamar `.subscribe()`.
-   - Nunca adicionar callbacks depois do `.subscribe()`.
+Toda a lógica de drill da tela depende de `data.drills_menu` vindo de `GET /api/rh/resumo-folha/dashboard` (normalizado em `src/lib/rh/api.ts:294`). Um card só fica clicável quando existe um item cujo `card` bate com o `field` do KPI (`kpiDrill` / `openDrill` em `ResumoFolhaPage.tsx:118-141`). Tabelas (Proventos, Descontos, Filial) e o donut de Tipos de Evento hoje **não são renderizados como clicáveis em nenhum cenário** — mesmo quando o backend mandava drill para eles.
 
-2. **Evitar colisão entre instâncias do canal**
-   - Usar um nome de canal estável porém específico por usuário, por exemplo `menu-layout-sync:<userId ou anon>`.
-   - Isso evita reaproveitamento acidental de um canal anterior ainda em cleanup.
+Hipóteses a validar (ordem de investigação):
 
-3. **Manter cleanup correto**
-   - Continuar removendo o canal no `return` do `useEffect` com `supabase.removeChannel(channel)`.
-   - Não criar subscriptions em escopo de componente fora de `useEffect`.
+1. `drills_menu` está vindo `[]` ou ausente no payload atual (regressão no FastAPI).
+2. `drills_menu` está vindo, mas com `card` diferente dos `field` dos KPIs (ex.: `salario_bruto` no front vs `salarioBruto` no backend).
+3. Backend só mandava drill para alguns cards e o restante (tabelas/donut) nunca foi cabeado no front — vai parecer "sumiu" mesmo sem regressão.
 
-4. **Proteger a tela contra falhas de subscription**
-   - Envolver a inscrição realtime para não derrubar a renderização caso o realtime falhe.
-   - A tela continuará funcionando com os fallbacks já existentes: refetch ao foco e polling a cada 5 minutos.
+## Escopo (confirmado com o usuário)
 
-5. **Validar**
-   - Abrir `/personalizar-menus` no preview.
-   - Confirmar que a tela renderiza sem o erro.
-   - Confirmar que os menus continuam carregando mesmo se realtime não conectar.
+Cobrir drill em **todos os pontos visuais** da tela: KPIs, tabelas Proventos+Vantagens / Descontos / Filial, gráfico mensal (barras) e donut Tipos de Evento. Quando o backend não devolver `drills_menu` para algum item, **sinalizar como bug** — sem fallback silencioso.
 
-### Arquivo afetado
-- `src/hooks/useMenuLayout.tsx`
+## Entregas
 
-Sem mudança de schema nem alteração nas permissões do backend.
+### 1. Investigação (sem mexer no backend)
+- Adicionar logging estruturado no console quando `drills_menu` chegar vazio ou parcial, listando os `field` esperados vs recebidos.
+- Adicionar banner discreto (apenas para admin) no topo da tela quando `drills_menu.length === 0` ou quando faltar drill para KPIs conhecidos: "Drills do Resumo da Folha não foram devolvidos pelo backend — verifique `/api/rh/resumo-folha/dashboard`". Inclui botão *Copiar diagnóstico* (params + resposta bruta).
+- Documentar em `docs/backend-etl-bi.md` (seção RH) o contrato esperado: `drills_menu[]` com `card`, `label`, `agrupamentos[]` e a lista de `card` que a tela consome hoje.
+
+### 2. Cabear drill em todos os elementos visuais
+Reaproveitar o `ResumoFolhaDrillDrawer` e o endpoint `GET /api/rh/resumo-folha/drill` (`fetchResumoFolhaDrill`) já existentes.
+
+- **KPIs (linha superior)**: já existe wiring; garantir que Provento, Desconto, Total Líquido, Salário Base/Bruto, Outras Gratificações, Benefícios, V.A., INSS, FGTS, Rescisões, Custo Total, Hora Extra, Provisões, Custo das Férias tenham entrada em `drills_menu`. Onde faltar, banner do item 1 acusa.
+- **Evolução mensal (gráfico de barras)**: clique numa barra (Provento/Desconto/Líquido de uma competência) abre drill com `card = provento|desconto|total_liquido` e filtro adicional `anomes_ini=anomes_fim=<competência>`.
+- **Detalhamento mensal (tabela)**: cada célula de valor abre o mesmo drill do gráfico.
+- **Proventos + Vantagens (tabela)**: cada linha vira botão; abre drill com `card = "proventos"`, `agrupar_por = "matricula"` (ou o que o backend expuser) e `cd_evento` como filtro extra.
+- **Descontos (tabela)**: idem, `card = "descontos"`.
+- **Filial (tabela)**: cada célula numérica vira clicável; envia `card = <coluna>` (ex.: `salario_base`, `custo_total`, `fgts`) + `cd_filial` da linha.
+- **Tipos de Evento (donut)**: clique na fatia envia `card = "tipos_evento"` + `cd_tp_evento` da fatia.
+
+Todos os handlers passam pelo mesmo `openDrill(field, extras?)` refatorado, que injeta filtros extras (`cd_filial`, `cd_evento`, `cd_tp_evento`, competência) no `ResumoFolhaDrillDrawer`.
+
+### 3. UX de item sem drill
+- Célula/fatia sem `drills_menu` correspondente fica **visualmente igual** à hoje (sem cursor pointer, sem hover) — o banner de admin acusa a lacuna, mas o usuário final não vê botão morto.
+- Erro 422/500 do endpoint `/drill` mostra toast com o `detail` do backend.
+
+## Detalhes técnicos
+
+Arquivos afetados:
+- `src/pages/rh/ResumoFolhaPage.tsx` — refatorar `openDrill` para aceitar `extras`, cabear cliques em tabelas/donut/gráfico, adicionar banner de diagnóstico admin.
+- `src/components/rh/ResumoFolhaDrillDrawer.tsx` — aceitar `extras` (cd_filial, cd_evento, cd_tp_evento, anomes override) e repassar em `fetchResumoFolhaDrill`.
+- `src/lib/rh/api.ts` — estender `ResumoFolhaDrillParams` com `cd_evento`, `cd_tp_evento`, aceitar override de período.
+- `src/lib/rh/types.ts` — adicionar campos opcionais correspondentes.
+- `docs/backend-etl-bi.md` — seção "RH · Resumo da Folha · Contrato drills_menu".
+
+Zero mudança de backend nesta entrega. Se a investigação (item 1) confirmar que o FastAPI parou de devolver `drills_menu`, abrimos ticket separado após ver o log.
+
+## Validação
+
+1. Console mostra `drills_menu` recebido; se vazio, banner admin aparece com botão de copiar diagnóstico.
+2. Clicar em cada KPI, célula de tabela, barra do gráfico e fatia do donut abre o `ResumoFolhaDrillDrawer` com os filtros corretos (verificar via Network o payload de `/api/rh/resumo-folha/drill`).
+3. Itens sem drill correspondente permanecem sem hover/pointer e não emitem erro.
