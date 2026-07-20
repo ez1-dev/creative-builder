@@ -131,12 +131,16 @@ export function ResumoFolhaDrillDrawer({
             </Badge>
           </SheetTitle>
           <SheetDescription>
-            Período {anomes_ini} → {anomes_fim}
+            Período {competencia ?? anomes_ini} → {competencia ?? anomes_fim}
             {cd_filial ? ` · filial ${cd_filial}` : ""}
+            {cd_evento ? ` · evento ${cd_evento}` : ""}
+            {cd_tp_evento ? ` · tipo ${cd_tp_evento}` : ""}
+            {contextLabel ? ` · ${contextLabel}` : ""}
             {cardValue != null && isNumber(cardValue) ? (
               <> · valor do card: <span className="font-medium">{formatCurrency(cardValue)}</span></>
             ) : null}
           </SheetDescription>
+
         </SheetHeader>
 
         {agrupamentos.length === 0 ? (
