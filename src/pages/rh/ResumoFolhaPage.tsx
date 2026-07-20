@@ -914,7 +914,9 @@ export default function ResumoFolhaPage() {
         cardValue={drillCardValue}
         anomes_ini={baseParams.anomes_ini}
         anomes_fim={baseParams.anomes_fim}
+        extras={drillExtras}
       />
+
     </div>
   );
 }
