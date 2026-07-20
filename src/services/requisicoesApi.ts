@@ -32,6 +32,17 @@ export class IntegracaoDesabilitadaError extends Error {
   }
 }
 
+/** Sessão da API ERP expirada — usuário precisa refazer login. */
+export class SessaoExpiradaError extends Error {
+  status = 401;
+  detail?: string;
+  constructor(detail?: string) {
+    super('Sua sessão expirou. Faça login novamente.');
+    this.name = 'SessaoExpiradaError';
+    this.detail = detail;
+  }
+}
+
 /** Endpoint de cadastro ainda não publicado pela API. */
 export class EndpointIndisponivelError extends Error {
   constructor(readonly recurso: string, message?: string) {
