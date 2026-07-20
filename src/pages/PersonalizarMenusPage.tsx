@@ -21,9 +21,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import {
-  ArrowDown, ArrowUp, RotateCcw, RefreshCw, Plus, Trash2, ExternalLink, Info, ShieldAlert, Upload, User,
+  ArrowDown, ArrowUp, RotateCcw, RefreshCw, Plus, Trash2, ExternalLink, Info, ShieldAlert, Upload, User, CopyPlus,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -501,6 +505,18 @@ export default function PersonalizarMenusPage() {
               >
                 <Upload className="mr-2 h-4 w-4" /> Publicar para todos agora
               </Button>
+              <CopyUserToGlobalButton
+                disabled={isLayoutEmpty(userLayout)}
+                onConfirm={async () => {
+                  try {
+                    await setLayout('global', () => structuredClone(userLayout));
+                    await publishGlobal();
+                    toast.success('Padrão global atualizado com o layout do seu usuário.');
+                  } catch (e: any) {
+                    toast.error(e?.message ?? 'Falha ao copiar layout do usuário');
+                  }
+                }}
+              />
             </div>
           </TabsContent>
         )}
@@ -676,5 +692,58 @@ function NovoItemDialog({ defaultTopId, tops, subGroupsForTop, onCreate }: {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function isLayoutEmpty(l: MenuLayoutV2): boolean {
+  return (
+    l.hidden.length === 0 &&
+    l.hiddenGroups.length === 0 &&
+    Object.keys(l.moves).length === 0 &&
+    Object.keys(l.orders).length === 0 &&
+    Object.keys(l.renames).length === 0 &&
+    Object.keys(l.icons).length === 0 &&
+    l.customTops.length === 0 &&
+    l.customSubGroups.length === 0 &&
+    l.customItems.length === 0
+  );
+}
+
+function CopyUserToGlobalButton({ disabled, onConfirm }: { disabled: boolean; onConfirm: () => Promise<void> }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialogTrigger asChild>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={disabled}
+          title={disabled ? 'Seu usuário ainda não tem nenhuma customização.' : undefined}
+        >
+          <CopyPlus className="mr-2 h-4 w-4" /> Copiar do meu usuário → global
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Substituir o Padrão global?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Isso vai substituir o Padrão global pelo layout atual do seu usuário e publicar imediatamente.
+            Todos os usuários vão ver essa configuração. Deseja continuar?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={async (e) => {
+              e.preventDefault();
+              await onConfirm();
+              setOpen(false);
+            }}
+          >
+            Copiar e publicar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
