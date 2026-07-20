@@ -144,7 +144,7 @@ async function apiWrite<T>(
     });
     return await handleResponse<T>(res);
   } catch (err) {
-    if (err instanceof IntegracaoDesabilitadaError || err instanceof RequisicaoApiError) throw err;
+    if (err instanceof IntegracaoDesabilitadaError || err instanceof SessaoExpiradaError || err instanceof RequisicaoApiError) throw err;
     throw new ApiOfflineError();
   }
 }
