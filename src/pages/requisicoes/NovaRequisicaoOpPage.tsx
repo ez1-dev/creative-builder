@@ -379,7 +379,7 @@ export default function NovaRequisicaoOpPage() {
       });
       return;
     }
-    const codtns = tipo === 'TRANSFERIR' ? '90253' : tipo === 'BAIXAR' ? '90251' : '90250';
+    const codtns = tipo === 'TRANSFERIR' ? '90253' : tipo === 'BAIXAR_DIRETO' ? '90251' : '90250';
     const contextoOp = op.data ? `OP ${op.data.codori}/${op.data.numorp}` : '';
     const lotePayload = {
       itens: payload.itens.map((it) => ({
