@@ -1,6 +1,6 @@
 export const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
-  "https://dreconfiguravel.ngrok.app";
+  "https://api-erp-renato.ngrok.app";
 
 export const CODEMP = 1;
 export const CODFIL = 1;

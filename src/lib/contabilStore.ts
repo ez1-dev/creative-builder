@@ -1,5 +1,5 @@
 // Camada de dados do módulo DRE/Balanço — TODAS as chamadas vão para a
-// API Python (https://dreconfiguravel.ngrok.app). Nada de Supabase no front.
+// API Python (https://api-erp-renato.ngrok.app). Nada de Supabase no front.
 
 import { api } from "./contabilApi";
 import { CODEMP, CODFIL } from "./contabilConfig";
