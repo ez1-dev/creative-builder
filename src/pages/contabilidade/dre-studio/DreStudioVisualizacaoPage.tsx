@@ -1514,6 +1514,23 @@ function Visualizacao() {
         );
       })()}
 
+      {balancoIncompleto && (
+        <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            A estrutura deste balanço pode estar incompleta — última linha
+            cadastrada: <strong>{ultimaLinha?.codigo}</strong>{" "}
+            {ultimaLinha?.descricao ? `(${ultimaLinha.descricao})` : ""}.
+            Verifique a aba <strong>Estrutura</strong> e adicione os grupos
+            finais (ex: contas de compensação e totalizadores).
+          </div>
+          <Button asChild size="sm" variant="outline">
+            <Link to={`/contabilidade/dre-studio/${id}/estrutura`}>
+              Ir para Estrutura
+            </Link>
+          </Button>
+        </div>
+      )}
       {balancoSemVincular && (
         <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
           <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
