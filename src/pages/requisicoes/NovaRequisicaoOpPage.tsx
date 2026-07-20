@@ -18,7 +18,7 @@ import {
 
 import { useQuery } from '@tanstack/react-query';
 import { useOpConsulta, useSidWriteEnabled } from '@/hooks/requisicoes';
-import { requisicoesApi, IntegracaoDesabilitadaError } from '@/services/requisicoesApi';
+import { requisicoesApi, IntegracaoDesabilitadaError, RequisicaoApiError } from '@/services/requisicoesApi';
 import type { TipoAtendimentoOP, ComponenteOP } from '@/types/requisicoes';
 import { toast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -373,8 +373,8 @@ export default function NovaRequisicaoOpPage() {
     }
     if (itensSemDeposito.length > 0) {
       toast({
-        title: 'Escolha o depósito de origem',
-        description: `Escolha o depósito de origem do componente ${itensSemDeposito[0].codigo} antes de enviar.`,
+        title: 'Escolha o depósito sugerido',
+        description: `Escolha o depósito sugerido do componente ${itensSemDeposito[0].codigo} antes de enviar.`,
         variant: 'destructive',
       });
       return;
@@ -391,12 +391,23 @@ export default function NovaRequisicaoOpPage() {
           throw err;
         }
       }
-      toast({ title: 'Requisição criada', description: `Nº ${criada.numero}` });
+      const numero = (criada as any)?.numero ?? (criada as any)?.numeme ?? (criada as any)?.resultado;
+      if (numero) {
+        toast({ title: `Requisição ${numero} criada no ERP.` });
+      } else {
+        toast({ title: 'Requisição enviada — confira o número no ERP.' });
+      }
       // Envio bem-sucedido → descarta rascunho local para não confundir na próxima entrada
       if (rascunhoKey) { localStorage.removeItem(rascunhoKey); setRascunhoDisponivel(false); }
       nav(`/requisicoes/${encodeURIComponent(criada.id)}`);
     } catch (err: any) {
-      toast({ title: 'Não foi possível criar a requisição', description: err?.message ?? 'Erro desconhecido', variant: 'destructive' });
+      if (err instanceof IntegracaoDesabilitadaError) {
+        toast({ title: 'Integração ERP desabilitada', description: err.detail ?? err.message, variant: 'destructive' });
+      } else if (err instanceof RequisicaoApiError) {
+        toast({ title: 'ERP recusou a requisição', description: err.detail ?? err.message, variant: 'destructive' });
+      } else {
+        toast({ title: 'Não foi possível enviar a requisição', description: err?.message ?? 'Erro desconhecido', variant: 'destructive' });
+      }
     } finally {
       setEnviando(false);
     }
@@ -626,7 +637,7 @@ export default function NovaRequisicaoOpPage() {
                 <TableHead className="text-xs uppercase tracking-wide">Descrição</TableHead>
                 <TableHead className="text-xs uppercase tracking-wide">Deriv.</TableHead>
                 <TableHead className="text-xs uppercase tracking-wide">UM</TableHead>
-                <TableHead className="text-xs uppercase tracking-wide w-40">Dep. origem</TableHead>
+                <TableHead className="text-xs uppercase tracking-wide w-40">Dep. sugerido</TableHead>
                 <TableHead className="text-xs uppercase tracking-wide">Trans.</TableHead>
                 <TableHead className="text-xs uppercase tracking-wide text-right">Prev.</TableHead>
                 <TableHead className="text-xs uppercase tracking-wide text-right">Util.</TableHead>
@@ -777,6 +788,10 @@ export default function NovaRequisicaoOpPage() {
           <Legend color="border-primary bg-primary/10" label="Selecionado" />
           <Legend color="border-muted-foreground/30" label="Já atendido" />
         </div>
+        <div className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">
+          <InfoIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>O depósito é apenas uma <b>sugestão</b>. O depósito definitivo é definido pelo ERP no momento do atendimento.</span>
+        </div>
       </CardContent>
     </Card>
   );
@@ -822,7 +837,7 @@ export default function NovaRequisicaoOpPage() {
 
         <div className="rounded-md border bg-muted/30 p-3">
           <div className="grid gap-3 sm:grid-cols-3">
-            <Field label="Depósito de origem" value={primeiroDepositoOrigem} />
+            <Field label="Depósito sugerido" value={primeiroDepositoOrigem} />
             <Field label="Itens selecionados" value={stats.qtdItens} />
             <Field label="Quantidade total" value={stats.qtdTotal} />
           </div>
@@ -878,7 +893,7 @@ export default function NovaRequisicaoOpPage() {
                   <TableHead className="text-xs uppercase tracking-wide">Componente</TableHead>
                   <TableHead className="text-xs uppercase tracking-wide">Descrição</TableHead>
                   <TableHead className="text-xs uppercase tracking-wide text-right">Quantidade</TableHead>
-                  <TableHead className="text-xs uppercase tracking-wide">Dep. origem</TableHead>
+                  <TableHead className="text-xs uppercase tracking-wide">Dep. sugerido</TableHead>
                   <TableHead className="text-xs uppercase tracking-wide">Justificativa</TableHead>
                 </TableRow>
               </TableHeader>
@@ -921,12 +936,17 @@ export default function NovaRequisicaoOpPage() {
 
           {itensSemDeposito.length > 0 && itensInvalidos.length === 0 && (
             <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-              <div className="font-medium">Escolha o depósito de origem antes de enviar.</div>
+              <div className="font-medium">Escolha o depósito sugerido antes de enviar.</div>
               <div className="text-xs mt-1">
-                Componentes sem depósito: {itensSemDeposito.map((i) => i.codigo).join(', ')}. Volte ao passo <b>Selecionar componentes</b> e escolha o depósito na coluna <b>Dep. origem</b>.
+                Componentes sem depósito sugerido: {itensSemDeposito.map((i) => i.codigo).join(', ')}. Volte ao passo <b>Selecionar componentes</b> e escolha o depósito na coluna <b>Dep. sugerido</b>.
               </div>
             </div>
           )}
+
+          <div className="flex items-start gap-1.5 rounded-md border border-muted bg-muted/30 p-2.5 text-xs text-muted-foreground">
+            <InfoIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>O depósito é uma <b>sugestão</b>. O depósito definitivo é definido pelo ERP no momento do atendimento.</span>
+          </div>
 
           {!sidWrite.enabled && itensInvalidos.length === 0 && itensSemDeposito.length === 0 && (
             <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-200">
@@ -967,7 +987,7 @@ export default function NovaRequisicaoOpPage() {
                   <TooltipContent>{sidWrite.reason}</TooltipContent>
                 )}
                 {sidWrite.enabled && itensSemDeposito.length > 0 && (
-                  <TooltipContent>Escolha o depósito de origem do componente {itensSemDeposito[0].codigo}.</TooltipContent>
+                  <TooltipContent>Escolha o depósito sugerido do componente {itensSemDeposito[0].codigo}.</TooltipContent>
                 )}
               </Tooltip>
             </div>
