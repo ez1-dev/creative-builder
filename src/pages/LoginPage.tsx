@@ -4,8 +4,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Lock } from 'lucide-react';
 import { toast } from 'sonner';
+import { HubLogo } from '@/components/brand/HubLogo';
 
 // Logotipo Microsoft (4 quadrados) inline
 const MicrosoftLogo = forwardRef<SVGSVGElement, { className?: string }>(
@@ -70,14 +70,16 @@ export default function LoginPage() {
 
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[hsl(215,70%,22%)] to-[hsl(215,60%,35%)]">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#0B1D33] to-[#1565FF]">
       <Card className="w-full max-w-sm shadow-2xl">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-primary">
-            <Lock className="h-7 w-7 text-primary-foreground" />
+          <div className="mx-auto mb-3 flex items-center justify-center">
+            <HubLogo variant="horizontal" wordmarkClassName="text-foreground" />
           </div>
-          <CardTitle className="text-xl">HUB de Gestão</CardTitle>
-          <p className="text-sm text-muted-foreground">
+          <CardTitle className="text-base font-medium text-muted-foreground">
+            Do dado à <span style={{ color: '#22C55E' }}>decisão.</span>
+          </CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">
             Acesso restrito a contas corporativas Microsoft
           </p>
         </CardHeader>

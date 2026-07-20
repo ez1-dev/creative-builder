@@ -1,14 +1,14 @@
 {
   "name": "HUB de Gestão",
   "short_name": "HUB Gestão",
-  "description": "Plataforma unificada para gestão industrial e administrativa",
+  "description": "Plataforma unificada para gestão empresarial — do dado à decisão.",
   "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#0a0e1a",
-  "theme_color": "#3b82f6",
+  "background_color": "#0B1D33",
+  "theme_color": "#1565FF",
   "icons": [
     {
       "src": "/icon-192.png",

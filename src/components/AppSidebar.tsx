@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Star, StarOff, Search as SearchIcon, ChevronDown, LayoutDashboard,
+  Star, StarOff, Search as SearchIcon, ChevronDown,
 } from 'lucide-react';
+import { HubLogo } from '@/components/brand/HubLogo';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
@@ -333,10 +334,13 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
-        <div className="flex items-center gap-2">
-          <LayoutDashboard className="h-6 w-6 text-sidebar-primary" />
-          {!collapsed && <BrandName />}
-        </div>
+        {collapsed ? (
+          <div className="flex items-center justify-center">
+            <HubLogo variant="symbol" className="h-8 w-8" />
+          </div>
+        ) : (
+          <HubLogo variant="horizontal" wordmarkClassName="text-sidebar-foreground" />
+        )}
         {!collapsed && (
           <div className="relative mt-3">
             <SearchIcon className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-sidebar-foreground/50" />

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="HUB Gestão">
+  <title>HUB Gestão</title>
+  <!-- Left half: blue with H -->
+  <path d="M50 4 L8 27 V73 L50 96 Z" fill="#1565FF"/>
+  <!-- Right half: green with bar chart -->
+  <path d="M50 4 L92 27 V73 L50 96 Z" fill="#22C55E"/>
+  <!-- Letter H (white) on left -->
+  <path d="M22 32 h8 v14 h14 v-14 h8 v36 h-8 v-14 h-14 v14 h-8 z" fill="#FFFFFF"/>
+  <!-- Ascending bars on right -->
+  <rect x="58" y="54" width="6" height="14" fill="#FFFFFF"/>
+  <rect x="66" y="46" width="6" height="22" fill="#FFFFFF"/>
+  <rect x="74" y="36" width="6" height="32" fill="#FFFFFF"/>
+</svg>
