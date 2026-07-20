@@ -164,27 +164,12 @@ export default function ResumoFolhaPage() {
   };
 
 
-  // ============ Diagnóstico de drills faltantes (visível a admin) ============
-  const EXPECTED_KPI_DRILLS = [
-    "provento", "desconto", "total_liquido",
-    "salario_base", "salario_bruto",
-    "outras_gratificacoes", "beneficios", "va",
-    "inss_total", "fgts", "rescisoes",
-    "custo_total", "hora_extra", "provisoes", "custo_ferias",
-  ];
-  const EXPECTED_EXTRA_DRILLS = ["proventos", "descontos", "tipos_evento", "filial"];
-  const missingDrills = useMemo(() => {
-    if (!data) return [] as string[];
-    const all = [...EXPECTED_KPI_DRILLS, ...EXPECTED_EXTRA_DRILLS];
-    return all.filter((k) => !drillsMap.has(k));
-  }, [data, drillsMap]);
+  // ============ Diagnóstico de drills (admin) ============
   const copyDrillDiagnostico = async () => {
     const diag = {
       params: baseParams,
       drills_menu_recebidos: drillsMenu,
       cards_recebidos: Array.from(drillsMap.keys()),
-      cards_esperados: [...EXPECTED_KPI_DRILLS, ...EXPECTED_EXTRA_DRILLS],
-      cards_faltantes: missingDrills,
       diagnostico: data?.diagnostico ?? null,
     };
     try {
@@ -196,6 +181,7 @@ export default function ResumoFolhaPage() {
       console.log("[RH ResumoFolha] diagnóstico drills", diag);
     }
   };
+
 
 
 
