@@ -92,13 +92,17 @@ async function saveUser(userId: string, layout: MenuLayoutV2) {
     .upsert({ user_id: userId, layout: layout as any, updated_at: new Date().toISOString() });
   if (error) throw error;
 }
-async function loadGlobal(): Promise<MenuLayoutV2> {
+export type GlobalMeta = { updatedAt: string | null; updatedBy: string | null };
+async function loadGlobalRow(): Promise<{ layout: MenuLayoutV2; meta: GlobalMeta }> {
   const { data } = await (supabase as any)
     .from('menu_layout_global')
-    .select('layout')
+    .select('layout, updated_at, updated_by')
     .eq('id', true)
     .maybeSingle();
-  return normalize(data?.layout);
+  return {
+    layout: normalize(data?.layout),
+    meta: { updatedAt: data?.updated_at ?? null, updatedBy: data?.updated_by ?? null },
+  };
 }
 async function saveGlobal(userId: string, layout: MenuLayoutV2) {
   const { error } = await (supabase as any)
