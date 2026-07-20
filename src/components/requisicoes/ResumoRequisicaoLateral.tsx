@@ -71,8 +71,8 @@ export function ResumoRequisicaoLateral(props: Props) {
               <Button className="w-full" onClick={props.onContinue} disabled={!canContinue}>
                 Continuar
               </Button>
-              <Button className="w-full" variant="outline" onClick={props.onSalvarRascunho} disabled={stats.qtdItens === 0 || enviando}>
-                <Save className="mr-1 h-4 w-4" /> Salvar rascunho
+              <Button className="w-full" variant="outline" onClick={props.onSalvarRascunho} disabled={stats.qtdItens === 0 || enviando} title="Salva apenas neste navegador. O ERP não é notificado.">
+                <Save className="mr-1 h-4 w-4" /> Salvar rascunho (local)
               </Button>
               <Button className="w-full" variant="ghost" onClick={props.onCancel}>
                 <X className="mr-1 h-4 w-4" /> Cancelar
@@ -83,8 +83,8 @@ export function ResumoRequisicaoLateral(props: Props) {
               <Button className="w-full" onClick={props.onEnviar} disabled={!canEnviar || enviando}>
                 <Send className="mr-1 h-4 w-4" /> {enviando ? 'Enviando…' : 'Enviar requisição'}
               </Button>
-              <Button className="w-full" variant="outline" onClick={props.onSalvarRascunho} disabled={enviando}>
-                <Save className="mr-1 h-4 w-4" /> Salvar rascunho
+              <Button className="w-full" variant="outline" onClick={props.onSalvarRascunho} disabled={enviando} title="Salva apenas neste navegador. O ERP não é notificado.">
+                <Save className="mr-1 h-4 w-4" /> Salvar rascunho (local)
               </Button>
               <Button className="w-full" variant="ghost" onClick={props.onBack}>
                 <ArrowLeft className="mr-1 h-4 w-4" /> Voltar
