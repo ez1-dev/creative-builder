@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { TOP_MENUS, TopMenu, Leaf, SubGroup, allLeaves, findTopIdForUrl } from '@/config/menuCatalog';
 
+export type MoveTarget = { topId: string; subGroupId?: string };
+
 export type MenuLayoutOverride = {
   version: 1;
   hidden: string[]; // urls hidden from sidebar
-  moves: Record<string, string>; // url -> destination topId (item removed from origin, appended to target)
-  orders: Record<string, string[]>; // topId -> ordered urls (top-level items after moves)
+  moves: Record<string, MoveTarget>; // url -> destination { topId, subGroupId? }
+  orders: Record<string, string[]>; // key = topId (flat) OR `${topId}:${subGroupId}` (nested subgroup)
 };
 
 const DEFAULT_LAYOUT: MenuLayoutOverride = { version: 1, hidden: [], moves: {}, orders: {} };
@@ -14,6 +16,21 @@ const CUSTOM_SUBGROUP_ID = 'personalizado';
 
 function storageKey(userId: string | null | undefined) {
   return `menuLayout:${userId ?? 'anon'}`;
+}
+
+function normalizeMoves(raw: any): Record<string, MoveTarget> {
+  if (!raw || typeof raw !== 'object') return {};
+  const out: Record<string, MoveTarget> = {};
+  for (const [url, val] of Object.entries(raw)) {
+    if (typeof val === 'string') out[url] = { topId: val };
+    else if (val && typeof val === 'object' && typeof (val as any).topId === 'string') {
+      out[url] = {
+        topId: (val as any).topId,
+        subGroupId: typeof (val as any).subGroupId === 'string' ? (val as any).subGroupId : undefined,
+      };
+    }
+  }
+  return out;
 }
 
 function readLayout(userId: string | null | undefined): MenuLayoutOverride {
@@ -24,7 +41,7 @@ function readLayout(userId: string | null | undefined): MenuLayoutOverride {
     return {
       version: 1,
       hidden: Array.isArray(parsed.hidden) ? parsed.hidden : [],
-      moves: parsed.moves && typeof parsed.moves === 'object' ? parsed.moves : {},
+      moves: normalizeMoves(parsed.moves),
       orders: parsed.orders && typeof parsed.orders === 'object' ? parsed.orders : {},
     };
   } catch {
@@ -35,11 +52,14 @@ function readLayout(userId: string | null | undefined): MenuLayoutOverride {
 function writeLayout(userId: string | null | undefined, layout: MenuLayoutOverride) {
   try {
     localStorage.setItem(storageKey(userId), JSON.stringify(layout));
-    // notifica outras instâncias no mesmo tab
     window.dispatchEvent(new CustomEvent('menuLayout:changed'));
   } catch {
     // ignore
   }
+}
+
+export function orderKey(topId: string, subGroupId?: string) {
+  return subGroupId ? `${topId}:${subGroupId}` : topId;
 }
 
 /** Retorna o menu efetivo (aplicando hidden / moves / orders). */
@@ -89,57 +109,88 @@ export function applyLayout(menus: TopMenu[], layout: MenuLayoutOverride): TopMe
   const withoutMoved: TopMenu[] = menus.map((top) => {
     if (top.kind === 'leaf') return top;
     if (top.kind === 'flat') {
-      return { ...top, items: top.items.filter((i) => (moves[i.url] ?? top.id) === top.id) };
+      return { ...top, items: top.items.filter((i) => (moves[i.url]?.topId ?? top.id) === top.id) };
     }
+    // nested: para cada item, se movido, e o destino é o mesmo topo com subGroupId, remove daqui e recolocaremos abaixo
     return {
       ...top,
       subGroups: top.subGroups.map((sg) => ({
         ...sg,
-        items: sg.items.filter((i) => (moves[i.url] ?? top.id) === top.id),
+        items: sg.items.filter((i) => {
+          const mv = moves[i.url];
+          if (!mv) return true;
+          if (mv.topId !== top.id) return false; // moveu para outro topo
+          // mesmo topo: se subGroupId definido e diferente, remove daqui
+          if (mv.subGroupId && mv.subGroupId !== sg.id) return false;
+          return true;
+        }),
       })),
     };
   });
 
-  // Passo 2: coleta itens importados por topo destino
-  const imports: Record<string, Leaf[]> = {};
-  for (const [url, targetTopId] of Object.entries(moves)) {
+  // Passo 2: coleta itens importados por topo destino (e subgrupo, quando houver)
+  type Import = { leaf: Leaf; subGroupId?: string };
+  const imports: Record<string, Import[]> = {};
+  for (const [url, target] of Object.entries(moves)) {
     const originTopId = findTopIdForUrl(url);
-    if (!originTopId || originTopId === targetTopId) continue;
+    if (!originTopId) continue;
+    // mesmo topo sem subGroupId => nada a importar
+    if (originTopId === target.topId && !target.subGroupId) continue;
     const originTop = menus.find((t) => t.id === originTopId);
     if (!originTop) continue;
     const leaf = allLeaves(originTop).find((l) => l.url === url);
     if (!leaf) continue;
-    if (!imports[targetTopId]) imports[targetTopId] = [];
-    imports[targetTopId].push(leaf);
+    if (!imports[target.topId]) imports[target.topId] = [];
+    imports[target.topId].push({ leaf, subGroupId: target.subGroupId });
   }
 
   // Passo 3: aplica imports + hidden + ordem custom
   return withoutMoved.map((top) => {
     if (top.kind === 'leaf') {
-      // leaf pode ser oculto — retornamos sem alteração; renderer decide
       return top;
     }
     if (top.kind === 'flat') {
-      const merged = [...top.items, ...(imports[top.id] ?? [])].filter((i) => !hidden.has(i.url));
+      const importedLeaves = (imports[top.id] ?? []).map((i) => i.leaf);
+      const merged = [...top.items, ...importedLeaves].filter((i) => !hidden.has(i.url));
       const ordered = applyOrder(merged, layout.orders[top.id]);
       return { ...top, items: ordered };
     }
     // nested
-    const filteredSubs = top.subGroups
-      .map((sg) => ({ ...sg, items: sg.items.filter((i) => !hidden.has(i.url)) }));
-    const importedForTop = (imports[top.id] ?? []).filter((i) => !hidden.has(i.url));
-    if (importedForTop.length > 0) {
-      const custom: SubGroup = {
-        id: CUSTOM_SUBGROUP_ID,
-        label: 'Personalizado',
-        icon: filteredSubs[0]?.icon ?? top.icon,
-        items: importedForTop,
-      };
-      // se já existir, mescla
-      const idx = filteredSubs.findIndex((s) => s.id === CUSTOM_SUBGROUP_ID);
-      if (idx >= 0) filteredSubs[idx] = { ...filteredSubs[idx], items: [...filteredSubs[idx].items, ...importedForTop] };
-      else filteredSubs.push(custom);
+    const importsForTop = imports[top.id] ?? [];
+    const knownSubIds = new Set(top.subGroups.map((s) => s.id));
+
+    const filteredSubs: SubGroup[] = top.subGroups.map((sg) => {
+      const importedHere = importsForTop
+        .filter((i) => i.subGroupId === sg.id)
+        .map((i) => i.leaf);
+      const merged = [...sg.items, ...importedHere].filter((i) => !hidden.has(i.url));
+      const ordered = applyOrder(merged, layout.orders[orderKey(top.id, sg.id)]);
+      return { ...sg, items: ordered };
+    });
+
+    // itens sem subgrupo escolhido (ou com subgrupo inexistente) -> Personalizado
+    const orphanImports = importsForTop
+      .filter((i) => !i.subGroupId || !knownSubIds.has(i.subGroupId))
+      .map((i) => i.leaf)
+      .filter((l) => !hidden.has(l.url));
+
+    if (orphanImports.length > 0) {
+      const existingIdx = filteredSubs.findIndex((s) => s.id === CUSTOM_SUBGROUP_ID);
+      if (existingIdx >= 0) {
+        const merged = [...filteredSubs[existingIdx].items, ...orphanImports];
+        const ordered = applyOrder(merged, layout.orders[orderKey(top.id, CUSTOM_SUBGROUP_ID)]);
+        filteredSubs[existingIdx] = { ...filteredSubs[existingIdx], items: ordered };
+      } else {
+        const ordered = applyOrder(orphanImports, layout.orders[orderKey(top.id, CUSTOM_SUBGROUP_ID)]);
+        filteredSubs.push({
+          id: CUSTOM_SUBGROUP_ID,
+          label: 'Personalizado',
+          icon: top.subGroups[0]?.icon ?? top.icon,
+          items: ordered,
+        });
+      }
     }
+
     return { ...top, subGroups: filteredSubs };
   });
 }

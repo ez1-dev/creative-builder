@@ -1,29 +1,32 @@
 ## Objetivo
-Destravar o botão **Enviar requisição** em `/requisicoes/nova-op` configurando `VITE_API_BASE_URL` para o FastAPI do usuário. Sem essa variável, o preview chama `/api/requisicoes/sid/ping` contra si mesmo, recebe 404 e a UI marca a integração como **Desabilitada / Inalcançável**, bloqueando o envio.
+Hoje "Personalizar Menus" só permite mover uma página entre menus de topo (ERP, HCM, Configurações). Quando o destino é um menu **nested** (ex.: ERP), o item vai parar num subgrupo genérico "Personalizado". Queremos permitir escolher **exatamente o subgrupo** de destino — ex.: mover "BI Comercial" para dentro de **ERP → Faturamento**, logo abaixo de "Faturamento Genius".
 
-## Passos
+## Escopo (apenas frontend / camada de layout)
 
-1. **Adicionar `VITE_API_BASE_URL` ao `.env`**
-   - Valor: `https://api-erp-renato.ngrok.app`
-   - Mantém as chaves auto-geradas do Lovable Cloud intactas — só acrescenta a linha nova.
-   - Como é `VITE_*`, o Vite injeta em build time; ao salvar, o dev server reinicia e o preview passa a apontar para o FastAPI real.
+### 1. Modelo de override (`src/hooks/useMenuLayout.tsx`)
+- Estender `moves` para aceitar destino composto: `Record<string, { topId: string; subGroupId?: string }>`.
+- Migração transparente: valor antigo `string` → `{ topId: string }` na leitura do localStorage (mantém compatibilidade, sem invalidar layouts salvos).
+- `orders` passa a ser indexado por chave `${topId}` para tops flat/leaf e `${topId}:${subGroupId}` para subgrupos de menu nested. Fallback: ordem existente por topId continua válida para flats.
 
-2. **Reiniciar o dev server** para carregar a nova variável (o Vite exige restart quando o `.env` muda).
+### 2. Aplicação do layout (`applyLayout`)
+- Ao importar itens em um top **nested**, roteá-los para o `subGroupId` escolhido em vez do subgrupo "Personalizado". Se `subGroupId` não existir mais no catálogo, cair no subgrupo "Personalizado" como hoje.
+- Aplicar `orders` por subgrupo (nested) além do atual `orders` por top (flat).
+- Manter a criação do subgrupo "Personalizado" apenas quando o usuário não escolher subgrupo.
 
-3. **Validar no preview via Playwright**
-   - Abrir `/requisicoes/nova-op` autenticado.
-   - Confirmar no console que o warning `VITE_API_BASE_URL não definido` desapareceu.
-   - Confirmar no network que `GET https://api-erp-renato.ngrok.app/api/requisicoes/sid/ping` retorna 200 com `sid_habilitado: true`.
-   - Confirmar que o chip/banner some no passo 4 e o botão **Enviar requisição** fica habilitado.
-   - Se o ping retornar 401 → aparece "Sessão expirada" com botão Login (comportamento correto).
-   - Se retornar 503 → aparece "SID desabilitado" com detalhe do backend (comportamento correto).
+### 3. Tela `PersonalizarMenusPage`
+- Para cada item, além do Select "Menu" (topo), adicionar um Select "Submenu" que aparece quando o topo escolhido é `nested`. Opções = subgrupos daquele top + "Personalizado (novo grupo)".
+- Reordenação: os botões ↑/↓ passam a reordenar dentro do subgrupo real onde o item aparece (para nested) ou dentro do top (para flat). Atualiza a chave correta em `orders`.
+- Ao renderizar a listagem de um top nested, agrupar as linhas por subgrupo com um subtítulo (ex.: "Faturamento"), para o usuário enxergar a hierarquia final que a sidebar vai mostrar.
 
-## Fora de escopo
-- Não vou disparar um envio real ao ERP no teste (evita movimentar estoque). A validação é: ping OK + botão habilitado.
-- Não vou mexer no fluxo de OP em si — o código já está correto; só falta conectividade.
-- O warning de "React has detected a change in the order of Hooks" no `AppLayout` vem de outro módulo (DemoMode) e não afeta este bug; fica para outro turno.
+### 4. Compatibilidade
+- Layouts já salvos no localStorage continuam funcionando (leitura tolerante).
+- Sidebar (`AppSidebar`) não precisa mudar — consome o resultado de `effectiveMenus`.
 
-## Detalhes técnicos
-- `src/lib/api.ts::getApiBaseUrl()` lê `import.meta.env.VITE_API_BASE_URL` e só cai no fallback (`window.location.origin`) quando ausente.
-- `useSidStatus` (`src/hooks/requisicoes/index.ts`) chama `GET /api/requisicoes/sid/ping`; qualquer 404/Network vira `kind: 'inalcancavel'` em `useSidWriteEnabled`, o que desabilita o botão de envio no passo 4 da OP.
-- Nenhuma alteração de código é necessária — apenas a variável de ambiente.
+## Não faz parte
+- Reordenar subgrupos entre si dentro de um top (fica igual ao catálogo).
+- Criar novos subgrupos nomeados pelo usuário (só o "Personalizado" automático continua).
+- Mudanças no `menuCatalog.ts` em si.
+
+## Verificação
+- Typecheck.
+- Teste manual: mover "BI Comercial" para ERP → Faturamento, confirmar que aparece logo abaixo de "Faturamento Genius" na sidebar; recarregar a página e confirmar que persistiu; usar "Restaurar padrão" e confirmar que volta ao catálogo original.
