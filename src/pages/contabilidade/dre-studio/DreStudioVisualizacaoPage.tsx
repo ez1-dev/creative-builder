@@ -1865,10 +1865,10 @@ function Visualizacao() {
                 variant="outline"
                 onClick={() => vincular.mutate()}
                 disabled={materializar.isPending || vincular.isPending || cccc106SemData}
-                title="Vincula automaticamente as contas analíticas do plano Senior a este Balanço"
+                title="Vincula automaticamente as contas analíticas do plano Senior a este Balanço (pode levar até 1 min)"
               >
                 <Link2 className="h-4 w-4 mr-1.5" />
-                {vincular.isPending ? "Vinculando..." : "Vincular contas"}
+                {vincular.isPending ? "Vinculando... (até 1 min)" : "Vincular contas"}
               </Button>
             )}
 
