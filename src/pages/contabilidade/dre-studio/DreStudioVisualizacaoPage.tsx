@@ -1843,24 +1843,8 @@ function Visualizacao() {
 
 
 
-      {q.meta?.status === "SEM_CACHE" && (
-        <div className="mb-3 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
-          <div className="flex-1">
-            Nenhum resultado materializado para este período. Clique em
-            <strong> Gerar resultado </strong>
-            para calcular o snapshot agora.
-          </div>
-          <Button
-            size="sm"
-            onClick={handleGerarResultado}
-            disabled={materializar.isPending}
-            className="shrink-0"
-          >
-            {materializar.isPending ? "Iniciando..." : "Gerar resultado"}
-          </Button>
-        </div>
-      )}
+      {/* Aviso SEM_CACHE já é coberto pelo card "Como gerar o resultado" acima. */}
+
 
       {/* === AÇÕES === Dados + Visualização */}
       <div className="rounded-xl border bg-white shadow-sm mb-3">
