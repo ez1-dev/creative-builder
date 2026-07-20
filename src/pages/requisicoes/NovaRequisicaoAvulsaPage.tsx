@@ -9,8 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, AlertTriangle, CheckCircle2, Info as InfoIcon, Loader2 } from 'lucide-react';
+import { Plus, Trash2, AlertTriangle, Info as InfoIcon, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import {
   requisicoesApi,
@@ -22,13 +21,15 @@ import {
   type ProjetoLookup,
   type DepositoLookup,
 } from '@/services/requisicoesApi';
-import type { SidRequisitarResponse, TipoRequisicao, PrioridadeRequisicao } from '@/types/requisicoes';
+import type { SidRequisitarLoteResponse, SidRequisitarLoteItemInput, TipoRequisicao, PrioridadeRequisicao } from '@/types/requisicoes';
 import { IntegracaoOfflineBanner } from '@/components/requisicoes/IntegracaoOfflineBanner';
 import { RemoteCombobox, highlight } from '@/components/requisicoes/RemoteCombobox';
 import { OperadorBadge, useOperadorInfo } from '@/components/requisicoes/OperadorBadge';
+import { ResultadoRequisicaoLote } from '@/components/requisicoes/ResultadoRequisicaoLote';
 import { useSidWriteEnabled } from '@/hooks/requisicoes';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+
 
 /** TNS default para consumo avulso — validado pelo ERP. */
 const CODTNS_CONSUMO_AVULSO = '90250';
