@@ -20,7 +20,7 @@ export default function ConnectAgentPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Conectar assistente de IA</h1>
         <p className="text-muted-foreground mt-2">
-          Conecte o Sapiens ERP ao ChatGPT ou Claude para consultar seus dados por conversa.
+          Conecte o HUB de Gestão ao ChatGPT ou Claude para consultar seus dados por conversa.
         </p>
       </div>
 
@@ -37,7 +37,7 @@ export default function ConnectAgentPage() {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground mt-3">
-            Você será solicitado a entrar com sua conta do Sapiens ERP e aprovar o acesso. O assistente enxerga apenas o que suas permissões permitem.
+            Você será solicitado a entrar com sua conta do HUB de Gestão e aprovar o acesso. O assistente enxerga apenas o que suas permissões permitem.
           </p>
         </CardContent>
       </Card>
@@ -65,7 +65,7 @@ export default function ConnectAgentPage() {
             </li>
             <li>No campo de mensagem, clique no botão <strong>+</strong> e ative o Developer mode.</li>
             <li>Clique em <strong>Add sources</strong> e depois em <strong>Connect more</strong>.</li>
-            <li>Dê um nome ao conector (ex.: <em>Sapiens ERP</em>) e cole a URL do MCP acima.</li>
+            <li>Dê um nome ao conector (ex.: <em>HUB de Gestão</em>) e cole a URL do MCP acima.</li>
             <li>Aprove a autorização e volte à conversa — peça algo como “liste minhas passagens aéreas recentes”.</li>
           </ol>
         </CardContent>
@@ -89,7 +89,7 @@ export default function ConnectAgentPage() {
                 Conectores do Claude <ExternalLink className="h-3 w-3" />
               </a>.
             </li>
-            <li>Dê um nome ao conector (ex.: <em>Sapiens ERP</em>) e cole a URL do MCP acima.</li>
+            <li>Dê um nome ao conector (ex.: <em>HUB de Gestão</em>) e cole a URL do MCP acima.</li>
             <li>No compositor da conversa, ative o conector e faça uma pergunta usando os dados do Sapiens.</li>
           </ol>
         </CardContent>

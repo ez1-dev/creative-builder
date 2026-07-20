@@ -97,7 +97,7 @@ export default function OAuthConsent() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[hsl(215,70%,22%)] to-[hsl(215,60%,35%)] p-4">
       <Card className="w-full max-w-md shadow-2xl">
         <CardHeader>
-          <CardTitle className="text-lg">Autorizar acesso ao Sapiens ERP</CardTitle>
+          <CardTitle className="text-lg">Autorizar acesso ao HUB de Gestão</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {error ? (
@@ -110,7 +110,7 @@ export default function OAuthConsent() {
             <>
               <p className="text-sm">
                 <span className="font-medium">{details.client?.name ?? "Um aplicativo"}</span>{" "}
-                está solicitando permissão para usar o Sapiens ERP em seu nome.
+                está solicitando permissão para usar o HUB de Gestão em seu nome.
               </p>
               <p className="text-xs text-muted-foreground">
                 O aplicativo poderá executar as ferramentas MCP habilitadas para a sua conta,

@@ -1,7 +1,7 @@
 {
-  "name": "Sapiens Control Center",
-  "short_name": "Sapiens",
-  "description": "Hub unificado para gestão industrial e administrativa",
+  "name": "HUB de Gestão",
+  "short_name": "HUB Gestão",
+  "description": "Plataforma unificada para gestão industrial e administrativa",
   "id": "/",
   "start_url": "/",
   "scope": "/",

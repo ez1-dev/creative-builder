@@ -23,7 +23,7 @@ export default function AppLayout() {
   const { isAuthenticated, user, displayName, approved, loading, logout } = useAuth();
   const location = useLocation();
   const { tvMode } = useTvMode();
-  const { name: brandName } = useBrand('EZ ERP IA');
+  const { name: brandName } = useBrand('HUB de Gestão');
   const allowFallback = PUBLIC_FALLBACK_PATHS.has(location.pathname);
 
   if (loading) return <AppLoadingScreen label="Verificando sua sessão…" />;

@@ -1914,7 +1914,7 @@ export default function ConfiguracoesPage() {
               <div className="rounded-lg border bg-muted/30 overflow-hidden" style={{ height: '70vh' }}>
                 <iframe
                   src="/docs/sapiens-control-center.pdf#view=FitH"
-                  title="Documentação Sapiens Control Center"
+                  title="Documentação HUB de Gestão"
                   className="w-full h-full"
                 />
               </div>
@@ -2045,7 +2045,7 @@ function VersionPanel() {
             <Label className="text-sm">Notificar usuários sobre novas versões</Label>
             <p className="text-[11px] text-muted-foreground">
               Quando ativo, exibe o popup "Nova versão disponível" assim que uma nova versão do
-              EZ ERP IA for publicada. Desligue para suprimir o aviso para todos os usuários.
+              HUB de Gestão for publicada. Desligue para suprimir o aviso para todos os usuários.
             </p>
           </div>
           <Switch

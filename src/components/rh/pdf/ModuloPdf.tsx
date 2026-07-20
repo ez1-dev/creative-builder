@@ -133,7 +133,7 @@ function tally(items: any[], keyGetter: (i: any) => string | undefined) {
   return Object.entries(out).sort((a, b) => b[1] - a[1]);
 }
 
-export function ModuloPdf({ modulo, titulo, filtros, dados, ia, empresa = "Sapiens Control Center" }: Props) {
+export function ModuloPdf({ modulo, titulo, filtros, dados, ia, empresa = "HUB de Gestão" }: Props) {
   const periodoTxt = filtros?.anomes_ini && filtros?.anomes_fim
     ? `${fmtAnoMes(filtros.anomes_ini)} a ${fmtAnoMes(filtros.anomes_fim)}`
     : new Date().toLocaleDateString("pt-BR");

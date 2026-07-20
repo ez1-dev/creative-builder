@@ -308,13 +308,13 @@ export default function DrePage() {
       // TODO: preferir download binário via GET {DRE_API}/api/contabil/dre/matriz/export
       const ExcelJS = (await import('exceljs')).default;
       const wb = new ExcelJS.Workbook();
-      wb.creator = 'Sapiens Control Center';
+      wb.creator = 'HUB de Gestão';
       wb.created = new Date();
       const ws = wb.addWorksheet(`DRE ${ano}`, { views: [{ state: 'frozen', xSplit: 1, ySplit: 6 }] });
       const FMT = '#,##0.00;[Red](#,##0.00);"-"';
 
       const infoLinhas = [
-        `Sapiens Control Center`,
+        `HUB de Gestão`,
         `Demonstração do Resultado — ${ano} (${mesInicial}-${mesFinal})`,
         `Unidade: ${unidade}   |   Fonte: ${meta?.fonte_saldo ?? '—'}   |   Modelo: ${meta?.modelo_nome ?? '—'}`,
         `Última sincronização: ${meta?.ultima_sincronizacao ?? '—'}   |   Último cálculo: ${meta?.ultima_materializacao ?? '—'}`,

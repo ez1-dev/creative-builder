@@ -268,7 +268,7 @@ export function UpdateNotifier() {
           </div>
           <DialogTitle className="text-center">Nova versão disponível</DialogTitle>
           <DialogDescription className="text-center">
-            Uma atualização do EZ ERP IA foi publicada. Clique em <strong>Atualizar agora</strong> para carregar a nova versão.
+            Uma atualização do HUB de Gestão foi publicada. Clique em <strong>Atualizar agora</strong> para carregar a nova versão.
           </DialogDescription>
         </DialogHeader>
 
