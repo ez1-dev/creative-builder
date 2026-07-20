@@ -92,13 +92,17 @@ async function saveUser(userId: string, layout: MenuLayoutV2) {
     .upsert({ user_id: userId, layout: layout as any, updated_at: new Date().toISOString() });
   if (error) throw error;
 }
-async function loadGlobal(): Promise<MenuLayoutV2> {
+export type GlobalMeta = { updatedAt: string | null; updatedBy: string | null };
+async function loadGlobalRow(): Promise<{ layout: MenuLayoutV2; meta: GlobalMeta }> {
   const { data } = await (supabase as any)
     .from('menu_layout_global')
-    .select('layout')
+    .select('layout, updated_at, updated_by')
     .eq('id', true)
     .maybeSingle();
-  return normalize(data?.layout);
+  return {
+    layout: normalize(data?.layout),
+    meta: { updatedAt: data?.updated_at ?? null, updatedBy: data?.updated_by ?? null },
+  };
 }
 async function saveGlobal(userId: string, layout: MenuLayoutV2) {
   const { error } = await (supabase as any)
@@ -320,6 +324,7 @@ export function useMenuLayout() {
   const userId = user?.id ?? null;
   const [userLayout, setUserLayout] = useState<MenuLayoutV2>({ ...EMPTY });
   const [globalLayout, setGlobalLayout] = useState<MenuLayoutV2>({ ...EMPTY });
+  const [globalMeta, setGlobalMeta] = useState<GlobalMeta>({ updatedAt: null, updatedBy: null });
   const [loaded, setLoaded] = useState(false);
   const [tick, setTick] = useState(0);
 
@@ -327,11 +332,12 @@ export function useMenuLayout() {
     let cancelled = false;
     async function boot() {
       const [g, u] = await Promise.all([
-        loadGlobal().catch(() => ({ ...EMPTY })),
+        loadGlobalRow().catch(() => ({ layout: { ...EMPTY }, meta: { updatedAt: null, updatedBy: null } })),
         userId ? loadUser(userId).catch(() => ({ ...EMPTY })) : Promise.resolve({ ...EMPTY }),
       ]);
       if (cancelled) return;
-      setGlobalLayout(g);
+      setGlobalLayout(g.layout);
+      setGlobalMeta(g.meta);
       setUserLayout(u);
       setLoaded(true);
     }
@@ -398,7 +404,8 @@ export function useMenuLayout() {
         const next = typeof updater === 'function' ? (updater as any)(globalLayout) : updater;
         setGlobalLayout(next);
         if (userId) {
-          try { await saveGlobal(userId, next); } catch (e) { throw e; }
+          await saveGlobal(userId, next);
+          setGlobalMeta({ updatedAt: new Date().toISOString(), updatedBy: userId });
         }
       }
     },
@@ -409,11 +416,18 @@ export function useMenuLayout() {
     await setLayout(scope, { ...EMPTY });
   }, [setLayout]);
 
+  const publishGlobal = useCallback(async () => {
+    if (!userId) throw new Error('Sem sessão autenticada.');
+    await saveGlobal(userId, globalLayout);
+    setGlobalMeta({ updatedAt: new Date().toISOString(), updatedBy: userId });
+  }, [userId, globalLayout]);
+
   const refresh = useCallback(() => setTick((t) => t + 1), []);
 
   return {
-    userLayout, globalLayout, merged, effectiveMenus, editorMenus, loaded,
-    setLayout, resetLayout, refresh,
+    userLayout, globalLayout, globalMeta, merged, effectiveMenus, editorMenus, loaded,
+    setLayout, resetLayout, publishGlobal, refresh,
     isHidden: (url: string) => merged.hidden.includes(url),
   };
 }
+

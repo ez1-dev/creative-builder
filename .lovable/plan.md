@@ -1,34 +1,36 @@
-## Problema
+## Diagnóstico
 
-Hoje a tela **Personalizar Menus** usa `effectiveMenus`, que é o mesmo layout aplicado à sidebar — ou seja, itens/submenus/menus marcados como "não visíveis" **somem** da lista. Consequência: quando o usuário oculta algo, ele perde a forma de reativar pela UI (só resta "Restaurar padrão", que apaga tudo).
+Consultei a tabela `menu_layout_global` no Cloud e ela está **vazia** (0 linhas). Ou seja, nenhuma edição feita na aba "Padrão global (admin)" chegou a ser gravada. Sem gravação, os outros usuários não têm o que carregar — por isso nada reflete para eles.
 
-## Objetivo
+Duas causas prováveis (não dá para saber qual sem instrumentar):
 
-No editor, **sempre listar tudo** (fábrica + customizados), mas renderizar em estado "desativado" (visual esmaecido + badge "oculto") os itens/subgrupos/menus de topo cuja visibilidade está desligada. O Switch "Visível" continua sendo o meio de reativar.
+1. **As edições foram feitas na aba errada.** A tela abre por padrão em "Meu usuário". Se o admin não clicou explicitamente em "Padrão global (admin)" antes de renomear/mover/ocultar, tudo caiu em `menu_layout_user` (só para ele mesmo).
+2. **O upsert está sendo bloqueado por RLS** (`is_admin(auth.uid())` retornando `false`) e o erro está sendo engolido em algum caminho — hoje o `mutate` da página mostra toast em caso de erro, mas ações auxiliares (ex.: reset, ou salvamento em cascata) podem não estar cobertas.
 
-## Mudanças
+## O que fazer
 
-### 1. `src/hooks/useMenuLayout.tsx`
-- Extrair a lógica de aplicação **sem filtrar por `hidden`/`hiddenGroups`** para uma função `applyLayoutForEditor(baseMenus, layout)` (ou parâmetro `{ keepHidden: true }` em `applyLayout`).
-  - Mantém: merge de customTops/customSubGroups/customItems, moves, renames, icons e ordering.
-  - Não aplica: `hidden.has(url)` nos itens nem `hiddenGroups.has(...)` nos tops/subgrupos.
-- Expor pelo hook um novo campo `editorMenus: TopMenu[]` (derivado com essa variação), sem afetar `effectiveMenus` (que continua sendo o filtrado que a sidebar consome).
+### 1. Deixar o escopo ativo impossível de confundir
+- Badge grande e colorido no topo da tela dizendo **"Editando: Meu usuário"** (azul) ou **"Editando: Padrão global — afeta todos"** (âmbar, com ícone de alerta).
+- Ao trocar de aba, mostrar toast informativo ("Agora você está editando o padrão global").
+- Em cada card de menu top, uma tag pequena repetindo o escopo, para que fique visível durante toda a rolagem.
 
-### 2. `src/pages/PersonalizarMenusPage.tsx`
-- Trocar `effectiveMenus.map(renderTop)` por `editorMenus.map(renderTop)`.
-- Em `renderTop`:
-  - Se `topHidden`, adicionar classe `opacity-60` no `Card` e badge `Oculto` ao lado do nome.
-- Em cada subgrupo nested:
-  - Se `subHidden`, aplicar `opacity-60` no bloco do subgrupo e badge `Oculto`.
-- Em `renderRow`:
-  - Se `hidden`, aplicar `opacity-60` na linha inteira e badge `Oculto`.
-- Nenhum outro comportamento muda — o Switch "Visível" já alterna `hidden`/`hiddenGroups` e continua funcionando para reativar.
+### 2. Confirmar gravação de fato
+- Depois de cada mutação em escopo global, mostrar toast discreto **"Padrão global salvo"** (hoje salva sem feedback).
+- Se o upsert falhar (RLS ou rede), toast de erro vermelho com a mensagem real do backend.
 
-### 3. Sem mudanças em
-- Sidebar (`AppSidebar.tsx`) — continua consumindo `effectiveMenus` filtrado.
-- Schema do layout no Cloud — nada a migrar.
-- Permissões / RLS.
+### 3. Facilitar propagação
+- Botão **"Publicar para todos agora"** no topo do escopo global — apenas força um upsert do estado atual + dispara um evento realtime, garantindo que quem estiver online receba na hora (o mecanismo de realtime + refetch em focus já existe).
+- Texto de ajuda: "Usuários online recebem em segundos; quem estiver offline recebe ao abrir o app."
 
-## Resultado esperado
+### 4. Ver quem realmente aplicou
+- Mostrar no topo do escopo global: **"Última publicação: <data/hora> por <usuário>"** (usa `updated_at` / `updated_by` que já existem na tabela).
+- Se estiver vazio, deixar explícito: **"Nenhum padrão global publicado ainda."** — isso já teria evitado a confusão atual.
 
-Ao ocultar "BI Comercial" no editor, ele passa a aparecer esmaecido com badge "Oculto" na própria página de Personalizar Menus, permitindo reativar com um clique no Switch. Na sidebar do app continua sumindo normalmente.
+### 5. Confirmar que é o problema
+Antes de mudar UI, quero validar a hipótese: pedir para o admin abrir a tela, ir na aba **Padrão global (admin)**, renomear qualquer item, e me avisar se apareceu erro. Enquanto isso, eu implemento os itens 1–4 acima que valem para os dois cenários.
+
+## Detalhes técnicos
+
+- `src/hooks/useMenuLayout.tsx`: adicionar toast de sucesso/erro no `setLayout` quando `scope === 'global'`; expor `globalMeta` (`{ updatedAt, updatedBy }`).
+- `src/pages/PersonalizarMenusPage.tsx`: badge de escopo persistente no topo, toast ao trocar de aba, banner com "Última publicação" + botão "Publicar para todos agora" (re-upsert do `globalLayout` atual).
+- Sem mudanças de schema — a tabela `menu_layout_global` e as policies já estão corretas.
