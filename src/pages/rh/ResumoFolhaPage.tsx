@@ -609,52 +609,83 @@ export default function ResumoFolhaPage() {
         </CardContent>
       </Card>
     ),
-    "proventos": (
-      <Card className="h-full">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-center">Proventos + Vantagens</CardTitle></CardHeader>
-        <CardContent className="overflow-auto max-h-[calc(100%-3rem)]">
-          <Table>
-            <TableHeader className="sticky top-0 bg-background z-10">
-              <TableRow><TableHead className="w-16">Cód.</TableHead><TableHead>Evento</TableHead><TableHead className="text-right">Proventos (R$)</TableHead></TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading && <TableRow><TableCell colSpan={3}><Skeleton className="h-6" /></TableCell></TableRow>}
-              {!isLoading && proventos.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-4">Sem dados</TableCell></TableRow>}
-              {proventos.map((p, i) => (
-                <TableRow key={i}>
-                  <TableCell className="text-muted-foreground">{p.cd_evento ?? "-"}</TableCell>
-                  <TableCell>{p.ds_evento ?? "-"}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatCurrency(p.valor)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    ),
-    "descontos": (
-      <Card className="h-full">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-center">Descontos</CardTitle></CardHeader>
-        <CardContent className="overflow-auto max-h-[calc(100%-3rem)]">
-          <Table>
-            <TableHeader className="sticky top-0 bg-background z-10">
-              <TableRow><TableHead className="w-16">Cód.</TableHead><TableHead>Evento</TableHead><TableHead className="text-right">Desc. (R$)</TableHead></TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading && <TableRow><TableCell colSpan={3}><Skeleton className="h-6" /></TableCell></TableRow>}
-              {!isLoading && descontos.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-4">Sem dados</TableCell></TableRow>}
-              {descontos.map((p, i) => (
-                <TableRow key={i}>
-                  <TableCell className="text-muted-foreground">{p.cd_evento ?? "-"}</TableCell>
-                  <TableCell className="text-xs">{p.ds_evento ?? "-"}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatCurrency(p.valor)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    ),
+    "proventos": (() => {
+      const drillable = drillsMap.has("proventos");
+      return (
+        <Card className="h-full">
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-center">Proventos + Vantagens</CardTitle></CardHeader>
+          <CardContent className="overflow-auto max-h-[calc(100%-3rem)]">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background z-10">
+                <TableRow><TableHead className="w-16">Cód.</TableHead><TableHead>Evento</TableHead><TableHead className="text-right">Proventos (R$)</TableHead></TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading && <TableRow><TableCell colSpan={3}><Skeleton className="h-6" /></TableCell></TableRow>}
+                {!isLoading && proventos.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-4">Sem dados</TableCell></TableRow>}
+                {proventos.map((p, i) => (
+                  <TableRow
+                    key={i}
+                    className={drillable ? "cursor-pointer hover:bg-muted/50" : ""}
+                    onClick={
+                      drillable
+                        ? () => openDrill(
+                            "proventos",
+                            { cd_evento: p.cd_evento ? String(p.cd_evento) : undefined, contextLabel: p.ds_evento ?? undefined },
+                            p.valor ?? null,
+                          )
+                        : undefined
+                    }
+                  >
+                    <TableCell className="text-muted-foreground">{p.cd_evento ?? "-"}</TableCell>
+                    <TableCell>{p.ds_evento ?? "-"}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatCurrency(p.valor)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      );
+    })(),
+    "descontos": (() => {
+      const drillable = drillsMap.has("descontos");
+      return (
+        <Card className="h-full">
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-center">Descontos</CardTitle></CardHeader>
+          <CardContent className="overflow-auto max-h-[calc(100%-3rem)]">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background z-10">
+                <TableRow><TableHead className="w-16">Cód.</TableHead><TableHead>Evento</TableHead><TableHead className="text-right">Desc. (R$)</TableHead></TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading && <TableRow><TableCell colSpan={3}><Skeleton className="h-6" /></TableCell></TableRow>}
+                {!isLoading && descontos.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-4">Sem dados</TableCell></TableRow>}
+                {descontos.map((p, i) => (
+                  <TableRow
+                    key={i}
+                    className={drillable ? "cursor-pointer hover:bg-muted/50" : ""}
+                    onClick={
+                      drillable
+                        ? () => openDrill(
+                            "descontos",
+                            { cd_evento: p.cd_evento ? String(p.cd_evento) : undefined, contextLabel: p.ds_evento ?? undefined },
+                            p.valor ?? null,
+                          )
+                        : undefined
+                    }
+                  >
+                    <TableCell className="text-muted-foreground">{p.cd_evento ?? "-"}</TableCell>
+                    <TableCell className="text-xs">{p.ds_evento ?? "-"}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatCurrency(p.valor)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      );
+    })(),
+
     "filial": (
       <Card className="h-full">
         <CardHeader className="pb-2"><CardTitle className="text-sm text-center">Filial</CardTitle></CardHeader>
