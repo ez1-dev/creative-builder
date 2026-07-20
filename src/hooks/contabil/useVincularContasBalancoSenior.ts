@@ -108,9 +108,13 @@ export function useVincularContasBalancoSenior(modeloId: string) {
       qc.invalidateQueries({ queryKey: ["contas-vinculadas", modeloId] });
       qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === "contabil" && q.queryKey[1] === "resultado-cache" && q.queryKey.includes(modeloId) });
       qc.invalidateQueries({ queryKey: ["contabil", "resultado-pronto", modeloId] });
-      toast.success(
-        `Contas vinculadas com sucesso. Linhas criadas: ${r.linhas_criadas}. Contas vinculadas: ${r.contas_vinculadas}.`,
-      );
+      const partes: string[] = [];
+      if (r.contas_lidas_senior != null) partes.push(`Contas lidas: ${r.contas_lidas_senior}`);
+      partes.push(`Linhas criadas: ${r.linhas_criadas}`);
+      partes.push(`Contas vinculadas: ${r.contas_vinculadas}`);
+      if (r.contas_ja_existentes != null) partes.push(`Já existentes: ${r.contas_ja_existentes}`);
+      if (r.linhas_reordenadas != null) partes.push(`Reordenadas: ${r.linhas_reordenadas}`);
+      toast.success(`Contas vinculadas com sucesso. ${partes.join(" · ")}`);
     },
     onError: (e) =>
       toast.error(e.message ?? "Erro ao vincular contas ao Balanço."),
