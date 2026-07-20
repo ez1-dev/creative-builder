@@ -334,6 +334,50 @@ export function useMenuLayout() {
     return () => { cancelled = true; };
   }, [userId, tick]);
 
+  // Refetch on window focus / visibility change (PWA volta do background)
+  useEffect(() => {
+    const onFocus = () => {
+      if (document.visibilityState === 'visible') setTick((t) => t + 1);
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+    };
+  }, []);
+
+  // Polling leve (5 min) só quando a aba está visível — fallback caso realtime não chegue
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (document.visibilityState === 'visible') setTick((t) => t + 1);
+    }, 5 * 60 * 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  // Realtime: menu_layout_global (todos) + menu_layout_user (próprio user)
+  useEffect(() => {
+    const channel = supabase
+      .channel('menu-layout-sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'menu_layout_global' },
+        () => setTick((t) => t + 1),
+      );
+    if (userId) {
+      channel.on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'menu_layout_user', filter: `user_id=eq.${userId}` },
+        () => setTick((t) => t + 1),
+      );
+    }
+    channel.subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId]);
+
+
   const merged = useMemo(() => mergeLayouts(globalLayout, userLayout), [globalLayout, userLayout]);
   const effectiveMenus = useMemo(() => applyLayout(TOP_MENUS, merged), [merged]);
 

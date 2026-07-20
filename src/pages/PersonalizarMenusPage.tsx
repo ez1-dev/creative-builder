@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import {
-  ArrowDown, ArrowUp, RotateCcw, Plus, Trash2, ExternalLink, Info,
+  ArrowDown, ArrowUp, RotateCcw, RefreshCw, Plus, Trash2, ExternalLink, Info,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -46,8 +46,9 @@ export default function PersonalizarMenusPage() {
   const { isAdmin } = useUserPermissions();
   const {
     userLayout, globalLayout, merged, effectiveMenus, loaded,
-    setLayout, resetLayout,
+    setLayout, resetLayout, refresh,
   } = useMenuLayout();
+
   const [scope, setScope] = useState<MenuScope>('user');
   const activeLayout = scope === 'user' ? userLayout : globalLayout;
 
@@ -412,6 +413,12 @@ export default function PersonalizarMenusPage() {
         </div>
         <div className="flex items-center gap-2">
           <NovoTopoDialog onCreate={addCustomTop} />
+          <Button variant="outline" onClick={() => {
+            refresh();
+            toast.success('Menus sincronizados com o servidor.');
+          }}>
+            <RefreshCw className="mr-2 h-4 w-4" /> Sincronizar agora
+          </Button>
           <Button variant="outline" onClick={async () => {
             await resetLayout(scope);
             toast.success(`Layout ${scope === 'user' ? 'pessoal' : 'global'} restaurado.`);
@@ -419,6 +426,7 @@ export default function PersonalizarMenusPage() {
             <RotateCcw className="mr-2 h-4 w-4" /> Restaurar padrão
           </Button>
         </div>
+
       </div>
 
       <Tabs value={scope} onValueChange={(v) => setScope(v as MenuScope)}>

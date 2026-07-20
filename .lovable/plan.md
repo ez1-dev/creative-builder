@@ -1,149 +1,44 @@
+## Diagnóstico
 
-# Editor completo de menus
+Confirmei o que está no ar hoje:
 
-Hoje `Personalizar Menus` só permite mover/ocultar/reordenar sobre um catálogo fixo em `src/config/menuCatalog.ts`. Vamos transformá-lo num editor completo, com dois níveis de configuração:
+- **Menus personalizados vivem no Cloud** (`menu_layout_global` + `menu_layout_user`), não no bundle. RLS já permite qualquer usuário autenticado ler o layout global.
+- **`useMenuLayout` só busca uma vez, na montagem** (`useEffect` com `[userId, tick]`). Não há realtime, nem refetch on focus, nem invalidação por evento. Enquanto o PWA fica aberto (típico em celular, onde o app fica em background por dias), o layout global carregado no boot **nunca mais é reconsultado**.
+- **PWA sem service worker**: o `index.html` sai com `no-cache, must-revalidate`, o bundle é hash-nomeado. Existe um `UpdateNotifier` que faz polling do `/index.html` a cada 60s e detecta troca de hash — mas ele só dispara para *bundles* novos, não para mudanças de dados no Cloud (o layout de menu é dado, não código).
+- Sintoma para o usuário: admin altera menu → em outro dispositivo o PWA continua mostrando o layout antigo até o usuário fechar totalmente o app e reabrir (o que raramente acontece em PWA instalado).
 
-- **Padrão global** — editável só por admins, vale para todos.
-- **Override pessoal** — cada usuário ajusta sobre o padrão global.
+Ou seja, **não é problema de cache de bundle**; é falta de re-sincronização do layout com o Cloud enquanto o app está aberto.
 
-## O que passa a ser editável
+## Plano
 
-Para cada menu de topo, subgrupo e item:
-- **Título** (renomear)
-- **Ícone** (picker com busca sobre a biblioteca Lucide)
-- **Visibilidade** (mostrar/ocultar) — já existe
-- **Ordem e localização** (mover entre topo/subgrupo) — já existe
+### 1. Refetch automático do layout de menu
 
-Estrutura:
-- **Criar novo menu de topo** (leaf, flat ou nested)
-- **Criar novo subgrupo** dentro de um menu nested
-- **Criar novo item** apontando para:
-  - Rota interna existente (autocomplete a partir do catálogo)
-  - Rota interna manual (`/algo`, mesmo que ainda não exista — aviso "rota não mapeada")
-  - URL externa (`https://…`, abre em nova aba com ícone indicador)
-- **Excluir** itens/subgrupos/menus criados pelo usuário (os "de fábrica" só podem ser ocultados, nunca apagados — para não perder acesso a telas do sistema)
-- **Restaurar padrão** (limpa override pessoal; admin pode também "resetar global de fábrica")
+Em `src/hooks/useMenuLayout.tsx`, adicionar três gatilhos que chamam `refresh()`:
 
-## Arquitetura
+- **Ao focar a janela / voltar do background** (`visibilitychange` + `focus`) — cobre o caso "usuário volta pro PWA depois de horas".
+- **Realtime do Supabase**: `supabase.channel('menu_layout').on('postgres_changes', { event: '*', schema: 'public', table: 'menu_layout_global' }, …)` invalida globalLayout na hora que o admin salva. Fazer o mesmo para `menu_layout_user` filtrando por `user_id=eq.${userId}` (útil se o usuário editar em outro dispositivo).
+- **Polling leve de fallback** a cada 5 min, só quando a aba está visível, para redes/ambientes onde o realtime não chegar.
 
-### Catálogo de fábrica (imutável)
-`src/config/menuCatalog.ts` continua sendo a fonte da verdade das telas que existem no app. Ganha um `id` estável em cada nó (topo/subgrupo/item) para servir de âncora aos overrides.
+Separar `loadGlobal`/`loadUser` para permitir refetch parcial (ex.: realtime só do global). Manter dedupe: se `layout` não mudou (hash JSON), não re-renderiza.
 
-### Camada de overrides (nova)
+### 2. Botão manual "Sincronizar menus"
 
-Duas tabelas no Cloud:
+Em `PersonalizarMenusPage.tsx`, expor um botão pequeno "Sincronizar agora" que chama `refresh()`. Serve como escape hatch e ajuda a testar.
 
-**`menu_layout_global`** (uma linha só, editada por admins)
-- `id uuid pk`
-- `layout jsonb` — árvore completa customizada
-- `updated_at`, `updated_by`
+### 3. Aviso passivo quando layout muda em outra sessão
 
-**`menu_layout_user`** (uma por usuário)
-- `user_id uuid pk` → `auth.users`
-- `layout jsonb`
-- `updated_at`
+Quando o realtime detectar mudança no `menu_layout_global`, mostrar um toast discreto: "Menus atualizados pelo administrador" (sem interromper o usuário). Opcional — posso deixar silencioso se preferir.
 
-RLS:
-- `menu_layout_global`: `SELECT` para `authenticated`; `INSERT/UPDATE/DELETE` só para role `admin` (via `has_role`).
-- `menu_layout_user`: cada um lê/escreve a própria linha.
+### 4. Sanidade do `UpdateNotifier` para o PWA instalado
 
-Ambas com `GRANT` explícitos e `service_role` liberado.
-
-### Formato do `layout jsonb`
-
-Árvore homogênea de nós:
-```json
-{ "version": 2,
-  "nodes": [
-    { "id":"erp", "kind":"nested", "title":"ERP", "icon":"Package", "source":"factory",
-      "children":[
-        { "id":"erp-faturamento", "kind":"group", "title":"Faturamento", "icon":"Receipt",
-          "children":[
-            { "id":"bi-comercial", "kind":"item", "title":"BI Comercial", "icon":"BarChart3",
-              "target":{ "type":"internal", "url":"/bi/comercial" }, "hidden":false }
-          ]
-        }
-      ]
-    },
-    { "id":"custom-abc", "kind":"item", "source":"user", "title":"Portal do Cliente",
-      "icon":"ExternalLink", "target":{ "type":"external", "url":"https://..." } }
-  ]
-}
-```
-- `source: 'factory' | 'user'` marca origem — nós de fábrica não podem ser excluídos, só ocultados/renomeados.
-- Merge na leitura: `factory catalog → global override → user override`. Cada camada só grava o **delta** (campos alterados + nós criados).
-
-### Hook `useMenuLayout` (refatorado)
-- Carrega `TOP_MENUS` + `menu_layout_global` + `menu_layout_user` (React Query).
-- Faz merge e retorna a árvore renderizável.
-- Expõe mutations: `renameNode`, `setIcon`, `toggleHidden`, `moveNode`, `createNode`, `deleteNode`, `resetPersonal`, `resetGlobal` (esta última só admin).
-- Escreve sempre no escopo ativo (usuário ou global) — a tela permite alternar o "modo de edição".
-
-### `AppSidebar`
-Passa a consumir a árvore mesclada em vez de `TOP_MENUS` diretamente. Renderiza `ExternalLink` (target `_blank` + ícone `ArrowUpRight`) para itens externos.
-
-## Nova UI de `PersonalizarMenusPage`
-
-Layout em duas colunas:
-
-```text
-┌─────────────────────────────┬──────────────────────────────┐
-│ Árvore (drag-drop)          │ Painel de propriedades       │
-│  ▸ Início                    │  Título:  [___________]      │
-│  ▾ ERP                       │  Ícone:   [🔍 picker]        │
-│    ▾ Faturamento             │  Rota:    [/bi/comercial]    │
-│      • BI Comercial ✎        │  Tipo:    ○ Interna ○ Ext.   │
-│      • Faturamento           │  Visível: [x]                │
-│    ▸ Estoque                 │  [Excluir] (só se source=user)│
-│  ▸ BI                        │                              │
-│  [+ Novo menu de topo]       │                              │
-└─────────────────────────────┴──────────────────────────────┘
-```
-
-Header da página:
-- Toggle **Escopo: [Meu usuário | Padrão global (admin)]** — a aba global só aparece se `has_role(admin)`.
-- Botão **Restaurar padrão** (do escopo ativo).
-- Aviso quando há override pessoal cobrindo o global ("Você tem 3 personalizações locais — [ver] [limpar]").
-
-Drag & drop com `@dnd-kit` (já usado em outros builders do projeto — se não estiver, adicionar). Suporta mover entre topos e subgrupos.
-
-Diálogos:
-- **Criar item**: título, ícone, tipo de destino (interno/externo), URL.
-- **Criar subgrupo**: título, ícone (só habilitado dentro de menu nested).
-- **Criar menu de topo**: título, ícone, tipo (`leaf` / `flat` / `nested`).
-
-### Icon picker
-Componente novo `IconPicker` (`src/components/menus/IconPicker.tsx`) que:
-- Lista subconjunto curado de ~120 ícones Lucide relevantes (Home, Package, Factory, BarChart3, etc.) para não travar renderizando 1000+.
-- Campo de busca por nome.
-- Renderiza a partir do map `icons` de `lucide-react` (dinâmico por nome).
-- Guarda o **nome do ícone como string** no JSON (não o componente).
-
-`menuCatalog.ts` passa a exportar o mapa `iconByName` e uma função `resolveIcon(name)` — o resto do app deixa de importar ícones direto para os menus.
-
-## Migração de dados
-
-O layout atual em `localStorage` (`menuLayout:<userId>`) é lido uma vez, convertido para o novo formato v2 e gravado em `menu_layout_user`; depois a chave local é limpa. Assim ninguém perde as personalizações já feitas.
-
-## Escopo técnico (arquivos)
-
-Novos:
-- `supabase/migrations/*_menu_layout.sql` — tabelas, grants, RLS, policies.
-- `src/components/menus/IconPicker.tsx`
-- `src/components/menus/MenuTreeEditor.tsx` (drag-drop + seleção)
-- `src/components/menus/NodePropertiesPanel.tsx`
-- `src/components/menus/dialogs/{NovoItemDialog,NovoSubgrupoDialog,NovoTopoDialog}.tsx`
-- `src/hooks/useMenuLayoutV2.tsx` (substitui o atual)
-- `src/services/menuLayoutApi.ts`
-
-Alterados:
-- `src/config/menuCatalog.ts` — ids estáveis em todos os nós + `iconByName`/`resolveIcon`.
-- `src/components/AppSidebar.tsx` (ou equivalente) — consumir árvore mesclada.
-- `src/pages/PersonalizarMenusPage.tsx` — reescrita completa.
-
-Sem mudanças em outras telas do sistema.
+Não mexer na lógica; só confirmar por telemetria (console.info já existe) que ele está rodando dentro do PWA. Se depois aparecer que **também há bundle antigo** rodando, aí sim entramos numa segunda rodada de plano (kill-switch service worker) — mas o problema descrito hoje é resolvido só com os itens 1–3.
 
 ## Fora de escopo
-- Permissões por item de menu (quem vê o quê) — continua governado pelos perfis de acesso existentes.
-- Temas/cores por menu.
-- Versionamento/histórico do layout global (só o último estado é mantido).
+
+- Não vou introduzir service worker / vite-plugin-pwa nesta rodada (regra do projeto: só adicionar SW se o usuário pedir offline explicitamente).
+- Não vou mexer em RLS nem em `menu_layout_*` — leitura para authenticated já está OK.
+- Não vou tocar em `screenCatalog` / permissões.
+
+## Pergunta rápida
+
+Quer o toast "Menus atualizados pelo administrador" (item 3) **ativo** ou **silencioso** (só recarrega o sidebar sem avisar)?

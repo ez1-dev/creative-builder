@@ -1,0 +1,1 @@
+ALTER TABLE public.menu_layout_global REPLICA IDENTITY FULL; ALTER TABLE public.menu_layout_user REPLICA IDENTITY FULL; ALTER PUBLICATION supabase_realtime ADD TABLE public.menu_layout_global; ALTER PUBLICATION supabase_realtime ADD TABLE public.menu_layout_user;
