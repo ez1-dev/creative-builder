@@ -1,5 +1,6 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { FloatingHScrollbar } from "@/components/dre-studio/FloatingHScrollbar";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -237,6 +238,7 @@ function defaultDataFim(anomesFim: number): string {
 
 function Visualizacao() {
   const { id } = useParams() as any;
+  const matrizScrollRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const recriarCompleto = useCriarBalancoPadraoSenior();
   const [confirmRecriar, setConfirmRecriar] = useState(false);
@@ -2140,7 +2142,7 @@ function Visualizacao() {
       )}
 
 
-      <div className="relative rounded-lg border bg-white overflow-auto isolate">
+      <div ref={matrizScrollRef} className="relative rounded-lg border bg-white overflow-auto isolate">
 
 
         {materializar.isPending && (
@@ -2626,6 +2628,7 @@ function Visualizacao() {
           </table>
         )}
       </div>
+      <FloatingHScrollbar targetRef={matrizScrollRef} />
       {linhas.length > 0 && (
         <div className="text-xs text-slate-500 mt-2 text-right">
           {modo === "NIVEL3" ? `${resultadoNivel3.length} grupos exibidos` : `${linhas.length} linhas exibidas`}
