@@ -91,6 +91,11 @@ function qs(params?: Record<string, unknown>): string {
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {
+  if (res.status === 401) {
+    let detail: string | undefined;
+    try { detail = (await res.json())?.detail; } catch { /* noop */ }
+    throw new SessaoExpiradaError(detail);
+  }
   if (res.status === 503) {
     let detail: string | undefined;
     try { detail = (await res.json())?.detail ?? (await res.text()); } catch { /* noop */ }
