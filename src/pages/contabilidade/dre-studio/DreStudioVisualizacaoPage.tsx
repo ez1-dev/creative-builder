@@ -2630,6 +2630,7 @@ function Visualizacao() {
         )}
       </div>
       <FloatingHScrollbar targetRef={matrizScrollRef} />
+      </div>
       {linhas.length > 0 && (
         <div className="text-xs text-slate-500 mt-2 text-right">
           {modo === "NIVEL3" ? `${resultadoNivel3.length} grupos exibidos` : `${linhas.length} linhas exibidas`}
