@@ -2142,7 +2142,8 @@ function Visualizacao() {
       )}
 
 
-      <div ref={matrizScrollRef} className="relative rounded-lg border bg-white overflow-auto isolate">
+      <div className="relative">
+      <div ref={matrizScrollRef} className="relative rounded-lg border bg-white overflow-auto isolate [&::-webkit-scrollbar:horizontal]:hidden">
 
 
         {materializar.isPending && (
@@ -2629,6 +2630,7 @@ function Visualizacao() {
         )}
       </div>
       <FloatingHScrollbar targetRef={matrizScrollRef} />
+      </div>
       {linhas.length > 0 && (
         <div className="text-xs text-slate-500 mt-2 text-right">
           {modo === "NIVEL3" ? `${resultadoNivel3.length} grupos exibidos` : `${linhas.length} linhas exibidas`}
