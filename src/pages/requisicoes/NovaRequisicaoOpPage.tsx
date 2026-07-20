@@ -373,8 +373,8 @@ export default function NovaRequisicaoOpPage() {
     }
     if (itensSemDeposito.length > 0) {
       toast({
-        title: 'Escolha o depósito de origem',
-        description: `Escolha o depósito de origem do componente ${itensSemDeposito[0].codigo} antes de enviar.`,
+        title: 'Escolha o depósito sugerido',
+        description: `Escolha o depósito sugerido do componente ${itensSemDeposito[0].codigo} antes de enviar.`,
         variant: 'destructive',
       });
       return;
@@ -391,12 +391,23 @@ export default function NovaRequisicaoOpPage() {
           throw err;
         }
       }
-      toast({ title: 'Requisição criada', description: `Nº ${criada.numero}` });
+      const numero = (criada as any)?.numero ?? (criada as any)?.numeme ?? (criada as any)?.resultado;
+      if (numero) {
+        toast({ title: `Requisição ${numero} criada no ERP.` });
+      } else {
+        toast({ title: 'Requisição enviada — confira o número no ERP.' });
+      }
       // Envio bem-sucedido → descarta rascunho local para não confundir na próxima entrada
       if (rascunhoKey) { localStorage.removeItem(rascunhoKey); setRascunhoDisponivel(false); }
       nav(`/requisicoes/${encodeURIComponent(criada.id)}`);
     } catch (err: any) {
-      toast({ title: 'Não foi possível criar a requisição', description: err?.message ?? 'Erro desconhecido', variant: 'destructive' });
+      if (err instanceof IntegracaoDesabilitadaError) {
+        toast({ title: 'Integração ERP desabilitada', description: err.detail ?? err.message, variant: 'destructive' });
+      } else if (err instanceof RequisicaoApiError) {
+        toast({ title: 'ERP recusou a requisição', description: err.detail ?? err.message, variant: 'destructive' });
+      } else {
+        toast({ title: 'Não foi possível enviar a requisição', description: err?.message ?? 'Erro desconhecido', variant: 'destructive' });
+      }
     } finally {
       setEnviando(false);
     }
