@@ -37,6 +37,24 @@ export interface SidStatusResponse {
   proximo_passo?: string;
 }
 
+/** Resposta do POST /api/requisicoes/sid/requisitar. */
+export interface SidRequisitarResponse {
+  numeme: number | null;
+  seqeme?: number | null;
+  resultado?: string | null;
+  acao?: string | null;
+  aviso_parse?: string | null;
+}
+
+/** Resposta do POST /api/requisicoes/sid/baixar-componentes. */
+export interface SidBaixaComponenteResponse {
+  resultado?: string | null;
+  acao?: string | null;
+  aviso_parse?: string | null;
+}
+
+
+
 export type TipoRequisicao =
   | 'OP'
   | 'CONSUMO'
