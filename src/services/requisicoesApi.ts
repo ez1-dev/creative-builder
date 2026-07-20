@@ -32,6 +32,17 @@ export class IntegracaoDesabilitadaError extends Error {
   }
 }
 
+/** Sessão da API ERP expirada — usuário precisa refazer login. */
+export class SessaoExpiradaError extends Error {
+  status = 401;
+  detail?: string;
+  constructor(detail?: string) {
+    super('Sua sessão expirou. Faça login novamente.');
+    this.name = 'SessaoExpiradaError';
+    this.detail = detail;
+  }
+}
+
 /** Endpoint de cadastro ainda não publicado pela API. */
 export class EndpointIndisponivelError extends Error {
   constructor(readonly recurso: string, message?: string) {
@@ -80,6 +91,11 @@ function qs(params?: Record<string, unknown>): string {
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {
+  if (res.status === 401) {
+    let detail: string | undefined;
+    try { detail = (await res.json())?.detail; } catch { /* noop */ }
+    throw new SessaoExpiradaError(detail);
+  }
   if (res.status === 503) {
     let detail: string | undefined;
     try { detail = (await res.json())?.detail ?? (await res.text()); } catch { /* noop */ }
@@ -107,7 +123,7 @@ async function apiGet<T>(path: string, params?: Record<string, any>): Promise<T>
     });
     return await handleResponse<T>(res);
   } catch (err) {
-    if (err instanceof IntegracaoDesabilitadaError || err instanceof RequisicaoApiError) throw err;
+    if (err instanceof IntegracaoDesabilitadaError || err instanceof SessaoExpiradaError || err instanceof RequisicaoApiError) throw err;
     throw new ApiOfflineError();
   }
 }
@@ -128,7 +144,7 @@ async function apiWrite<T>(
     });
     return await handleResponse<T>(res);
   } catch (err) {
-    if (err instanceof IntegracaoDesabilitadaError || err instanceof RequisicaoApiError) throw err;
+    if (err instanceof IntegracaoDesabilitadaError || err instanceof SessaoExpiradaError || err instanceof RequisicaoApiError) throw err;
     throw new ApiOfflineError();
   }
 }

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { requisicoesApi, IntegracaoDesabilitadaError } from '@/services/requisicoesApi';
+import { requisicoesApi, IntegracaoDesabilitadaError, SessaoExpiradaError } from '@/services/requisicoesApi';
 import type { RequisicaoFiltros, Requisicao, ConfigRequisicoes } from '@/types/requisicoes';
 import { toast } from '@/hooks/use-toast';
 
@@ -84,11 +84,14 @@ export function useSidStatus() {
 }
 
 /** true quando escrita SID está liberada (habilitada + WSDL do co_ger_sid acessível). */
-export type SidWriteKind = 'ok' | 'loading' | 'desabilitado' | 'inalcancavel' | 'desconhecido';
+export type SidWriteKind = 'ok' | 'loading' | 'desabilitado' | 'inalcancavel' | 'sessao_expirada' | 'desconhecido';
 export function useSidWriteEnabled(): { enabled: boolean; loading: boolean; reason?: string; kind: SidWriteKind } {
   const q = useSidStatus();
   if (q.isLoading) return { enabled: false, loading: true, kind: 'loading' };
   if (q.error) {
+    if (q.error instanceof SessaoExpiradaError) {
+      return { enabled: false, loading: false, kind: 'sessao_expirada', reason: 'Sua sessão expirou. Faça login novamente.' };
+    }
     if (q.error instanceof IntegracaoDesabilitadaError) {
       return { enabled: false, loading: false, kind: 'desabilitado', reason: q.error.detail ?? 'Integração de escrita SID desabilitada no backend.' };
     }
@@ -96,7 +99,7 @@ export function useSidWriteEnabled(): { enabled: boolean; loading: boolean; reas
       enabled: false,
       loading: false,
       kind: 'inalcancavel',
-      reason: 'Backend do ERP inalcançável — verifique se VITE_API_BASE_URL aponta para a FastAPI e se o serviço está online.',
+      reason: 'Não foi possível falar com o servidor. Verifique a URL da API ou se o serviço FastAPI está online.',
     };
   }
   const s = q.data;
@@ -105,6 +108,9 @@ export function useSidWriteEnabled(): { enabled: boolean; loading: boolean; reas
   if (!s.ger_sid?.wsdl_ok) return { enabled: false, loading: false, kind: 'desabilitado', reason: 'Serviço co_ger_sid indisponível.' };
   return { enabled: true, loading: false, kind: 'ok' };
 }
+
+/** Chave da query do ping — use com queryClient.invalidateQueries para forçar refetch. */
+export const SID_PING_QUERY_KEY = [KEY, 'sid', 'ping'] as const;
 
 /* ============================== Mutations ============================== */
 

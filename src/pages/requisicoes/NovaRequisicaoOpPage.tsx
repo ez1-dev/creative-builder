@@ -16,8 +16,8 @@ import {
   Info as InfoIcon, Loader2, CheckCircle2,
 } from 'lucide-react';
 
-import { useQuery } from '@tanstack/react-query';
-import { useOpConsulta, useSidWriteEnabled } from '@/hooks/requisicoes';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useOpConsulta, useSidWriteEnabled, SID_PING_QUERY_KEY } from '@/hooks/requisicoes';
 import { requisicoesApi, IntegracaoDesabilitadaError, RequisicaoApiError } from '@/services/requisicoesApi';
 import type { TipoAtendimentoOP, ComponenteOP } from '@/types/requisicoes';
 import { toast } from '@/hooks/use-toast';
@@ -41,6 +41,15 @@ export default function NovaRequisicaoOpPage() {
 
   // step
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const qc = useQueryClient();
+
+  // Revalida o status da integração SID ao entrar no passo "Revisar & enviar",
+  // para não deixar uma aba antiga presa em um estado velho.
+  useEffect(() => {
+    if (step === 4) {
+      qc.invalidateQueries({ queryKey: SID_PING_QUERY_KEY });
+    }
+  }, [step, qc]);
 
   // busca
   const [codori, setCodori] = useState('');
@@ -961,13 +970,7 @@ export default function NovaRequisicaoOpPage() {
           </div>
 
           {!sidWrite.enabled && itensInvalidos.length === 0 && itensSemDeposito.length === 0 && (
-            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-200">
-              {sidWrite.kind === 'inalcancavel'
-                ? 'Backend do ERP inalcançável. Verifique a URL da API (VITE_API_BASE_URL) ou se o túnel/serviço FastAPI está online. Você pode salvar como rascunho e reenviar quando voltar.'
-                : sidWrite.kind === 'loading'
-                ? 'Verificando integração com o ERP…'
-                : 'A integração com o ERP está desabilitada. Aguarde o SID ser habilitado no backend antes de enviar.'}
-            </div>
+            <IntegracaoStatusChip />
           )}
 
           <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">

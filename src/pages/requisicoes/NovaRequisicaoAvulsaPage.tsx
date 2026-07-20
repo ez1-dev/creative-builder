@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
@@ -26,7 +26,8 @@ import { IntegracaoOfflineBanner } from '@/components/requisicoes/IntegracaoOffl
 import { RemoteCombobox, highlight } from '@/components/requisicoes/RemoteCombobox';
 import { OperadorBadge, useOperadorInfo } from '@/components/requisicoes/OperadorBadge';
 import { ResultadoRequisicaoLote } from '@/components/requisicoes/ResultadoRequisicaoLote';
-import { useSidWriteEnabled } from '@/hooks/requisicoes';
+import { useSidWriteEnabled, SID_PING_QUERY_KEY } from '@/hooks/requisicoes';
+import { useQueryClient } from '@tanstack/react-query';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -72,6 +73,12 @@ export default function NovaRequisicaoAvulsaPage() {
   const [resultado, setResultado] = useState<SidRequisitarLoteResponse | null>(null);
   const sidWrite = useSidWriteEnabled();
   const operador = useOperadorInfo();
+  const qc = useQueryClient();
+
+  // Revalida integração ao montar a tela de envio (aba antiga não fica com estado velho).
+  useEffect(() => {
+    qc.invalidateQueries({ queryKey: SID_PING_QUERY_KEY });
+  }, [qc]);
 
   const primeiroErroRef = useRef<HTMLInputElement | null>(null);
 

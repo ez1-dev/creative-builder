@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { AlertTriangle, Info, WifiOff } from 'lucide-react';
+import { AlertTriangle, Info, WifiOff, LogIn, RefreshCw } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { useSidStatus, useSidWriteEnabled } from '@/hooks/requisicoes';
+import { useSidStatus, useSidWriteEnabled, SID_PING_QUERY_KEY } from '@/hooks/requisicoes';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 
 interface Props {
@@ -12,42 +14,59 @@ interface Props {
 
 /**
  * Faixa compacta de status da integração SID.
- * Diferencia "backend inalcançável" (rede/URL) de "SID desabilitado" (backend online).
+ * Diferencia: sessão expirada (401), backend inalcançável (rede/URL) e SID desabilitado (backend online).
  * Detalhes técnicos só aparecem para administradores.
  */
 export function IntegracaoStatusChip({ detail }: Props) {
-  const { data, isLoading } = useSidStatus();
+  const { data, isLoading, isFetching } = useSidStatus();
   const sw = useSidWriteEnabled();
   const { isAdmin } = useUserPermissions();
+  const qc = useQueryClient();
+  const nav = useNavigate();
+  const loc = useLocation();
   const [openTech, setOpenTech] = useState(false);
 
   if (isLoading) return null;
+
+  const isSessao = sw.kind === 'sessao_expirada';
   const inalcancavel = sw.kind === 'inalcancavel';
   const habilitado = data?.sid_habilitado ?? true;
   const wsdlOk = data?.ger_sid?.wsdl_ok ?? true;
   const chaOk = data?.cha_separacao?.wsdl_ok ?? true;
-  const offline = inalcancavel || !habilitado || !wsdlOk || !chaOk || Boolean(detail);
+  const offline = isSessao || inalcancavel || !habilitado || !wsdlOk || !chaOk || Boolean(detail);
   if (!offline) return null;
 
-  const Icon = inalcancavel ? WifiOff : AlertTriangle;
-  const texto = inalcancavel
-    ? 'Backend do ERP inalcançável. Verifique a URL da API ou o túnel/serviço. Rascunhos ficam salvos localmente.'
+  const retry = () => qc.invalidateQueries({ queryKey: SID_PING_QUERY_KEY });
+  const login = () => nav(`/login?redirect=${encodeURIComponent(loc.pathname + loc.search)}`);
+
+  const Icon = isSessao ? LogIn : inalcancavel ? WifiOff : AlertTriangle;
+  const texto = isSessao
+    ? 'Sua sessão expirou. Faça login novamente para enviar requisições.'
+    : inalcancavel
+    ? 'Não foi possível falar com o servidor. Verifique a URL da API ou o serviço/túnel. Rascunhos ficam salvos localmente.'
     : 'Integração com o Senior temporariamente desabilitada. Consultas continuam disponíveis e a requisição pode ser salva como rascunho.';
 
   return (
     <>
       <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-200">
         <Icon className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-        <span className="flex-1 min-w-0">{texto}</span>
-        {isAdmin && (
+        <span className="min-w-0 flex-1">{texto}</span>
+        {isSessao && (
+          <Button size="sm" variant="default" onClick={login} className="h-7">
+            <LogIn className="mr-1 h-3.5 w-3.5" /> Fazer login
+          </Button>
+        )}
+        <Button size="sm" variant="outline" onClick={retry} disabled={isFetching} className="h-7">
+          <RefreshCw className={`mr-1 h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} /> Tentar de novo
+        </Button>
+        {isAdmin && data && (
           <Button variant="outline" size="sm" onClick={() => setOpenTech(true)} className="h-7">
-            <Info className="mr-1 h-3.5 w-3.5" /> Ver detalhes técnicos
+            <Info className="mr-1 h-3.5 w-3.5" /> Detalhes técnicos
           </Button>
         )}
       </div>
 
-
-      {isAdmin && (
+      {isAdmin && data && (
         <Dialog open={openTech} onOpenChange={setOpenTech}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
