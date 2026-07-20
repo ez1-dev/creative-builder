@@ -126,62 +126,50 @@ export default function ResumoFolhaPage() {
   const [drillCard, setDrillCard] = useState<ResumoFolhaDrillsMenuItem | null>(null);
   const [drillCardValue, setDrillCardValue] = useState<number | null | undefined>(null);
   const [drillExtras, setDrillExtras] = useState<ResumoFolhaDrillExtras | undefined>(undefined);
+  const DRILL_ALIASES: Record<string, string> = { salario_bruto: "salario_base" };
+  const resolveDrillKey = (field: string) =>
+    drillsMap.has(field) ? field : (DRILL_ALIASES[field] && drillsMap.has(DRILL_ALIASES[field]) ? DRILL_ALIASES[field] : null);
   const openDrill = (
     field: string,
     extras?: ResumoFolhaDrillExtras,
     valueOverride?: number | null,
   ) => {
-    const item = drillsMap.get(field);
-    if (!item) {
-      const msg = `Drill "${field}" não foi devolvido pelo backend em drills_menu.`;
+    const key = resolveDrillKey(field);
+    if (!key) {
       // eslint-disable-next-line no-console
       console.warn("[RH ResumoFolha] drill ausente", {
         card: field,
         drills_menu_cards: Array.from(drillsMap.keys()),
       });
-      if (isAdmin) toast.warning(msg);
       return;
     }
+    const item = drillsMap.get(key)!;
     setDrillCard(item);
     setDrillCardValue(
       valueOverride !== undefined
         ? valueOverride
         : kpis
-          ? (kpis[field] as number | null | undefined)
+          ? (kpis[field] as number | null | undefined) ?? (kpis[key] as number | null | undefined)
           : null,
     );
     setDrillExtras(extras);
     setDrillOpen(true);
   };
   const kpiDrill = (field: string) => {
-    const drillable = drillsMap.has(field);
+    const drillable = !!resolveDrillKey(field);
     return {
       drillable,
       onClick: drillable ? () => openDrill(field) : undefined,
     };
   };
 
-  // ============ Diagnóstico de drills faltantes (visível a admin) ============
-  const EXPECTED_KPI_DRILLS = [
-    "provento", "desconto", "total_liquido",
-    "salario_base", "salario_bruto",
-    "outras_gratificacoes", "beneficios", "va",
-    "inss_total", "fgts", "rescisoes",
-    "custo_total", "hora_extra", "provisoes", "custo_ferias",
-  ];
-  const EXPECTED_EXTRA_DRILLS = ["proventos", "descontos", "tipos_evento", "filial"];
-  const missingDrills = useMemo(() => {
-    if (!data) return [] as string[];
-    const all = [...EXPECTED_KPI_DRILLS, ...EXPECTED_EXTRA_DRILLS];
-    return all.filter((k) => !drillsMap.has(k));
-  }, [data, drillsMap]);
+
+  // ============ Diagnóstico de drills (admin) ============
   const copyDrillDiagnostico = async () => {
     const diag = {
       params: baseParams,
       drills_menu_recebidos: drillsMenu,
       cards_recebidos: Array.from(drillsMap.keys()),
-      cards_esperados: [...EXPECTED_KPI_DRILLS, ...EXPECTED_EXTRA_DRILLS],
-      cards_faltantes: missingDrills,
       diagnostico: data?.diagnostico ?? null,
     };
     try {
@@ -193,6 +181,7 @@ export default function ResumoFolhaPage() {
       console.log("[RH ResumoFolha] diagnóstico drills", diag);
     }
   };
+
 
 
 
@@ -1010,29 +999,15 @@ export default function ResumoFolhaPage() {
           </div>
         )}
 
-      {/* Diagnóstico admin: drills faltantes no backend */}
-      {isAdmin && !indisponivel && !semDados && !!data && missingDrills.length > 0 && (
-        <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs flex items-start gap-2">
-          <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
-          <div className="flex-1 space-y-1">
-            <div className="font-semibold text-warning">
-              Drills ausentes em <span className="font-mono">drills_menu</span> ({missingDrills.length})
-            </div>
-            <div className="text-muted-foreground">
-              Cards esperados que o backend não devolveu neste período:{" "}
-              <span className="font-mono">{missingDrills.join(", ")}</span>
-            </div>
-            <div className="text-[11px] text-muted-foreground">
-              Endpoint: <code>GET /api/rh/resumo-folha/dashboard</code>. Somente admin vê este aviso.
-            </div>
-            <div>
-              <Button size="sm" variant="outline" onClick={copyDrillDiagnostico} className="h-7 text-xs mt-1">
-                Copiar diagnóstico
-              </Button>
-            </div>
-          </div>
+      {/* Diagnóstico admin: copiar drills_menu recebido */}
+      {isAdmin && !indisponivel && !semDados && !!data && (
+        <div className="flex justify-end">
+          <Button size="sm" variant="ghost" onClick={copyDrillDiagnostico} className="h-7 text-xs text-muted-foreground">
+            Copiar diagnóstico de drills
+          </Button>
         </div>
       )}
+
 
 
       {/* Grid editável dos widgets */}
