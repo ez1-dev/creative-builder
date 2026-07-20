@@ -1,39 +1,34 @@
-## Objetivo
+## Contexto verificado
 
-Trocar a base padrão da API contábil de `dreconfiguravel.ngrok.app` (túnel morto) para `https://api-erp-renato.ngrok.app`, unificando todas as chamadas (contábil, RH, requisições) em um único backend.
+- `src/hooks/contabil/useVincularContasBalancoSenior.ts` já usa `TIMEOUT_MS = 60_000` (linha 24) com `AbortController`.
+- `src/hooks/contabil/useVincularContasDRESenior.ts` já usa `TIMEOUT_MS = 60_000` (linha 30) com `AbortController`.
+- Não existe hook/rota separada para `vincular-contas-balanco-senior` — o Balanço usa `/vincular-contas-senior` (item 1 do prompt). Sem terceira rota a criar.
+- Botões já ficam `disabled` enquanto `isPending`; `DreStudioEstruturaPage` já mostra bloco "Vinculando contas da DRE..." com spinner; `DreStudioVisualizacaoPage` e `DreStudioConfiguracoesPage` mostram apenas "Vinculando..." curto, sem aviso de duração.
+- Toast de sucesso do hook DRE já lista `contas_lidas / linhas_criadas / contas_vinculadas / já existentes / ignoradas`. O hook Balanço mostra apenas `linhas_criadas` e `contas_vinculadas` — o backend agora também retorna `contas_lidas_senior`, `contas_ja_existentes` e `linhas_reordenadas`, que hoje são descartados.
 
-## Alterações
+## O que fazer
 
-### 1. `.env`
-Adicionar/atualizar:
-```
-VITE_CONTABIL_API_URL=https://api-erp-renato.ngrok.app
-```
-`VITE_API_BASE_URL` já aponta para `api-erp-renato.ngrok.app` — manter.
+1. **Enriquecer o resumo do Balanço** (`useVincularContasBalancoSenior.ts`)
+   - Estender `VincularContasBalancoResumo` com `contas_lidas_senior?`, `contas_ja_existentes?`, `linhas_reordenadas?`.
+   - Ler esses campos de `data.resumo` / raiz (mesmo padrão do hook DRE).
+   - Ampliar o toast de sucesso para: `Contas lidas: X · Linhas criadas: Y · Contas vinculadas: Z · Já existentes: W · Reordenadas: R` (só inclui os que vierem preenchidos). Mantém idempotência silenciosa.
 
-### 2. `src/lib/contabil/contabilApi.ts`
-- Trocar `DEFAULT_CONTABIL_URL` para `https://api-erp-renato.ngrok.app`.
-- Remover as guard-rails `FORBIDDEN_CONTABIL_HOST` / `isForbiddenContabilUrl` / `warnForbiddenOnce` — eram para bloquear justamente esse domínio, agora oficial.
-- Manter guard `isLegacyDreUrl` (porta `:8090`) e a verificação `.supabase.co`.
-- Atualizar o comentário do topo do arquivo.
+2. **Melhorar o feedback de progresso nos botões que ainda não têm**
+   - `src/pages/contabilidade/dre-studio/DreStudioVisualizacaoPage.tsx`
+     - Nos dois CTAs "Vincular contas automaticamente" (linhas ~1376 e ~1428) e no botão compacto "Vincular contas" (~1861): quando `vincular.isPending`, trocar o label para `Vinculando... (pode levar até 1 min)` e manter `disabled` como já está.
+     - Adicionar, logo abaixo do CTA principal (empty state), uma linha auxiliar `text-xs text-muted-foreground` visível só durante o pending: "Lendo o plano Senior e criando as linhas analíticas — não feche a página."
+   - `src/pages/contabilidade/dre-studio/DreStudioConfiguracoesPage.tsx` (linhas ~519 e ~529)
+     - Adicionar `description`/hint nos dois cards ("Vincular contas Senior (DRE)" e "(Balanço)") ou um `<p className="text-xs text-muted-foreground">` sob o botão quando `isPending`, com o mesmo texto "Pode levar até 1 minuto. Não recarregue a página."
+   - `DreStudioEstruturaPage` já tem esse feedback — nenhum ajuste.
 
-### 3. `src/lib/contabilConfig.ts`
-Trocar fallback `https://dreconfiguravel.ngrok.app` → `https://api-erp-renato.ngrok.app`.
-
-### 4. `src/lib/contabilStore.ts`
-Atualizar o comentário do cabeçalho para refletir o novo domínio.
-
-### 5. `src/pages/ConfiguracoesPage.tsx`
-- Remover o bloqueio em `handleSaveContabilUrl` que rejeitava `api-erp-renato.ngrok.app` (linhas 321-324).
-- Trocar o `placeholder` da linha 1700 para `https://api-erp-renato.ngrok.app`.
-
-### 6. `docs/backend-dre-api-integrada.md`
-Atualizar a referência do túnel oficial para `api-erp-renato.ngrok.app`.
-
-## Pós-alteração
-
-Reiniciar o dev server (Vite só lê `VITE_*` na boot). Validar em DevTools que chamadas `/api/contabil/*` batem em `api-erp-renato.ngrok.app` retornando 200 (ou 401 se o token expirou).
+3. **Não alterar o timeout** — já está em 60 s nos dois hooks; o prompt pede exatamente esse valor. Nenhuma outra chamada deve herdar esse timeout ampliado.
 
 ## Fora de escopo
 
-- Não altero configuração salva em `app_settings.contabil_api_url` no Cloud — se algum usuário salvou o domínio antigo lá, precisa resetar via Configurações → "Restaurar padrão".
+- Nenhuma mudança em `contabilApi.ts` (timeout global permanece 15 s).
+- Nenhuma mudança de lógica de retry (a idempotência do backend cobre re-clique acidental).
+- Sem alterações no editor de estrutura, drills ou visualização de resultado.
+
+## Resumo em uma linha
+
+Enriquecer o toast do hook de Balanço com o resumo completo do backend e adicionar o aviso "pode levar até 1 min / não feche a página" nos dois botões de "Vincular contas" da Visualização e das Configurações — timeouts (60 s) e disable já estão corretos.
