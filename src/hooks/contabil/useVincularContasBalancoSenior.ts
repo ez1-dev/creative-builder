@@ -9,6 +9,9 @@ export interface VincularContasBalancoInput {
 export interface VincularContasBalancoResumo {
   linhas_criadas: number;
   contas_vinculadas: number;
+  contas_lidas_senior?: number;
+  contas_ja_existentes?: number;
+  linhas_reordenadas?: number;
 }
 
 interface ApiResponse {
@@ -16,6 +19,9 @@ interface ApiResponse {
   resumo?: Partial<VincularContasBalancoResumo>;
   linhas_criadas?: number;
   contas_vinculadas?: number;
+  contas_lidas_senior?: number;
+  contas_ja_existentes?: number;
+  linhas_reordenadas?: number;
   detail?: string;
   message?: string;
   error?: string;
