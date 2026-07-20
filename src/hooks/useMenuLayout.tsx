@@ -133,9 +133,14 @@ export function orderKey(topId: string, subGroupId?: string) {
   return subGroupId ? `${topId}:${subGroupId}` : topId;
 }
 
-export function applyLayout(baseMenus: TopMenu[], layout: MenuLayoutV2): TopMenu[] {
-  const hidden = new Set(layout.hidden);
-  const hiddenGroups = new Set(layout.hiddenGroups);
+export function applyLayout(
+  baseMenus: TopMenu[],
+  layout: MenuLayoutV2,
+  opts: { keepHidden?: boolean } = {},
+): TopMenu[] {
+  const keepHidden = !!opts.keepHidden;
+  const hidden = new Set(keepHidden ? [] : layout.hidden);
+  const hiddenGroups = new Set(keepHidden ? [] : layout.hiddenGroups);
 
   // 1) Merge custom tops (as flat) into the base list
   const customTopsAsMenus: TopMenu[] = layout.customTops.map((ct) => ({
