@@ -739,6 +739,24 @@ function Visualizacao() {
   const handleSincronizar = () => dispararMaterializacao();
   const handleRecalcular = () => dispararMaterializacao();
   const handleGerarResultado = () => dispararMaterializacao();
+  const handleAtualizarCacheSenior = async () => {
+    try {
+      await atualizarCacheSenior.mutateAsync({
+        anomes_ini: ini,
+        anomes_fim: fim,
+        codfil: codfilNum,
+        tipo: tipoModeloPayload,
+        limpar_periodo: true,
+        limpar_resultado: true,
+        modo_balanco: modoBalancoEfetivo,
+        data_corte: dataCorteEfetiva,
+        aplicar_referencia_senior: aplicarRefSeniorEfetivo,
+      });
+      toast.success("Cache Senior atualizado. Agora clique em Gerar resultado.");
+    } catch (e) {
+      toast.error((e as Error)?.message ?? "Falha ao atualizar cache Senior.");
+    }
+  };
   const handleRecarregar = async () => {
     toast.info("Recarregando resultado...");
     await qc.invalidateQueries({ queryKey: ["contabil", "resultado-pronto", id] });
