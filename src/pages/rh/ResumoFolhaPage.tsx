@@ -875,6 +875,31 @@ export default function ResumoFolhaPage() {
           </div>
         )}
 
+      {/* Diagnóstico admin: drills faltantes no backend */}
+      {isAdmin && !indisponivel && !semDados && !!data && missingDrills.length > 0 && (
+        <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs flex items-start gap-2">
+          <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+          <div className="flex-1 space-y-1">
+            <div className="font-semibold text-warning">
+              Drills ausentes em <span className="font-mono">drills_menu</span> ({missingDrills.length})
+            </div>
+            <div className="text-muted-foreground">
+              Cards esperados que o backend não devolveu neste período:{" "}
+              <span className="font-mono">{missingDrills.join(", ")}</span>
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              Endpoint: <code>GET /api/rh/resumo-folha/dashboard</code>. Somente admin vê este aviso.
+            </div>
+            <div>
+              <Button size="sm" variant="outline" onClick={copyDrillDiagnostico} className="h-7 text-xs mt-1">
+                Copiar diagnóstico
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
       {/* Grid editável dos widgets */}
       {!indisponivel && !semDados && (
         <RhDashboardWithBiLibrary
