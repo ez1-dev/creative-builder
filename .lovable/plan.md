@@ -1,55 +1,58 @@
-## Objetivo
+# Investigar aviso de SID desabilitado
 
-Fechar as pendências do módulo Requisições após o teste de escrita real (19/07/2026): remover chamadas ao endpoint inexistente `POST /api/requisicoes`, adotar `POST /sid/requisitar-lote` para enviar vários itens como um único documento, e ajustar tratamento de erro/sucesso conforme o novo contrato do backend.
+O aviso é totalmente **orientado pela resposta do backend** — o frontend só o renderiza quando o FastAPI diz que está off. Antes de qualquer alteração de código, preciso confirmar o que está sendo devolvido para o navegador.
 
-O detalhe da OP (item 1 do prompt), os campos limpos de componente (item 2), o texto "Depósito sugerido" (item 3), os lookups com autocomplete (item 4) e o gate SID + rascunho local (item 6) **já estão implementados** e serão apenas revisados. O foco real é itens 5 e 5b.
+## O que já se sabe pelo código
 
-## Mudanças
+- Fonte única do banner: hook `useSidStatus` (`src/hooks/requisicoes/index.ts`) → `requisicoesApi.pingSid()` → `GET /api/requisicoes/sid/ping`.
+- `IntegracaoStatusChip` e `IntegracaoOfflineBanner` só exibem quando **uma** destas condições é verdadeira:
+  - `sid_habilitado === false`
+  - `ger_sid.wsdl_ok === false`
+  - `cha_separacao.wsdl_ok === false`
+  - `detail` recebido de um 503 tratado
+- O botão "Enviar" fica desabilitado por `useSidWriteEnabled()`, que segue exatamente as mesmas flags.
+- Não há mock/override no cliente que force o banner — o retorno vem do FastAPI configurado em `getApiUrl()`.
+- Fluxos gravadores (`sidRequisitarLote`, `sidBaixarComponentes`, etc.) também podem devolver HTTP 503 do próprio backend; nesse caso o cliente lança `IntegracaoDesabilitadaError` com o `detail` do backend e mostra o mesmo aviso.
 
-### 1. `src/services/requisicoesApi.ts`
-- Adicionar `sidRequisitarLote(payload, key?)` chamando `POST /api/requisicoes/sid/requisitar-lote`.
-- Manter `sidRequisitar` (single) para uso interno da nova função em fallback e testes.
+Ou seja, a mensagem *não* é um estado local desatualizado: ela reflete o `sid/ping` real. A investigação precisa capturar essa resposta.
 
-### 2. `src/types/requisicoes.ts`
-- Adicionar tipos para o lote:
-  - `SidRequisitarLoteItemInput { codpro, codder?, qtdeme, codtns, coddep, ccures?, obseme? }`
-  - `SidRequisitarLoteResponse { numeme, numemes, documento_unico, total_solicitados, criados, falhas, itens: SidRequisitarLoteItemResult[] }`
-  - `SidRequisitarLoteItemResult { indice, codpro, ok, numeme?, seqeme?, erro? }`
+## Passos da investigação
 
-### 3. `src/pages/requisicoes/NovaRequisicaoAvulsaPage.tsx`
-- Substituir o laço item-a-item por **uma única chamada** a `sidRequisitarLote`.
-- Estado `resultado` passa a armazenar `SidRequisitarLoteResponse`.
-- `ResultadoPanel`:
-  - Sucesso total (`falhas === 0`): "Requisição **{numeme}** criada com {criados} itens." Copiar `numeme`.
-  - Sucesso parcial: lista item-a-item mostrando ✓/✗, `seqeme` quando ok, `erro` quando falhou. Aviso: "Os itens confirmados já estão no ERP — reenviar tudo duplicaria. Reenvie apenas os que falharam." Botão "Reenviar itens que falharam" que remonta o form apenas com os que falharam.
-  - Se `documento_unico === false`: avisar e listar `numemes`.
-- Manter aviso de que `numeme` pode ser reutilizado pelo ERP após exclusão.
+1. **Confirmar a sessão do usuário no preview.** O session replay mostra a tela de login e as chamadas Supabase retornaram `session_not_found` (403). Se o usuário estiver deslogado, o ping ao FastAPI pode estar sendo respondido sem token e o backend pode devolver `sid_habilitado=false` como fallback. Preciso do usuário logado (Microsoft) antes de continuar.
+2. **Capturar a resposta real do `GET /api/requisicoes/sid/ping`.** Duas formas complementares:
+   - Pedir print da aba **Network** do navegador filtrando por `sid/ping` (status, corpo JSON).
+   - Reproduzir aqui via Playwright headless após restaurar a sessão, abrir `/requisicoes/nova-op` e logar a resposta do endpoint.
+3. **Interpretar o JSON:**
+   - Se `sid_habilitado=false` → configuração no backend (`SID_HABILITADO`); ação é no FastAPI, não no frontend.
+   - Se `sid_habilitado=true` porém `ger_sid.wsdl_ok=false` ou `cha_separacao.wsdl_ok=false` → o WSDL do Senior não está acessível; olhar `ger_sid.erro`/`cha_separacao.erro` retornados no mesmo payload.
+   - Se resposta for HTTP 503 → capturar o `detail`.
+   - Se o navegador estiver recebendo 401/403/404 no `sid/ping` (ex.: token expirado, path errado, CORS), o React Query devolve erro e o banner não deveria aparecer — nesse caso o aviso viria de um 503 em outra chamada (por ex. `sidRequisitarLote`); precisamos identificar qual request originou.
+4. **Correlacionar com o backend.** Uma vez identificado o motivo (flag desligada vs. WSDL fora), a correção é operacional no FastAPI:
+   - Variável `SID_HABILITADO=true` no ambiente.
+   - Conectividade / credenciais do `co_ger_sid` e `cha_separacao`.
+5. **Relatar o achado ao usuário** com o JSON exato do ping e o próximo passo (backend ou frontend). Só depois avaliar se há algum ajuste de UX (ex.: mostrar o `erro` do WSDL para admins direto no chip, hoje ele aparece só no diálogo técnico).
 
-### 4. `src/pages/requisicoes/NovaRequisicaoOpPage.tsx`
-Refatorar `enviar()`:
-- Remover `requisicoesApi.criar()` + `requisicoesApi.enviar()` (endpoint inexistente).
-- Montar `itens[]` a partir dos componentes selecionados (`codpro = componente/codcmp`, `codder`, `qtdeme = quantidade`, `codtns` conforme tipo — TRANSFERIR = `90253`, BAIXAR_DIRETO = `90251`, default `90250`, `coddep = depositoEscolhido`, `ccures = op.centro_custo`, `obseme = obs[seqcmp] || obsGeral`).
-- Chamar `requisicoesApi.sidRequisitarLote({ itens })`.
-- Substituir a navegação `nav(/requisicoes/${id})` por um painel de resultado inline (mesmo componente `ResultadoPanel` reutilizado) com botão "Nova requisição" e "Ir para lista".
-- Tratamento de erro: `RequisicaoApiError` → mostrar `detail`; `ApiOfflineError` → "Falha de comunicação. Consulte o ERP antes de reenviar."; `IntegracaoDesabilitadaError` → mensagem específica.
-- Descartar rascunho local somente após `falhas === 0`.
+## O que este plano **não** faz
 
-### 5. Componente compartilhado `src/components/requisicoes/ResultadoRequisicaoLote.tsx` (novo)
-- Renderiza o resultado do lote (usado por Avulsa e OP).
-- Props: `resultado: SidRequisitarLoteResponse`, `onNova()`, `onReenviarFalhas(indices: number[])`, `onIrParaLista()`.
+- Não altera código de frontend antes de confirmar o retorno do backend — o comportamento atual está correto conforme a spec (banner reflete `/sid/ping`).
+- Não mexe em configuração do FastAPI (fora do escopo do projeto Lovable); apenas aponta o ajuste necessário.
 
-### 6. Ajustes menores
-- `NovaRequisicaoAvulsaPage`: remover o `RASCUNHO_KEY` inconsistente ou mantê-lo — sem mudança funcional.
-- Nenhuma mudança no OP consulta (item 1/2/3 já mapeado no `normalizeOpConsulta`).
+## Detalhes técnicos
 
-## Fora do escopo
+- Endpoint: `GET {VITE_API_BASE}/api/requisicoes/sid/ping` com header `ngrok-skip-browser-warning: true` e `Authorization: Bearer <erp_token>` quando presente.
+- Contrato esperado (`SidStatusResponse`):
 
-- Não alterar `PortalRequisicoesPage` (já usa `sidRequisitar` single via `useSidRequisitar`, cenário legado).
-- Não alterar backend/edge functions — mudanças puramente frontend.
-- Não mexer no fluxo de aprovações nem na fila do almoxarifado.
+```text
+{
+  sid_habilitado: boolean,
+  ger_sid: { url, operacao, wsdl_ok, erro? },
+  cha_separacao: { url, operacao, wsdl_ok, erro? },
+  proximo_passo?: string
+}
+```
 
-## Verificação
+- Cache/refetch: `staleTime 60s`, `refetchInterval 120s`, `refetchOnWindowFocus true`. Assim que o backend responder com tudo `true`, o banner some sem reload.
 
-- Typecheck limpo após as edições.
-- Preview: abrir `/requisicoes/nova-op`, selecionar OP com 2 componentes, enviar e conferir mensagem "Requisição N criada com 2 itens".
-- Simular erro (SID desabilitado) e conferir que `detail` aparece na UI.
+## Entrega da investigação
+
+- Mensagem final ao usuário contendo: status HTTP do `sid/ping`, JSON recebido, causa (flag ou WSDL) e onde ajustar (backend). Se for necessário mudança de UX no frontend, abrir plano separado.
