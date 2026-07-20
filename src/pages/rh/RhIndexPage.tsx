@@ -35,10 +35,31 @@ export default function RhIndexPage() {
     queryFn: fetchMenuRh,
   });
 
-  const items = (data && data.length ? data : FALLBACK).map((m: any) => ({
-    ...m,
-    rota: m.rota || ROTA_POR_CODIGO[m.codigo],
-  }));
+  const backendByCodigo = new Map<string, any>();
+  for (const it of (data ?? []) as any[]) {
+    if (it && it.codigo) backendByCodigo.set(String(it.codigo), it);
+  }
+  const merged: any[] = FALLBACK.map((fb) => {
+    const b = backendByCodigo.get(fb.codigo) ?? {};
+    backendByCodigo.delete(fb.codigo);
+    return {
+      ...fb,
+      ...Object.fromEntries(Object.entries(b).filter(([, v]) => v !== undefined && v !== null && v !== "")),
+      codigo: fb.codigo,
+      titulo: (b.titulo && String(b.titulo).trim()) || fb.titulo,
+      descricao: b.descricao ?? (fb as any).descricao,
+      rota: b.rota || fb.rota || ROTA_POR_CODIGO[fb.codigo],
+    };
+  });
+  for (const b of backendByCodigo.values()) {
+    merged.push({
+      ...b,
+      titulo: (b.titulo && String(b.titulo).trim()) || `Módulo ${b.codigo}`,
+      rota: b.rota || ROTA_POR_CODIGO[b.codigo],
+    });
+  }
+  const items = merged;
+
 
   return (
     <div className="container mx-auto px-3 md:px-6 py-4 md:py-6">

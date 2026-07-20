@@ -1,38 +1,20 @@
-## Objetivo
+## Problema
 
-Corrigir os drills da tela **RH · 01 — Resumo da Folha** para que o menu/estado de "drillável" venha **exclusivamente** de `drills_menu` da resposta de `/api/rh/resumo-folha/dashboard`, eliminando a lista fixa de cards esperados que hoje gera falsos "faltantes" (`salario_bruto`, `tipos_evento`, `filial`).
+Em `/rh` os cards aparecem em branco (só o ícone). A rota chama `fetchMenuRh()` (`GET /api/rh/menu`) do backend e, quando esse retorno vem com `titulo`/`descricao` vazios ou com nomes de campo diferentes, o `RhIndexPage` renderiza um card sem texto porque só usa o array do backend quando ele tem `length > 0` — o `FALLBACK` local (que tem os títulos corretos) é ignorado por completo.
 
-## Mudanças em `src/pages/rh/ResumoFolhaPage.tsx`
+## Correção (frontend apenas)
 
-1. **Remover as listas hardcoded**
-   - Excluir `EXPECTED_KPI_DRILLS` e `EXPECTED_EXTRA_DRILLS` (linhas 165–172).
-   - Excluir `missingDrills` (173–177) e o banner amarelo "Drills ausentes em drills_menu" (~linha 1019). Sem lista fixa, não há como declarar "faltante".
-   - Manter `copyDrillDiagnostico` mas simplificado: copia apenas `params`, `drills_menu_recebidos`, `cards_recebidos` e `diagnostico`. O botão "Copiar diagnóstico" continua disponível a admin como ferramenta de suporte, sem banner de erro.
+Ajustar `src/pages/rh/RhIndexPage.tsx` para **mesclar** o retorno do backend com o `FALLBACK` em vez de trocar um pelo outro:
 
-2. **Alias `salario_bruto` → `salario_base`**
-   - Em `openDrill`/`kpiDrill`, se o `field` pedido não existir em `drillsMap` mas houver o alias equivalente, usar o alias. Mapa inicial: `{ salario_bruto: "salario_base" }`.
-   - Isso mantém o card "Salário Bruto" clicável reutilizando o drill de `salario_base`, que é o comportamento oficial do backend (mesmos valores, label "Salário Base/Bruto").
+1. Sempre partir do `FALLBACK` como base (garante título, rota, ícone e ordem conhecidos).
+2. Para cada item retornado pelo backend, casar por `codigo` e sobrescrever apenas os campos não vazios (`titulo`, `descricao`, `rota`).
+3. Itens novos vindos do backend (código desconhecido) entram no fim, usando `ROTA_POR_CODIGO` / ícone default quando faltar dado.
+4. Fallback extra em runtime: se após a mescla o `titulo` continuar vazio, usar o do `FALLBACK` correspondente ou o `codigo` como último recurso, para o card nunca ficar totalmente vazio.
+5. Não alterar `fetchMenuRh`, nem o header, nem o layout — apenas a montagem da lista `items`.
 
-3. **Fonte de verdade = `drills_menu`**
-   - `kpiDrill(field)` continua consultando `drillsMap.has(field)` (após alias). Cards, linhas de tabela, células e fatias do donut já usam `drillsMap.has(...)` para decidir se são clicáveis — mantém-se o padrão, mas agora sem a duplicidade de "lista esperada".
-   - Quando `openDrill` é chamado para um card que não está em `drillsMap` (e não tem alias), permanece o `console.warn`, mas **sem toast de erro** — silencioso para o usuário (é caso de card realmente inexistente, não bug).
+Sem mudanças de backend, permissões ou tokens de design.
 
-4. **Chaves singulares**
-   - Auditar chamadas de `openDrill(...)` na página para garantir que usem `provento`/`desconto` (singular) quando for drill de KPI. Os pontos que hoje passam `"proventos"`/`"descontos"` (linhas ~700 e ~738) são drills das **tabelas** Proventos+Vantagens e Descontos — esses cards existem no backend com esses nomes (plural) e continuam como estão. Apenas confirmar que os KPIs no topo usam singular (já usam via `kpiDrill("provento")` etc.).
+## Como validar
 
-5. **Descontos com valor positivo**
-   - Confirmar no `ResumoFolhaDrillDrawer` que `item.valor` é renderizado como veio (sem `Math.abs` invertendo sinal). Hoje já é `formatCurrency(Number(it.valor))` — nenhuma mudança necessária, apenas verificação.
-
-6. **Estado vazio**
-   - Em `ResumoFolhaDrillDrawer`, quando `itens.length === 0` e `total === 0`, mostrar "Sem lançamentos no período" no lugar de "Sem itens neste agrupamento." Ajuste mínimo de copy.
-
-## Fora de escopo
-
-- Nenhuma mudança no backend/env — o prompt do usuário lembra que o restart da porta 8070 é responsabilidade dele.
-- Nenhuma alteração em outras telas RH.
-
-## Resultado esperado
-
-- Tela nunca mais acusa "faltantes" para cards que o backend não expõe (salario_bruto, tipos_evento, filial).
-- Cards/tabelas/gráficos ficam clicáveis quando e apenas quando `drills_menu` os inclui — qualquer card novo adicionado no backend aparece automaticamente.
-- "Salário Bruto" continua drillável via alias para `salario_base`.
+- Abrir `/rh` — os 8 cards do `FALLBACK` (Resumo Folha, Quadro Colaboradores, Contrato Experiência, Programação de Férias, Turnover, Absenteísmo, Relatório Gerencial, Formulários) aparecem com título e navegam para a rota correta.
+- Simular backend devolvendo lista vazia ou itens sem `titulo`: cards continuam legíveis.
