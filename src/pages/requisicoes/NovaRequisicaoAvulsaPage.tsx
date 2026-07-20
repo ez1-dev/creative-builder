@@ -229,12 +229,14 @@ export default function NovaRequisicaoAvulsaPage() {
       <IntegracaoOfflineBanner />
 
       {resultado ? (
-        <ResultadoPanel
+        <ResultadoRequisicaoLote
           resultado={resultado}
           onNova={() => { limparFormulario(); }}
+          onReenviarFalhas={reenviarFalhas}
           onIrParaLista={() => nav('/requisicoes')}
         />
       ) : null}
+
 
       {erroEnvio && (
         <Alert variant="destructive">
