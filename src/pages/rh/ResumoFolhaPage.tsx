@@ -712,8 +712,25 @@ export default function ResumoFolhaPage() {
                   {FILIAL_COLS.map((c) => {
                     const present = c.key in (f as any);
                     const v = (f as any)[c.key];
+                    const drillable = present && drillsMap.has(c.key) && f.cd_filial != null;
                     return (
-                      <TableCell key={c.key} className="text-right tabular-nums">
+                      <TableCell
+                        key={c.key}
+                        className={
+                          "text-right tabular-nums " +
+                          (drillable ? "cursor-pointer hover:bg-muted/60 hover:underline" : "")
+                        }
+                        onClick={
+                          drillable
+                            ? () =>
+                                openDrill(
+                                  c.key,
+                                  { cd_filial: String(f.cd_filial), contextLabel: f.filial ?? undefined },
+                                  typeof v === "number" ? v : null,
+                                )
+                            : undefined
+                        }
+                      >
                         <ValueOrMissing value={v} missing={!present} field={c.key} format={c.format} />
                       </TableCell>
                     );
@@ -729,11 +746,30 @@ export default function ResumoFolhaPage() {
       <DonutSideLegendCard
         title="Tipos de Evento"
         subtitle="% e valor por tipo de evento"
-        data={tiposPie.map((t) => ({ label: String(t.label ?? "—"), valor: Number(t.valor) || 0 }))}
+        data={tiposPie.map((t: any) => ({
+          label: String(t.label ?? "—"),
+          valor: Number(t.valor) || 0,
+          // preserva cd_tp_evento para o drill
+          ...(t.cd_tp_evento != null ? { cd_tp_evento: String(t.cd_tp_evento) } : {}),
+        })) as any}
         loading={isLoading}
         height={380}
+        onItemClick={
+          drillsMap.has("tipos_evento")
+            ? (d: any) =>
+                openDrill(
+                  "tipos_evento",
+                  {
+                    cd_tp_evento: d?.cd_tp_evento ? String(d.cd_tp_evento) : undefined,
+                    contextLabel: d?.label,
+                  },
+                  Number(d?.valor) || null,
+                )
+            : undefined
+        }
       />
     ),
+
   }), [kpis, isMissing, isLoading, isAdmin, data, mensal, proventos, descontos, filiaisData, tiposPie, drillsMap]);
 
   return (
