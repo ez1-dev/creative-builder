@@ -1693,7 +1693,7 @@ export default function ConfiguracoesPage() {
                     id="contabil-url"
                     value={contabilUrl}
                     onChange={(e) => setContabilUrl(e.target.value)}
-                    placeholder="https://dreconfiguravel.ngrok.app"
+                    placeholder="https://api-erp-renato.ngrok.app"
                   />
                   <p className="text-[11px] text-muted-foreground">
                     Informe apenas o domínio (não inclua <code>/api/contabil</code>).
