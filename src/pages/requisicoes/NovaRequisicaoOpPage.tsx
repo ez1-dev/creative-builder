@@ -936,12 +936,17 @@ export default function NovaRequisicaoOpPage() {
 
           {itensSemDeposito.length > 0 && itensInvalidos.length === 0 && (
             <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-              <div className="font-medium">Escolha o depósito de origem antes de enviar.</div>
+              <div className="font-medium">Escolha o depósito sugerido antes de enviar.</div>
               <div className="text-xs mt-1">
-                Componentes sem depósito: {itensSemDeposito.map((i) => i.codigo).join(', ')}. Volte ao passo <b>Selecionar componentes</b> e escolha o depósito na coluna <b>Dep. origem</b>.
+                Componentes sem depósito sugerido: {itensSemDeposito.map((i) => i.codigo).join(', ')}. Volte ao passo <b>Selecionar componentes</b> e escolha o depósito na coluna <b>Dep. sugerido</b>.
               </div>
             </div>
           )}
+
+          <div className="flex items-start gap-1.5 rounded-md border border-muted bg-muted/30 p-2.5 text-xs text-muted-foreground">
+            <InfoIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>O depósito é uma <b>sugestão</b>. O depósito definitivo é definido pelo ERP no momento do atendimento.</span>
+          </div>
 
           {!sidWrite.enabled && itensInvalidos.length === 0 && itensSemDeposito.length === 0 && (
             <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-200">
