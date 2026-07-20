@@ -451,7 +451,7 @@ export default function NovaRequisicaoAvulsaPage() {
         <Tooltip>
           <TooltipTrigger asChild>
             <span>
-              <Button onClick={submit} disabled={disableSubmit}>
+              <Button onClick={() => submit()} disabled={disableSubmit}>
                 {busy ? <><Loader2 className="mr-1 h-4 w-4 animate-spin" /> Enviando…</> : 'Enviar requisição ao ERP'}
               </Button>
             </span>
