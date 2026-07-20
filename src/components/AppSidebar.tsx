@@ -105,27 +105,48 @@ export function AppSidebar() {
   const renderItemRow = (item: Leaf, canFavorite = true) => {
     const active = location.pathname === item.url;
     const fav = isFavorite(item.url);
+    const isExternal = !!(item as any).__external;
+    const linkClass = cn(
+      'relative transition-colors hover:bg-transparent flex items-center gap-1',
+      'before:absolute before:left-0 before:top-1/2 before:h-4 before:w-[2px] before:-translate-y-1/2 before:rounded-r before:bg-primary before:opacity-0 before:transition-opacity group-hover/item:before:opacity-60',
+      active && 'bg-primary/15 text-primary before:opacity-100',
+    );
+    const inner = collapsed ? (
+      <item.icon className="h-[18px] w-[18px]" />
+    ) : (
+      <>
+        <span className="truncate text-[12.5px] font-normal">{item.title}</span>
+        {isExternal && <span className="ml-auto text-[10px] opacity-60">↗</span>}
+      </>
+    );
     return (
       <SidebarMenuItem key={item.url}>
         <div className="group/item flex items-center rounded-md transition-colors hover:bg-sidebar-accent/70">
           <SidebarMenuButton asChild className="flex-1 min-h-[28px] py-1">
-            <NavLink
-              to={item.url}
-              end
-              onClick={closeMobileMaybe}
-              className={cn(
-                'relative transition-colors hover:bg-transparent',
-                'before:absolute before:left-0 before:top-1/2 before:h-4 before:w-[2px] before:-translate-y-1/2 before:rounded-r before:bg-primary before:opacity-0 before:transition-opacity group-hover/item:before:opacity-60',
-                active && 'bg-primary/15 text-primary before:opacity-100',
-              )}
-              activeClassName="bg-primary/15 text-primary"
-            >
-              {!collapsed && <span className="truncate text-[12.5px] font-normal">{item.title}</span>}
-              {collapsed && <item.icon className="h-[18px] w-[18px]" />}
-            </NavLink>
+            {isExternal ? (
+              <a
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={closeMobileMaybe}
+                className={linkClass}
+              >
+                {inner}
+              </a>
+            ) : (
+              <NavLink
+                to={item.url}
+                end
+                onClick={closeMobileMaybe}
+                className={linkClass}
+                activeClassName="bg-primary/15 text-primary"
+              >
+                {inner}
+              </NavLink>
+            )}
           </SidebarMenuButton>
 
-          {!collapsed && canFavorite && (
+          {!collapsed && canFavorite && !isExternal && (
             <button
               type="button"
               onClick={(e) => {
