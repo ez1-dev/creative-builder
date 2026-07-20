@@ -763,6 +763,72 @@ function Visualizacao() {
     q.refetch();
   };
 
+  // ===== Executar tudo automaticamente =====
+  const [autoRunning, setAutoRunning] = useState(false);
+  const [autoStep, setAutoStep] = useState<null | "vincular" | "cache" | "gerar">(null);
+  const autoRunLockRef = useRef(false);
+  const autoTriggeredKeyRef = useRef<string | null>(null);
+
+  const executarTudoAutomatico = async (opts?: { silent?: boolean }) => {
+    if (autoRunLockRef.current) return;
+    autoRunLockRef.current = true;
+    setAutoRunning(true);
+    const semCacheAtual = q.meta?.status === "SEM_CACHE";
+    try {
+      if (semContas) {
+        setAutoStep("vincular");
+        if (!opts?.silent) toast.info("Passo 1/3 · Vinculando contas do plano Senior...");
+        await vincular.mutateAsync();
+      }
+      if (isBalanco) {
+        setAutoStep("cache");
+        if (!opts?.silent) toast.info(`Passo ${semContas ? "2/3" : "1/2"} · Atualizando cache Senior...`);
+        await atualizarCacheSenior.mutateAsync({
+          anomes_ini: ini,
+          anomes_fim: fim,
+          codfil: codfilNum,
+          tipo: tipoModeloPayload,
+          limpar_periodo: true,
+          limpar_resultado: true,
+          modo_balanco: modoBalancoEfetivo,
+          data_corte: dataCorteEfetiva,
+          aplicar_referencia_senior: aplicarRefSeniorEfetivo,
+        });
+      }
+      if (semContas || semCacheAtual || isBalanco) {
+        setAutoStep("gerar");
+        if (!opts?.silent) toast.info("Último passo · Gerando resultado...");
+        const r = await materializar.mutateAsync(filtrosComDatas);
+        if (r?.job_id) {
+          setMaterJobId(r.job_id);
+          setMaterOpen(true);
+        } else {
+          await qc.invalidateQueries({ queryKey: ["contabil", "resultado-pronto", id] });
+        }
+      }
+      toast.success("Processo automático concluído.");
+    } catch (e) {
+      toast.error(`Processo automático interrompido: ${(e as Error)?.message ?? "erro"}`);
+    } finally {
+      setAutoStep(null);
+      setAutoRunning(false);
+      autoRunLockRef.current = false;
+    }
+  };
+
+  // Auto-disparo ao entrar na tela sem cache/sem contas (uma vez por combinação).
+  useEffect(() => {
+    if (!modelo || q.isLoading) return;
+    const semCache = q.meta?.status === "SEM_CACHE";
+    if (!semContas && !semCache) return;
+    const key = `${id}|${ini}|${fim}|${codfilNum}|${modoBalancoEfetivo ?? ""}`;
+    if (autoTriggeredKeyRef.current === key) return;
+    autoTriggeredKeyRef.current = key;
+    const t = setTimeout(() => { executarTudoAutomatico({ silent: false }); }, 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modelo, q.isLoading, q.meta?.status, semContas, id, ini, fim, codfilNum, modoBalancoEfetivo]);
+
   const handleCarregarAnoInteiro = () => {
     const ano = anoSelecionado;
     const iniAno = ano * 100 + 1;
@@ -1443,19 +1509,34 @@ function Visualizacao() {
 
         return (
           <div className="mb-4 rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4 shadow-sm">
-            <div className="mb-3 flex items-center gap-2">
+            <div className="mb-3 flex items-start gap-2">
               <div className="rounded-full bg-blue-600 p-1.5 text-white">
                 <PlayCircle className="h-4 w-4" />
               </div>
-              <div>
+              <div className="flex-1">
                 <div className="text-sm font-semibold text-slate-900">
                   Como gerar o resultado — passo a passo
                 </div>
                 <div className="text-xs text-slate-600">
-                  Siga a ordem abaixo. O passo destacado é o próximo a executar.
+                  {autoRunning
+                    ? `Executando automaticamente · ${autoStep === "vincular" ? "Vinculando contas..." : autoStep === "cache" ? "Atualizando cache Senior..." : "Gerando resultado..."}`
+                    : "Rode o processo completo com um clique ou execute cada passo abaixo."}
                 </div>
               </div>
+              <Button
+                size="sm"
+                onClick={() => executarTudoAutomatico()}
+                disabled={autoRunning}
+                className="shrink-0"
+              >
+                {autoRunning ? (
+                  <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Executando...</>
+                ) : (
+                  <><PlayCircle className="h-3.5 w-3.5 mr-1.5" /> Executar tudo automaticamente</>
+                )}
+              </Button>
             </div>
+
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
               {passos.map((p, idx) => {
                 const done = feito(p.num);
