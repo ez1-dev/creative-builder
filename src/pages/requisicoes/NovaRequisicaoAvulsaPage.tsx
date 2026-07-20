@@ -69,7 +69,7 @@ export default function NovaRequisicaoAvulsaPage() {
   const [linhas, setLinhas] = useState<Linha[]>([linhaVazia()]);
   const [busy, setBusy] = useState(false);
   const [erroEnvio, setErroEnvio] = useState<string | null>(null);
-  const [resultado, setResultado] = useState<ResultadoLinha[] | null>(null);
+  const [resultado, setResultado] = useState<SidRequisitarLoteResponse | null>(null);
   const sidWrite = useSidWriteEnabled();
   const operador = useOperadorInfo();
 
