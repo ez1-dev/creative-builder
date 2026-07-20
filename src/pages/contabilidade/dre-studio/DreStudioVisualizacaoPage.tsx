@@ -50,7 +50,7 @@ import { ConciliacaoDREBalancoPanel } from "@/components/contabil/ConciliacaoDRE
 import { cn } from "@/lib/utils";
 import { useCriarBalancoPadraoSenior } from "@/hooks/contabil/useCriarBalancoPadraoSenior";
 import { useVincularContasBalancoSenior } from "@/hooks/contabil/useVincularContasBalancoSenior";
-import { Link2, Pencil } from "lucide-react";
+import { Link2, Pencil, CheckCircle2, ArrowRight, PlayCircle } from "lucide-react";
 import { DreEstruturaEditor } from "@/components/contabil/edicao/DreEstruturaEditor";
 import {
   AlertDialog,
@@ -739,6 +739,24 @@ function Visualizacao() {
   const handleSincronizar = () => dispararMaterializacao();
   const handleRecalcular = () => dispararMaterializacao();
   const handleGerarResultado = () => dispararMaterializacao();
+  const handleAtualizarCacheSenior = async () => {
+    try {
+      await atualizarCacheSenior.mutateAsync({
+        anomes_ini: ini,
+        anomes_fim: fim,
+        codfil: codfilNum,
+        tipo: tipoModeloPayload,
+        limpar_periodo: true,
+        limpar_resultado: true,
+        modo_balanco: modoBalancoEfetivo,
+        data_corte: dataCorteEfetiva,
+        aplicar_referencia_senior: aplicarRefSeniorEfetivo,
+      });
+      toast.success("Cache Senior atualizado. Agora clique em Gerar resultado.");
+    } catch (e) {
+      toast.error((e as Error)?.message ?? "Falha ao atualizar cache Senior.");
+    }
+  };
   const handleRecarregar = async () => {
     toast.info("Recarregando resultado...");
     await qc.invalidateQueries({ queryKey: ["contabil", "resultado-pronto", id] });
@@ -1360,47 +1378,142 @@ function Visualizacao() {
             </div>
           </div>
         )}
-      {semContas && tipoModelo === "BALANCO" && (
-        <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
-          <div className="flex-1">
-            Este Balanço foi criado em modo <strong>RESUMIDO</strong> e não
-            possui contas vinculadas — por isso todos os meses voltam zerados.
-            Clique em <strong>Vincular contas automaticamente</strong> para a
-            API montar as folhas analíticas a partir do plano Senior, e depois
-            em <strong>Atualizar Saldos</strong>.
+      {(() => {
+        const semCache = q.meta?.status === "SEM_CACHE";
+        const mostrarStepper = semContas || semCache;
+        if (!mostrarStepper) return null;
+
+        const passoAtual = semContas ? 1 : semCache ? 3 : 4;
+        const feito = (n: number) => n < passoAtual;
+        const atual = (n: number) => n === passoAtual;
+
+        const passos: Array<{
+          num: number;
+          titulo: string;
+          desc: string;
+          botao: string;
+          icone: ReactNode;
+          onClick?: () => void;
+          disabled?: boolean;
+          loading?: boolean;
+          mostrar: boolean;
+        }> = [
+          {
+            num: 1,
+            titulo: "Vincular contas",
+            desc: "Lê o plano Senior e cria as linhas analíticas do modelo. Faça só na 1ª vez ou quando o plano mudar. Pode levar até 1 min.",
+            botao: vincular.isPending ? "Vinculando..." : "Vincular contas",
+            icone: <Link2 className="h-4 w-4" />,
+            onClick: () => vincular.mutate(),
+            disabled: vincular.isPending,
+            loading: vincular.isPending,
+            mostrar: true,
+          },
+          {
+            num: 2,
+            titulo: "Atualizar cache Senior",
+            desc: "Traz os saldos mais recentes do ERP para o período selecionado.",
+            botao: atualizarCacheSenior.isPending ? "Atualizando..." : "Atualizar cache Senior",
+            icone: <Database className="h-4 w-4" />,
+            onClick: handleAtualizarCacheSenior,
+            disabled: atualizarCacheSenior.isPending || semContas,
+            loading: atualizarCacheSenior.isPending,
+            mostrar: isBalanco,
+          },
+          {
+            num: 3,
+            titulo: "Gerar resultado",
+            desc: "Materializa o snapshot da DRE/Balanço para consulta rápida.",
+            botao: materializar.isPending ? "Gerando..." : "Gerar resultado",
+            icone: <PlayCircle className="h-4 w-4" />,
+            onClick: handleGerarResultado,
+            disabled: materializar.isPending || semContas,
+            loading: materializar.isPending,
+            mostrar: true,
+          },
+          {
+            num: 4,
+            titulo: "Conferir e exportar",
+            desc: "Use Exportar, Histórico ou Editar estrutura conforme necessidade.",
+            botao: "Ver ações",
+            icone: <FileSpreadsheet className="h-4 w-4" />,
+            mostrar: true,
+          },
+        ].filter((p) => p.mostrar);
+
+        return (
+          <div className="mb-4 rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4 shadow-sm">
+            <div className="mb-3 flex items-center gap-2">
+              <div className="rounded-full bg-blue-600 p-1.5 text-white">
+                <PlayCircle className="h-4 w-4" />
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-slate-900">
+                  Como gerar o resultado — passo a passo
+                </div>
+                <div className="text-xs text-slate-600">
+                  Siga a ordem abaixo. O passo destacado é o próximo a executar.
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+              {passos.map((p, idx) => {
+                const done = feito(p.num);
+                const active = atual(p.num);
+                return (
+                  <div
+                    key={p.num}
+                    className={cn(
+                      "relative flex flex-col rounded-lg border bg-white p-3 transition-all",
+                      done && "border-emerald-300 bg-emerald-50/50",
+                      active && "border-blue-500 ring-2 ring-blue-200 shadow-md",
+                      !done && !active && "border-slate-200 opacity-70",
+                    )}
+                  >
+                    <div className="mb-2 flex items-center gap-2">
+                      <div
+                        className={cn(
+                          "flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold",
+                          done && "bg-emerald-500 text-white",
+                          active && "bg-blue-600 text-white",
+                          !done && !active && "bg-slate-200 text-slate-600",
+                        )}
+                      >
+                        {done ? <CheckCircle2 className="h-4 w-4" /> : p.num}
+                      </div>
+                      <div className="flex items-center gap-1 text-sm font-semibold text-slate-900">
+                        {p.icone}
+                        {p.titulo}
+                      </div>
+                    </div>
+                    <div className="mb-3 flex-1 text-xs text-slate-600">{p.desc}</div>
+                    {p.onClick ? (
+                      <Button
+                        size="sm"
+                        variant={active ? "default" : "outline"}
+                        onClick={p.onClick}
+                        disabled={p.disabled}
+                        className={cn("w-full", active && "animate-pulse")}
+                      >
+                        {p.loading && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                        {p.botao}
+                      </Button>
+                    ) : (
+                      <div className="text-xs italic text-slate-500">
+                        Disponível após gerar o resultado
+                      </div>
+                    )}
+                    {idx < passos.length - 1 && (
+                      <ArrowRight className="hidden lg:block absolute -right-2.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-300 z-10" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          <div className="flex flex-col items-end gap-1">
-            <Button
-              size="sm"
-              onClick={() => vincular.mutate()}
-              disabled={vincular.isPending}
-            >
-              <Link2 className="h-4 w-4 mr-1.5" />
-              {vincular.isPending ? "Vinculando... (pode levar até 1 min)" : "Vincular contas automaticamente"}
-            </Button>
-            {vincular.isPending && (
-              <span className="text-xs text-muted-foreground">Lendo o plano Senior e criando as linhas analíticas — não feche a página.</span>
-            )}
-          </div>
-        </div>
-      )}
-      {semContas && tipoModelo !== "BALANCO" && (
-        <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
-          <div className="flex-1">
-            Este modelo {tipoModelo} não possui contas contábeis vinculadas. Por
-            isso ele não apresentará valores. Acesse a aba{" "}
-            <strong>Estrutura</strong> e vincule contas, ou selecione outro
-            modelo que já tenha contas.
-          </div>
-          <Button asChild size="sm" variant="outline">
-            <Link to={`/contabilidade/dre-studio/${id}/estrutura`}>
-              Ir para Estrutura
-            </Link>
-          </Button>
-        </div>
-      )}
+        );
+      })()}
+
       {balancoIncompleto && (
         <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
           <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
@@ -1416,30 +1529,6 @@ function Visualizacao() {
               Ir para Estrutura
             </Link>
           </Button>
-        </div>
-      )}
-      {tipoModelo === "BALANCO" && semContas && (
-        <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
-          <div className="flex-1">
-            Este Balanço não possui contas vinculadas. Clique em{" "}
-            <strong>Vincular contas automaticamente</strong> para a API montar as
-            folhas analíticas e os vínculos contábeis. Depois execute{" "}
-            <strong>Atualizar Saldos</strong>.
-          </div>
-          <div className="flex flex-col items-end gap-1">
-            <Button
-              size="sm"
-              onClick={() => vincular.mutate()}
-              disabled={vincular.isPending}
-            >
-              <Link2 className="h-4 w-4 mr-1.5" />
-              {vincular.isPending ? "Vinculando... (pode levar até 1 min)" : "Vincular contas automaticamente"}
-            </Button>
-            {vincular.isPending && (
-              <span className="text-xs text-muted-foreground">Lendo o plano Senior e criando as linhas analíticas — não feche a página.</span>
-            )}
-          </div>
         </div>
       )}
       {balancoSemVincular && (
@@ -1771,24 +1860,8 @@ function Visualizacao() {
 
 
 
-      {q.meta?.status === "SEM_CACHE" && (
-        <div className="mb-3 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
-          <div className="flex-1">
-            Nenhum resultado materializado para este período. Clique em
-            <strong> Gerar resultado </strong>
-            para calcular o snapshot agora.
-          </div>
-          <Button
-            size="sm"
-            onClick={handleGerarResultado}
-            disabled={materializar.isPending}
-            className="shrink-0"
-          >
-            {materializar.isPending ? "Iniciando..." : "Gerar resultado"}
-          </Button>
-        </div>
-      )}
+      {/* Aviso SEM_CACHE já é coberto pelo card "Como gerar o resultado" acima. */}
+
 
       {/* === AÇÕES === Dados + Visualização */}
       <div className="rounded-xl border bg-white shadow-sm mb-3">
