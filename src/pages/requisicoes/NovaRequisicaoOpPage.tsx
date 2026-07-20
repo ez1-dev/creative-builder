@@ -16,8 +16,8 @@ import {
   Info as InfoIcon, Loader2, CheckCircle2,
 } from 'lucide-react';
 
-import { useQuery } from '@tanstack/react-query';
-import { useOpConsulta, useSidWriteEnabled } from '@/hooks/requisicoes';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useOpConsulta, useSidWriteEnabled, SID_PING_QUERY_KEY } from '@/hooks/requisicoes';
 import { requisicoesApi, IntegracaoDesabilitadaError, RequisicaoApiError } from '@/services/requisicoesApi';
 import type { TipoAtendimentoOP, ComponenteOP } from '@/types/requisicoes';
 import { toast } from '@/hooks/use-toast';
