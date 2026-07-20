@@ -225,22 +225,6 @@ export function useDashboardGeral(periodo: Periodo = 'ytd', codemp: number = 1) 
       .sort((a, b) => b.valor - a.valor)
       .slice(0, 8);
 
-    // Debug: expor no console para diagnóstico rápido de campos ausentes
-    // eslint-disable-next-line no-console
-    console.log('[DashboardGeral] payloads recebidos', {
-      periodo_range: range,
-      faturamento_kpis: fatKpis,
-      faturamento_por_mes_len: fatSerie.length,
-      faturamento_por_revenda_len: revendas.length,
-      compras_kpis: comprasKpis,
-      compras_graficos_keys: Object.keys(compras?.graficos ?? {}),
-      folha_kpis: folhaKpis,
-      turnover_kpis: turn?.kpis,
-      turnover_por_mes_len: (turn?.por_mes ?? []).length,
-      absenteismo_kpis: abs?.kpis,
-      quadro_len: quadro.length,
-    });
-
     return {
       kpis: {
         faturamento_mes: faturamentoMes,
@@ -269,8 +253,16 @@ export function useDashboardGeral(periodo: Periodo = 'ytd', codemp: number = 1) 
     };
   }, [qFat.data, qFatAnt.data, qCompras.data, qFolha.data, qTurn.data, qAbs.data, qQuadro.data]);
 
-  const loading = queries.some((q) => q.isLoading);
+  const loading = queries.some((q) => q.isLoading && !q.data);
+  const loadingByBlock = {
+    faturamento: (qFat.isLoading || qFatAnt.isLoading) && !qFat.data,
+    compras: qCompras.isLoading && !qCompras.data,
+    folha: qFolha.isLoading && !qFolha.data,
+    turnover: qTurn.isLoading && !qTurn.data,
+    absenteismo: qAbs.isLoading && !qAbs.data,
+    quadro: qQuadro.isLoading && !qQuadro.data,
+  };
   const refetch = () => Promise.all(queries.map((q) => q.refetch()));
 
-  return { data: data ?? EMPTY, loading, refetch, range };
+  return { data: data ?? EMPTY, loading, loadingByBlock, refetch, range };
 }
