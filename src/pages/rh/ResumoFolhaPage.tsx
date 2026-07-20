@@ -39,7 +39,7 @@ import {
 } from "@/lib/rh/api";
 import { invalidateRhCache } from "@/lib/rh/rhCache";
 import { KpiOrMissing, ValueOrMissing } from "@/components/rh/KpiOrMissing";
-import { ResumoFolhaDrillDrawer } from "@/components/rh/ResumoFolhaDrillDrawer";
+import { ResumoFolhaDrillDrawer, type ResumoFolhaDrillExtras } from "@/components/rh/ResumoFolhaDrillDrawer";
 import type { ResumoFolhaDrillsMenuItem } from "@/lib/rh/types";
 import { formatCurrency } from "@/lib/format";
 import { tickCurrencyAbbrev } from "@/components/bi/utils/chartHelpers";
