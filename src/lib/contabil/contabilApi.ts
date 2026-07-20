@@ -1,26 +1,19 @@
 // Cliente HTTP dedicado à API contábil / DRE.
 // Totalmente independente do ApiClient principal (src/lib/api.ts) — nunca compartilha base URL.
-// Base padrão: https://dreconfiguravel.ngrok.app  (nunca contém /api/contabil).
+// Base padrão: https://api-erp-renato.ngrok.app (nunca contém /api/contabil).
 
 import { api as erpApi } from '@/lib/api';
 import { logError } from '@/lib/errorLogger';
 
-const DEFAULT_CONTABIL_URL = 'https://dreconfiguravel.ngrok.app';
+const DEFAULT_CONTABIL_URL = 'https://api-erp-renato.ngrok.app';
 const CONTABIL_TIMEOUT_MS = 15000;
-// Domínio da API principal do ERP — NUNCA deve atender rotas /api/contabil/*.
-const FORBIDDEN_CONTABIL_HOST = 'api-erp-renato.ngrok.app';
 // Porta legada da DRE antiga: qualquer URL apontando aqui deve cair para o default.
 const LEGACY_DRE_PORT = ':8090';
 
 let _contabilBaseUrl: string | null = null;
-let _warnedForbidden = false;
 let _warnedLegacyPort = false;
 
 const stripTrailingSlash = (u: string) => u.replace(/\/+$/, '');
-
-function isForbiddenContabilUrl(u: string): boolean {
-  return u.toLowerCase().includes(FORBIDDEN_CONTABIL_HOST);
-}
 
 function isLegacyDreUrl(u: string): boolean {
   return u.includes(LEGACY_DRE_PORT);
@@ -33,16 +26,6 @@ function warnLegacyPortOnce(source: string, badUrl: string) {
   console.warn(
     `[contabilApi] URL "${badUrl}" (via ${source}) aponta para a porta legada ${LEGACY_DRE_PORT}, ` +
     `que não atende mais a DRE integrada. Usando fallback ${DEFAULT_CONTABIL_URL}.`,
-  );
-}
-
-function warnForbiddenOnce(source: string, badUrl: string) {
-  if (_warnedForbidden) return;
-  _warnedForbidden = true;
-  // eslint-disable-next-line no-console
-  console.warn(
-    `[contabilApi] URL "${badUrl}" (via ${source}) aponta para ${FORBIDDEN_CONTABIL_HOST}, ` +
-    `que não atende /api/contabil/*. Usando fallback ${DEFAULT_CONTABIL_URL}.`,
   );
 }
 
@@ -62,10 +45,6 @@ export function getContabilBaseUrl(): string {
       );
       return DEFAULT_CONTABIL_URL;
     }
-    if (isForbiddenContabilUrl(clean)) {
-      warnForbiddenOnce(source, clean);
-      return DEFAULT_CONTABIL_URL;
-    }
     if (isLegacyDreUrl(clean)) {
       warnLegacyPortOnce(source, clean);
       return DEFAULT_CONTABIL_URL;
@@ -82,11 +61,6 @@ export function setContabilBaseUrl(url: string | null | undefined) {
     return;
   }
   const clean = stripTrailingSlash(String(url));
-  if (isForbiddenContabilUrl(clean)) {
-    warnForbiddenOnce('setContabilBaseUrl', clean);
-    _contabilBaseUrl = null;
-    return;
-  }
   if (isLegacyDreUrl(clean)) {
     warnLegacyPortOnce('setContabilBaseUrl', clean);
     _contabilBaseUrl = null;
@@ -94,6 +68,7 @@ export function setContabilBaseUrl(url: string | null | undefined) {
   }
   _contabilBaseUrl = clean;
 }
+
 
 export interface ContabilHealthResult {
   ok: boolean;
