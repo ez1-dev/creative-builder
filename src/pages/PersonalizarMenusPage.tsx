@@ -354,7 +354,7 @@ export default function PersonalizarMenusPage() {
                 const subHidden = activeLayout.hiddenGroups.includes(subNodeKey);
                 const isCustomSub = merged.customSubGroups.some((c) => c.id === sg.id);
                 return (
-                  <div key={sg.id}>
+                  <div key={sg.id} className={subHidden ? 'opacity-60' : ''}>
                     <div className="flex items-center gap-2 mb-1">
                       <IconPicker value={subIconOverride ?? iconToName(sg.icon)}
                         onChange={(name) => setIconOverride(subNodeKey, name)}
@@ -363,6 +363,7 @@ export default function PersonalizarMenusPage() {
                         onChange={(e) => setRename(subNodeKey, e.target.value, sg.label)}
                         className="h-8 max-w-[260px] text-xs font-semibold uppercase" />
                       <span className="text-xs text-muted-foreground">({sg.items.length})</span>
+                      {subHidden && <Badge variant="outline" className="border-amber-500/50 text-amber-600">Oculto</Badge>}
                       <div className="flex-1" />
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         Visível
