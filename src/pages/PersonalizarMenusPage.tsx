@@ -217,7 +217,7 @@ export default function PersonalizarMenusPage() {
     const currentSubValue = currentMove?.subGroupId ?? (currentTargetTopId === originTopId ? undefined : NONE_SUB);
 
     return (
-      <div key={customId ?? leaf.url} className="flex items-center gap-2 border-b py-2 last:border-b-0 flex-wrap">
+      <div key={customId ?? leaf.url} className={`flex items-center gap-2 border-b py-2 last:border-b-0 flex-wrap ${hidden ? 'opacity-50' : ''}`}>
         <div className="flex flex-col">
           <button className="rounded p-1 hover:bg-accent disabled:opacity-30" disabled={idx === 0}
             onClick={() => reorderInBucket(bucketKey, bucketUrls, leaf.url, -1)} aria-label="Mover para cima">
@@ -243,6 +243,7 @@ export default function PersonalizarMenusPage() {
             />
             {isExternal && <Badge variant="secondary" className="gap-1"><ExternalLink className="h-3 w-3" />externo</Badge>}
             {customId && <Badge variant="outline">criado</Badge>}
+            {hidden && <Badge variant="outline" className="border-amber-500/50 text-amber-600">Oculto</Badge>}
           </div>
           <div className="text-[11px] text-muted-foreground truncate">{leaf.url}</div>
         </div>
