@@ -569,9 +569,61 @@ export default function ResumoFolhaPage() {
                   height={28}
                   wrapperStyle={{ fontSize: 12 }}
                 />
-                <Bar dataKey="provento" name="Provento" fill="url(#rhBarProvento)" radius={[6, 6, 0, 0]} barSize={18} />
-                <Bar dataKey="desconto" name="Desconto" fill="url(#rhBarDesconto)" radius={[6, 6, 0, 0]} barSize={18} />
-                <Bar dataKey="total_liquido" name="Líquido" fill="url(#rhBarLiquido)" radius={[6, 6, 0, 0]} barSize={18} />
+                <Bar
+                  dataKey="provento"
+                  name="Provento"
+                  fill="url(#rhBarProvento)"
+                  radius={[6, 6, 0, 0]}
+                  barSize={18}
+                  cursor={drillsMap.has("provento") ? "pointer" : undefined}
+                  onClick={
+                    drillsMap.has("provento")
+                      ? (d: any) =>
+                          openDrill(
+                            "provento",
+                            { competencia: d?.competencia, contextLabel: d?.label },
+                            Number(d?.provento) || null,
+                          )
+                      : undefined
+                  }
+                />
+                <Bar
+                  dataKey="desconto"
+                  name="Desconto"
+                  fill="url(#rhBarDesconto)"
+                  radius={[6, 6, 0, 0]}
+                  barSize={18}
+                  cursor={drillsMap.has("desconto") ? "pointer" : undefined}
+                  onClick={
+                    drillsMap.has("desconto")
+                      ? (d: any) =>
+                          openDrill(
+                            "desconto",
+                            { competencia: d?.competencia, contextLabel: d?.label },
+                            Number(d?.desconto) || null,
+                          )
+                      : undefined
+                  }
+                />
+                <Bar
+                  dataKey="total_liquido"
+                  name="Líquido"
+                  fill="url(#rhBarLiquido)"
+                  radius={[6, 6, 0, 0]}
+                  barSize={18}
+                  cursor={drillsMap.has("total_liquido") ? "pointer" : undefined}
+                  onClick={
+                    drillsMap.has("total_liquido")
+                      ? (d: any) =>
+                          openDrill(
+                            "total_liquido",
+                            { competencia: d?.competencia, contextLabel: d?.label },
+                            Number(d?.total_liquido) || null,
+                          )
+                      : undefined
+                  }
+                />
+
               </BarChart>
             </ResponsiveContainer>
           )}
