@@ -648,14 +648,30 @@ export default function ResumoFolhaPage() {
               {!isLoading && mensal.length === 0 && (
                 <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-4">Sem dados</TableCell></TableRow>
               )}
-              {mensal.map((m, i) => (
-                <TableRow key={i}>
-                  <TableCell className="font-medium">{fmtCompetencia(m.competencia)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatCurrency(m.provento ?? 0)}</TableCell>
-                  <TableCell className="text-right tabular-nums text-destructive">{formatCurrency(m.desconto ?? 0)}</TableCell>
-                  <TableCell className="text-right tabular-nums text-primary font-semibold">{formatCurrency(m.total_liquido ?? 0)}</TableCell>
-                </TableRow>
-              ))}
+              {mensal.map((m, i) => {
+                const cellCls = (field: string) =>
+                  drillsMap.has(field)
+                    ? "text-right tabular-nums cursor-pointer hover:bg-muted/60 hover:underline"
+                    : "text-right tabular-nums";
+                const cellClick = (field: string, v: number | null | undefined) =>
+                  drillsMap.has(field)
+                    ? () =>
+                        openDrill(
+                          field,
+                          { competencia: m.competencia, contextLabel: fmtCompetencia(m.competencia) },
+                          v ?? null,
+                        )
+                    : undefined;
+                return (
+                  <TableRow key={i}>
+                    <TableCell className="font-medium">{fmtCompetencia(m.competencia)}</TableCell>
+                    <TableCell className={cellCls("provento")} onClick={cellClick("provento", m.provento)}>{formatCurrency(m.provento ?? 0)}</TableCell>
+                    <TableCell className={cellCls("desconto") + " text-destructive"} onClick={cellClick("desconto", m.desconto)}>{formatCurrency(m.desconto ?? 0)}</TableCell>
+                    <TableCell className={cellCls("total_liquido") + " text-primary font-semibold"} onClick={cellClick("total_liquido", m.total_liquido)}>{formatCurrency(m.total_liquido ?? 0)}</TableCell>
+                  </TableRow>
+                );
+              })}
+
             </TableBody>
           </Table>
         </CardContent>
