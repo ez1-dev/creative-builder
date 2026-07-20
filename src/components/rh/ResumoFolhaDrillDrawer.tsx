@@ -19,6 +19,14 @@ import {
 } from "@/lib/rh/api";
 import type { ResumoFolhaDrillsMenuItem } from "@/lib/rh/types";
 
+export interface ResumoFolhaDrillExtras {
+  cd_filial?: string;
+  cd_evento?: string;
+  cd_tp_evento?: string;
+  competencia?: string; // YYYYMM (override do período quando drill vem de barra/linha mensal)
+  contextLabel?: string; // texto extra para o cabeçalho
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -27,7 +35,7 @@ interface Props {
   cardValue: number | null | undefined;
   anomes_ini: string; // YYYYMM
   anomes_fim: string; // YYYYMM
-  cd_filial?: string;
+  extras?: ResumoFolhaDrillExtras;
 }
 
 function isNumber(v: unknown): v is number {
@@ -41,10 +49,15 @@ export function ResumoFolhaDrillDrawer({
   cardValue,
   anomes_ini,
   anomes_fim,
-  cd_filial,
+  extras,
 }: Props) {
   const agrupamentos = drillItem?.agrupamentos ?? [];
   const [tab, setTab] = useState<string>("");
+  const cd_filial = extras?.cd_filial;
+  const cd_evento = extras?.cd_evento;
+  const cd_tp_evento = extras?.cd_tp_evento;
+  const competencia = extras?.competencia;
+  const contextLabel = extras?.contextLabel;
 
   // Ao abrir/trocar de card, garantir que o primeiro agrupamento é o ativo.
   useEffect(() => {
@@ -63,6 +76,9 @@ export function ResumoFolhaDrillDrawer({
       anomes_ini,
       anomes_fim,
       cd_filial ?? null,
+      cd_evento ?? null,
+      cd_tp_evento ?? null,
+      competencia ?? null,
     ],
     queryFn: () =>
       fetchResumoFolhaDrill({
@@ -71,6 +87,9 @@ export function ResumoFolhaDrillDrawer({
         anomes_ini,
         anomes_fim,
         cd_filial,
+        cd_evento,
+        cd_tp_evento,
+        competencia,
       }),
     enabled: open && !!drillItem && !!tab,
     retry: (count, err) => (err instanceof ResumoFolhaDrillError ? false : count < 1),
@@ -79,6 +98,7 @@ export function ResumoFolhaDrillDrawer({
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
   });
+
 
   const data = query.data;
   const err = query.error as any;
