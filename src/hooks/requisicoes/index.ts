@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { requisicoesApi, IntegracaoDesabilitadaError } from '@/services/requisicoesApi';
+import { requisicoesApi, IntegracaoDesabilitadaError, SessaoExpiradaError } from '@/services/requisicoesApi';
 import type { RequisicaoFiltros, Requisicao, ConfigRequisicoes } from '@/types/requisicoes';
 import { toast } from '@/hooks/use-toast';
 
