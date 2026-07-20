@@ -80,13 +80,16 @@ export function useVincularContasBalancoSenior(modeloId: string) {
         if (!data || data.ok === false) {
           throw new Error(data?.detail ?? "Falha ao vincular contas ao Balanço.");
         }
+        const pick = (k: keyof VincularContasBalancoResumo) => {
+          const v = (data!.resumo as any)?.[k] ?? (data as any)?.[k];
+          return v == null ? undefined : Number(v);
+        };
         return {
-          linhas_criadas: Number(
-            data.resumo?.linhas_criadas ?? data.linhas_criadas ?? 0,
-          ),
-          contas_vinculadas: Number(
-            data.resumo?.contas_vinculadas ?? data.contas_vinculadas ?? 0,
-          ),
+          linhas_criadas: pick("linhas_criadas") ?? 0,
+          contas_vinculadas: pick("contas_vinculadas") ?? 0,
+          contas_lidas_senior: pick("contas_lidas_senior"),
+          contas_ja_existentes: pick("contas_ja_existentes"),
+          linhas_reordenadas: pick("linhas_reordenadas"),
         };
       } catch (e) {
         if ((e as { name?: string })?.name === "AbortError") {
