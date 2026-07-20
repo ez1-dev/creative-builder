@@ -379,29 +379,40 @@ export default function NovaRequisicaoOpPage() {
       });
       return;
     }
+    const codtns = tipo === 'TRANSFERIR' ? '90253' : tipo === 'BAIXAR' ? '90251' : '90250';
+    const contextoOp = op.data ? `OP ${op.data.codori}/${op.data.numorp}` : '';
+    const lotePayload = {
+      itens: payload.itens.map((it) => ({
+        codpro: it.codcmp,
+        codder: it.codder ?? null,
+        qtdeme: it.quantidade,
+        codtns,
+        coddep: it.deposito_origem!,
+        ccures: undefined,
+        obseme: [contextoOp, it.observacao, obsGeral].filter(Boolean).join(' · ') || undefined,
+      })),
+      origem_op: op.data ? { codori: op.data.codori, numorp: op.data.numorp } : undefined,
+    };
+
     setEnviando(true); setPendenteIntegr(null);
     try {
-      const criada = await requisicoesApi.criar(payload as any);
-      try {
-        await requisicoesApi.enviar(criada.id);
-      } catch (err) {
-        if (err instanceof IntegracaoDesabilitadaError) {
-          setPendenteIntegr(err.detail ?? null);
-        } else {
-          throw err;
-        }
-      }
-      const numero = (criada as any)?.numero ?? (criada as any)?.numeme ?? (criada as any)?.resultado;
-      if (numero) {
-        toast({ title: `Requisição ${numero} criada no ERP.` });
+      const res = await requisicoesApi.sidRequisitarLote(lotePayload);
+      const criados = (res as any)?.criados ?? 0;
+      const falhas = (res as any)?.falhas ?? 0;
+      const numeme = (res as any)?.numeme;
+      if (falhas === 0) {
+        toast({ title: `Requisição ${numeme ?? ''} criada no ERP com ${criados} item(ns).` });
+        if (rascunhoKey) { localStorage.removeItem(rascunhoKey); setRascunhoDisponivel(false); }
       } else {
-        toast({ title: 'Requisição enviada — confira o número no ERP.' });
+        toast({
+          title: `Envio parcial — ${criados}/${criados + falhas} itens criados`,
+          description: 'Confira os retornos por item no ERP antes de reenviar os que falharam.',
+          variant: 'destructive',
+        });
       }
-      // Envio bem-sucedido → descarta rascunho local para não confundir na próxima entrada
-      if (rascunhoKey) { localStorage.removeItem(rascunhoKey); setRascunhoDisponivel(false); }
-      nav(`/requisicoes/${encodeURIComponent(criada.id)}`);
     } catch (err: any) {
       if (err instanceof IntegracaoDesabilitadaError) {
+        setPendenteIntegr(err.detail ?? null);
         toast({ title: 'Integração ERP desabilitada', description: err.detail ?? err.message, variant: 'destructive' });
       } else if (err instanceof RequisicaoApiError) {
         toast({ title: 'ERP recusou a requisição', description: err.detail ?? err.message, variant: 'destructive' });
@@ -412,6 +423,7 @@ export default function NovaRequisicaoOpPage() {
       setEnviando(false);
     }
   };
+
 
   const handleContinue = () => {
     if (!canContinue) return;
