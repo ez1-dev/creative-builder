@@ -893,7 +893,7 @@ export default function NovaRequisicaoOpPage() {
                   <TableHead className="text-xs uppercase tracking-wide">Componente</TableHead>
                   <TableHead className="text-xs uppercase tracking-wide">Descrição</TableHead>
                   <TableHead className="text-xs uppercase tracking-wide text-right">Quantidade</TableHead>
-                  <TableHead className="text-xs uppercase tracking-wide">Dep. origem</TableHead>
+                  <TableHead className="text-xs uppercase tracking-wide">Dep. sugerido</TableHead>
                   <TableHead className="text-xs uppercase tracking-wide">Justificativa</TableHead>
                 </TableRow>
               </TableHeader>
