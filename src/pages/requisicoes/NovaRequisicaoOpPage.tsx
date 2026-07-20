@@ -18,7 +18,7 @@ import {
 
 import { useQuery } from '@tanstack/react-query';
 import { useOpConsulta, useSidWriteEnabled } from '@/hooks/requisicoes';
-import { requisicoesApi, IntegracaoDesabilitadaError } from '@/services/requisicoesApi';
+import { requisicoesApi, IntegracaoDesabilitadaError, RequisicaoApiError } from '@/services/requisicoesApi';
 import type { TipoAtendimentoOP, ComponenteOP } from '@/types/requisicoes';
 import { toast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
