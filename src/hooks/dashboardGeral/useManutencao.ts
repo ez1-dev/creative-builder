@@ -50,8 +50,8 @@ export function useManutencao(periodo: Periodo, enabled: boolean) {
 
   const queries = useQueries({
     queries: [
-      { queryKey: ['dg-man', 'frota', dIni, dFim], queryFn: () => fetchAll('manutencao_frota', dIni, dFim), enabled, retry: 0, staleTime: 5 * 60 * 1000 },
-      { queryKey: ['dg-man', 'maq', dIni, dFim], queryFn: () => fetchAll('manutencao_maquinas', dIni, dFim), enabled, retry: 0, staleTime: 5 * 60 * 1000 },
+      { queryKey: ['dg-man', 'frota', dIni, dFim], queryFn: () => fetchAll('manutencao_frota', dIni, dFim), enabled, retry: 0, staleTime: 10 * 60 * 1000, gcTime: 30 * 60 * 1000, placeholderData: keepPreviousData, refetchOnWindowFocus: false },
+      { queryKey: ['dg-man', 'maq', dIni, dFim], queryFn: () => fetchAll('manutencao_maquinas', dIni, dFim), enabled, retry: 0, staleTime: 10 * 60 * 1000, gcTime: 30 * 60 * 1000, placeholderData: keepPreviousData, refetchOnWindowFocus: false },
     ],
   });
   const [qF, qM] = queries;

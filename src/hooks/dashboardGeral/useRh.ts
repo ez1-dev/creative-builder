@@ -45,10 +45,10 @@ export function useRh(periodo: Periodo, enabled: boolean, codemp = 1) {
 
   const queries = useQueries({
     queries: [
-      { queryKey: ['dg-rh', 'folha', range.ini, range.fim, codemp], queryFn: () => fetchResumoFolhaDashboard({ anomes_ini: range.ini, anomes_fim: range.fim, codemp }), enabled, retry: 0, staleTime: 5 * 60 * 1000 },
-      { queryKey: ['dg-rh', 'turn', range.ini, range.fim, codemp], queryFn: () => fetchTurnoverDashboard({ anomes_ini: range.ini, anomes_fim: range.fim, codemp }), enabled, retry: 0, staleTime: 5 * 60 * 1000 },
-      { queryKey: ['dg-rh', 'abs', range.ini, range.fim, codemp], queryFn: () => fetchAbsenteismoDashboard({ anomes_ini: range.ini, anomes_fim: range.fim, codemp }), enabled, retry: 0, staleTime: 5 * 60 * 1000 },
-      { queryKey: ['dg-rh', 'quadro'], queryFn: () => fetchQuadroColaboradores(), enabled, retry: 0, staleTime: 10 * 60 * 1000 },
+      { queryKey: ['dg-rh', 'folha', range.ini, range.fim, codemp], queryFn: () => fetchResumoFolhaDashboard({ anomes_ini: range.ini, anomes_fim: range.fim, codemp }), enabled, retry: 0, staleTime: 10 * 60 * 1000, gcTime: 30 * 60 * 1000, placeholderData: keepPreviousData, refetchOnWindowFocus: false },
+      { queryKey: ['dg-rh', 'turn', range.ini, range.fim, codemp], queryFn: () => fetchTurnoverDashboard({ anomes_ini: range.ini, anomes_fim: range.fim, codemp }), enabled, retry: 0, staleTime: 10 * 60 * 1000, gcTime: 30 * 60 * 1000, placeholderData: keepPreviousData, refetchOnWindowFocus: false },
+      { queryKey: ['dg-rh', 'abs', range.ini, range.fim, codemp], queryFn: () => fetchAbsenteismoDashboard({ anomes_ini: range.ini, anomes_fim: range.fim, codemp }), enabled, retry: 0, staleTime: 10 * 60 * 1000, gcTime: 30 * 60 * 1000, placeholderData: keepPreviousData, refetchOnWindowFocus: false },
+      { queryKey: ['dg-rh', 'quadro'], queryFn: () => fetchQuadroColaboradores(), enabled, retry: 0, staleTime: 10 * 60 * 1000, gcTime: 30 * 60 * 1000, placeholderData: keepPreviousData, refetchOnWindowFocus: false },
     ],
   });
   const [qFolha, qTurn, qAbs, qQuadro] = queries;
