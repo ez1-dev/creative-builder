@@ -837,7 +837,7 @@ export default function NovaRequisicaoOpPage() {
 
         <div className="rounded-md border bg-muted/30 p-3">
           <div className="grid gap-3 sm:grid-cols-3">
-            <Field label="Depósito de origem" value={primeiroDepositoOrigem} />
+            <Field label="Depósito sugerido" value={primeiroDepositoOrigem} />
             <Field label="Itens selecionados" value={stats.qtdItens} />
             <Field label="Quantidade total" value={stats.qtdTotal} />
           </div>
