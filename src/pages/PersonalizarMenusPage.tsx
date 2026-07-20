@@ -45,7 +45,7 @@ function randomId(prefix: string) {
 export default function PersonalizarMenusPage() {
   const { isAdmin } = useUserPermissions();
   const {
-    userLayout, globalLayout, merged, effectiveMenus, loaded,
+    userLayout, globalLayout, merged, effectiveMenus, editorMenus, loaded,
     setLayout, resetLayout, refresh,
   } = useMenuLayout();
 
