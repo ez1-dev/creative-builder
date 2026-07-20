@@ -987,7 +987,7 @@ export default function NovaRequisicaoOpPage() {
                   <TooltipContent>{sidWrite.reason}</TooltipContent>
                 )}
                 {sidWrite.enabled && itensSemDeposito.length > 0 && (
-                  <TooltipContent>Escolha o depósito de origem do componente {itensSemDeposito[0].codigo}.</TooltipContent>
+                  <TooltipContent>Escolha o depósito sugerido do componente {itensSemDeposito[0].codigo}.</TooltipContent>
                 )}
               </Tooltip>
             </div>
