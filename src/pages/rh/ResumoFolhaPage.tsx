@@ -39,7 +39,7 @@ import {
 } from "@/lib/rh/api";
 import { invalidateRhCache } from "@/lib/rh/rhCache";
 import { KpiOrMissing, ValueOrMissing } from "@/components/rh/KpiOrMissing";
-import { ResumoFolhaDrillDrawer } from "@/components/rh/ResumoFolhaDrillDrawer";
+import { ResumoFolhaDrillDrawer, type ResumoFolhaDrillExtras } from "@/components/rh/ResumoFolhaDrillDrawer";
 import type { ResumoFolhaDrillsMenuItem } from "@/lib/rh/types";
 import { formatCurrency } from "@/lib/format";
 import { tickCurrencyAbbrev } from "@/components/bi/utils/chartHelpers";
@@ -125,11 +125,32 @@ export default function ResumoFolhaPage() {
   const [drillOpen, setDrillOpen] = useState(false);
   const [drillCard, setDrillCard] = useState<ResumoFolhaDrillsMenuItem | null>(null);
   const [drillCardValue, setDrillCardValue] = useState<number | null | undefined>(null);
-  const openDrill = (field: string) => {
+  const [drillExtras, setDrillExtras] = useState<ResumoFolhaDrillExtras | undefined>(undefined);
+  const openDrill = (
+    field: string,
+    extras?: ResumoFolhaDrillExtras,
+    valueOverride?: number | null,
+  ) => {
     const item = drillsMap.get(field);
-    if (!item) return;
+    if (!item) {
+      const msg = `Drill "${field}" não foi devolvido pelo backend em drills_menu.`;
+      // eslint-disable-next-line no-console
+      console.warn("[RH ResumoFolha] drill ausente", {
+        card: field,
+        drills_menu_cards: Array.from(drillsMap.keys()),
+      });
+      if (isAdmin) toast.warning(msg);
+      return;
+    }
     setDrillCard(item);
-    setDrillCardValue(kpis ? (kpis[field] as number | null | undefined) : null);
+    setDrillCardValue(
+      valueOverride !== undefined
+        ? valueOverride
+        : kpis
+          ? (kpis[field] as number | null | undefined)
+          : null,
+    );
+    setDrillExtras(extras);
     setDrillOpen(true);
   };
   const kpiDrill = (field: string) => {
@@ -139,6 +160,40 @@ export default function ResumoFolhaPage() {
       onClick: drillable ? () => openDrill(field) : undefined,
     };
   };
+
+  // ============ Diagnóstico de drills faltantes (visível a admin) ============
+  const EXPECTED_KPI_DRILLS = [
+    "provento", "desconto", "total_liquido",
+    "salario_base", "salario_bruto",
+    "outras_gratificacoes", "beneficios", "va",
+    "inss_total", "fgts", "rescisoes",
+    "custo_total", "hora_extra", "provisoes", "custo_ferias",
+  ];
+  const EXPECTED_EXTRA_DRILLS = ["proventos", "descontos", "tipos_evento", "filial"];
+  const missingDrills = useMemo(() => {
+    if (!data) return [] as string[];
+    const all = [...EXPECTED_KPI_DRILLS, ...EXPECTED_EXTRA_DRILLS];
+    return all.filter((k) => !drillsMap.has(k));
+  }, [data, drillsMap]);
+  const copyDrillDiagnostico = async () => {
+    const diag = {
+      params: baseParams,
+      drills_menu_recebidos: drillsMenu,
+      cards_recebidos: Array.from(drillsMap.keys()),
+      cards_esperados: [...EXPECTED_KPI_DRILLS, ...EXPECTED_EXTRA_DRILLS],
+      cards_faltantes: missingDrills,
+      diagnostico: data?.diagnostico ?? null,
+    };
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(diag, null, 2));
+      toast.success("Diagnóstico de drills copiado.");
+    } catch {
+      toast.error("Não foi possível copiar. Veja o console.");
+      // eslint-disable-next-line no-console
+      console.log("[RH ResumoFolha] diagnóstico drills", diag);
+    }
+  };
+
 
 
   const [syncJobId, setSyncJobId] = useState<string | null>(null);
@@ -514,9 +569,61 @@ export default function ResumoFolhaPage() {
                   height={28}
                   wrapperStyle={{ fontSize: 12 }}
                 />
-                <Bar dataKey="provento" name="Provento" fill="url(#rhBarProvento)" radius={[6, 6, 0, 0]} barSize={18} />
-                <Bar dataKey="desconto" name="Desconto" fill="url(#rhBarDesconto)" radius={[6, 6, 0, 0]} barSize={18} />
-                <Bar dataKey="total_liquido" name="Líquido" fill="url(#rhBarLiquido)" radius={[6, 6, 0, 0]} barSize={18} />
+                <Bar
+                  dataKey="provento"
+                  name="Provento"
+                  fill="url(#rhBarProvento)"
+                  radius={[6, 6, 0, 0]}
+                  barSize={18}
+                  cursor={drillsMap.has("provento") ? "pointer" : undefined}
+                  onClick={
+                    drillsMap.has("provento")
+                      ? (d: any) =>
+                          openDrill(
+                            "provento",
+                            { competencia: d?.competencia, contextLabel: d?.label },
+                            Number(d?.provento) || null,
+                          )
+                      : undefined
+                  }
+                />
+                <Bar
+                  dataKey="desconto"
+                  name="Desconto"
+                  fill="url(#rhBarDesconto)"
+                  radius={[6, 6, 0, 0]}
+                  barSize={18}
+                  cursor={drillsMap.has("desconto") ? "pointer" : undefined}
+                  onClick={
+                    drillsMap.has("desconto")
+                      ? (d: any) =>
+                          openDrill(
+                            "desconto",
+                            { competencia: d?.competencia, contextLabel: d?.label },
+                            Number(d?.desconto) || null,
+                          )
+                      : undefined
+                  }
+                />
+                <Bar
+                  dataKey="total_liquido"
+                  name="Líquido"
+                  fill="url(#rhBarLiquido)"
+                  radius={[6, 6, 0, 0]}
+                  barSize={18}
+                  cursor={drillsMap.has("total_liquido") ? "pointer" : undefined}
+                  onClick={
+                    drillsMap.has("total_liquido")
+                      ? (d: any) =>
+                          openDrill(
+                            "total_liquido",
+                            { competencia: d?.competencia, contextLabel: d?.label },
+                            Number(d?.total_liquido) || null,
+                          )
+                      : undefined
+                  }
+                />
+
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -541,65 +648,112 @@ export default function ResumoFolhaPage() {
               {!isLoading && mensal.length === 0 && (
                 <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-4">Sem dados</TableCell></TableRow>
               )}
-              {mensal.map((m, i) => (
-                <TableRow key={i}>
-                  <TableCell className="font-medium">{fmtCompetencia(m.competencia)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatCurrency(m.provento ?? 0)}</TableCell>
-                  <TableCell className="text-right tabular-nums text-destructive">{formatCurrency(m.desconto ?? 0)}</TableCell>
-                  <TableCell className="text-right tabular-nums text-primary font-semibold">{formatCurrency(m.total_liquido ?? 0)}</TableCell>
-                </TableRow>
-              ))}
+              {mensal.map((m, i) => {
+                const cellCls = (field: string) =>
+                  drillsMap.has(field)
+                    ? "text-right tabular-nums cursor-pointer hover:bg-muted/60 hover:underline"
+                    : "text-right tabular-nums";
+                const cellClick = (field: string, v: number | null | undefined) =>
+                  drillsMap.has(field)
+                    ? () =>
+                        openDrill(
+                          field,
+                          { competencia: m.competencia, contextLabel: fmtCompetencia(m.competencia) },
+                          v ?? null,
+                        )
+                    : undefined;
+                return (
+                  <TableRow key={i}>
+                    <TableCell className="font-medium">{fmtCompetencia(m.competencia)}</TableCell>
+                    <TableCell className={cellCls("provento")} onClick={cellClick("provento", m.provento)}>{formatCurrency(m.provento ?? 0)}</TableCell>
+                    <TableCell className={cellCls("desconto") + " text-destructive"} onClick={cellClick("desconto", m.desconto)}>{formatCurrency(m.desconto ?? 0)}</TableCell>
+                    <TableCell className={cellCls("total_liquido") + " text-primary font-semibold"} onClick={cellClick("total_liquido", m.total_liquido)}>{formatCurrency(m.total_liquido ?? 0)}</TableCell>
+                  </TableRow>
+                );
+              })}
+
             </TableBody>
           </Table>
         </CardContent>
       </Card>
     ),
-    "proventos": (
-      <Card className="h-full">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-center">Proventos + Vantagens</CardTitle></CardHeader>
-        <CardContent className="overflow-auto max-h-[calc(100%-3rem)]">
-          <Table>
-            <TableHeader className="sticky top-0 bg-background z-10">
-              <TableRow><TableHead className="w-16">Cód.</TableHead><TableHead>Evento</TableHead><TableHead className="text-right">Proventos (R$)</TableHead></TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading && <TableRow><TableCell colSpan={3}><Skeleton className="h-6" /></TableCell></TableRow>}
-              {!isLoading && proventos.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-4">Sem dados</TableCell></TableRow>}
-              {proventos.map((p, i) => (
-                <TableRow key={i}>
-                  <TableCell className="text-muted-foreground">{p.cd_evento ?? "-"}</TableCell>
-                  <TableCell>{p.ds_evento ?? "-"}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatCurrency(p.valor)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    ),
-    "descontos": (
-      <Card className="h-full">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-center">Descontos</CardTitle></CardHeader>
-        <CardContent className="overflow-auto max-h-[calc(100%-3rem)]">
-          <Table>
-            <TableHeader className="sticky top-0 bg-background z-10">
-              <TableRow><TableHead className="w-16">Cód.</TableHead><TableHead>Evento</TableHead><TableHead className="text-right">Desc. (R$)</TableHead></TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading && <TableRow><TableCell colSpan={3}><Skeleton className="h-6" /></TableCell></TableRow>}
-              {!isLoading && descontos.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-4">Sem dados</TableCell></TableRow>}
-              {descontos.map((p, i) => (
-                <TableRow key={i}>
-                  <TableCell className="text-muted-foreground">{p.cd_evento ?? "-"}</TableCell>
-                  <TableCell className="text-xs">{p.ds_evento ?? "-"}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatCurrency(p.valor)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    ),
+    "proventos": (() => {
+      const drillable = drillsMap.has("proventos");
+      return (
+        <Card className="h-full">
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-center">Proventos + Vantagens</CardTitle></CardHeader>
+          <CardContent className="overflow-auto max-h-[calc(100%-3rem)]">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background z-10">
+                <TableRow><TableHead className="w-16">Cód.</TableHead><TableHead>Evento</TableHead><TableHead className="text-right">Proventos (R$)</TableHead></TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading && <TableRow><TableCell colSpan={3}><Skeleton className="h-6" /></TableCell></TableRow>}
+                {!isLoading && proventos.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-4">Sem dados</TableCell></TableRow>}
+                {proventos.map((p, i) => (
+                  <TableRow
+                    key={i}
+                    className={drillable ? "cursor-pointer hover:bg-muted/50" : ""}
+                    onClick={
+                      drillable
+                        ? () => openDrill(
+                            "proventos",
+                            { cd_evento: p.cd_evento ? String(p.cd_evento) : undefined, contextLabel: p.ds_evento ?? undefined },
+                            p.valor ?? null,
+                          )
+                        : undefined
+                    }
+                  >
+                    <TableCell className="text-muted-foreground">{p.cd_evento ?? "-"}</TableCell>
+                    <TableCell>{p.ds_evento ?? "-"}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatCurrency(p.valor)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      );
+    })(),
+    "descontos": (() => {
+      const drillable = drillsMap.has("descontos");
+      return (
+        <Card className="h-full">
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-center">Descontos</CardTitle></CardHeader>
+          <CardContent className="overflow-auto max-h-[calc(100%-3rem)]">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background z-10">
+                <TableRow><TableHead className="w-16">Cód.</TableHead><TableHead>Evento</TableHead><TableHead className="text-right">Desc. (R$)</TableHead></TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading && <TableRow><TableCell colSpan={3}><Skeleton className="h-6" /></TableCell></TableRow>}
+                {!isLoading && descontos.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-4">Sem dados</TableCell></TableRow>}
+                {descontos.map((p, i) => (
+                  <TableRow
+                    key={i}
+                    className={drillable ? "cursor-pointer hover:bg-muted/50" : ""}
+                    onClick={
+                      drillable
+                        ? () => openDrill(
+                            "descontos",
+                            { cd_evento: p.cd_evento ? String(p.cd_evento) : undefined, contextLabel: p.ds_evento ?? undefined },
+                            p.valor ?? null,
+                          )
+                        : undefined
+                    }
+                  >
+                    <TableCell className="text-muted-foreground">{p.cd_evento ?? "-"}</TableCell>
+                    <TableCell className="text-xs">{p.ds_evento ?? "-"}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatCurrency(p.valor)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      );
+    })(),
+
     "filial": (
       <Card className="h-full">
         <CardHeader className="pb-2"><CardTitle className="text-sm text-center">Filial</CardTitle></CardHeader>
@@ -626,8 +780,25 @@ export default function ResumoFolhaPage() {
                   {FILIAL_COLS.map((c) => {
                     const present = c.key in (f as any);
                     const v = (f as any)[c.key];
+                    const drillable = present && drillsMap.has(c.key) && f.cd_filial != null;
                     return (
-                      <TableCell key={c.key} className="text-right tabular-nums">
+                      <TableCell
+                        key={c.key}
+                        className={
+                          "text-right tabular-nums " +
+                          (drillable ? "cursor-pointer hover:bg-muted/60 hover:underline" : "")
+                        }
+                        onClick={
+                          drillable
+                            ? () =>
+                                openDrill(
+                                  c.key,
+                                  { cd_filial: String(f.cd_filial), contextLabel: f.filial ?? undefined },
+                                  typeof v === "number" ? v : null,
+                                )
+                            : undefined
+                        }
+                      >
                         <ValueOrMissing value={v} missing={!present} field={c.key} format={c.format} />
                       </TableCell>
                     );
@@ -643,11 +814,30 @@ export default function ResumoFolhaPage() {
       <DonutSideLegendCard
         title="Tipos de Evento"
         subtitle="% e valor por tipo de evento"
-        data={tiposPie.map((t) => ({ label: String(t.label ?? "—"), valor: Number(t.valor) || 0 }))}
+        data={tiposPie.map((t: any) => ({
+          label: String(t.label ?? "—"),
+          valor: Number(t.valor) || 0,
+          // preserva cd_tp_evento para o drill
+          ...(t.cd_tp_evento != null ? { cd_tp_evento: String(t.cd_tp_evento) } : {}),
+        })) as any}
         loading={isLoading}
         height={380}
+        onItemClick={
+          drillsMap.has("tipos_evento")
+            ? (d: any) =>
+                openDrill(
+                  "tipos_evento",
+                  {
+                    cd_tp_evento: d?.cd_tp_evento ? String(d.cd_tp_evento) : undefined,
+                    contextLabel: d?.label,
+                  },
+                  Number(d?.valor) || null,
+                )
+            : undefined
+        }
       />
     ),
+
   }), [kpis, isMissing, isLoading, isAdmin, data, mensal, proventos, descontos, filiaisData, tiposPie, drillsMap]);
 
   return (
@@ -820,6 +1010,31 @@ export default function ResumoFolhaPage() {
           </div>
         )}
 
+      {/* Diagnóstico admin: drills faltantes no backend */}
+      {isAdmin && !indisponivel && !semDados && !!data && missingDrills.length > 0 && (
+        <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs flex items-start gap-2">
+          <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+          <div className="flex-1 space-y-1">
+            <div className="font-semibold text-warning">
+              Drills ausentes em <span className="font-mono">drills_menu</span> ({missingDrills.length})
+            </div>
+            <div className="text-muted-foreground">
+              Cards esperados que o backend não devolveu neste período:{" "}
+              <span className="font-mono">{missingDrills.join(", ")}</span>
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              Endpoint: <code>GET /api/rh/resumo-folha/dashboard</code>. Somente admin vê este aviso.
+            </div>
+            <div>
+              <Button size="sm" variant="outline" onClick={copyDrillDiagnostico} className="h-7 text-xs mt-1">
+                Copiar diagnóstico
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
       {/* Grid editável dos widgets */}
       {!indisponivel && !semDados && (
         <RhDashboardWithBiLibrary
@@ -859,7 +1074,9 @@ export default function ResumoFolhaPage() {
         cardValue={drillCardValue}
         anomes_ini={baseParams.anomes_ini}
         anomes_fim={baseParams.anomes_fim}
+        extras={drillExtras}
       />
+
     </div>
   );
 }

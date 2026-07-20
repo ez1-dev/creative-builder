@@ -364,6 +364,9 @@ export interface ResumoFolhaDrillParams {
   anomes_ini: string; // YYYYMM
   anomes_fim: string; // YYYYMM
   cd_filial?: string;
+  cd_evento?: string;
+  cd_tp_evento?: string;
+  competencia?: string; // YYYYMM (override quando drill parte de barra/célula mensal)
 }
 
 export class ResumoFolhaDrillError extends Error {
@@ -383,10 +386,13 @@ export async function fetchResumoFolhaDrill(
   const params = cleanParams({
     card: p.card,
     agrupar_por: p.agrupar_por,
-    anomes_ini: p.anomes_ini,
-    anomes_fim: p.anomes_fim,
+    anomes_ini: p.competencia ?? p.anomes_ini,
+    anomes_fim: p.competencia ?? p.anomes_fim,
     cd_filial: p.cd_filial,
+    cd_evento: p.cd_evento,
+    cd_tp_evento: p.cd_tp_evento,
   });
+
   try {
     const resp = await api.get<any>("/api/rh/resumo-folha/drill", params);
     const itens = Array.isArray(resp?.itens)
