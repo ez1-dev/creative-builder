@@ -412,7 +412,7 @@ export function useMenuLayout() {
   const refresh = useCallback(() => setTick((t) => t + 1), []);
 
   return {
-    userLayout, globalLayout, merged, effectiveMenus, loaded,
+    userLayout, globalLayout, merged, effectiveMenus, editorMenus, loaded,
     setLayout, resetLayout, refresh,
     isHidden: (url: string) => merged.hidden.includes(url),
   };
