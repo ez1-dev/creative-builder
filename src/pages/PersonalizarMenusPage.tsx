@@ -297,7 +297,7 @@ export default function PersonalizarMenusPage() {
       : top.kind === 'flat' ? top.items.length : 1;
 
     return (
-      <Card key={top.id}>
+      <Card key={top.id} className={topHidden ? 'opacity-60 border-dashed' : ''}>
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2 flex-1 min-w-[260px]">
@@ -312,6 +312,7 @@ export default function PersonalizarMenusPage() {
                 onChange={(e) => setRename(topNodeKey, e.target.value, top.label)}
                 className="h-9 max-w-[300px] font-semibold"
               />
+              {topHidden && <Badge variant="outline" className="border-amber-500/50 text-amber-600">Oculto</Badge>}
               <span className="text-xs text-muted-foreground">
                 {totalCount} {totalCount === 1 ? 'página' : 'páginas'}
               </span>
