@@ -73,6 +73,12 @@ export default function NovaRequisicaoAvulsaPage() {
   const [resultado, setResultado] = useState<SidRequisitarLoteResponse | null>(null);
   const sidWrite = useSidWriteEnabled();
   const operador = useOperadorInfo();
+  const qc = useQueryClient();
+
+  // Revalida integração ao montar a tela de envio (aba antiga não fica com estado velho).
+  useEffect(() => {
+    qc.invalidateQueries({ queryKey: SID_PING_QUERY_KEY });
+  }, [qc]);
 
   const primeiroErroRef = useRef<HTMLInputElement | null>(null);
 
