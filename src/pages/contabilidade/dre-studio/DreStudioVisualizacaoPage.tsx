@@ -2142,7 +2142,8 @@ function Visualizacao() {
       )}
 
 
-      <div ref={matrizScrollRef} className="relative rounded-lg border bg-white overflow-auto isolate">
+      <div className="relative">
+      <div ref={matrizScrollRef} className="relative rounded-lg border bg-white overflow-auto isolate [&::-webkit-scrollbar:horizontal]:hidden">
 
 
         {materializar.isPending && (
