@@ -449,7 +449,7 @@ export default function PersonalizarMenusPage() {
       </Tabs>
 
       {!loaded && <p className="text-sm text-muted-foreground">Carregando…</p>}
-      {loaded && effectiveMenus.map(renderTop)}
+      {loaded && editorMenus.map(renderTop)}
     </div>
   );
 }
