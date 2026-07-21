@@ -569,6 +569,16 @@ function Visualizacao() {
       const descNorm = String(l.descricao ?? "").trim().toLowerCase();
       if (codNorm === "__PERSONALIZADO__" || descNorm === "código personalizado") continue;
 
+      // DRE: ocultar a linha "9.9 Contas não classificadas" (e variações
+      // "não classificado/classificada") para que não entre no resultado.
+      if (!isBalanco) {
+        const codLimpo = codNorm.replace(/\s+/g, "");
+        const ehCod99 = codLimpo === "9.9" || codLimpo === "9.9." || codLimpo.startsWith("9.9.");
+        const ehDescNaoClassificada =
+          /n[aã]o\s+classificad[oa]s?/i.test(String(l.descricao ?? ""));
+        if (ehCod99 || ehDescNaoClassificada) continue;
+      }
+
       if (isBalanco && isLinhaTotalGeral(l)) especiaisTot.push(l);
       else if (isBalanco && isLinha98(l)) especiais98.push(l);
       else if (isBalanco && isLinha000(l)) especiais000.push(l);
