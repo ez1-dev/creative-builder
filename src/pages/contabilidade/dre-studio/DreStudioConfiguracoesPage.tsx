@@ -143,7 +143,7 @@ function ModeloPadraoCard() {
     return null;
   }, []);
 
-  const opcoesDre = ((modelos.data?.itens ?? []) as any[]).filter(
+  const opcoesDre = ((modelos.data ?? []) as any[]).filter(
     (m: any) => (m?.tipo_modelo ?? m?.tipo) === "DRE",
   );
 
