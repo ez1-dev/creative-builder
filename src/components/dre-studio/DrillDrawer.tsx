@@ -747,6 +747,7 @@ export function DrillDrawer({
                       <TableHead className="text-primary-foreground">Data</TableHead>
                       <TableHead className="text-primary-foreground">#</TableHead>
                       <TableHead className="text-primary-foreground">Conta Contábil</TableHead>
+                      <TableHead className="text-primary-foreground">Centro de Custo</TableHead>
                       <TableHead className="text-primary-foreground">Obs.</TableHead>
                       <TableHead className="text-primary-foreground">#</TableHead>
                       <TableHead className="text-primary-foreground">Origem Lcto.</TableHead>
