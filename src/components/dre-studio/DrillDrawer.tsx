@@ -173,6 +173,49 @@ function transacaoOrigemLabel(r: Pick<RazaoItem, "transacao_origem" | "transacao
   return parts.length ? parts.join(" - ") : null;
 }
 
+const FONTE_CC_LABEL: Record<string, string> = {
+  RATEIO_PROPRIA_CONTA: "Rateio da própria conta",
+  RATEIO_CONTRAPARTIDA: "Rateio da contrapartida",
+  DOCUMENTO_ORIGEM: "Documento de origem",
+};
+
+interface CentroCustoInfo {
+  codigo: string | null;
+  descricao: string | null;
+  fonte: string | null;
+  fonteLabel: string | null;
+  multiplos: Array<{ codccu?: string | null; descricao?: string | null }>;
+  temMultiplos: boolean;
+  label: string;
+  itemsFormatted: string[];
+}
+
+function getCentroCustoInfo(item: RazaoItem): CentroCustoInfo {
+  const raw = item.centro_custo ?? null;
+  const fallback = !raw && item.ccu
+    ? { codccu: String(item.ccu), descricao: null, fonte: null, multiplos: null }
+    : null;
+  const cc = raw ?? fallback;
+  const codigo = cc?.codccu != null && String(cc.codccu).trim() !== "" ? String(cc.codccu).trim() : null;
+  const descricao = cc?.descricao != null && String(cc.descricao).trim() !== "" ? String(cc.descricao).trim() : null;
+  const fonte = cc?.fonte != null && String(cc.fonte).trim() !== "" ? String(cc.fonte).trim() : null;
+  const fonteLabel = fonte ? (FONTE_CC_LABEL[fonte] ?? fonte) : null;
+  const multiplos = Array.isArray(cc?.multiplos) ? cc!.multiplos! : [];
+  const temMultiplos = multiplos.length > 1;
+  const itemsFormatted = multiplos
+    .map((m) => {
+      const c = m?.codccu != null ? String(m.codccu).trim() : "";
+      const d = m?.descricao != null ? String(m.descricao).trim() : "";
+      return [c, d].filter(Boolean).join(" - ");
+    })
+    .filter(Boolean);
+  const singleLabel = [codigo, descricao].filter(Boolean).join(" - ");
+  const label = temMultiplos
+    ? `Vários (${multiplos.length})`
+    : (singleLabel || "—");
+  return { codigo, descricao, fonte, fonteLabel, multiplos, temMultiplos, label, itemsFormatted };
+}
+
 interface RazaoItem {
   lancamento?: number | string | null;
   lote?: number | string | null;
