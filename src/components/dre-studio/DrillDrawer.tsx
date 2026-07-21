@@ -530,7 +530,18 @@ export function DrillDrawer({
                       <TableHead className="text-primary-foreground">Obs.</TableHead>
                       <TableHead className="text-primary-foreground">#</TableHead>
                       <TableHead className="text-primary-foreground">Origem Lcto.</TableHead>
-                      <TableHead className="text-primary-foreground">Usuário Origem</TableHead>
+                      <TableHead className="text-primary-foreground">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-help underline decoration-dotted underline-offset-2">Usuário Origem</span>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              Preenchido quando o ERP identifica o usuário do subsistema de origem (VEN, REC, EST, MAN, PAT). Vazio ("—") para lançamentos automáticos ou quando o ERP não devolve esse dado.
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </TableHead>
                       <TableHead className="text-primary-foreground">Usuário Lcto.</TableHead>
                       {!isDRE && <TableHead className="text-primary-foreground text-right">Saldo Anterior</TableHead>}
                       <TableHead className="text-primary-foreground text-right">Mov. Débito</TableHead>
