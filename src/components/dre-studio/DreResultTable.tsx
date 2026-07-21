@@ -170,7 +170,7 @@ export function DreResultTable({ data, visao = 'resumida', onExport }: Props) {
           <Download className="h-3.5 w-3.5" /> Exportar CSV
         </Button>
       </div>
-      <div className="overflow-x-auto max-h-[65vh] overflow-y-auto">
+      <div className="overflow-x-visible max-h-[65vh] overflow-y-auto">
         <table className="w-full text-sm">
           <thead className="sticky top-0 z-20 bg-card border-b">
             <tr className="text-xs uppercase text-muted-foreground">
