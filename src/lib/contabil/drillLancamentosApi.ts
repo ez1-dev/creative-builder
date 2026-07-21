@@ -14,6 +14,14 @@ export interface DrillLancamentoDocumentoOrigem {
   parceiro_codigo?: string | number | null;
   parceiro_nome?: string | null;
   ambiguo?: boolean | null;
+  fonte_tabela?: string | null;
+  // Campos por origem (ex.: EST/PAT/TES) — podem ou não vir
+  produto?: string | null;
+  derivacao?: string | null;
+  deposito?: string | null;
+  bem?: string | null;
+  data_movimento?: string | null;
+  sequencia_movimento?: number | string | null;
 }
 
 export interface DrillLancamentoItem {
@@ -51,9 +59,17 @@ export interface DrillLancamentoItem {
   // Usuários
   usuario?: string | null;
   usuario_origem?: string | null;
+  usuario_origem_codigo?: string | number | null;
   usuario_origem_fonte?: 'documento' | 'lote' | null | string;
+  usuario_origem_fonte_tabela?: string | null;
   usuario_origem_difere?: boolean | null;
+  usuario_origem_status?: string | null;
   usuario_lancamento?: string | null;
+  usuario_lancamento_codigo?: string | number | null;
+  // Transação / natureza
+  transacao_origem?: string | null;
+  transacao_origem_codigo?: string | number | null;
+  transacao_origem_descricao?: string | null;
   // Valores
   valor?: number | null;
   valor_integral?: number | null;
