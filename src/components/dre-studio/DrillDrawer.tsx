@@ -137,6 +137,7 @@ interface RazaoItem {
   origem_codigo?: string | null;
   origem_descricao?: string | null;
   usuario_origem?: string | null;
+  usuario?: string | null;
   usuario_lancamento?: string | null;
   usuario_origem_difere?: boolean;
   saldo_anterior?: number | null;
@@ -301,7 +302,7 @@ export function DrillDrawer({
         r.observacao ?? r.historico ?? "",
         r.origem_codigo ?? "",
         labelOrigem(r.origem_codigo, r.origem_descricao),
-        r.usuario_origem ?? "",
+        r.usuario_origem ?? r.usuario ?? "",
         r.usuario_lancamento ?? "",
         ...(!isDRE ? [num(r.saldo_anterior)] : []),
         num(r.mov_debito),
@@ -555,6 +556,7 @@ export function DrillDrawer({
 
                     {itens.map((r, i) => {
                       const divergeUsuario = r.usuario_origem_difere === true;
+                      const usuarioOrigemDisplay = r.usuario_origem ?? r.usuario ?? "";
                       const tooltipUsuario = divergeUsuario
                         ? `Lote aberto por ${r.usuario_origem ?? "—"}, lançado por ${r.usuario_lancamento ?? "—"}`
                         : "";
@@ -591,14 +593,14 @@ export function DrillDrawer({
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <span className="underline decoration-dotted decoration-amber-600">
-                                    {r.usuario_origem ?? ""}
+                                    {usuarioOrigemDisplay}
                                   </span>
                                 </TooltipTrigger>
                                 <TooltipContent>{tooltipUsuario}</TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
                           ) : (
-                            r.usuario_origem ?? ""
+                            usuarioOrigemDisplay
                           )}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
@@ -751,7 +753,7 @@ export function DrillDrawer({
                 )}
                 <Info label="Documento" value={toDisplay(detalhe.documento)} />
                 <Info label="Origem" value={detalhe.origem_codigo ? `${toDisplay(detalhe.origem_codigo)} - ${labelOrigem(detalhe.origem_codigo as string, detalhe.origem_descricao)}` : ""} />
-                <Info label="Usuário origem" value={toDisplay(detalhe.usuario_origem)} />
+                <Info label="Usuário origem" value={toDisplay(detalhe.usuario_origem ?? detalhe.usuario)} />
                 <Info label="Usuário lançamento" value={toDisplay(detalhe.usuario_lancamento)} />
                 <Info
                   label="Valor integral"
