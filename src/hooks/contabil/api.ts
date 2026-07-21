@@ -1252,6 +1252,12 @@ export function useAtualizarCacheSenior(modeloId: string) {
 // Não usar o total do drill para recalcular saldos do Balanço.
 // ============================================================
 export interface DrillLancamentosParams {
+  /** Modelo/linha do snapshot — permite ao backend resolver contas vinculadas/descendentes. */
+  modelo_id?: string;
+  linha_id?: string;
+  /** Alias camelCase usado por alguns componentes. */
+  modeloId?: string;
+  linhaId?: string;
   codemp?: number;
   codfil?: number | null;
   /** Mês específico (competência). Use OU anomes OU anomes_ini/anomes_fim. */
@@ -1298,6 +1304,8 @@ export function useDrillLancamentos(
   params: DrillLancamentosParams | null,
   enabled = true,
 ) {
+  const modeloId = params?.modelo_id ?? params?.modeloId ?? null;
+  const linhaId = params?.linha_id ?? params?.linhaId ?? null;
   const codemp = params?.codemp ?? CODEMP;
   const codfil = params?.codfil ?? CODFIL;
   const ctared =
@@ -1318,12 +1326,15 @@ export function useDrillLancamentos(
   const usaMes = anomes != null && Number.isFinite(Number(anomes));
   const contaOk = ctared != null && Number.isFinite(ctared);
   const grupoOk = clacta != null;
+  const linhaOk = Boolean(modeloId && linhaId);
   return useQuery<DrillLancamentosResponse>({
     queryKey: [
       "contabil",
       "drill-lancamentos",
       "v2",
       {
+        modelo_id: modeloId,
+        linha_id: linhaId,
         codemp,
         codfil,
         anomes,
@@ -1337,6 +1348,8 @@ export function useDrillLancamentos(
     ],
     queryFn: async () => {
       const raw = await api.get<any>(`/api/contabil/drill-lancamentos`, {
+        modelo_id: modeloId ?? undefined,
+        linha_id: linhaId ?? undefined,
         codemp,
         codfil,
         anomes: usaMes ? anomes : undefined,
@@ -1381,7 +1394,7 @@ export function useDrillLancamentos(
       enabled &&
       !!params &&
       (usaMes || usaRange) &&
-      (contaOk || grupoOk),
+      (linhaOk || contaOk || grupoOk),
     retry: 0,
     staleTime: 30_000,
   });
