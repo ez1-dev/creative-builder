@@ -754,9 +754,9 @@ export function DrillDrawer({
                       <TableHead className="text-primary-foreground">Lançamento</TableHead>
                       <TableHead className="text-primary-foreground">Data</TableHead>
                       <TableHead className="text-primary-foreground">#</TableHead>
-                      <TableHead className="text-primary-foreground">Conta Contábil</TableHead>
-                      <TableHead className="text-primary-foreground">Centro de Custo</TableHead>
-                      <TableHead className="text-primary-foreground">Obs.</TableHead>
+                      <TableHead className="text-primary-foreground w-[260px]">Conta Contábil</TableHead>
+                      <TableHead className="text-primary-foreground w-[220px]">Centro de Custo</TableHead>
+                      <TableHead className="text-primary-foreground w-[260px]">Obs.</TableHead>
                       <TableHead className="text-primary-foreground">#</TableHead>
                       <TableHead className="text-primary-foreground">Origem Lcto.</TableHead>
                       <TableHead className="text-primary-foreground">
@@ -857,18 +857,27 @@ export function DrillDrawer({
                         </TableCell>
                         <TableCell className="whitespace-nowrap">{fmtDataBR(r.data)}</TableCell>
                         <TableCell className="tabular-nums">{r.ctared ?? ""}</TableCell>
-                        <TableCell className="max-w-[220px] truncate" title={`${r.clacta ?? ""} ${r.conta_descricao ?? ""}`}>
-                          {r.clacta ? <span className="text-muted-foreground mr-1">{r.clacta}</span> : null}
-                          {r.conta_descricao ?? ""}
+                        <TableCell className="max-w-[260px]" title={`${r.clacta ?? ""} ${r.conta_descricao ?? ""}`.trim()}>
+                          <div className="truncate">
+                            {r.clacta ? <span className="text-muted-foreground mr-1">{r.clacta}</span> : null}
+                            {r.conta_descricao ?? ""}
+                          </div>
                         </TableCell>
-                        <TableCell className="max-w-[200px] whitespace-nowrap">
+                        <TableCell className="max-w-[220px]">
                           {ccInfo.label === "—" ? (
                             <span className="text-muted-foreground">—</span>
                           ) : (
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <span className="cursor-help underline decoration-dotted underline-offset-2 decoration-muted-foreground">
+                                  <span
+                                    className="block truncate cursor-help underline decoration-dotted underline-offset-2 decoration-muted-foreground"
+                                    title={
+                                      ccInfo.temMultiplos
+                                        ? ccInfo.itemsFormatted.join(" · ")
+                                        : [ccInfo.codigo, ccInfo.descricao].filter(Boolean).join(" - ")
+                                    }
+                                  >
                                     {ccInfo.label}
                                   </span>
                                 </TooltipTrigger>
@@ -894,8 +903,8 @@ export function DrillDrawer({
                             </TooltipProvider>
                           )}
                         </TableCell>
-                        <TableCell className="max-w-[220px] truncate" title={r.historico ?? r.observacao ?? ""}>
-                          {r.observacao ?? r.historico ?? ""}
+                        <TableCell className="max-w-[260px]" title={r.historico ?? r.observacao ?? ""}>
+                          <div className="truncate">{r.observacao ?? r.historico ?? ""}</div>
                         </TableCell>
                         <TableCell className="whitespace-nowrap">{r.origem_codigo ?? ""}</TableCell>
                         <TableCell className="whitespace-nowrap">{labelOrigem(r.origem_codigo, r.origem_descricao)}</TableCell>
