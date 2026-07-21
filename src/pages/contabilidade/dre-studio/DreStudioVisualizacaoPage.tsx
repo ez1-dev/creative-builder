@@ -2901,7 +2901,8 @@ function Visualizacao() {
                       );
                     })()}
 
-                    {colunasVisiveis.map((c) =>
+                    {colunasGrid.map((c) =>
+
                       visao === "COMP" ? renderCompCell(l, c) : renderSingleCell(l, c),
                     )}
                   </tr>
