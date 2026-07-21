@@ -739,24 +739,10 @@ function Visualizacao() {
   const handleSincronizar = () => dispararMaterializacao();
   const handleRecalcular = () => dispararMaterializacao();
   const handleGerarResultado = () => dispararMaterializacao();
-  const handleAtualizarCacheSenior = async () => {
-    try {
-      await atualizarCacheSenior.mutateAsync({
-        anomes_ini: ini,
-        anomes_fim: fim,
-        codfil: codfilNum,
-        tipo: tipoModeloPayload,
-        limpar_periodo: true,
-        limpar_resultado: true,
-        modo_balanco: modoBalancoEfetivo,
-        data_corte: dataCorteEfetiva,
-        aplicar_referencia_senior: aplicarRefSeniorEfetivo,
-      });
-      toast.success("Cache Senior atualizado. Agora clique em Gerar resultado.");
-    } catch (e) {
-      toast.error((e as Error)?.message ?? "Falha ao atualizar cache Senior.");
-    }
-  };
+  // Legado: o passo "Atualizar cache Senior" era síncrono e estourava o timeout de 15s
+  // do contabilApi. O fluxo assíncrono materializar-resultado (job + polling) já faz
+  // sync do ERP + recálculo dentro do próprio job, então redirecionamos para lá.
+  const handleAtualizarCacheSenior = () => dispararMaterializacao();
   const handleRecarregar = async () => {
     toast.info("Recarregando resultado...");
     await qc.invalidateQueries({ queryKey: ["contabil", "resultado-pronto", id] });
