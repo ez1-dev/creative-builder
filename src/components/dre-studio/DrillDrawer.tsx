@@ -266,13 +266,16 @@ export function DrillDrawer({
           anomes_ini: usaRange ? args.anomes_ini : undefined,
           anomes_fim: usaRange ? args.anomes_fim : undefined,
           ctared: ctaredEfetivo,
-          clacta: hasClacta ? args.clacta : undefined,
+          // NÃO enviar `clacta`: o backend resolve as contas via modelo_id+linha_id
+          // e, após seleção do usuário, via `ctared`. Enviar clacta junto quebra o
+          // contrato novo do endpoint (spec 19/07/2026).
           codccu: args.codccu ?? null,
           limite,
         }
       : null,
     open,
   );
+
 
 
   const itens: RazaoItem[] = useMemo(() => {
