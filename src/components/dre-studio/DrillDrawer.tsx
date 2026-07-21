@@ -927,7 +927,23 @@ export function DrillDrawer({
                 Lançamento {detalhe?.lancamento ?? ""}
               </DialogTitle>
             </DialogHeader>
-            {detalhe && (
+            {detalhe && (() => {
+              const doc = (detalhe as any).documento_origem as DocumentoOrigem | null | undefined;
+              const fonte = detalhe.usuario_origem_fonte as string | null | undefined;
+              const fonteLabel =
+                fonte === "documento"
+                  ? "Documento (USUGER)"
+                  : fonte === "lote"
+                    ? "Lote (E640LOT)"
+                    : "—";
+              const docNumero = doc?.numero != null && String(doc.numero).trim() !== "" ? String(doc.numero) : "";
+              const documentoTxt =
+                hasDisplayValue(detalhe.documento)
+                  ? String(detalhe.documento)
+                  : doc && (docNumero || doc.serie)
+                    ? [doc.serie ?? doc.tipo, docNumero].filter(Boolean).join(" ")
+                    : "";
+              return (
               <div className="space-y-3">
                 {detalhe.usuario_origem_difere === true && hasDisplayValue(detalhe.usuario_origem) && (
                   <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
@@ -935,10 +951,45 @@ export function DrillDrawer({
                     <div>
                       <div className="font-medium">Divergência de usuário</div>
                       <div>
-                        Lote aberto por <strong>{usuarioOrigemValue(detalhe, "—")}</strong>,
-                        lançado por <strong>{usuarioLancamentoValue(detalhe, "—")}</strong>.
+                        {fonte === "documento" ? (
+                          <>
+                            Documento emitido por <strong>{usuarioOrigemValue(detalhe, "—")}</strong>,
+                            lançado por <strong>{usuarioLancamentoValue(detalhe, "—")}</strong>.
+                          </>
+                        ) : (
+                          <>
+                            Lote aberto por <strong>{usuarioOrigemValue(detalhe, "—")}</strong>,
+                            lançado por <strong>{usuarioLancamentoValue(detalhe, "—")}</strong>.
+                          </>
+                        )}
                       </div>
                     </div>
+                  </div>
+                )}
+                {doc && (docNumero || doc.parceiro_nome) && (
+                  <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="font-medium">Documento de origem</div>
+                      {doc.ambiguo && (
+                        <span className="rounded bg-amber-100 text-amber-900 px-2 py-0.5 text-[10px] font-medium">
+                          Ambíguo
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
+                      <Info label="Tipo" value={doc.descricao ?? doc.tipo ?? ""} />
+                      <Info label="Série" value={doc.serie ?? ""} />
+                      <Info label="Número" value={docNumero} />
+                      <Info
+                        label={doc.parceiro_tipo === "fornecedor" ? "Fornecedor" : doc.parceiro_tipo === "cliente" ? "Cliente" : "Parceiro"}
+                        value={doc.parceiro_nome ? `${doc.parceiro_codigo ?? ""} ${doc.parceiro_nome}`.trim() : ""}
+                      />
+                    </div>
+                    {doc.ambiguo && (
+                      <div className="mt-2 text-[11px] text-amber-800">
+                        Este número casou com mais de um documento de emissores diferentes — o usuário de origem foi resolvido para o dono do lote.
+                      </div>
+                    )}
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-3 text-xs">
@@ -947,16 +998,16 @@ export function DrillDrawer({
                 <Info label="Lote" value={detalhe.lote} />
                 <Info label="Número" value={detalhe.numero ?? detalhe.lancamento} />
                 <Info label="Data" value={fmtDataBR(detalhe.data)} />
-                <Info label="Lado (D/C)" value={detalhe.debcre} />
+                <Info label="Lado (D/C)" value={detalhe.lado ?? detalhe.debcre} />
                 <Info
                   label="Conta Débito"
                   value={toDisplay(detalhe.conta_debito)}
-                  strong={String(detalhe.debcre ?? '').toUpperCase() === 'D'}
+                  strong={String(detalhe.lado ?? detalhe.debcre ?? '').toUpperCase() === 'D'}
                 />
                 <Info
                   label="Conta Crédito"
                   value={toDisplay(detalhe.conta_credito)}
-                  strong={String(detalhe.debcre ?? '').toUpperCase() === 'C'}
+                  strong={String(detalhe.lado ?? detalhe.debcre ?? '').toUpperCase() === 'C'}
                 />
                 <Info
                   label="Conta selecionada"
@@ -978,9 +1029,10 @@ export function DrillDrawer({
                     </ul>
                   </div>
                 )}
-                <Info label="Documento" value={toDisplay(detalhe.documento)} />
+                <Info label="Documento" value={documentoTxt} />
                 <Info label="Origem" value={detalhe.origem_codigo ? `${toDisplay(detalhe.origem_codigo)} - ${labelOrigem(detalhe.origem_codigo as string, detalhe.origem_descricao)}` : ""} />
                 <Info label="Usuário origem" value={usuarioOrigemValue(detalhe, "—")} />
+                <Info label="Origem do usuário" value={fonteLabel} />
                 <Info label="Usuário lançamento" value={usuarioLancamentoValue(detalhe, "—")} />
                 <Info
                   label="Valor integral"
@@ -996,7 +1048,8 @@ export function DrillDrawer({
                 </div>
               </div>
               </div>
-            )}
+              );
+            })()}
           </DialogContent>
         </Dialog>
       </SheetContent>
