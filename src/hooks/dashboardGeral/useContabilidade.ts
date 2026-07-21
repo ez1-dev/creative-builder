@@ -3,7 +3,7 @@ import { useQueries } from '@tanstack/react-query';
 import { keepPreviousData } from '@tanstack/react-query';
 import { getBalancoPatrimonial } from '@/lib/api';
 import { fetchDreRealizadoResumo } from '@/lib/bi/dreConfiguravelApi';
-import { MODELO_DRE_OFICIAL_ID } from '@/lib/contabilConfig';
+import { useContabilConfiguracao } from '@/hooks/contabil/useContabilConfiguracao';
 import { rangeFor, num, anomesToDate, statusFrom, type Periodo, type ModStatus } from './shared';
 import { BalancoResponseSchema, EMPTY_BALANCO } from '@/lib/dashboardGeral/schemas/contabilidade';
 import { DreResumoResponseSchema, EMPTY_DRE } from '@/lib/dashboardGeral/schemas/financeiro';
@@ -34,6 +34,8 @@ export function useContabilidade(periodo: Periodo, enabled: boolean) {
   const range = useMemo(() => rangeFor(periodo), [periodo]);
   const dataIni = anomesToDate(range.ini);
   const dataFim = anomesToDate(range.fim, true);
+  const { data: cfgContabil } = useContabilConfiguracao();
+  const dreModeloId = cfgContabil?.dre_modelo_padrao_id ?? null;
 
   const queries = useQueries({
     queries: [
@@ -48,9 +50,9 @@ export function useContabilidade(periodo: Periodo, enabled: boolean) {
         enabled, retry: 0, staleTime: 10 * 60 * 1000, gcTime: 30 * 60 * 1000, placeholderData: keepPreviousData, refetchOnWindowFocus: false,
       },
       {
-        queryKey: ['dg-cont', 'dre', dataIni, dataFim, MODELO_DRE_OFICIAL_ID],
-        queryFn: () => fetchDreRealizadoResumo({ data_ini: dataIni, data_fim: dataFim, tipo: 'ACUMULADO', modelo_id: MODELO_DRE_OFICIAL_ID }),
-        enabled, retry: 0, staleTime: 10 * 60 * 1000, gcTime: 30 * 60 * 1000, placeholderData: keepPreviousData, refetchOnWindowFocus: false,
+        queryKey: ['dg-cont', 'dre', dataIni, dataFim, dreModeloId],
+        queryFn: () => fetchDreRealizadoResumo({ data_ini: dataIni, data_fim: dataFim, tipo: 'ACUMULADO', modelo_id: dreModeloId! }),
+        enabled: enabled && !!dreModeloId, retry: 0, staleTime: 10 * 60 * 1000, gcTime: 30 * 60 * 1000, placeholderData: keepPreviousData, refetchOnWindowFocus: false,
       },
     ],
   });
