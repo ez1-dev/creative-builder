@@ -173,6 +173,49 @@ function transacaoOrigemLabel(r: Pick<RazaoItem, "transacao_origem" | "transacao
   return parts.length ? parts.join(" - ") : null;
 }
 
+const FONTE_CC_LABEL: Record<string, string> = {
+  RATEIO_PROPRIA_CONTA: "Rateio da própria conta",
+  RATEIO_CONTRAPARTIDA: "Rateio da contrapartida",
+  DOCUMENTO_ORIGEM: "Documento de origem",
+};
+
+interface CentroCustoInfo {
+  codigo: string | null;
+  descricao: string | null;
+  fonte: string | null;
+  fonteLabel: string | null;
+  multiplos: Array<{ codccu?: string | null; descricao?: string | null }>;
+  temMultiplos: boolean;
+  label: string;
+  itemsFormatted: string[];
+}
+
+function getCentroCustoInfo(item: RazaoItem): CentroCustoInfo {
+  const raw = item.centro_custo ?? null;
+  const fallback = !raw && item.ccu
+    ? { codccu: String(item.ccu), descricao: null, fonte: null, multiplos: null }
+    : null;
+  const cc = raw ?? fallback;
+  const codigo = cc?.codccu != null && String(cc.codccu).trim() !== "" ? String(cc.codccu).trim() : null;
+  const descricao = cc?.descricao != null && String(cc.descricao).trim() !== "" ? String(cc.descricao).trim() : null;
+  const fonte = cc?.fonte != null && String(cc.fonte).trim() !== "" ? String(cc.fonte).trim() : null;
+  const fonteLabel = fonte ? (FONTE_CC_LABEL[fonte] ?? fonte) : null;
+  const multiplos = Array.isArray(cc?.multiplos) ? cc!.multiplos! : [];
+  const temMultiplos = multiplos.length > 1;
+  const itemsFormatted = multiplos
+    .map((m) => {
+      const c = m?.codccu != null ? String(m.codccu).trim() : "";
+      const d = m?.descricao != null ? String(m.descricao).trim() : "";
+      return [c, d].filter(Boolean).join(" - ");
+    })
+    .filter(Boolean);
+  const singleLabel = [codigo, descricao].filter(Boolean).join(" - ");
+  const label = temMultiplos
+    ? `Vários (${multiplos.length})`
+    : (singleLabel || "—");
+  return { codigo, descricao, fonte, fonteLabel, multiplos, temMultiplos, label, itemsFormatted };
+}
+
 interface RazaoItem {
   lancamento?: number | string | null;
   lote?: number | string | null;
@@ -209,6 +252,13 @@ interface RazaoItem {
   conta_credito?: string | number | Record<string, any> | null;
   codccu?: string | null;
   desccu?: string | null;
+  ccu?: string | null;
+  centro_custo?: {
+    codccu?: string | null;
+    descricao?: string | null;
+    fonte?: string | null;
+    multiplos?: Array<{ codccu?: string | null; descricao?: string | null }> | null;
+  } | null;
   documento?: string | null;
   valor_integral?: number | null;
   valor_rateado?: number | null;
@@ -394,15 +444,20 @@ export function DrillDrawer({
       "Origem Cód.", "Origem", "Usuário Origem", "Usuário Lcto.",
       ...(!isDRE ? ["Saldo Anterior"] : []),
       "Mov. Débito", "Mov. Crédito", "Saldo",
+      "Centro de Custo", "Fonte do Centro de Custo",
     ];
     const rows: any[][] = [];
     if (!isDRE) {
       rows.push([
         "", fmtDataBR(dataIniISO), "", "", "SALDO INICIAL", "", "", "", "", "",
-        num(saldoInicial), null, null, num(saldoInicial),
+        num(saldoInicial), null, null, num(saldoInicial), "", "",
       ]);
     }
     for (const r of itens) {
+      const cc = getCentroCustoInfo(r);
+      const ccExport = cc.temMultiplos
+        ? cc.itemsFormatted.join("; ")
+        : [cc.codigo, cc.descricao].filter(Boolean).join(" - ");
       rows.push([
         r.lancamento ?? "",
         fmtDataBR(r.data),
@@ -418,12 +473,14 @@ export function DrillDrawer({
         num(r.mov_debito),
         num(r.mov_credito),
         num(r.saldo),
+        ccExport,
+        cc.fonteLabel ?? "",
       ]);
     }
     rows.push([
       "", fmtDataBR(dataFimISO), "", "", "SALDO FINAL", "", "", "", "", "",
       ...(!isDRE ? [null] : []),
-      num(totalDebito), num(totalCredito), num(saldoFinal),
+      num(totalDebito), num(totalCredito), num(saldoFinal), "", "",
     ]);
 
     const meta_aoa = [
@@ -437,9 +494,10 @@ export function DrillDrawer({
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     const money = "#,##0.00;(#,##0.00);-";
     const moneyStart = header.indexOf("Mov. Débito");
+    const moneyEnd = header.indexOf("Saldo"); // inclusivo
     const dataStartRow = meta_aoa.length + 1; // após header
     for (let R = dataStartRow; R < dataStartRow + rows.length; R++) {
-      for (let C = moneyStart; C < header.length; C++) {
+      for (let C = moneyStart; C <= moneyEnd; C++) {
         const addr = XLSX.utils.encode_cell({ r: R, c: C });
         const cell = ws[addr];
         if (cell && typeof cell.v === "number") cell.z = money;
@@ -451,8 +509,8 @@ export function DrillDrawer({
       }
     }
     ws["!cols"] = header.map((h) =>
-      ["Observação", "Conta", "Origem"].includes(h) ? { wch: 32 } :
-      ["Usuário Origem", "Usuário Lcto.", "Classificação"].includes(h) ? { wch: 18 } :
+      ["Observação", "Conta", "Origem", "Centro de Custo"].includes(h) ? { wch: 32 } :
+      ["Usuário Origem", "Usuário Lcto.", "Classificação", "Fonte do Centro de Custo"].includes(h) ? { wch: 22 } :
       h.startsWith("Mov.") || h === "Saldo" || h === "Saldo Anterior" ? { wch: 16 } :
       { wch: 12 }
     );
@@ -697,6 +755,7 @@ export function DrillDrawer({
                       <TableHead className="text-primary-foreground">Data</TableHead>
                       <TableHead className="text-primary-foreground">#</TableHead>
                       <TableHead className="text-primary-foreground">Conta Contábil</TableHead>
+                      <TableHead className="text-primary-foreground">Centro de Custo</TableHead>
                       <TableHead className="text-primary-foreground">Obs.</TableHead>
                       <TableHead className="text-primary-foreground">#</TableHead>
                       <TableHead className="text-primary-foreground">Origem Lcto.</TableHead>
@@ -730,6 +789,7 @@ export function DrillDrawer({
                         <TableCell></TableCell>
                         <TableCell></TableCell>
                         <TableCell></TableCell>
+                        <TableCell></TableCell>
                         <TableCell>SALDO</TableCell>
                         <TableCell></TableCell>
                         <TableCell></TableCell>
@@ -743,7 +803,7 @@ export function DrillDrawer({
                     {itens.length === 0 && (
                       <TableRow>
                         <TableCell
-                          colSpan={isDRE ? 13 : 14}
+                          colSpan={isDRE ? 14 : 15}
                           className="text-center italic text-muted-foreground py-6"
                         >
                           Sem lançamentos no período.
@@ -777,6 +837,7 @@ export function DrillDrawer({
                       const docTooltipExtra = temDocOrigem
                         ? `${docLabel}${docOrigem?.ambiguo ? "  (número casou com múltiplos documentos — usuário caiu no dono do lote)" : ""}`
                         : "";
+                      const ccInfo = getCentroCustoInfo(r);
                       return (
                       <TableRow
                         key={i}
@@ -799,6 +860,39 @@ export function DrillDrawer({
                         <TableCell className="max-w-[220px] truncate" title={`${r.clacta ?? ""} ${r.conta_descricao ?? ""}`}>
                           {r.clacta ? <span className="text-muted-foreground mr-1">{r.clacta}</span> : null}
                           {r.conta_descricao ?? ""}
+                        </TableCell>
+                        <TableCell className="max-w-[200px] whitespace-nowrap">
+                          {ccInfo.label === "—" ? (
+                            <span className="text-muted-foreground">—</span>
+                          ) : (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="cursor-help underline decoration-dotted underline-offset-2 decoration-muted-foreground">
+                                    {ccInfo.label}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs space-y-1 text-[11px]">
+                                  {ccInfo.temMultiplos ? (
+                                    <ul className="space-y-0.5">
+                                      {ccInfo.itemsFormatted.map((it, idx) => (
+                                        <li key={idx} className="tabular-nums">{it}</li>
+                                      ))}
+                                    </ul>
+                                  ) : (
+                                    <div className="tabular-nums">
+                                      {[ccInfo.codigo, ccInfo.descricao].filter(Boolean).join(" - ")}
+                                    </div>
+                                  )}
+                                  {ccInfo.fonteLabel && (
+                                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground pt-1 border-t">
+                                      Fonte: {ccInfo.fonteLabel}
+                                    </div>
+                                  )}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
                         </TableCell>
                         <TableCell className="max-w-[220px] truncate" title={r.historico ?? r.observacao ?? ""}>
                           {r.observacao ?? r.historico ?? ""}
@@ -950,6 +1044,7 @@ export function DrillDrawer({
                       <TableCell></TableCell>
                       <TableCell></TableCell>
                       <TableCell className="whitespace-nowrap">{fmtDataBR(dataFimISO)}</TableCell>
+                      <TableCell></TableCell>
                       <TableCell></TableCell>
                       <TableCell></TableCell>
                       <TableCell></TableCell>
@@ -1185,22 +1280,38 @@ export function DrillDrawer({
                   label="Conta selecionada"
                   value={`${toDisplay(detalhe.ctared)} ${toDisplay(detalhe.conta_descricao)}`.trim()}
                 />
-                <Info
-                  label="Centro de custo"
-                  value={detalhe.codccu ? `${toDisplay(detalhe.codccu)} ${toDisplay(detalhe.desccu)}`.trim() : ""}
-                />
-                {Array.isArray(detalhe.multiplos) && detalhe.multiplos.length > 1 && (
-                  <div className="col-span-2">
-                    <div className="text-muted-foreground">Centros de custo da contrapartida</div>
-                    <ul className="mt-0.5 space-y-0.5">
-                      {detalhe.multiplos.map((m: any, idx: number) => (
-                        <li key={idx} className="tabular-nums">
-                          {toDisplay(m?.codccu)}{m?.desccu ? ` — ${toDisplay(m.desccu)}` : ""}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                {(() => {
+                  const cc = getCentroCustoInfo(detalhe as any);
+                  if (!cc.codigo && !cc.temMultiplos && !detalhe.codccu) return null;
+                  return (
+                    <div className="col-span-2 border rounded-md p-2 bg-muted/20">
+                      <div className="text-muted-foreground text-[11px] uppercase tracking-wide mb-1">
+                        Centro de Custo
+                      </div>
+                      {cc.temMultiplos ? (
+                        <>
+                          <div className="font-medium mb-1">Vários ({cc.multiplos.length})</div>
+                          <ul className="space-y-0.5">
+                            {cc.itemsFormatted.map((it, idx) => (
+                              <li key={idx} className="tabular-nums">{it}</li>
+                            ))}
+                          </ul>
+                        </>
+                      ) : (
+                        <div className="tabular-nums">
+                          {[cc.codigo ?? toDisplay(detalhe.codccu), cc.descricao ?? toDisplay(detalhe.desccu)]
+                            .filter(Boolean)
+                            .join(" - ") || "—"}
+                        </div>
+                      )}
+                      {cc.fonteLabel && (
+                        <div className="text-[11px] text-muted-foreground mt-1">
+                          Fonte: {cc.fonteLabel}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
                 <Info
                   label="Valor integral"
                   value={detalhe.valor_integral != null ? fmtBRL(Number(detalhe.valor_integral)) : ""}

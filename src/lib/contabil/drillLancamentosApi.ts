@@ -24,6 +24,24 @@ export interface DrillLancamentoDocumentoOrigem {
   sequencia_movimento?: number | string | null;
 }
 
+export type DrillCentroCustoFonte =
+  | 'RATEIO_PROPRIA_CONTA'
+  | 'RATEIO_CONTRAPARTIDA'
+  | 'DOCUMENTO_ORIGEM'
+  | string;
+
+export interface DrillLancamentoCentroCustoMultiplo {
+  codccu?: string | null;
+  descricao?: string | null;
+}
+
+export interface DrillLancamentoCentroCusto {
+  codccu?: string | null;
+  descricao?: string | null;
+  fonte?: DrillCentroCustoFonte | null;
+  multiplos?: DrillLancamentoCentroCustoMultiplo[] | null;
+}
+
 export interface DrillLancamentoItem {
   // Identificação
   lancamento?: string | number | null;
@@ -49,7 +67,7 @@ export interface DrillLancamentoItem {
   codccu?: string | null;
   desccu?: string | null;
   ccu?: string | null;
-  centro_custo?: { codccu?: string | null; descricao?: string | null } | null;
+  centro_custo?: DrillLancamentoCentroCusto | null;
   multiplos?: Array<{ codccu: string; desccu?: string | null }> | null;
   // Documento / origem
   documento?: string | null;

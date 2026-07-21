@@ -1,93 +1,113 @@
-## Razão Contábil — adotar o contrato completo de rastreabilidade
+## Razão Contábil — nova coluna "Centro de Custo"
 
-Atualizar `src/components/dre-studio/DrillDrawer.tsx` (única superfície do Razão; `src/components/contabil/DrillDrawer.tsx` só re-exporta) e a tipagem em `src/lib/contabil/drillLancamentosApi.ts` para consumir os novos campos do endpoint `GET /api/contabil/drill-lancamentos`, sem alterar hooks nem lógica de saldos.
+Adicionar coluna **Centro de Custo** à grid do Razão (drills DRE e Balanço) consumindo `item.centro_custo` do endpoint `GET /api/contabil/drill-lancamentos`, sem inferência no frontend.
 
-### 1. Tipagem (`drillLancamentosApi.ts` + interfaces locais do drawer)
+Superfície única: `src/components/dre-studio/DrillDrawer.tsx` (o arquivo `src/components/contabil/DrillDrawer.tsx` só re-exporta). Tipagem em `src/lib/contabil/drillLancamentosApi.ts`.
 
-Estender `DrillLancamentoItem` e `DrillLancamentoDocumentoOrigem` com os campos novos, todos opcionais e defensivos:
+### 1. Tipagem (`drillLancamentosApi.ts`)
 
-- `usuario_origem_codigo?: string | number | null`
-- `usuario_origem_status?: string | null`
-- `usuario_origem_fonte_tabela?: string | null`
-- `usuario_lancamento_codigo?: string | number | null`
-- `transacao_origem?: string | null`
-- `transacao_origem_codigo?: string | number | null`
-- `transacao_origem_descricao?: string | null`
-
-Em `DocumentoOrigem`, adicionar: `fonte_tabela`, `produto`, `derivacao`, `deposito`, `bem`, `data_movimento`, `sequencia_movimento`.
-
-Nada muda em `fetchDrillLancamentos` nem no hook.
-
-### 2. Regras de leitura (defensivas, sem inferência)
-
-Centralizar helpers no drawer:
+Adicionar interface `DrillLancamentoCentroCusto` e estender `DrillLancamentoItem`:
 
 ```ts
-const usuarioOrigem      = item.usuario_origem ?? null;                       // sem fallback
-const usuarioLancamento  = item.usuario_lancamento ?? item.usuario ?? null;   // fallback legado permitido
-const usuarioOrigemDifere = item.usuario_origem_difere ?? null;               // null = não comparável
-const documentoOrigem    = item.documento_origem ?? null;
-const transacaoOrigem    =
-  item.transacao_origem ??
-  [item.transacao_origem_codigo, item.transacao_origem_descricao].filter(Boolean).join(" - ") ||
-  null;
+export interface DrillLancamentoCentroCusto {
+  codccu?: string | null;
+  descricao?: string | null;
+  fonte?: 'RATEIO_PROPRIA_CONTA' | 'RATEIO_CONTRAPARTIDA' | 'DOCUMENTO_ORIGEM' | string | null;
+  multiplos?: Array<{ codccu?: string | null; descricao?: string | null }> | null;
+}
 ```
 
-`numeroValido` do `documento_origem.numero` rejeita `null`, `""` e `"0"` (movimentos de estoque).
+Em `DrillLancamentoItem`, substituir o `centro_custo` atual pela nova interface (o campo `ccu` já existe como fallback legado). Nada muda em `fetchDrillLancamentos` nem no hook.
 
-### 3. Tabela do Razão
+### 2. Leitura defensiva no drawer
 
-- Manter colunas independentes **Usuário Origem** e **Usuário Lcto.** (sem copiar uma na outra).
-- Chip da fonte junto ao Usuário Origem:
-  - `documento` → badge "Documento" (muted; âmbar se `usuario_origem_difere === true`).
-  - `lote` → badge "Lote" (tom azul discreto).
-  - `null` → sem chip; célula mostra `—`.
-- Badge "Diferente do lançamento" só quando `usuario_origem_difere === true` **e** `usuario_origem_fonte === "documento"`.
-- Quando `documento_origem.ambiguo === true`, badge "Vários documentos" com tooltip explicando que o backend não escolheu arbitrariamente.
-- Nenhuma nova linha é gerada a partir de `documento_origem`; contagem/renderização continua sendo 1:1 com `response.itens`.
-- Nada muda em saldo/mov: continua lendo `saldo_anterior`, `mov_debito`, `mov_credito`, `saldo`, `saldo_inicial`, `saldo_final`, `total_debito`, `total_credito` do backend.
+Helper único usado por grid, tooltip, filtro, modal e exportação:
 
-### 4. Modal "Rastreabilidade da origem"
+```ts
+const cc = item.centro_custo ?? (item.ccu ? { codccu: item.ccu, descricao: null, fonte: null, multiplos: null } : null);
+const codigo = cc?.codccu ?? null;
+const descricao = cc?.descricao ?? null;
+const multiplos = cc?.multiplos ?? [];
+const temMultiplos = multiplos.length > 1;
+const label = temMultiplos
+  ? `Vários (${multiplos.length})`
+  : ([codigo, descricao].filter(Boolean).join(' - ') || '—');
+```
 
-Substituir/renomear a seção Rastreabilidade existente do modal de detalhe para:
+Labels de fonte:
 
-- **Origem** — `origem_codigo` + `labelOrigem(...)` (`origem_descricao` fallback).
-- **Documento/Movimento** — resumo textual de `documento_origem`:
-  - Se `numeroValido`: `tipo/serie numero — parceiro_nome` (formato atual `labelDocumentoOrigem`).
-  - Se não válido: montar a partir de campos específicos por origem (Produto, Derivação, Depósito, Bem, Data do movimento, Sequência); campos ausentes ficam ocultos (não mostrar `Documento 0`).
-  - Tipo/Descrição, Número (quando válido), Série, Parceiro (tipo/código/nome) continuam como linhas Info abaixo.
-  - Badge "Vários documentos" no cabeçalho da seção quando `ambiguo === true`.
-- **Usuário Origem** — `usuario_origem` (+ `usuario_origem_codigo` entre parênteses, se houver).
-- **Fonte do Usuário** — legenda amigável: `Documento` / `Lote` / `—`; abaixo, em texto pequeno, `usuario_origem_fonte_tabela` quando fornecido (ex.: `E644LES → E210MVP.USURES`).
-- **Status da resolução** — `usuario_origem_status` quando presente.
-- **Usuário Lcto.** — `usuario_lancamento` (+ `usuario_lancamento_codigo` entre parênteses).
-- **Transação** — `transacaoOrigem` calculada; oculta quando ausente.
+```ts
+const FONTE_CC_LABEL = {
+  RATEIO_PROPRIA_CONTA: 'Rateio da própria conta',
+  RATEIO_CONTRAPARTIDA: 'Rateio da contrapartida',
+  DOCUMENTO_ORIGEM: 'Documento de origem',
+};
+```
 
-Bloco Contábil (empresa/filial/lote/contas D-C/CCU/valores/histórico) permanece como está.
+### 3. Grid do Razão
 
-### 5. Chamada do endpoint
+- Nova coluna **Centro de Custo** posicionada logo após **Conta Contábil** e antes de **Usuário Origem**.
+- Célula: `label` calculado acima; `—` quando ausente.
+- Tooltip da célula:
+  - único CC: `"12790 - G-Custos Gerais Manufatura\nFonte: <label>"` (linha de fonte omitida quando `fonte` for `null`).
+  - múltiplos: lista `codccu - descricao` (um por linha) + `Fonte: <label>` quando presente.
+- **Nenhuma nova linha** é gerada por CC; renderização continua 1:1 com `response.itens`.
+- Nenhum recálculo de saldo/débito/crédito.
 
-Não mudar: o drawer já envia `modelo_id + linha_id` (+ `ctared` após seleção da conta) e não envia `clacta`. Sem CPLLCT, sem joins no frontend, sem consultas a tabelas Senior.
+### 4. Filtro por Centro de Custo
 
-### 6. Compat e não-regressões
+Estender o campo de busca existente da grid para casar (case-insensitive) contra:
 
-- `usuarioOrigemValue` continua sem fallback para `usuario_lancamento`/`usuario`.
-- Exportação Excel continua com as duas colunas atuais (Usuário Origem, Usuário Lcto.); nenhuma coluna nova por enquanto.
-- Nenhum recálculo de saldo, nenhuma expansão por documento, nenhuma dedup.
-- Aviso de truncamento e botão "Aumentar limite" continuam como estão.
+- `cc.codccu`
+- `cc.descricao`
+- todos os `multiplos[].codccu` e `multiplos[].descricao`
+
+Sem filtro dedicado novo; entra na mesma caixa de busca livre já presente, para não poluir a barra de filtros.
+
+### 5. Modal de detalhe — seção "Centro de Custo"
+
+Nova seção entre a seção Contábil e a Rastreabilidade da origem:
+
+- **Único CC** (`multiplos.length <= 1`):
+  - Código: `codccu`
+  - Descrição: `descricao`
+  - Fonte: `FONTE_CC_LABEL[fonte] ?? fonte ?? '—'`
+- **Vários CCs**:
+  - Lista `• codccu - descricao` para cada item de `multiplos`
+  - Fonte: mesma linha única abaixo da lista
+- Sem CC: seção mostra `—` no lugar de código/descrição; não esconder a seção para preservar layout.
+
+### 6. Exportação (Excel/CSV/PDF)
+
+Adicionar duas colunas ao final da exportação existente:
+
+- **Centro de Custo**
+  - único: `"12790 - G-Custos Gerais Manufatura"`
+  - vários: `"12790 - G-Custos Gerais Manufatura; 12810 - Produção"` (join `; ` com todos os `multiplos` efetivos, nunca `Vários (N)`)
+  - vazio: célula em branco
+- **Fonte do Centro de Custo**: `FONTE_CC_LABEL[fonte]` ou vazio.
+
+### 7. Compat e não-regressões
+
+- `centro_custo` ausente → cai no fallback `ccu`; ausência total → `—`.
+- Nenhum fallback cross-item (linha anterior, primeiro CC do lançamento, CC da conta/cliente/fornecedor).
+- Nenhuma consulta ao ERP, nenhum join, nenhum parsing adicional no frontend.
+- Saldos, débitos, créditos, truncamento, seleção de conta, badges de usuário e documento continuam intactos.
 
 ### Arquivos alterados
 
-- `src/lib/contabil/drillLancamentosApi.ts` — novos campos opcionais em `DrillLancamentoItem` e `DrillLancamentoDocumentoOrigem`.
-- `src/components/dre-studio/DrillDrawer.tsx` — chips de fonte, badge de ambiguidade, seção "Rastreabilidade da origem" reformulada, exibição de transação, tratamento de `numero === 0` no documento, código do usuário no modal, status/fonte_tabela quando presentes.
+- `src/lib/contabil/drillLancamentosApi.ts` — nova interface `DrillLancamentoCentroCusto` e tipagem de `centro_custo` no item.
+- `src/components/dre-studio/DrillDrawer.tsx` — nova coluna na grid, tooltip com fonte, extensão do filtro de busca, seção "Centro de Custo" no modal, colunas na exportação.
 
 ### Critérios de aceite (após restart da API porta 8070)
 
-- VEN/CPR/PAG/REC/PAT/EST/TES exibem `Usuário Origem` quando o backend envia; MAN/VRB/IOD/IMP podem mostrar `Lote` ou `—` sem inferência.
-- Colunas Usuário Origem e Usuário Lcto. nunca compartilham valor por fallback.
-- `documento_origem.numero === 0` nunca renderiza como "Documento 0" — cai no bloco de movimento (produto/derivação/depósito/data).
-- `ambiguo === true` mostra badge "Vários documentos" na linha e no modal.
-- `usuario_origem_difere === true` só destaca quando a fonte é `documento`.
-- URL da DRE nunca contém `clacta`; só `modelo_id + linha_id` (e `ctared` após seleção).
-- Nenhuma linha do Razão é duplicada por documento; totais e saldos batem exatamente com o payload.
-- Frontend não parseia CPLLCT nem consulta tabelas do Senior.
+- Grid mostra `Centro de Custo` entre Conta Contábil e Usuário Origem.
+- EST/CPR/VEN com CC único exibem `codccu - descricao`.
+- PAT com CC vindo do documento exibe o CC e tooltip mostra `Fonte: Documento de origem`.
+- PAG/TES sem CC exibem `—`.
+- Lançamento com múltiplos CCs mostra `Vários (N)` e tooltip lista todos.
+- Nenhuma linha do Razão é duplicada; contagem = `response.itens.length`.
+- Filtro localiza por código e por descrição, inclusive dentro de `multiplos`.
+- Modal exibe seção Centro de Custo com Código/Descrição/Fonte (ou lista + fonte para vários).
+- Exportação contém `Centro de Custo` e `Fonte do Centro de Custo`, com múltiplos expandidos por `;`.
+- Nenhum CC é inventado no frontend; ausência é sempre `—`.
