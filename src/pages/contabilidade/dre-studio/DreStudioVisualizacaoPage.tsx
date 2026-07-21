@@ -1519,12 +1519,27 @@ function Visualizacao() {
   return (
     <MoneyDisplayProvider noCents={semCasasDecimais}>
     <div className="p-6">
-      <div className="mb-3">
-        <FilterPresetBar<DreVisFilterPreset>
-          pageKey={DRE_VIS_PAGE_KEY}
-          currentFilters={currentPresetFilters}
-          onApply={applyPresetFilters}
-        />
+      <div className="mb-3 rounded-xl border bg-white shadow-sm">
+        <button
+          type="button"
+          onClick={() => setFiltrosSalvosOpen((v) => !v)}
+          className="flex w-full items-center justify-between px-4 py-2 text-left hover:bg-slate-50 rounded-t-xl"
+        >
+          <span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Filtros salvos</span>
+          <span className="flex items-center gap-2 text-xs text-slate-600">
+            {!filtrosSalvosOpen && <span className="truncate max-w-[400px]">Clique para gerenciar presets</span>}
+            {filtrosSalvosOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </span>
+        </button>
+        {filtrosSalvosOpen && (
+          <div className="px-3 pb-3">
+            <FilterPresetBar<DreVisFilterPreset>
+              pageKey={DRE_VIS_PAGE_KEY}
+              currentFilters={currentPresetFilters}
+              onApply={applyPresetFilters}
+            />
+          </div>
+        )}
       </div>
       {deveAvisarRefSeniorNaoAplicada && !!q.data && (
           <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm text-amber-900">
