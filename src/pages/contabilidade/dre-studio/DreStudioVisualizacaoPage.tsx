@@ -546,37 +546,12 @@ function Visualizacao() {
     return temAlgum ? acc : null;
   };
 
-  // Acumulado do ano = soma de TODOS os períodos do snapshot (ignora o filtro
-  // de meses visíveis). Para Balanço, usa o último período disponível.
-  const periodosAnoSnapshot = useMemo(() => {
-    return periodosApi
-      .filter((p) => {
-        const anomes = Number(p);
-        return Number.isFinite(anomes) && Math.floor(anomes / 100) === anoSelecionado;
-      })
-      .slice()
-      .sort((a, b) => Number(a) - Number(b));
-  }, [periodosApi, anoSelecionado]);
-
-  const calcAcumuladoAno = (obj: Record<string, number | null> | undefined): number | null => {
-    if (!periodosAnoSnapshot.length) return null;
-    if (isBalanco) {
-      for (let i = periodosAnoSnapshot.length - 1; i >= 0; i--) {
-        const v = obj?.[periodosAnoSnapshot[i]];
-        if (v !== null && v !== undefined) return Number(v);
-      }
-      return null;
-    }
-    let acc = 0;
-    let temAlgum = false;
-    for (const c of periodosAnoSnapshot) {
-      const v = obj?.[c];
-      if (v === null || v === undefined) continue;
-      acc += Number(v);
-      temAlgum = true;
-    }
-    return temAlgum ? acc : null;
-  };
+  // Acumulado = soma dos meses selecionados no filtro (mesma janela do
+  // "Total visível"). Recalcula dinamicamente quando o usuário altera o
+  // seletor de meses. Para Balanço, usa o último mês visível.
+  const periodosAnoSnapshot = mesesVisiveisCols;
+  const calcAcumuladoAno = (obj: Record<string, number | null> | undefined): number | null =>
+    calcTotalVisivel(obj);
 
   // Colunas usadas SOMENTE na renderização da grid — inclui a coluna extra
   // "Acumulado" ao final. Exportações continuam usando `colunasVisiveis`.
@@ -584,10 +559,10 @@ function Visualizacao() {
     () => (colunasVisiveis.length > 0 ? [...colunasVisiveis, "ACUMULADO_ANO"] : colunasVisiveis),
     [colunasVisiveis],
   );
-  const labelAcumuladoAno = isBalanco ? "Saldo final do ano" : "Acumulado";
+  const labelAcumuladoAno = isBalanco ? "Saldo final do período" : "Acumulado";
   const tipAcumuladoAno = isBalanco
-    ? "Saldo do último mês do snapshot"
-    : "Soma de todos os meses do snapshot (ignora o filtro de meses)";
+    ? "Saldo do último mês selecionado no filtro"
+    : "Acumulado dos meses selecionados no filtro";
 
   // Linha 000 nunca é exibida na grade principal nem na exportação.
   // A pendência real é detectada via endpoint /diagnostico/ctared-zero e
