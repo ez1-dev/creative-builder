@@ -1271,6 +1271,7 @@ export interface DrillLancamentosParams {
   /** Classificação sintética (drill de grupo). */
   clacta?: string | null;
   codccu?: string | null;
+  centro_custo?: string | null;
   /** Até 5000. */
   limite?: number;
 }
@@ -1317,6 +1318,7 @@ export function useDrillLancamentos(
   const anomes = params?.anomes;
   const anomesIni = params?.anomes_ini;
   const anomesFim = params?.anomes_fim;
+  const centroCusto = params?.centro_custo ?? params?.codccu ?? null;
   const usaRange =
     anomes == null &&
     anomesIni != null &&
@@ -1342,7 +1344,8 @@ export function useDrillLancamentos(
         anomes_fim: anomesFim,
         ctared,
         clacta,
-        codccu: params?.codccu,
+        codccu: centroCusto,
+        centro_custo: centroCusto,
         limite: params?.limite ?? 500,
       },
     ],
@@ -1357,16 +1360,19 @@ export function useDrillLancamentos(
         anomes_fim: usaRange ? anomesFim : undefined,
         ctared: contaOk ? (ctared ?? undefined) : undefined,
         clacta: grupoOk ? clacta : undefined,
-        codccu: params?.codccu ?? undefined,
+        codccu: centroCusto ?? undefined,
+        centro_custo: centroCusto ?? undefined,
         limite: params?.limite ?? 500,
       });
       const dados: DrillLancamento[] = Array.isArray(raw)
         ? raw
         : Array.isArray(raw?.dados)
           ? raw.dados
-          : Array.isArray(raw?.lancamentos)
-            ? raw.lancamentos
-            : [];
+          : Array.isArray(raw?.rows)
+            ? raw.rows
+            : Array.isArray(raw?.lancamentos)
+              ? raw.lancamentos
+              : [];
       const src = (raw && typeof raw === "object" && !Array.isArray(raw)) ? raw : {};
       const itens = Array.isArray(src.itens) ? src.itens : null;
       return {
