@@ -1280,22 +1280,38 @@ export function DrillDrawer({
                   label="Conta selecionada"
                   value={`${toDisplay(detalhe.ctared)} ${toDisplay(detalhe.conta_descricao)}`.trim()}
                 />
-                <Info
-                  label="Centro de custo"
-                  value={detalhe.codccu ? `${toDisplay(detalhe.codccu)} ${toDisplay(detalhe.desccu)}`.trim() : ""}
-                />
-                {Array.isArray(detalhe.multiplos) && detalhe.multiplos.length > 1 && (
-                  <div className="col-span-2">
-                    <div className="text-muted-foreground">Centros de custo da contrapartida</div>
-                    <ul className="mt-0.5 space-y-0.5">
-                      {detalhe.multiplos.map((m: any, idx: number) => (
-                        <li key={idx} className="tabular-nums">
-                          {toDisplay(m?.codccu)}{m?.desccu ? ` — ${toDisplay(m.desccu)}` : ""}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                {(() => {
+                  const cc = getCentroCustoInfo(detalhe as any);
+                  if (!cc.codigo && !cc.temMultiplos && !detalhe.codccu) return null;
+                  return (
+                    <div className="col-span-2 border rounded-md p-2 bg-muted/20">
+                      <div className="text-muted-foreground text-[11px] uppercase tracking-wide mb-1">
+                        Centro de Custo
+                      </div>
+                      {cc.temMultiplos ? (
+                        <>
+                          <div className="font-medium mb-1">Vários ({cc.multiplos.length})</div>
+                          <ul className="space-y-0.5">
+                            {cc.itemsFormatted.map((it, idx) => (
+                              <li key={idx} className="tabular-nums">{it}</li>
+                            ))}
+                          </ul>
+                        </>
+                      ) : (
+                        <div className="tabular-nums">
+                          {[cc.codigo ?? toDisplay(detalhe.codccu), cc.descricao ?? toDisplay(detalhe.desccu)]
+                            .filter(Boolean)
+                            .join(" - ") || "—"}
+                        </div>
+                      )}
+                      {cc.fonteLabel && (
+                        <div className="text-[11px] text-muted-foreground mt-1">
+                          Fonte: {cc.fonteLabel}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
                 <Info
                   label="Valor integral"
                   value={detalhe.valor_integral != null ? fmtBRL(Number(detalhe.valor_integral)) : ""}
