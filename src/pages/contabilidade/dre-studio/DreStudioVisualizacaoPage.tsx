@@ -1408,11 +1408,20 @@ function Visualizacao() {
         clacta = candidato ? String(candidato).trim() || null : null;
       }
     }
-    // Escolhe janela: coluna mensal → anomes; coluna TOTAL_ANO → intervalo acumulado.
-    const anomes = !isTotalAno ? Number(col) : undefined;
-    const anomes_ini = isTotalAno ? ini : undefined;
-    const anomes_fim = isTotalAno ? fim : undefined;
-    if (!isTotalAno && !Number.isFinite(anomes as number)) return;
+    // Escolhe janela: coluna mensal → anomes; TOTAL_ANO/ACUMULADO_ANO → intervalo do ano.
+    const isAcumAno = isAcumuladoAnoCol(col);
+    const isAgregado = isTotalAno || isAcumAno;
+    const anomes = !isAgregado ? Number(col) : undefined;
+    let anomes_ini: number | undefined;
+    let anomes_fim: number | undefined;
+    if (isAcumAno && periodosAnoSnapshot.length > 0) {
+      anomes_ini = Number(periodosAnoSnapshot[0]);
+      anomes_fim = Number(periodosAnoSnapshot[periodosAnoSnapshot.length - 1]);
+    } else if (isTotalAno) {
+      anomes_ini = ini;
+      anomes_fim = fim;
+    }
+    if (!isAgregado && !Number.isFinite(anomes as number)) return;
     setDrill({
       modeloId: id,
       linhaId: linha.linha_id,
@@ -1430,22 +1439,25 @@ function Visualizacao() {
 
   const renderSingleCell = (l: ComparativoLinhaV2, col: string) => {
     const isTotalAno = isTotalAnoCol(col);
+    const isAcumAno = isAcumuladoAnoCol(col);
+    const isAgregado = isTotalAno || isAcumAno;
     const variant = visao === "VARP" ? "pct" : "money";
     const canDrill = visao === "REAL";
     let v: number | null;
-    if (isTotalAno) {
+    if (isAgregado) {
       if (visao === "VARP") {
         v = null;
       } else {
         const campo: "realizado"|"orcado"|"variacao" =
           visao === "ORC" ? "orcado" : visao === "VARV" ? "variacao" : "realizado";
-        v = calcTotalVisivel(l[campo] as Record<string, number | null> | undefined);
+        const obj = l[campo] as Record<string, number | null> | undefined;
+        v = isAcumAno ? calcAcumuladoAno(obj) : calcTotalVisivel(obj);
       }
     } else {
       v = pickValue(l, visao, col);
     }
     return (
-      <td key={col} className={cn("border-l", isTotalAno && "bg-slate-100")}>
+      <td key={col} className={cn("border-l", isTotalAno && "bg-slate-100", isAcumAno && "bg-sky-50")}>
         <MoneyCell
           value={v}
           variant={variant}
@@ -1459,15 +1471,16 @@ function Visualizacao() {
 
   const renderCompCell = (l: ComparativoLinhaV2, col: string) => {
     const isTotalAno = isTotalAnoCol(col);
+    const isAcumAno = isAcumuladoAnoCol(col);
+    const isAgregado = isTotalAno || isAcumAno;
     return (
-      <td key={col} className={cn("border-l px-0", isTotalAno && "bg-slate-100")}>
+      <td key={col} className={cn("border-l px-0", isTotalAno && "bg-slate-100", isAcumAno && "bg-sky-50")}>
         <div className="grid grid-cols-4 gap-0">
           {SUB_COLS.map((sc) => {
             let v: number | null;
-            if (isTotalAno) {
-              v = sc.pct
-                ? null
-                : calcTotalVisivel(l[sc.key] as Record<string, number | null> | undefined);
+            if (isAgregado) {
+              const obj = l[sc.key] as Record<string, number | null> | undefined;
+              v = sc.pct ? null : (isAcumAno ? calcAcumuladoAno(obj) : calcTotalVisivel(obj));
             } else {
               v = (l[sc.key] as Record<string, number | null>)?.[col] ?? null;
             }
