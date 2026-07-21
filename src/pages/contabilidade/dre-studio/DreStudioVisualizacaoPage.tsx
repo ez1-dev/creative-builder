@@ -2360,6 +2360,7 @@ function Visualizacao() {
               : <>Nenhum resultado calculado para este período. Clique em <strong>Atualizar Resultado</strong> para materializar o snapshot.</>}
           </div>
         ) : modo === "NIVEL3" ? (
+          <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b sticky top-0 z-30">
               <tr>
                 <th className="text-left px-3 py-2 min-w-[120px]">Natureza</th>
