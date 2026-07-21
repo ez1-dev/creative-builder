@@ -751,7 +751,7 @@ function Visualizacao() {
 
   // ===== Executar tudo automaticamente =====
   const [autoRunning, setAutoRunning] = useState(false);
-  const [autoStep, setAutoStep] = useState<null | "vincular" | "cache" | "gerar">(null);
+  const [autoStep, setAutoStep] = useState<null | "vincular" | "gerar">(null);
   const autoRunLockRef = useRef(false);
   const autoTriggeredKeyRef = useRef<string | null>(null);
 
@@ -759,38 +759,26 @@ function Visualizacao() {
     if (autoRunLockRef.current) return;
     autoRunLockRef.current = true;
     setAutoRunning(true);
-    const semCacheAtual = q.meta?.status === "SEM_CACHE";
     try {
       if (semContas) {
         setAutoStep("vincular");
-        if (!opts?.silent) toast.info("Passo 1/3 · Vinculando contas do plano Senior...");
+        if (!opts?.silent) toast.info("Passo 1/2 · Vinculando contas do plano Senior...");
         await vincular.mutateAsync();
       }
-      if (isBalanco) {
-        setAutoStep("cache");
-        if (!opts?.silent) toast.info(`Passo ${semContas ? "2/3" : "1/2"} · Atualizando cache Senior...`);
-        await atualizarCacheSenior.mutateAsync({
-          anomes_ini: ini,
-          anomes_fim: fim,
-          codfil: codfilNum,
-          tipo: tipoModeloPayload,
-          limpar_periodo: true,
-          limpar_resultado: true,
-          modo_balanco: modoBalancoEfetivo,
-          data_corte: dataCorteEfetiva,
-          aplicar_referencia_senior: aplicarRefSeniorEfetivo,
-        });
+      setAutoStep("gerar");
+      if (!opts?.silent) {
+        toast.info(
+          semContas
+            ? "Passo 2/2 · Gerando resultado (sync ERP + recálculo)..."
+            : "Gerando resultado (sync ERP + recálculo)...",
+        );
       }
-      if (semContas || semCacheAtual || isBalanco) {
-        setAutoStep("gerar");
-        if (!opts?.silent) toast.info("Último passo · Gerando resultado...");
-        const r = await materializar.mutateAsync(filtrosComDatas);
-        if (r?.job_id) {
-          setMaterJobId(r.job_id);
-          setMaterOpen(true);
-        } else {
-          await qc.invalidateQueries({ queryKey: ["contabil", "resultado-pronto", id] });
-        }
+      const r = await materializar.mutateAsync(filtrosComDatas);
+      if (r?.job_id) {
+        setMaterJobId(r.job_id);
+        setMaterOpen(true);
+      } else {
+        await qc.invalidateQueries({ queryKey: ["contabil", "resultado-pronto", id] });
       }
       toast.success("Processo automático concluído.");
     } catch (e) {
