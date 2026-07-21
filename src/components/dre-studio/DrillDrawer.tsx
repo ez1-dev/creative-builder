@@ -213,7 +213,11 @@ export function DrillDrawer({
   );
 
   const itens: RazaoItem[] = useMemo(() => {
-    const src = (q.data?.itens as RazaoItem[] | null) ?? (q.data?.dados as RazaoItem[] | undefined) ?? [];
+    const data = q.data as (typeof q.data & {
+      rows?: RazaoItem[] | null;
+      lancamentos?: RazaoItem[] | null;
+    }) | undefined;
+    const src = data?.itens ?? data?.dados ?? data?.rows ?? data?.lancamentos ?? [];
     return Array.isArray(src) ? src : [];
   }, [q.data]);
 

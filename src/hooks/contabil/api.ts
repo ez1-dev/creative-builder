@@ -1375,12 +1375,13 @@ export function useDrillLancamentos(
               : [];
       const src = (raw && typeof raw === "object" && !Array.isArray(raw)) ? raw : {};
       const itens = Array.isArray(src.itens) ? src.itens : null;
+      const registros = itens && itens.length ? (itens as DrillLancamento[]) : dados;
       return {
-        dados: itens && itens.length ? (itens as DrillLancamento[]) : dados,
+        dados: registros,
         movimento_liquido:
           src.movimento_liquido ?? src.movimentoLiquido ?? null,
         qtd_total: src.qtd_total ?? src.qtdTotal ?? null,
-        qtd_exibida: src.qtd_exibida ?? src.qtdExibida ?? (itens ?? dados).length,
+        qtd_exibida: src.qtd_exibida ?? src.qtdExibida ?? registros.length,
         truncado: src.truncado ?? null,
         fonte: src.fonte ?? null,
         meta: src.meta ?? null,
@@ -1392,7 +1393,7 @@ export function useDrillLancamentos(
           typeof src.total_debito === "number" ? src.total_debito : null,
         total_credito:
           typeof src.total_credito === "number" ? src.total_credito : null,
-        itens,
+        itens: registros,
       };
     },
 
