@@ -498,7 +498,7 @@ export function DrillDrawer({
     };
     const header = [
       "Lançamento", "Data", "Ctared", "Classificação", "Conta", "Observação",
-      "Origem Cód.", "Origem", "Usuário Origem", "Usuário Lcto.",
+      "Origem Cód.", "Origem", "Transação", "Usuário Origem", "Usuário Lcto.",
       ...(!isDRE ? ["Saldo Anterior"] : []),
       "Mov. Débito", "Mov. Crédito", "Saldo",
       "Centro de Custo", "Fonte do Centro de Custo",
@@ -506,7 +506,7 @@ export function DrillDrawer({
     const rows: any[][] = [];
     if (!isDRE) {
       rows.push([
-        "", fmtDataBR(dataIniISO), "", "", "SALDO INICIAL", "", "", "", "", "",
+        "", fmtDataBR(dataIniISO), "", "", "SALDO INICIAL", "", "", "", "", "", "",
         num(saldoInicial), null, null, num(saldoInicial), "", "",
       ]);
     }
@@ -515,6 +515,7 @@ export function DrillDrawer({
       const ccExport = cc.temMultiplos
         ? cc.itemsFormatted.join("; ")
         : [cc.codigo, cc.descricao].filter(Boolean).join(" - ");
+      const transacaoDocExport = transacaoDocumentoExport((r as any).documento_origem?.transacao);
       rows.push([
         r.lancamento ?? "",
         fmtDataBR(r.data),
@@ -524,6 +525,7 @@ export function DrillDrawer({
         r.observacao ?? r.historico ?? "",
         r.origem_codigo ?? "",
         labelOrigem(r.origem_codigo, r.origem_descricao),
+        transacaoDocExport,
         usuarioOrigemValue(r),
         usuarioLancamentoValue(r),
         ...(!isDRE ? [num(r.saldo_anterior)] : []),
@@ -535,7 +537,7 @@ export function DrillDrawer({
       ]);
     }
     rows.push([
-      "", fmtDataBR(dataFimISO), "", "", "SALDO FINAL", "", "", "", "", "",
+      "", fmtDataBR(dataFimISO), "", "", "SALDO FINAL", "", "", "", "", "", "",
       ...(!isDRE ? [null] : []),
       num(totalDebito), num(totalCredito), num(saldoFinal), "", "",
     ]);
