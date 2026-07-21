@@ -42,7 +42,7 @@ import { History } from "lucide-react";
 
 import type { ComparativoLinhaV2, ContaVinculada, ModoBalanco, PeriodoStatus } from "@/types/contabil";
 
-import { formatAnomes, isTotalAnoCol } from "@/lib/anomes";
+import { formatAnomes, isTotalAnoCol, isAcumuladoAnoCol } from "@/lib/anomes";
 import { CODFIL, MODELO_DRE_OFICIAL_ID } from "@/lib/contabilConfig";
 import { ConciliacaoDREBalancoPanel } from "@/components/contabil/ConciliacaoDREBalancoPanel";
 
