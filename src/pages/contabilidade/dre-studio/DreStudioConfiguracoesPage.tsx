@@ -70,6 +70,11 @@ import {
   type AgendamentoItem,
   type FrequenciaAgendamento,
 } from "@/hooks/contabil/configuracoes";
+import {
+  useContabilConfiguracao,
+  useAtualizarContabilConfiguracao,
+  modelosPorTipo,
+} from "@/hooks/contabil/useContabilConfiguracao";
 import { useVincularContasDRESenior } from "@/hooks/contabil/useVincularContasDRESenior";
 import { useVincularContasBalancoSenior } from "@/hooks/contabil/useVincularContasBalancoSenior";
 import { formatAnomes } from "@/lib/anomes";
@@ -118,79 +123,139 @@ function ConfiguracoesContabeisPage() {
 }
 
 // ============================================================
-// Modelo padrão (DRE Padrão)
+// Modelos oficiais (DRE Padrão + Balanço Padrão)
+// Fonte única: GET/PUT /api/contabil/configuracao
 // ============================================================
 function ModeloPadraoCard() {
-  const modelos = useModelos();
-  const [current, setCurrent] = useState<string>("");
-  const [loaded, setLoaded] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const { data: cfg, isLoading } = useContabilConfiguracao();
+  const salvar = useAtualizarContabilConfiguracao();
 
+  const [dreId, setDreId] = useState<string>("");
+  const [balId, setBalId] = useState<string>("");
+
+  // Sincroniza selects com valores retornados pela API.
+  const cfgKey = `${cfg?.dre_modelo_padrao_id ?? ""}::${cfg?.balanco_modelo_padrao_id ?? ""}`;
   useMemo(() => {
-    (async () => {
-      try {
-        const mod = await import("@/integrations/supabase/client");
-        const { data } = await mod.supabase
-          .from("app_settings")
-          .select("value")
-          .eq("key", "contabil_dre_modelo_padrao_id")
-          .maybeSingle();
-        const v = (data as any)?.value;
-        if (typeof v === "string") setCurrent(v);
-      } catch { /* ignore */ }
-      setLoaded(true);
-    })();
+    setDreId(cfg?.dre_modelo_padrao_id ?? "");
+    setBalId(cfg?.balanco_modelo_padrao_id ?? "");
     return null;
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cfgKey]);
 
-  const opcoesDre = ((modelos.data ?? []) as any[]).filter(
-    (m: any) => (m?.tipo_modelo ?? m?.tipo) === "DRE",
-  );
+  const opcoesDre = modelosPorTipo(cfg, "DRE");
+  const opcoesBal = modelosPorTipo(cfg, "BALANCO");
 
-  async function salvar(v: string) {
-    setSaving(true);
-    try {
-      const mod = await import("@/integrations/supabase/client");
-      await mod.supabase
-        .from("app_settings")
-        .upsert({ key: "contabil_dre_modelo_padrao_id", value: v }, { onConflict: "key" });
-      setCurrent(v);
-    } finally {
-      setSaving(false);
-    }
+  const dirty =
+    dreId !== (cfg?.dre_modelo_padrao_id ?? "") ||
+    balId !== (cfg?.balanco_modelo_padrao_id ?? "");
+
+  function handleSave() {
+    salvar.mutate({
+      dre_modelo_padrao_id: dreId || null,
+      balanco_modelo_padrao_id: balId || null,
+    });
+  }
+
+  function renderOpcao(m: {
+    id: string;
+    nome: string;
+    ativo: boolean;
+    qtd_linhas?: number;
+    qtd_contas_vinculadas?: number;
+  }) {
+    const partes: string[] = [];
+    if (m.qtd_linhas != null) partes.push(`${m.qtd_linhas} linhas`);
+    if (m.qtd_contas_vinculadas != null) partes.push(`${m.qtd_contas_vinculadas} contas vinculadas`);
+    if (!m.ativo) partes.push("inativo");
+    return (
+      <div className="flex flex-col">
+        <span>{m.nome}</span>
+        {partes.length > 0 && (
+          <span className="text-[10px] text-muted-foreground">{partes.join(" · ")}</span>
+        )}
+      </div>
+    );
   }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Modelo DRE padrão</CardTitle>
+        <CardTitle className="text-base">Modelos oficiais</CardTitle>
         <CardDescription>
-          Modelo utilizado pela página <strong>Contabilidade → DRE Padrão</strong>. A escolha fica gravada
-          nas configurações da aplicação e é lida por todos os usuários.
+          Define quais modelos são usados nas páginas <strong>DRE Padrão</strong> e{" "}
+          <strong>Balanço Padrão</strong>. A configuração fica gravada no backend e é lida por
+          todos os usuários.
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="min-w-[280px] flex-1">
-            <Label className="text-xs">Modelo (tipo DRE)</Label>
-            <Select
-              value={current || undefined}
-              onValueChange={salvar}
-              disabled={!loaded || saving || modelos.isLoading}
-            >
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder={loaded ? "Selecione um modelo" : "Carregando..."} />
-              </SelectTrigger>
-              <SelectContent>
-                {opcoesDre.map((m: any) => (
-                  <SelectItem key={m.id} value={String(m.id)}>
-                    {m.nome ?? m.id}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      <CardContent className="space-y-4">
+        {isLoading ? (
+          <Skeleton className="h-9 w-full" />
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <Label className="text-xs">Modelo padrão da DRE</Label>
+              <Select value={dreId || undefined} onValueChange={setDreId}>
+                <SelectTrigger className="h-auto min-h-9">
+                  <SelectValue placeholder="Selecione um modelo DRE" />
+                </SelectTrigger>
+                <SelectContent>
+                  {opcoesDre.length === 0 ? (
+                    <div className="p-2 text-xs text-muted-foreground">
+                      Nenhum modelo DRE disponível.
+                    </div>
+                  ) : (
+                    opcoesDre.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {renderOpcao(m)}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Modelo padrão do Balanço Patrimonial</Label>
+              <Select value={balId || undefined} onValueChange={setBalId}>
+                <SelectTrigger className="h-auto min-h-9">
+                  <SelectValue placeholder="Selecione um modelo Balanço" />
+                </SelectTrigger>
+                <SelectContent>
+                  {opcoesBal.length === 0 ? (
+                    <div className="p-2 text-xs text-muted-foreground">
+                      Nenhum modelo Balanço disponível.
+                    </div>
+                  ) : (
+                    opcoesBal.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {renderOpcao(m)}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          {saving && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+        )}
+
+        {(cfg?.pendencias?.length ?? 0) > 0 && (
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 space-y-1">
+            {cfg!.pendencias!.map((p, i) => (
+              <div key={i} className="flex items-start gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span>
+                  <strong>{p.tipo ? `${p.tipo}: ` : ""}</strong>
+                  {p.mensagem ?? p.codigo}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-center justify-end gap-2">
+          {salvar.isPending && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+          <Button size="sm" onClick={handleSave} disabled={!dirty || salvar.isPending}>
+            Salvar
+          </Button>
         </div>
       </CardContent>
     </Card>

@@ -11,13 +11,13 @@ import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ModeloOficialPendenciaCard } from "@/components/contabil/ModeloOficialPendenciaCard";
 import { CODEMP } from "@/lib/contabilConfig";
 
-export default function DrePadraoPage() {
+export default function BalancoPadraoPage() {
   const navigate = useNavigate();
   const { isAdmin } = useUserPermissions();
   const { data: cfg, isLoading } = useContabilConfiguracao(CODEMP);
-  const pendencia = resolverPendencia(cfg, "DRE");
-  const modeloId = !pendencia ? cfg?.dre_modelo_padrao_id ?? null : null;
-  const modeloNome = cfg?.dre_modelo_padrao?.nome ?? null;
+  const pendencia = resolverPendencia(cfg, "BALANCO");
+  const modeloId = !pendencia ? cfg?.balanco_modelo_padrao_id ?? null : null;
+  const modeloNome = cfg?.balanco_modelo_padrao?.nome ?? null;
 
   return (
     <div className="p-6 max-w-[1600px] mx-auto">
@@ -25,10 +25,10 @@ export default function DrePadraoPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <Landmark className="h-6 w-6 text-primary" />
-            DRE Padrão
+            Balanço Patrimonial Padrão
           </h1>
           <p className="text-sm text-slate-500">
-            Demonstração do Resultado do Exercício
+            Demonstração patrimonial oficial da empresa
             {modeloNome && (
               <>
                 {" "}·{" "}
@@ -61,7 +61,7 @@ export default function DrePadraoPage() {
       )}
 
       {!isLoading && pendencia && (
-        <ModeloOficialPendenciaCard tipo="DRE" pendencia={pendencia} isAdmin={isAdmin} />
+        <ModeloOficialPendenciaCard tipo="BALANCO" pendencia={pendencia} isAdmin={isAdmin} />
       )}
 
       {!isLoading && modeloId && (

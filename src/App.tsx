@@ -87,6 +87,7 @@ import DreStudioEstruturaPage from "@/pages/contabilidade/dre-studio/DreStudioEs
 import DreStudioOrcamentoPage from "@/pages/contabilidade/dre-studio/DreStudioOrcamentoPage";
 import DreStudioVisualizacaoPage from "@/pages/contabilidade/dre-studio/DreStudioVisualizacaoPage";
 import DrePadraoPage from "@/pages/contabilidade/dre-padrao/DrePadraoPage";
+import BalancoPadraoPage from "@/pages/contabilidade/balanco-padrao/BalancoPadraoPage";
 import DreStudioConciliacaoPage from "@/pages/contabilidade/dre-studio/DreStudioConciliacaoPage";
 import RegrasSeniorDashboardPage from "@/pages/regras-senior/RegrasSeniorDashboardPage";
 import RegrasListPage from "@/pages/regras-senior/RegrasListPage";
@@ -198,6 +199,8 @@ const App = () => (
 
               <Route path="/contabilidade/balanco" element={<ProtectedRoute path="/contabilidade/balanco"><BalancoPatrimonialPage /></ProtectedRoute>} />
               <Route path="/contabilidade/dre-padrao" element={<ProtectedRoute path="/contabilidade/dre-padrao"><DrePadraoPage /></ProtectedRoute>} />
+              <Route path="/contabilidade/balanco-padrao" element={<ProtectedRoute path="/contabilidade/balanco-padrao"><BalancoPadraoPage /></ProtectedRoute>} />
+              <Route path="/contabilidade/configuracoes" element={<ProtectedRoute path="/contabilidade/dre-studio"><DreStudioConfiguracoesPage /></ProtectedRoute>} />
               <Route path="/bi/contabilidade/dre" element={<ProtectedRoute path="/bi/contabilidade/dre"><DrePage /></ProtectedRoute>} />
               <Route path="/bi/contabilidade/dre/excecoes" element={<ProtectedRoute path="/bi/contabilidade/dre"><DreExcecoesPage /></ProtectedRoute>} />
               <Route path="/bi/contabilidade/dre/aprovacoes" element={<ProtectedRoute path="/bi/contabilidade/dre"><DreAprovacoesPage /></ProtectedRoute>} />

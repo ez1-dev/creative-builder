@@ -43,7 +43,8 @@ import { History } from "lucide-react";
 import type { ComparativoLinhaV2, ContaVinculada, ModoBalanco, PeriodoStatus } from "@/types/contabil";
 
 import { formatAnomes, isTotalAnoCol, isAcumuladoAnoCol } from "@/lib/anomes";
-import { CODFIL, MODELO_DRE_OFICIAL_ID } from "@/lib/contabilConfig";
+import { CODFIL } from "@/lib/contabilConfig";
+import { useContabilConfiguracao } from "@/hooks/contabil/useContabilConfiguracao";
 import { ConciliacaoDREBalancoPanel } from "@/components/contabil/ConciliacaoDREBalancoPanel";
 
 import { cn } from "@/lib/utils";
@@ -303,7 +304,8 @@ function Visualizacao(props: VisualizacaoProps = {}) {
   const modoBalancoEfetivo: ModoBalanco | undefined = isBalanco ? modoBalanco : undefined;
   const dataCorteEfetiva = isBalanco && modoBalanco === "CCCC106_E640LCT_ACUMULADO" ? dataCorte || null : null;
   const cccc106SemData = false;
-  const isModeloDREOficial = id === MODELO_DRE_OFICIAL_ID;
+  const { data: cfgContabil } = useContabilConfiguracao();
+  const isModeloDREOficial = !!id && id === cfgContabil?.dre_modelo_padrao_id;
   const [confirmRecalcular, setConfirmRecalcular] = useState(false);
 
   // Toggle "Aplicar referência Senior" — controlado pela tela conforme nova regra.
