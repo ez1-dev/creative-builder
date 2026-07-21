@@ -568,8 +568,8 @@ export function DrillDrawer({
       }
     }
     ws["!cols"] = header.map((h) =>
-      ["Observação", "Conta", "Origem", "Centro de Custo"].includes(h) ? { wch: 32 } :
-      ["Usuário Origem", "Usuário Lcto.", "Classificação", "Fonte do Centro de Custo"].includes(h) ? { wch: 22 } :
+     ["Observação", "Conta", "Origem", "Centro de Custo", "Transação"].includes(h) ? { wch: 32 } :
+     ["Usuário Origem", "Usuário Lcto.", "Classificação", "Fonte do Centro de Custo"].includes(h) ? { wch: 22 } :
       h.startsWith("Mov.") || h === "Saldo" || h === "Saldo Anterior" ? { wch: 16 } :
       { wch: 12 }
     );
