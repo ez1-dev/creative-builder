@@ -778,52 +778,83 @@ export function DrillDrawer({
                         <TableCell className="whitespace-nowrap">{r.origem_codigo ?? ""}</TableCell>
                         <TableCell className="whitespace-nowrap">{labelOrigem(r.origem_codigo, r.origem_descricao)}</TableCell>
                         <TableCell className="whitespace-nowrap">
-                          {(destacarAmbar || divergeLote || temDocOrigem) ? (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span
-                                    className={cn(
-                                      "underline decoration-dotted underline-offset-2",
-                                      destacarAmbar
-                                        ? "decoration-amber-600"
-                                        : divergeLote
-                                          ? "decoration-sky-500"
-                                          : "decoration-muted-foreground",
+                          <div className="flex flex-wrap items-center gap-1">
+                            {(destacarAmbar || divergeLote || temDocOrigem) ? (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span
+                                      className={cn(
+                                        "underline decoration-dotted underline-offset-2",
+                                        destacarAmbar
+                                          ? "decoration-amber-600"
+                                          : divergeLote
+                                            ? "decoration-sky-500"
+                                            : "decoration-muted-foreground",
+                                      )}
+                                    >
+                                      {usuarioOrigemDisplay}
+                                      {docOrigem?.ambiguo ? " (?)" : ""}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-xs space-y-1">
+                                    {tooltipUsuario && <div>{tooltipUsuario}</div>}
+                                    {docTooltipExtra && (
+                                      <div className="text-[11px]">
+                                        {docLabel}
+                                        {docOrigem?.parceiro_nome && usuarioOrigemDisplay !== "—" && (
+                                          <div className="text-muted-foreground">
+                                            Emitida por {usuarioOrigemDisplay}
+                                          </div>
+                                        )}
+                                        {docOrigem?.ambiguo && (
+                                          <div className="text-amber-700">
+                                            Número casou com múltiplos documentos — usuário caiu no dono do lote.
+                                          </div>
+                                        )}
+                                      </div>
                                     )}
-                                  >
-                                    {usuarioOrigemDisplay}
-                                    {docOrigem?.ambiguo ? " (?)" : ""}
-                                  </span>
-                                </TooltipTrigger>
-                                <TooltipContent className="max-w-xs space-y-1">
-                                  {tooltipUsuario && <div>{tooltipUsuario}</div>}
-                                  {docTooltipExtra && (
-                                    <div className="text-[11px]">
-                                      {docLabel}
-                                      {docOrigem?.parceiro_nome && usuarioOrigemDisplay !== "—" && (
-                                        <div className="text-muted-foreground">
-                                          Emitida por {usuarioOrigemDisplay}
-                                        </div>
-                                      )}
-                                      {docOrigem?.ambiguo && (
-                                        <div className="text-amber-700">
-                                          Número casou com múltiplos documentos — usuário caiu no dono do lote.
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-                                  {fonteOrigem && (
-                                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                                      Fonte: {fonteOrigem === "documento" ? "Documento (USUGER)" : "Lote (E640LOT)"}
-                                    </div>
-                                  )}
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          ) : (
-                            usuarioOrigemDisplay
-                          )}
+                                    {fonteOrigem && (
+                                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                        Fonte: {fonteOrigem === "documento" ? "Documento (USUGER)" : "Lote (E640LOT)"}
+                                      </div>
+                                    )}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ) : (
+                              <span>{usuarioOrigemDisplay}</span>
+                            )}
+                            {temUsuarioOrigem && fonteOrigem === "documento" && (
+                              <span
+                                className={cn(
+                                  "rounded px-1.5 py-0.5 text-[9px] uppercase tracking-wide font-medium",
+                                  destacarAmbar
+                                    ? "bg-amber-100 text-amber-800"
+                                    : "bg-muted text-muted-foreground",
+                                )}
+                              >
+                                Documento
+                              </span>
+                            )}
+                            {temUsuarioOrigem && fonteOrigem === "lote" && (
+                              <span
+                                className={cn(
+                                  "rounded px-1.5 py-0.5 text-[9px] uppercase tracking-wide font-medium",
+                                  divergeLote
+                                    ? "bg-sky-100 text-sky-800"
+                                    : "bg-muted text-muted-foreground",
+                                )}
+                              >
+                                Lote
+                              </span>
+                            )}
+                            {divergeDocumento && (
+                              <span className="rounded border border-amber-500 bg-amber-50 px-1.5 py-0.5 text-[9px] uppercase tracking-wide font-medium text-amber-800">
+                                Diferente do lançamento
+                              </span>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
                           {(destacarAmbar || divergeLote) ? (
@@ -852,6 +883,7 @@ export function DrillDrawer({
                             usuarioLancamentoDisplay
                           )}
                         </TableCell>
+
 
                         {!isDRE && (
                           <TableCell className="text-right tabular-nums">
