@@ -545,12 +545,18 @@ export function DrillDrawer({
                       </TableRow>
                     )}
 
-                    {itens.map((r, i) => (
+                    {itens.map((r, i) => {
+                      const divergeUsuario = r.usuario_origem_difere === true;
+                      const tooltipUsuario = divergeUsuario
+                        ? `Lote aberto por ${r.usuario_origem ?? "—"}, lançado por ${r.usuario_lancamento ?? "—"}`
+                        : "";
+                      return (
                       <TableRow
                         key={i}
                         className={cn(
                           i % 2 === 1 && "bg-muted/20",
                           "cursor-pointer hover:bg-accent/40",
+                          divergeUsuario && "!bg-amber-100/60 hover:!bg-amber-100 border-l-4 border-l-amber-500",
                         )}
                         onClick={() => setDetalhe(r)}
                       >
@@ -570,9 +576,43 @@ export function DrillDrawer({
                           {r.observacao ?? r.historico ?? ""}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">{r.origem_codigo ?? ""}</TableCell>
-                        <TableCell className="whitespace-nowrap">{r.origem_descricao ?? ""}</TableCell>
-                        <TableCell className="whitespace-nowrap">{r.usuario_origem ?? ""}</TableCell>
-                        <TableCell className="whitespace-nowrap">{r.usuario_lancamento ?? ""}</TableCell>
+                        <TableCell className="whitespace-nowrap">{labelOrigem(r.origem_codigo, r.origem_descricao)}</TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {divergeUsuario ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="underline decoration-dotted decoration-amber-600">
+                                    {r.usuario_origem ?? ""}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>{tooltipUsuario}</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : (
+                            r.usuario_origem ?? ""
+                          )}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {divergeUsuario ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-flex items-center gap-1 underline decoration-dotted decoration-amber-600">
+                                    {r.usuario_lancamento ?? ""}
+                                    <AlertTriangle
+                                      className="h-3.5 w-3.5 text-amber-600"
+                                      aria-label="Usuário do lote difere do lançamento"
+                                    />
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>{tooltipUsuario}</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : (
+                            r.usuario_lancamento ?? ""
+                          )}
+                        </TableCell>
                         {!isDRE && (
                           <TableCell className="text-right tabular-nums">
                             {r.saldo_anterior != null ? fmtBRL(Number(r.saldo_anterior)) : ""}
@@ -588,7 +628,8 @@ export function DrillDrawer({
                           {r.saldo != null ? fmtBRL(Number(r.saldo)) : ""}
                         </TableCell>
                       </TableRow>
-                    ))}
+                      );
+                    })}
 
                     {/* Linha SALDO FINAL */}
                     <TableRow className="bg-muted/40 font-medium">
