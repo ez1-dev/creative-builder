@@ -183,6 +183,9 @@ export function DrillDrawer({
     args.ctared != null &&
     String(args.ctared).trim() !== "" &&
     Number.isFinite(Number(args.ctared));
+  const hasLinhaContext = Boolean(args?.modeloId && args?.linhaId);
+  const hasClacta = args?.clacta != null && String(args.clacta).trim() !== "";
+  const hasDrillContext = hasLinhaContext || hasCtared || hasClacta;
 
   const usaRange =
     args?.anomes == null &&
@@ -191,14 +194,17 @@ export function DrillDrawer({
   const usaMes = args?.anomes != null;
 
   const q = useDrillLancamentos(
-    args && hasCtared && (usaMes || usaRange)
+    args && hasDrillContext && (usaMes || usaRange)
       ? {
+          modelo_id: args.modeloId,
+          linha_id: args.linhaId,
           codemp: args.codemp,
           codfil: args.codfil,
           anomes: usaMes ? args.anomes : undefined,
           anomes_ini: usaRange ? args.anomes_ini : undefined,
           anomes_fim: usaRange ? args.anomes_fim : undefined,
-          ctared: args.ctared,
+          ctared: hasCtared ? args.ctared : undefined,
+          clacta: hasClacta ? args.clacta : undefined,
           codccu: args.codccu ?? null,
           limite,
         }
@@ -437,12 +443,10 @@ export function DrillDrawer({
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-3 pb-6">
 
-          {!hasCtared ? (
+          {!hasDrillContext ? (
             <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-              <div className="font-medium mb-1">Selecione uma conta contábil</div>
-              O Razão exibe movimentos de uma única conta. Use o drill{" "}
-              <strong>Conta Contábil</strong> na linha da DRE e clique em uma
-              conta específica para abrir o Razão.
+              <div className="font-medium mb-1">Contexto do Razão indisponível</div>
+              Não foi possível identificar a linha/modelo ou a conta contábil para consultar os lançamentos.
             </div>
           ) : q.isLoading ? (
             <div className="space-y-2">

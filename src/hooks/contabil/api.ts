@@ -1252,6 +1252,12 @@ export function useAtualizarCacheSenior(modeloId: string) {
 // Não usar o total do drill para recalcular saldos do Balanço.
 // ============================================================
 export interface DrillLancamentosParams {
+  /** Modelo/linha do snapshot — permite ao backend resolver contas vinculadas/descendentes. */
+  modelo_id?: string;
+  linha_id?: string;
+  /** Alias camelCase usado por alguns componentes. */
+  modeloId?: string;
+  linhaId?: string;
   codemp?: number;
   codfil?: number | null;
   /** Mês específico (competência). Use OU anomes OU anomes_ini/anomes_fim. */
@@ -1265,6 +1271,7 @@ export interface DrillLancamentosParams {
   /** Classificação sintética (drill de grupo). */
   clacta?: string | null;
   codccu?: string | null;
+  centro_custo?: string | null;
   /** Até 5000. */
   limite?: number;
 }
@@ -1298,6 +1305,8 @@ export function useDrillLancamentos(
   params: DrillLancamentosParams | null,
   enabled = true,
 ) {
+  const modeloId = params?.modelo_id ?? params?.modeloId ?? null;
+  const linhaId = params?.linha_id ?? params?.linhaId ?? null;
   const codemp = params?.codemp ?? CODEMP;
   const codfil = params?.codfil ?? CODFIL;
   const ctared =
@@ -1309,6 +1318,7 @@ export function useDrillLancamentos(
   const anomes = params?.anomes;
   const anomesIni = params?.anomes_ini;
   const anomesFim = params?.anomes_fim;
+  const centroCusto = params?.centro_custo ?? params?.codccu ?? null;
   const usaRange =
     anomes == null &&
     anomesIni != null &&
@@ -1318,12 +1328,15 @@ export function useDrillLancamentos(
   const usaMes = anomes != null && Number.isFinite(Number(anomes));
   const contaOk = ctared != null && Number.isFinite(ctared);
   const grupoOk = clacta != null;
+  const linhaOk = Boolean(modeloId && linhaId);
   return useQuery<DrillLancamentosResponse>({
     queryKey: [
       "contabil",
       "drill-lancamentos",
       "v2",
       {
+        modelo_id: modeloId,
+        linha_id: linhaId,
         codemp,
         codfil,
         anomes,
@@ -1331,12 +1344,15 @@ export function useDrillLancamentos(
         anomes_fim: anomesFim,
         ctared,
         clacta,
-        codccu: params?.codccu,
+        codccu: centroCusto,
+        centro_custo: centroCusto,
         limite: params?.limite ?? 500,
       },
     ],
     queryFn: async () => {
       const raw = await api.get<any>(`/api/contabil/drill-lancamentos`, {
+        modelo_id: modeloId ?? undefined,
+        linha_id: linhaId ?? undefined,
         codemp,
         codfil,
         anomes: usaMes ? anomes : undefined,
@@ -1344,16 +1360,19 @@ export function useDrillLancamentos(
         anomes_fim: usaRange ? anomesFim : undefined,
         ctared: contaOk ? (ctared ?? undefined) : undefined,
         clacta: grupoOk ? clacta : undefined,
-        codccu: params?.codccu ?? undefined,
+        codccu: centroCusto ?? undefined,
+        centro_custo: centroCusto ?? undefined,
         limite: params?.limite ?? 500,
       });
       const dados: DrillLancamento[] = Array.isArray(raw)
         ? raw
         : Array.isArray(raw?.dados)
           ? raw.dados
-          : Array.isArray(raw?.lancamentos)
-            ? raw.lancamentos
-            : [];
+          : Array.isArray(raw?.rows)
+            ? raw.rows
+            : Array.isArray(raw?.lancamentos)
+              ? raw.lancamentos
+              : [];
       const src = (raw && typeof raw === "object" && !Array.isArray(raw)) ? raw : {};
       const itens = Array.isArray(src.itens) ? src.itens : null;
       return {
@@ -1381,7 +1400,7 @@ export function useDrillLancamentos(
       enabled &&
       !!params &&
       (usaMes || usaRange) &&
-      (contaOk || grupoOk),
+      (linhaOk || contaOk || grupoOk),
     retry: 0,
     staleTime: 30_000,
   });
