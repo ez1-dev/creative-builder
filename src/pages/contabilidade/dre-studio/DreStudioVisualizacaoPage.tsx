@@ -255,6 +255,14 @@ function Visualizacao() {
   
   const [openHistoricoCache, setOpenHistoricoCache] = useState(false);
   const [editorEstruturaOpen, setEditorEstruturaOpen] = useState(false);
+  const [filtrosSalvosOpen, setFiltrosSalvosOpen] = useState<boolean>(() => {
+    try { return localStorage.getItem("dre-vis:filtros-salvos-open") === "1"; } catch { return false; }
+  });
+  const [contextoOpen, setContextoOpen] = useState<boolean>(() => {
+    try { return localStorage.getItem("dre-vis:contexto-open") === "1"; } catch { return false; }
+  });
+  useEffect(() => { try { localStorage.setItem("dre-vis:filtros-salvos-open", filtrosSalvosOpen ? "1" : "0"); } catch {} }, [filtrosSalvosOpen]);
+  useEffect(() => { try { localStorage.setItem("dre-vis:contexto-open", contextoOpen ? "1" : "0"); } catch {} }, [contextoOpen]);
   const [dataIni, setDataIni] = useState<string>(() => firstDayOfAnomes(ini));
   const [dataFim, setDataFim] = useState<string>(() => defaultDataFim(fim));
   useEffect(() => {
