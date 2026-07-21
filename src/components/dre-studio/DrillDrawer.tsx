@@ -141,6 +141,12 @@ function fmtPeriodoBR(iniISO?: string | null, fimISO?: string | null): string {
   return `${fmtDataBR(iniISO) || "—"} a ${fmtDataBR(fimISO) || "—"}`;
 }
 
+interface TransacaoDocumentoOrigem {
+  codigo?: string | null;
+  descricao?: string | null;
+  multiplas?: Array<{ codigo?: string | null; descricao?: string | null }> | null;
+}
+
 interface DocumentoOrigem {
   tipo?: string | null;
   descricao?: string | null;
@@ -157,6 +163,57 @@ interface DocumentoOrigem {
   bem?: string | null;
   data_movimento?: string | null;
   sequencia_movimento?: number | string | null;
+  transacao?: TransacaoDocumentoOrigem | null;
+}
+
+function formatarTransacaoUnica(t?: TransacaoDocumentoOrigem | null): string {
+  if (!t) return "";
+  return [t.codigo, t.descricao]
+    .map((p) => (p == null ? "" : String(p).trim()))
+    .filter(Boolean)
+    .join(" — ");
+}
+
+function transacaoDocumentoExport(t?: TransacaoDocumentoOrigem | null): string {
+  if (!t) return "";
+  const multi = Array.isArray(t.multiplas) ? t.multiplas : [];
+  if (multi.length > 1) {
+    return multi
+      .map((m) => [m?.codigo, m?.descricao].map((p) => (p == null ? "" : String(p).trim())).filter(Boolean).join(" - "))
+      .filter(Boolean)
+      .join("; ");
+  }
+  return [t.codigo, t.descricao]
+    .map((p) => (p == null ? "" : String(p).trim()))
+    .filter(Boolean)
+    .join(" - ");
+}
+
+function TransacaoOrigemField({ transacao }: { transacao?: TransacaoDocumentoOrigem | null }) {
+  if (!transacao) return <span>—</span>;
+  const multi = Array.isArray(transacao.multiplas) ? transacao.multiplas : [];
+  if (multi.length > 1) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="underline decoration-dotted cursor-help">Várias ({multi.length})</span>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-sm text-[11px] space-y-0.5">
+            {multi.map((m, idx) => {
+              const label = [m?.codigo, m?.descricao]
+                .map((p) => (p == null ? "" : String(p).trim()))
+                .filter(Boolean)
+                .join(" — ");
+              return <div key={`${m?.codigo ?? "sem-codigo"}-${idx}`}>{label || "—"}</div>;
+            })}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+  const label = formatarTransacaoUnica(transacao);
+  return <span>{label || "—"}</span>;
 }
 
 function numeroDocumentoValido(numero: string | number | null | undefined): boolean {
