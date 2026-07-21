@@ -34,7 +34,6 @@ import {
   useModelo,
   useResultadoPronto,
   useMaterializarResultado,
-  useAtualizarCacheSenior,
   usePeriodosStatus,
 } from "@/hooks/contabil/api";
 import { MaterializacaoDialog } from "@/components/contabil/MaterializacaoDialog";
