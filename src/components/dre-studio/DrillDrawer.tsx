@@ -448,6 +448,18 @@ export function DrillDrawer({
           <div className="flex items-start justify-between gap-2">
             <SheetTitle className="text-primary-foreground">Lançamentos</SheetTitle>
             <div className="flex items-center gap-2">
+              {contaEscolhida && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setContaEscolhida(null)}
+                  className="h-7 px-2 text-xs"
+                  title="Voltar para a lista de contas da linha"
+                >
+                  Trocar conta
+                </Button>
+              )}
               <Button
                 type="button"
                 size="sm"
@@ -470,6 +482,7 @@ export function DrillDrawer({
                 {expandido ? "Recolher" : "Expandir"}
               </Button>
             </div>
+
           </div>
           <SheetDescription asChild>
             <div className="text-primary-foreground/80 space-y-0.5">
