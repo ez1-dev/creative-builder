@@ -138,6 +138,7 @@ interface RazaoItem {
   origem_descricao?: string | null;
   usuario_origem?: string | null;
   usuario_lancamento?: string | null;
+  usuario_origem_difere?: boolean;
   saldo_anterior?: number | null;
   mov_debito?: number | null;
   mov_credito?: number | null;
