@@ -841,12 +841,10 @@ export function DrillDrawer({
                       return (
                       <TableRow
                         key={i}
-                        className={cn(
-                          i % 2 === 1 && "bg-muted/20",
-                          "cursor-pointer hover:bg-accent/40",
-                          destacarAmbar && "!bg-amber-100/60 hover:!bg-amber-100 border-l-4 border-l-amber-500",
-                          divergeLote && "border-l-4 border-l-sky-400",
-                        )}
+                         className={cn(
+                           i % 2 === 1 && "bg-muted/20",
+                           "cursor-pointer hover:bg-accent/40",
+                         )}
                         onClick={() => setDetalhe(r)}
                       >
                         <TableCell>
