@@ -1,30 +1,17 @@
-## Objetivo
-Fazer a coluna **Usuário Origem** aparecer no drill (Razão) da DRE/Balanço mesmo quando o backend devolve `usuario_origem = null`.
+## Plano
 
-## Diagnóstico (verificado)
-Chamando `GET /api/contabil/drill-lancamentos?codemp=1&ctared=2160&anomes=202601`, cada item vem com três campos de usuário:
+1. **Corrigir a regra de exibição**
+   - Remover o fallback que preenche **Usuário Origem** com `usuario` quando `usuario_origem` vem vazio.
+   - Manter **Usuário Lcto.** usando `usuario_lancamento`, com fallback controlado para `usuario` apenas se o backend não enviar `usuario_lancamento`.
 
-- `usuario_origem` — hoje quase sempre `null` (só preenchido quando há divergência real de lote)
-- `usuario` — usuário do módulo de origem (ex.: `"agendador"` para VEN, o operador do faturamento etc.)
-- `usuario_lancamento` — quem efetivou o lançamento contábil
+2. **Padronizar grid, modal e Excel**
+   - Aplicar a mesma regra nas colunas da tabela, no detalhe do lançamento e na exportação.
+   - Quando `usuario_origem` vier nulo/vazio, exibir vazio ou `—`, sem copiar o usuário do lançamento.
 
-O `DrillDrawer` renderiza apenas `r.usuario_origem`, então a coluna fica vazia em praticamente todos os lançamentos originados de subsistemas.
+3. **Revisar destaque de divergência**
+   - Manter o destaque âmbar somente quando `usuario_origem_difere === true`.
+   - Ajustar tooltip/banner para não sugerir divergência quando o usuário de origem estiver ausente.
 
-## Mudança proposta
-Em `src/components/dre-studio/DrillDrawer.tsx`, tratar a coluna **Usuário Origem** com fallback:
-
-```
-usuarioOrigemDisplay = r.usuario_origem ?? r.usuario ?? ""
-```
-
-Aplicar em três pontos:
-
-1. Célula da grid (linhas ~588-603) — mostrar `usuarioOrigemDisplay`. Manter o realce âmbar + tooltip apenas quando `usuario_origem_difere === true` (comportamento atual).
-2. Modal de detalhe (linha ~754) — `Info label="Usuário origem"` usa o mesmo fallback.
-3. Export Excel (linha ~304) — coluna "Usuário Origem" grava `usuarioOrigemDisplay` em vez de `r.usuario_origem ?? ""`.
-
-O tooltip de divergência continua citando `r.usuario_origem` cru (para deixar claro qual é o campo canônico do backend), e a coluna **Usuário Lcto.** permanece intocada.
-
-## Fora de escopo
-- Nenhuma mudança no backend, no endpoint ou nos filtros do drill.
-- Nenhuma alteração de estilo/layout além da célula.
+4. **Validar no preview**
+   - Abrir o Razão no período atual e confirmar que as colunas não ficam iguais por preenchimento artificial do frontend.
+   - Usar a resposta real do endpoint como referência: hoje ela traz `usuario_origem: null` e `usuario_lancamento` preenchido para vários lançamentos, então a tela deve mostrar Origem vazio/`—` e Lcto. preenchido.

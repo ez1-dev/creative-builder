@@ -71,6 +71,22 @@ function toDisplay(v: unknown): string {
   return String(v);
 }
 
+function hasDisplayValue(v: unknown): boolean {
+  return v !== null && v !== undefined && String(v).trim() !== "";
+}
+
+function usuarioOrigemValue(r: Pick<RazaoItem, "usuario_origem">, fallback = ""): string {
+  return hasDisplayValue(r.usuario_origem) ? String(r.usuario_origem).trim() : fallback;
+}
+
+function usuarioLancamentoValue(
+  r: Pick<RazaoItem, "usuario_lancamento" | "usuario">,
+  fallback = "",
+): string {
+  if (hasDisplayValue(r.usuario_lancamento)) return String(r.usuario_lancamento).trim();
+  return hasDisplayValue(r.usuario) ? String(r.usuario).trim() : fallback;
+}
+
 
 
 
@@ -302,8 +318,8 @@ export function DrillDrawer({
         r.observacao ?? r.historico ?? "",
         r.origem_codigo ?? "",
         labelOrigem(r.origem_codigo, r.origem_descricao),
-        r.usuario_origem ?? r.usuario ?? "",
-        r.usuario_lancamento ?? "",
+        usuarioOrigemValue(r),
+        usuarioLancamentoValue(r),
         ...(!isDRE ? [num(r.saldo_anterior)] : []),
         num(r.mov_debito),
         num(r.mov_credito),
@@ -555,10 +571,13 @@ export function DrillDrawer({
                     )}
 
                     {itens.map((r, i) => {
-                      const divergeUsuario = r.usuario_origem_difere === true;
-                      const usuarioOrigemDisplay = r.usuario_origem ?? r.usuario ?? "";
+                      const usuarioOrigemDisplay = usuarioOrigemValue(r, "—");
+                      const usuarioLancamentoDisplay = usuarioLancamentoValue(r, "—");
+                      const temUsuarioOrigem = hasDisplayValue(r.usuario_origem);
+                      const temUsuarioLancamento = hasDisplayValue(r.usuario_lancamento) || hasDisplayValue(r.usuario);
+                      const divergeUsuario = r.usuario_origem_difere === true && temUsuarioOrigem && temUsuarioLancamento;
                       const tooltipUsuario = divergeUsuario
-                        ? `Lote aberto por ${r.usuario_origem ?? "—"}, lançado por ${r.usuario_lancamento ?? "—"}`
+                        ? `Lote aberto por ${usuarioOrigemDisplay}, lançado por ${usuarioLancamentoDisplay}`
                         : "";
                       return (
                       <TableRow
@@ -609,7 +628,7 @@ export function DrillDrawer({
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <span className="inline-flex items-center gap-1 underline decoration-dotted decoration-amber-600">
-                                    {r.usuario_lancamento ?? ""}
+                                    {usuarioLancamentoDisplay}
                                     <AlertTriangle
                                       className="h-3.5 w-3.5 text-amber-600"
                                       aria-label="Usuário do lote difere do lançamento"
@@ -620,7 +639,7 @@ export function DrillDrawer({
                               </Tooltip>
                             </TooltipProvider>
                           ) : (
-                            r.usuario_lancamento ?? ""
+                            usuarioLancamentoDisplay
                           )}
                         </TableCell>
                         {!isDRE && (
@@ -702,14 +721,14 @@ export function DrillDrawer({
             </DialogHeader>
             {detalhe && (
               <div className="space-y-3">
-                {detalhe.usuario_origem_difere === true && (
+                {detalhe.usuario_origem_difere === true && hasDisplayValue(detalhe.usuario_origem) && (
                   <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
                     <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                     <div>
                       <div className="font-medium">Divergência de usuário</div>
                       <div>
-                        Lote aberto por <strong>{detalhe.usuario_origem ?? "—"}</strong>,
-                        lançado por <strong>{detalhe.usuario_lancamento ?? "—"}</strong>.
+                        Lote aberto por <strong>{usuarioOrigemValue(detalhe, "—")}</strong>,
+                        lançado por <strong>{usuarioLancamentoValue(detalhe, "—")}</strong>.
                       </div>
                     </div>
                   </div>
@@ -753,8 +772,8 @@ export function DrillDrawer({
                 )}
                 <Info label="Documento" value={toDisplay(detalhe.documento)} />
                 <Info label="Origem" value={detalhe.origem_codigo ? `${toDisplay(detalhe.origem_codigo)} - ${labelOrigem(detalhe.origem_codigo as string, detalhe.origem_descricao)}` : ""} />
-                <Info label="Usuário origem" value={toDisplay(detalhe.usuario_origem ?? detalhe.usuario)} />
-                <Info label="Usuário lançamento" value={toDisplay(detalhe.usuario_lancamento)} />
+                <Info label="Usuário origem" value={usuarioOrigemValue(detalhe, "—")} />
+                <Info label="Usuário lançamento" value={usuarioLancamentoValue(detalhe, "—")} />
                 <Info
                   label="Valor integral"
                   value={detalhe.valor_integral != null ? fmtBRL(Number(detalhe.valor_integral)) : ""}
