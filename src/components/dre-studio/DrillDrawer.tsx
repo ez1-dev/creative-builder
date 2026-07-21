@@ -26,7 +26,34 @@ import {
 import { useDrillLancamentos } from "@/hooks/contabil/api";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
-import { Download } from "lucide-react";
+import { Download, AlertTriangle } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+/** Rótulos oficiais das ORIGENS (módulos) — sobrescrevem descrição vinda do backend. */
+const ORIGEM_LABELS: Record<string, string> = {
+  EST: "Estoque",
+  PAT: "Patrimônio/Ativo Fixo",
+  CPR: "Contas a Pagar",
+  PAG: "Pagamentos",
+  VRB: "Verbas",
+  TES: "Tesouraria",
+  VEN: "Faturamento/Vendas",
+  REC: "Contas a Receber",
+  IOD: "Integração",
+  IMP: "Importação",
+  MAN: "Manual (contabilidade)",
+};
+
+function labelOrigem(codigo?: string | null, descricaoFallback?: string | null): string {
+  const key = String(codigo ?? "").trim().toUpperCase();
+  if (key && ORIGEM_LABELS[key]) return ORIGEM_LABELS[key];
+  return descricaoFallback ?? "";
+}
 
 /** Converte qualquer valor em texto legível. Evita "[object Object]" quando o
  *  backend envia campos estruturados (ex.: conta_debito como { ctared, descta }). */
