@@ -996,31 +996,7 @@ export function DrillDrawer({
                           </div>
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
-                          {(destacarAmbar || divergeLote) ? (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span
-                                    className={cn(
-                                      "inline-flex items-center gap-1 underline decoration-dotted",
-                                      destacarAmbar ? "decoration-amber-600" : "decoration-sky-500",
-                                    )}
-                                  >
-                                    {usuarioLancamentoDisplay}
-                                    {destacarAmbar && (
-                                      <AlertTriangle
-                                        className="h-3.5 w-3.5 text-amber-600"
-                                        aria-label="Usuário do documento difere do lançamento"
-                                      />
-                                    )}
-                                  </span>
-                                </TooltipTrigger>
-                                <TooltipContent>{tooltipUsuario}</TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          ) : (
-                            usuarioLancamentoDisplay
-                          )}
+                          {usuarioLancamentoDisplay}
                         </TableCell>
 
 
