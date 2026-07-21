@@ -67,7 +67,7 @@ export interface DrillLancamentoItem {
   codccu?: string | null;
   desccu?: string | null;
   ccu?: string | null;
-  centro_custo?: { codccu?: string | null; descricao?: string | null } | null;
+  centro_custo?: DrillLancamentoCentroCusto | null;
   multiplos?: Array<{ codccu: string; desccu?: string | null }> | null;
   // Documento / origem
   documento?: string | null;
