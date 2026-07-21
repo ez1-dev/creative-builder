@@ -209,6 +209,13 @@ interface RazaoItem {
   conta_credito?: string | number | Record<string, any> | null;
   codccu?: string | null;
   desccu?: string | null;
+  ccu?: string | null;
+  centro_custo?: {
+    codccu?: string | null;
+    descricao?: string | null;
+    fonte?: string | null;
+    multiplos?: Array<{ codccu?: string | null; descricao?: string | null }> | null;
+  } | null;
   documento?: string | null;
   valor_integral?: number | null;
   valor_rateado?: number | null;
