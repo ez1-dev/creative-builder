@@ -1384,11 +1384,13 @@ function ResumoCard({
 }
 
 function Info({ label, value, strong }: { label: string; value: any; strong?: boolean }) {
+  const isEmpty = value == null || value === "";
+  const isNode = value !== null && typeof value === "object" && "props" in (value as any);
   return (
     <div>
       <div className="text-muted-foreground">{label}</div>
       <div className={cn("mt-0.5", strong && "font-semibold")}>
-        {value != null && value !== "" ? String(value) : "—"}
+        {isEmpty ? "—" : isNode ? value : String(value)}
       </div>
     </div>
   );
