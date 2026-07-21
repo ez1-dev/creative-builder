@@ -781,6 +781,7 @@ export function DrillDrawer({
                         <TableCell></TableCell>
                         <TableCell></TableCell>
                         <TableCell></TableCell>
+                        <TableCell></TableCell>
                         <TableCell>SALDO</TableCell>
                         <TableCell></TableCell>
                         <TableCell></TableCell>
@@ -794,7 +795,7 @@ export function DrillDrawer({
                     {itens.length === 0 && (
                       <TableRow>
                         <TableCell
-                          colSpan={isDRE ? 13 : 14}
+                          colSpan={isDRE ? 14 : 15}
                           className="text-center italic text-muted-foreground py-6"
                         >
                           Sem lançamentos no período.
