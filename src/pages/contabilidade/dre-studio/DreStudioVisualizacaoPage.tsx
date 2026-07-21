@@ -1160,22 +1160,31 @@ function Visualizacao() {
     }
   }, [modo]);
 
-  // Ao entrar em SINTETICO na DRE, começa com todos os pais de linhas
-  // ANALITICAS recolhidos, para que o chevron passe a ter efeito visível
-  // (clicar expande os analíticos daquele grupo).
+  // Ao entrar em SINTETICO na DRE, começa com os pais diretos de linhas
+  // ANALITICAS recolhidos. A árvore sintética fica visível nas classificações,
+  // e o chevron do pai revela/recolhe seus analíticos.
   useEffect(() => {
     if (modo !== "SINTETICO") return;
     if (isBalanco) return;
     const next = new Set<string>();
-    for (const l of linhas) {
-      if (l.tipo_linha === "ANALITICA" && l.linha_pai_id) {
-        next.add(l.linha_pai_id);
+    let nivelMaisRaso: number | null = null;
+
+    for (const [parentId, childIds] of childrenMap.entries()) {
+      const temFilhoAnalitico = childIds.some(
+        (childId) => byId.get(childId)?.tipo_linha === "ANALITICA",
+      );
+      if (!temFilhoAnalitico) continue;
+
+      next.add(parentId);
+      const depthPai = depthMap.get(parentId) ?? 0;
+      if (nivelMaisRaso === null || depthPai < nivelMaisRaso) {
+        nivelMaisRaso = depthPai;
       }
     }
+
     setCollapsed(next);
-    setNivelExibido("todos");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modo, isBalanco, linhas]);
+    setNivelExibido(nivelMaisRaso === null ? "todos" : nivelMaisRaso + 1);
+  }, [modo, isBalanco, childrenMap, byId, depthMap]);
 
   const semAnaliticas = useMemo(
     () => linhas.length > 0 && linhas.every((l) => l.tipo_linha !== "ANALITICA"),
@@ -1349,6 +1358,14 @@ function Visualizacao() {
     });
   const isHiddenByAncestor = (l: ComparativoLinhaV2) => {
     let cur = l.linha_pai_id;
+    while (cur) {
+      if (collapsed.has(cur)) return true;
+      cur = byId.get(cur)?.linha_pai_id ?? null;
+    }
+    return false;
+  };
+  const isHiddenByAncestorAcimaDoPai = (l: ComparativoLinhaV2) => {
+    let cur = l.linha_pai_id ? byId.get(l.linha_pai_id)?.linha_pai_id ?? null : null;
     while (cur) {
       if (collapsed.has(cur)) return true;
       cur = byId.get(cur)?.linha_pai_id ?? null;
@@ -2646,7 +2663,7 @@ function Visualizacao() {
                     return (
                       l.exibir !== false &&
                       !paiColapsado &&
-                      !isHiddenByAncestor(l) &&
+                      !isHiddenByAncestorAcimaDoPai(l) &&
                       (!filtrosAtivos || idsComAncestrais.has(l.linha_id))
                     );
                   }

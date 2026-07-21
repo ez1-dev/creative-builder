@@ -1,6 +1,21 @@
-Trocar a tagline "Do dado à decisão." por "Transformando dados em decisões." em dois locais:
+## Plano
 
-1. `src/pages/LoginPage.tsx:80` — manter o destaque verde (#22C55E) na palavra final: "Transformando dados em <span verde>decisões.</span>"
-2. `public/manifest.json:4` — atualizar `description` para "Plataforma unificada para gestão empresarial — transformando dados em decisões."
+1. **Corrigir a inicialização do modo Sintético**
+   - Ajustar o efeito de entrada no modo `SINTETICO` para usar `childrenMap` em vez de percorrer apenas `linhas` diretamente.
+   - Colapsar os pais que possuem filhos `ANALITICA` reais.
+   - Calcular o nível mais adequado para `nivelExibido`, usando o nível mais raso desses pais, para que a grade comece realmente em formato sintético/recolhido.
 
-Sem outras alterações.
+2. **Ajustar o filtro de renderização da grid**
+   - Manter a regra especial para DRE Sintético: linhas `ANALITICA` só aparecem quando o pai imediato estiver expandido.
+   - Garantir que `isHiddenByAncestor(l)` não bloqueie indevidamente o filho quando o próprio pai imediato já foi expandido.
+   - Preservar as regras atuais para linhas especiais, virtuais, técnicas, filtros ativos e Balanço.
+
+3. **Preservar controles existentes**
+   - Manter `Expandir tudo`, `Recolher tudo` e seletor de nível operando sobre `collapsed`/`nivelExibido`.
+   - Não alterar `ANALITICO`, `NIVEL3`, Balanço, dados ou backend.
+
+4. **Validação**
+   - Verificar visualmente a rota atual em modo Sintético.
+   - Confirmar que o chevron começa como recolhido nas classificações relevantes.
+   - Clicar em uma classificação e validar que os filhos analíticos aparecem; clicar novamente recolhe.
+   - Alternar para Analítico e confirmar comportamento preservado.
