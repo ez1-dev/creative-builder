@@ -1,66 +1,31 @@
-# Validação do payload do drill do Razão — resultado
+## Contexto
 
-## O que foi verificado
+O `usuario_origem` do drill `/api/contabil/drill-lancamentos` só vem correto quando o backend FastAPI extrair a NF do `CPLLCT` e resolver o usuário via `E140NFV.USUGER`. O frontend (`DrillDrawer.tsx`) já trata `usuario_origem`, `usuario_lancamento` e `usuario_origem_difere` corretamente — nada a mudar na UI.
 
-Chamei `GET /api/contabil/drill-lancamentos` diretamente contra `https://api-erp-renato.ngrok.app` em várias combinações (contas 2160, 777, 2232, 10, 100, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000 × Jan–Abr/2026), cobrindo lançamentos com `origem_codigo` **VEN**, **REC** e **MAN**.
+Como o backend FastAPI vive fora deste repositório Lovable, esta tarefa se materializa aqui como **uma spec formal para o time de backend**, no mesmo padrão dos outros `docs/backend-*.md` do projeto.
 
-## O que o backend está enviando
+## Entregável neste repo
 
-Os campos existem separados no schema:
+Criar `docs/backend-drill-lancamentos-usuario-origem-ven.md` contendo, na íntegra, a especificação enviada pelo usuário:
 
-- `usuario` — string
-- `usuario_origem` — string | null
-- `usuario_lancamento` — string
-- `usuario_origem_difere` — boolean
+1. **Problema confirmado** — para `origem_codigo = VEN`, backend hoje devolve só `E640LCT.CODUSU`; o operacional correto é `E140NFV.USUGER`.
+2. **Exemplo validado** — Lote 12932 / Lcto 1301707160 / NF 20567 → `agendador` (84) vs `yasmin.rodrigues` (302); JSON esperado.
+3. **SQL** — bloco `OUTER APPLY` para extrair `NUMNFV` de `CPLLCT`, `LEFT JOIN E140NFV` por `CODEMP+CODFIL+NUMLOT+NUMNFV` (nunca só por lote), `LEFT JOIN R999USU` para lançamento e origem, e colunas novas: `usuario_lancamento_codigo`, `usuario_lancamento`, `usuario_origem_codigo`, `usuario_origem`, `documento_origem`, `usuario_origem_fonte`, `usuario_origem_difere` (BIT).
+4. **Pós-processamento Python** — compara **códigos** e não nomes; preserva `item["usuario"] = usuario_lancamento` p/ compat.
+5. **Regras proibidas** — sem fallback `usuario_origem = usuario_lancamento`, sem `E640LOT.USULOT`, sem esconder quando iguais.
+6. **Ambiguidade** — múltiplas `E140NFV` ⇒ devolver `usuario_origem = null` e `usuario_origem_status = "AMBIGUO"` (nunca `TOP 1`).
+7. **Escopo** — apenas `VEN`; REC/EST/MAN/PAT ficam para depois; não alterar auth, CORS, paginação, filtros nem UI.
+8. **Critérios de aceite** — Casos 1 (NF 20567 → yasmin) e 2 (NF 20568 → joao.santos) no mesmo lote 12932.
+9. **Follow-up esperado do backend** — arquivo/função alterados, SQL final, trecho Python, JSON dos dois casos e confirmação de que nada mais foi mexido.
 
-Exemplo real (conta 2160, lote 12932, origem VEN):
+## Frontend
 
-```json
-{
-  "origem_codigo": "VEN",
-  "usuario": "agendador",
-  "usuario_origem": null,
-  "usuario_lancamento": "agendador",
-  "usuario_origem_difere": false
-}
-```
+Nenhuma mudança. `src/components/dre-studio/DrillDrawer.tsx` e `src/lib/contabil/drillLancamentosApi.ts` já consomem `usuario_origem`, `usuario_lancamento`, `usuario_origem_codigo`, `usuario_origem_difere` com campos separados e realce âmbar — assim que o backend passar a popular `E140NFV.USUGER`, o realce e a coluna "Usuário Origem" ficam corretos automaticamente para VEN.
 
-## Conclusão
-
-**Os campos vêm em posições separadas, porém `usuario_origem` está sempre `null`** em toda a amostra — inclusive nos lançamentos de origem **MAN** (Manual/Contabilidade), onde justamente deveria vir preenchido com quem digitou no subsistema/módulo de origem. Consequência: `usuario_origem_difere` também nunca fica `true`, então o realce âmbar nunca dispara em produção.
-
-A separação lógica no front (Usuário Origem estrito × Usuário Lcto. com fallback) está correta e continua necessária — o problema é upstream: o backend não está resolvendo o `usuario_origem` a partir do subsistema/lote de origem.
-
-## Plano de ação
-
-### 1. Reportar ao backend (bloqueante para a feature ter valor)
-
-Abrir demanda no FastAPI (`/api/contabil/drill-lancamentos`) para popular `usuario_origem` conforme o `origem_codigo`:
-
-| Origem | Fonte esperada de `usuario_origem` |
-|---|---|
-| VEN | usuário que emitiu a NF no faturamento |
-| REC | usuário que lançou o recebimento |
-| EST | usuário do movimento de estoque |
-| MAN | usuário que criou o lançamento manual no módulo contábil |
-| PAT | usuário da baixa/movimento patrimonial |
-
-E recalcular `usuario_origem_difere = (usuario_origem is not null and usuario_lancamento is not null and usuario_origem != usuario_lancamento)`.
-
-### 2. Ajuste no front (opcional, cosmético)
-
-No `src/components/dre-studio/DrillDrawer.tsx`, quando `usuario_origem` vier `null`, exibir "—" (já é o comportamento atual) e adicionar um tooltip discreto no cabeçalho da coluna:
-
-> "Preenchido quando o ERP identifica o usuário do subsistema de origem. Vazio para lançamentos automáticos (integração/agendador)."
-
-Isso reduz confusão do usuário enquanto o backend não popula o campo. Nenhuma outra mudança de código é necessária — a separação já está correta.
-
-## Detalhes técnicos
-
-- Endpoint testado: `GET /api/contabil/drill-lancamentos?codemp=1&codfil=1&ctared={conta}&anomes_ini={am}&anomes_fim={am}` com header `ngrok-skip-browser-warning: true`.
-- Amostra: ~14 contas × 4 competências, cobrindo VEN/REC/MAN. Zero linhas com `usuario_origem` preenchido.
-- Frontend atual (após a última correção) já usa `usuarioOrigemValue` estrito e `usuarioLancamentoValue` com fallback — nenhuma regressão detectada.
+Também vou anexar uma nota curta em `.lovable/plan.md` (ou substituir seu conteúdo) apontando para o novo doc, para o próximo agente saber que a bola está com o backend.
 
 ## Fora de escopo
 
-Não vou alterar a lógica de fallback do front para "chutar" um `usuario_origem` a partir de `usuario` — isso reintroduziria o bug de "os dois campos ficam iguais" que acabamos de corrigir.
+- Qualquer edição em `DrillDrawer.tsx`, hooks de drill, tipos, `contabilApi`.
+- Regras para REC/EST/MAN/PAT.
+- Alterações em auth, CORS, cálculo contábil, paginação, filtros.
