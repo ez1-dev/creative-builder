@@ -81,6 +81,7 @@ interface DreVisFilterPreset {
   modoBalanco?: ModoBalanco;
   dataCorte?: string;
   aplicarRefSenior?: boolean;
+  expandirRE?: boolean;
 }
 
 
