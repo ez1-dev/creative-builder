@@ -1,47 +1,37 @@
-## Contexto
+## Diagnóstico
 
-Três correções na tela DRE Studio · Visualização. Item 1 (`.env`) já está aplicado (`VITE_CONTABIL_API_URL` e `VITE_API_BASE_URL` apontam para `https://api-erp-renato.ngrok.app`) — nada a fazer. Itens 2 e 3 precisam de ajuste no front.
+- `cesar.moreira@ezortea.com.br` (id `54abd12a-…9e415b`) **não tem** linha em `menu_layout_user` → recebe apenas o `menu_layout_global`.
+- O `menu_layout_global` (última alteração 20/07 17:59) está muito mais enxuto do que o menu que você usa no dia a dia: só 14 itens ocultos e 1 subgrupo custom, sem renames/orders.
+- O "menu novo" que você vê está salvo no **seu** `menu_layout_user` (renato.stank): 9 hidden, 2 subgrupos custom, com renames e orders.
 
-## 2. "Atualizar Resultado" — garantir 100% fluxo assíncrono
+Ou seja: o Cesar não está herdando o menu novo porque ele **nunca esteve no global** — está só no seu perfil.
 
-Auditar `DreStudioVisualizacaoPage.tsx` e `src/hooks/contabil/api.ts` para confirmar que nenhum caminho ainda dispara `POST .../atualizar-cache` síncrono:
+## Ação (escopo escolhido: só o Cesar)
 
-- `executarTudoAutomatico`, `handleAtualizarCacheSenior`, `handleCarregarAnoInteiro`, botões do stepper e auto-runner devem todos ir por `useMaterializarResultado` (job + polling), abrindo `MaterializacaoDialog`.
-- Manter `useAtualizarCacheSenior` só como utilitário legado; se ainda houver referência de UI, remover.
-- Payload de materialização deve sempre incluir `sincronizar_erp: true` e `recalcular: true`, além dos 5 parâmetros de chave (ver item 3).
+Copiar o `layout` de `menu_layout_user` do renato.stank para uma nova linha de `menu_layout_user` do cesar.moreira. Global permanece intacto; nenhum outro usuário é afetado.
 
-## 3. Balanço/DRE zerado — alinhar parâmetros e tratar SEM_CACHE
+SQL a executar via ferramenta de insert:
 
-Causa raiz: `expandir_resultado_exercicio` é derivado hardcoded em `DreStudioVisualizacaoPage.tsx` linhas 326-327 (`true` só quando Balanço + `MENSAL_E650SAL`, senão `false`), sem toggle na UI. Se existir um snapshot materializado com `expandir=true` para uma combinação onde o front calcula `false`, o `resultado-pronto` devolve `SEM_CACHE` e a grade renderiza zerada.
+```sql
+INSERT INTO public.menu_layout_user (user_id, layout, updated_at)
+SELECT
+  '54abd12a-ff67-4c20-90ee-0084ec9e415b'::uuid,
+  layout,
+  now()
+FROM public.menu_layout_user
+WHERE user_id = '5281f658-36d4-4976-9f03-813d84531549'::uuid
+ON CONFLICT (user_id) DO UPDATE
+  SET layout = EXCLUDED.layout,
+      updated_at = EXCLUDED.updated_at;
+```
 
-### 3.1 Toggle "Expandir resultado do exercício"
+## Validação
 
-- Adicionar toggle na barra de filtros (persistido em `localStorage`, como `aplicarRefSenior`).
-- Estado único: leitura (`useResultadoPronto`) e materialização (`useMaterializarResultado`) recebem o mesmo valor. Não deixar defaults divergirem entre hook de leitura e mutation.
-- Toggle "Aplicar referência Senior" já existe; garantir que os 5 parâmetros de chave (`codfil`, `modo_balanco`, `aplicar_referencia_senior`, `expandir_resultado_exercicio`, `fonte_saldo`) saem idênticos em ambas as chamadas.
+1. `SELECT updated_at, jsonb_array_length(layout->'hidden') FROM menu_layout_user WHERE user_id = '54abd12a-…9e415b';` deve retornar 9 hidden e timestamp de agora.
+2. Pedir ao Cesar para recarregar a aba (ou aguardar — o hook `useMenuLayout` tem realtime em `menu_layout_user` filtrado por `user_id=eq.<id>` e também refaz fetch no `focus`/`visibilitychange`, então costuma atualizar sozinho ao voltar pra aba).
 
-### 3.2 Unblock imediato do estado atual
+## Observações
 
-Default do novo toggle deve iniciar **ligado** para o modelo/período em questão (Balanço `MENSAL_E650SAL`), para que a leitura encontre o snapshot já existente sem re-materializar. Manter o default anterior para os demais casos (compatível).
-
-### 3.3 UX de SEM_CACHE
-
-Hoje o stepper "Como gerar o resultado" só aparece quando `mostrarStepper = semContas || semCache` (linha 1423), mas a grade renderiza zerada por baixo. Ajustar:
-
-- Quando `status === "SEM_CACHE"`, ocultar a matriz zerada e mostrar um bloco claro: "Resultado ainda não materializado para estes parâmetros — clique em **Gerar resultado**", com o botão `dispararMaterializacao()` em destaque e o stepper já existente logo abaixo.
-- Mensagem deve listar os 5 parâmetros atuais para o usuário entender que a combinação importa.
-
-## Arquivos afetados
-
-- `src/pages/contabilidade/dre-studio/DreStudioVisualizacaoPage.tsx` — novo toggle, cálculo de `expandirREEfetivo`, tratamento de SEM_CACHE, auditoria de handlers síncronos.
-- `src/hooks/contabil/api.ts` — confirmar assinatura consistente de `useResultadoPronto` × `useMaterializarResultado` para os 5 parâmetros.
-
-## Fora de escopo
-
-- Alterações no backend (já ajustado).
-- `.env` (já corrigido).
-- Reescrita do `MaterializacaoDialog` / polling (funcional).
-
-## Pergunta
-
-Confirma que o toggle "Expandir resultado do exercício" deve começar **ligado por padrão** para Balanço `MENSAL_E650SAL` (destrava o snapshot atual sem re-materializar)? Ou prefere que ele reflita o último valor usado por usuário, mesmo que isso obrigue re-materializar agora?
+- Nenhuma mudança de código. É só uma cópia de dados.
+- Se o Cesar quiser depois personalizar o menu dele, continua funcionando normalmente — o que estamos criando é o *ponto de partida* dele igual ao seu.
+- Se um dia você quiser que **todos** os usuários novos já venham com esse menu, o caminho é publicar seu layout como global (outro plano).
