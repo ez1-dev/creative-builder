@@ -725,9 +725,26 @@ export function DrillDrawer({
                       const usuarioLancamentoDisplay = usuarioLancamentoValue(r, "—");
                       const temUsuarioOrigem = hasDisplayValue(r.usuario_origem);
                       const temUsuarioLancamento = hasDisplayValue(r.usuario_lancamento) || hasDisplayValue(r.usuario);
+                      const fonteOrigem = (r.usuario_origem_fonte ?? null) as null | string;
+                      const docOrigem = (r as any).documento_origem as DocumentoOrigem | null | undefined;
+                      const docLabel = labelDocumentoOrigem(docOrigem);
+                      const temDocOrigem = Boolean(docOrigem && (docOrigem.numero != null || docOrigem.parceiro_nome));
                       const divergeUsuario = r.usuario_origem_difere === true && temUsuarioOrigem && temUsuarioLancamento;
-                      const tooltipUsuario = divergeUsuario
-                        ? `Lote aberto por ${usuarioOrigemDisplay}, lançado por ${usuarioLancamentoDisplay}`
+                      const divergeDocumento = divergeUsuario && fonteOrigem === "documento";
+                      // Divergência via "lote" existe (raríssimo); destaca de forma discreta.
+                      const divergeLote = divergeUsuario && fonteOrigem === "lote";
+                      // Compat: quando o backend antigo não manda `fonte`, mantém realce âmbar como antes.
+                      const divergeGenerico = divergeUsuario && !fonteOrigem;
+                      const destacarAmbar = divergeDocumento || divergeGenerico;
+                      const tooltipUsuario = divergeDocumento
+                        ? `Documento emitido por ${usuarioOrigemDisplay} · Lançamento por ${usuarioLancamentoDisplay}`
+                        : divergeLote
+                          ? `Lote aberto por ${usuarioOrigemDisplay} · Lançado por ${usuarioLancamentoDisplay}`
+                          : divergeGenerico
+                            ? `Lote aberto por ${usuarioOrigemDisplay}, lançado por ${usuarioLancamentoDisplay}`
+                            : "";
+                      const docTooltipExtra = temDocOrigem
+                        ? `${docLabel}${docOrigem?.ambiguo ? "  (número casou com múltiplos documentos — usuário caiu no dono do lote)" : ""}`
                         : "";
                       return (
                       <TableRow
@@ -735,7 +752,8 @@ export function DrillDrawer({
                         className={cn(
                           i % 2 === 1 && "bg-muted/20",
                           "cursor-pointer hover:bg-accent/40",
-                          divergeUsuario && "!bg-amber-100/60 hover:!bg-amber-100 border-l-4 border-l-amber-500",
+                          destacarAmbar && "!bg-amber-100/60 hover:!bg-amber-100 border-l-4 border-l-amber-500",
+                          divergeLote && "border-l-4 border-l-sky-400",
                         )}
                         onClick={() => setDetalhe(r)}
                       >
@@ -757,15 +775,47 @@ export function DrillDrawer({
                         <TableCell className="whitespace-nowrap">{r.origem_codigo ?? ""}</TableCell>
                         <TableCell className="whitespace-nowrap">{labelOrigem(r.origem_codigo, r.origem_descricao)}</TableCell>
                         <TableCell className="whitespace-nowrap">
-                          {divergeUsuario ? (
+                          {(destacarAmbar || divergeLote || temDocOrigem) ? (
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <span className="underline decoration-dotted decoration-amber-600">
+                                  <span
+                                    className={cn(
+                                      "underline decoration-dotted underline-offset-2",
+                                      destacarAmbar
+                                        ? "decoration-amber-600"
+                                        : divergeLote
+                                          ? "decoration-sky-500"
+                                          : "decoration-muted-foreground",
+                                    )}
+                                  >
                                     {usuarioOrigemDisplay}
+                                    {docOrigem?.ambiguo ? " (?)" : ""}
                                   </span>
                                 </TooltipTrigger>
-                                <TooltipContent>{tooltipUsuario}</TooltipContent>
+                                <TooltipContent className="max-w-xs space-y-1">
+                                  {tooltipUsuario && <div>{tooltipUsuario}</div>}
+                                  {docTooltipExtra && (
+                                    <div className="text-[11px]">
+                                      {docLabel}
+                                      {docOrigem?.parceiro_nome && usuarioOrigemDisplay !== "—" && (
+                                        <div className="text-muted-foreground">
+                                          Emitida por {usuarioOrigemDisplay}
+                                        </div>
+                                      )}
+                                      {docOrigem?.ambiguo && (
+                                        <div className="text-amber-700">
+                                          Número casou com múltiplos documentos — usuário caiu no dono do lote.
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                  {fonteOrigem && (
+                                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                      Fonte: {fonteOrigem === "documento" ? "Documento (USUGER)" : "Lote (E640LOT)"}
+                                    </div>
+                                  )}
+                                </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
                           ) : (
@@ -773,16 +823,23 @@ export function DrillDrawer({
                           )}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
-                          {divergeUsuario ? (
+                          {(destacarAmbar || divergeLote) ? (
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <span className="inline-flex items-center gap-1 underline decoration-dotted decoration-amber-600">
+                                  <span
+                                    className={cn(
+                                      "inline-flex items-center gap-1 underline decoration-dotted",
+                                      destacarAmbar ? "decoration-amber-600" : "decoration-sky-500",
+                                    )}
+                                  >
                                     {usuarioLancamentoDisplay}
-                                    <AlertTriangle
-                                      className="h-3.5 w-3.5 text-amber-600"
-                                      aria-label="Usuário do lote difere do lançamento"
-                                    />
+                                    {destacarAmbar && (
+                                      <AlertTriangle
+                                        className="h-3.5 w-3.5 text-amber-600"
+                                        aria-label="Usuário do documento difere do lançamento"
+                                      />
+                                    )}
                                   </span>
                                 </TooltipTrigger>
                                 <TooltipContent>{tooltipUsuario}</TooltipContent>
@@ -792,6 +849,7 @@ export function DrillDrawer({
                             usuarioLancamentoDisplay
                           )}
                         </TableCell>
+
                         {!isDRE && (
                           <TableCell className="text-right tabular-nums">
                             {r.saldo_anterior != null ? fmtBRL(Number(r.saldo_anterior)) : ""}
