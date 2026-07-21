@@ -2567,6 +2567,23 @@ function Visualizacao() {
                     return isNivel1Balanco(l);
                   }
                   if (isLinhaEspecial(l)) return true;
+                  // DRE Sintético: linhas ANALITICAS aparecem somente quando o
+                  // pai imediato está expandido (chevron aberto).
+                  if (
+                    modo === "SINTETICO" &&
+                    tipoModelo !== "BALANCO" &&
+                    l.tipo_linha === "ANALITICA"
+                  ) {
+                    const paiColapsado = l.linha_pai_id
+                      ? collapsed.has(l.linha_pai_id)
+                      : false;
+                    return (
+                      l.exibir !== false &&
+                      !paiColapsado &&
+                      !isHiddenByAncestor(l) &&
+                      (!filtrosAtivos || idsComAncestrais.has(l.linha_id))
+                    );
+                  }
                   return (
                     l.exibir !== false &&
                     !isHiddenByAncestor(l) &&
