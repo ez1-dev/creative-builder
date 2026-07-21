@@ -500,7 +500,7 @@ export function DrillDrawer({
           </SheetDescription>
 
           {/* Resumo */}
-          {temContratoRazao && (
+          {temContratoRazao && !precisaSelecionarConta && (
             <div className={cn("mt-3 grid gap-3 text-xs", isDRE ? "grid-cols-3" : "grid-cols-4")}>
               {!isDRE && <ResumoCard label="Saldo Anterior" value={saldoInicial} />}
               <ResumoCard label="Total Débito" value={totalDebito} />
@@ -511,7 +511,7 @@ export function DrillDrawer({
         </SheetHeader>
 
         {/* Subfaixa fixa: contador + ação de aumentar limite */}
-        {temContratoRazao && (
+        {temContratoRazao && !precisaSelecionarConta && (
           <div className="shrink-0 border-b bg-background px-4 py-2 flex items-center justify-between text-xs text-muted-foreground">
             <div>
               Mostrando <strong>{qtdExib}</strong>
@@ -537,6 +537,7 @@ export function DrillDrawer({
             )}
           </div>
         )}
+
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-3 pb-6">
 
