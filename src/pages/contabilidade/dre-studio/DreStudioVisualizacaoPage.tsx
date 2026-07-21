@@ -2315,14 +2315,51 @@ function Visualizacao() {
               </div>
             );
           })()
+        ) : q.meta?.status === "SEM_CACHE" ? (
+          <div className="p-6 space-y-4">
+            <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+              <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="font-semibold">
+                  Resultado ainda não materializado para estes parâmetros.
+                </div>
+                <div>
+                  Clique em <strong>Atualizar Resultado</strong> (acima) para gerar o snapshot. O
+                  snapshot é chaveado pelos 5 parâmetros abaixo — a leitura só encontra dados quando
+                  a combinação bate exatamente com a usada na materialização.
+                </div>
+                <ul className="text-xs list-disc pl-5 space-y-0.5">
+                  <li><strong>codfil:</strong> {codfilNum}</li>
+                  <li><strong>modo_balanco:</strong> {modoBalancoEfetivo ?? "—"}</li>
+                  <li><strong>fonte_saldo:</strong> E650SAL</li>
+                  <li><strong>aplicar_referencia_senior:</strong> {String(aplicarRefSeniorEfetivo)}</li>
+                  <li><strong>expandir_resultado_exercicio:</strong> {String(expandirREEfetivo)}</li>
+                </ul>
+                {isBalanco && modoBalancoEfetivo === "MENSAL_E650SAL" && (
+                  <div className="text-xs">
+                    Dica: se você já materializou antes, tente alternar o toggle
+                    <strong> Expandir resultado do exercício</strong> — o snapshot existente pode
+                    estar salvo com o valor oposto.
+                  </div>
+                )}
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => dispararMaterializacao()}
+              disabled={materializar.isPending || vincular.isPending}
+            >
+              <Database className="h-4 w-4 mr-1.5" />
+              Atualizar Resultado
+            </Button>
+          </div>
         ) : linhas.length === 0 ? (
           <div className="p-6 text-sm text-slate-600">
             {semContas
               ? "Este modelo ainda não possui contas vinculadas. O recálculo foi executado, mas não há base para calcular valores."
-              : <>Nenhum resultado calculado para este período. Clique em <strong>Atualizar Saldos</strong> e depois <strong>Recalcular Modelo</strong>.</>}
+              : <>Nenhum resultado calculado para este período. Clique em <strong>Atualizar Resultado</strong> para materializar o snapshot.</>}
           </div>
         ) : modo === "NIVEL3" ? (
-          <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b sticky top-0 z-30">
               <tr>
                 <th className="text-left px-3 py-2 min-w-[120px]">Natureza</th>
