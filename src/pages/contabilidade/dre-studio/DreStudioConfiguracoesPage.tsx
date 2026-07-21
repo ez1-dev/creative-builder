@@ -86,6 +86,8 @@ function ConfiguracoesContabeisPage() {
         </p>
       </header>
 
+      <ModeloPadraoCard />
+
       <Tabs defaultValue="snapshots" className="space-y-4">
         <TabsList className="grid grid-cols-2 md:grid-cols-5 w-full">
           <TabsTrigger value="snapshots" className="gap-1.5">
