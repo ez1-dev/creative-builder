@@ -882,6 +882,20 @@ export function DrillDrawer({
                                 Diferente do lançamento
                               </span>
                             )}
+                            {docOrigem?.ambiguo === true && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="rounded border border-amber-400 bg-amber-50 px-1.5 py-0.5 text-[9px] uppercase tracking-wide font-medium text-amber-800 cursor-help">
+                                      Vários documentos
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-xs">
+                                    Este lançamento está ligado a mais de um documento ou título. O backend não escolheu arbitrariamente um usuário de origem.
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
