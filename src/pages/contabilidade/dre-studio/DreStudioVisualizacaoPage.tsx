@@ -1437,7 +1437,6 @@ function Visualizacao() {
       anomes,
       anomes_ini,
       anomes_fim,
-      codccu: codccu === "todos" ? undefined : codccu,
       codemp: modelo?.modelo?.codemp ?? 1,
       codfil: codfilNum,
       ctared,
