@@ -1,20 +1,25 @@
 ## Objetivo
-Deixar apenas uma barra de rolagem horizontal na visualização DRE/Balanço — a flutuante (que contém os controles/totais).
+Adicionar coluna **"Acumulado ano"** ao final da grid da DRE (após "Total visível"), somando **apenas os meses selecionados no filtro de meses visíveis** — recalcula dinamicamente quando o usuário altera o período.
 
-## Causa
-- O contêiner da matriz em `DreStudioVisualizacaoPage.tsx` (linha 2401) já esconde a barra nativa horizontal e usa `FloatingHScrollbar` (linha 2953) como única barra.
-- Porém `src/components/dre-studio/DreResultTable.tsx` (linha 173) envolve a tabela em `overflow-x-auto`, gerando uma **segunda** barra horizontal logo acima da flutuante.
+Escopo: apenas `DreStudioVisualizacaoPage.tsx` (DRE, modos Sintético/Analítico/Comparativo). Balanço, Nível 3 e exportação Excel ficam fora desta iteração.
 
-## Alteração
-Arquivo: `src/components/dre-studio/DreResultTable.tsx` — linha 173
+> Observação: como o cálculo é sobre os meses visíveis, o valor coincide com o "Total visível" atual. A coluna serve como reforço visual de fechamento acumulado ao lado direito da grid, com destaque próprio.
 
-- Trocar `overflow-x-auto max-h-[65vh] overflow-y-auto` por `overflow-x-visible max-h-[65vh] overflow-y-auto`.
-- Assim, apenas o contêiner-pai (`matrizScrollRef`) controla o scroll horizontal, com a `FloatingHScrollbar` como única barra visível.
+## Alterações
 
-## Escopo
-- Apenas presentation (uma linha de className).
-- Não altera lógica, dados ou o Balanço em si (que também consome esse componente e se beneficia do mesmo comportamento — a página do Balanço já usa a flutuante).
+1. **`src/lib/anomes.ts`**
+   - Adicionar `isAcumuladoAnoCol(col)` e reconhecer `"ACUMULADO_ANO"` em `formatAnomes` → retorna `"Acumulado"`.
+
+2. **`DreStudioVisualizacaoPage.tsx`**
+   - `calcAcumuladoPeriodo(obj)`: soma `obj[c]` para todo `c ∈ periodosVisiveis` (mesmos meses que alimentam "Total visível"), ignorando `null`.
+   - `colunasGrid = [...colunas, "ACUMULADO_ANO"]` (apenas UI).
+   - `<thead>`: renderizar o novo cabeçalho "Acumulado" com destaque próprio (`bg-sky-50` para diferenciar do TOTAL_ANO) e `title="Acumulado dos meses selecionados no filtro"`.
+   - `renderSingleCell` / `renderCompCell`: quando `isAcumuladoAnoCol(col)` usar `calcAcumuladoPeriodo`; em `visao === "VARP"`, retornar `null` (mesmo padrão do TOTAL_ANO).
+   - `openDrill`: para a coluna `ACUMULADO_ANO`, usar `anomes_ini` = min e `anomes_fim` = max dos `periodosVisiveis`.
+   - Reatividade: como usa `periodosVisiveis`, o recálculo já ocorre automaticamente ao trocar o filtro de meses.
 
 ## Validação
-- Abrir `/contabilidade/dre-studio/.../visualizacao`, confirmar que só a barra flutuante aparece na parte inferior.
-- Verificar Balanço também para garantir que continua com scroll horizontal funcional via barra flutuante.
+- Abrir `/contabilidade/dre-studio/:id/visualizacao` (DRE) → nova coluna "Acumulado" ao lado direito de "Total visível", em destaque azul-claro.
+- Alterar o filtro de meses → valor de "Acumulado" atualiza junto com "Total visível".
+- Clicar em célula "Acumulado" → drill abre com intervalo `min…max` dos meses visíveis.
+- Modos Sintético / Analítico / Comparativo continuam funcionando; Balanço inalterado.
