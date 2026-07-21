@@ -305,6 +305,23 @@ function Visualizacao() {
     try { window.localStorage.setItem(refSeniorStorageKey, String(v)); } catch {}
   };
 
+  // Toggle "Expandir resultado do exercício" — DEVE bater com o valor usado na
+  // materialização, senão o snapshot não é encontrado (SEM_CACHE) e a grade
+  // vem zerada. Default: ligado no Balanço Oficial (MENSAL_E650SAL) para casar
+  // com o snapshot atual sem re-materializar.
+  const expandirREStorageKey = `dre.visualizacao.${id}.expandirRE`;
+  const [expandirRE, setExpandirREState] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    const saved = window.localStorage.getItem(expandirREStorageKey);
+    if (saved === "true") return true;
+    if (saved === "false") return false;
+    return true;
+  });
+  const setExpandirRE = (v: boolean) => {
+    setExpandirREState(v);
+    try { window.localStorage.setItem(expandirREStorageKey, String(v)); } catch {}
+  };
+
 
   // Balanço exige codfil específico — nunca "todas" — para não misturar
   // registros codfil=1 com codfil=null no resultado-cache.
@@ -324,8 +341,10 @@ function Visualizacao() {
   // Aplicar referência Senior só faz sentido no Balanço Oficial (MENSAL_E650SAL).
   const aplicarRefSeniorEfetivo =
     isBalanco && modoBalancoEfetivo === "MENSAL_E650SAL" ? aplicarRefSenior : false;
+  // Expandir resultado do exercício: só entra no payload do Balanço Oficial
+  // (Onde o backend usa o flag). Para DRE/demais modos vai false.
   const expandirREEfetivo =
-    isBalanco && modoBalancoEfetivo === "MENSAL_E650SAL" ? true : false;
+    isBalanco && modoBalancoEfetivo === "MENSAL_E650SAL" ? expandirRE : false;
 
   const filtros = {
     anomes_ini: ini,
