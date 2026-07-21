@@ -758,6 +758,7 @@ export function DrillDrawer({
                   <div className="mt-0.5">{detalhe.historico ?? ""}</div>
                 </div>
               </div>
+              </div>
             )}
           </DialogContent>
         </Dialog>
