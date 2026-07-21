@@ -947,12 +947,33 @@ export function DrillDrawer({
               Mov. Crédito:{" "}
               <strong className="tabular-nums">{fmtBRL(totalCredito)}</strong>
             </div>
+            {truncado && qtdTotal != null && (
+              <div className="flex items-center gap-2 rounded bg-amber-500/20 border border-amber-300/40 px-2 py-1">
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-200" />
+                <span>
+                  Exibindo <strong className="tabular-nums">{qtdExib}</strong> de{" "}
+                  <strong className="tabular-nums">{qtdTotal}</strong> lançamentos.
+                </span>
+                {proximoLimite && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    className="h-6 px-2 text-[10px]"
+                    onClick={() => setLimite(proximoLimite)}
+                  >
+                    Aumentar para {proximoLimite}
+                  </Button>
+                )}
+              </div>
+            )}
             <div className="ml-auto">
               Saldo Final:{" "}
               <strong className="tabular-nums">{fmtBRL(saldoFinal)}</strong>
             </div>
           </div>
         )}
+
 
         {/* Detalhe do lançamento */}
         <Dialog open={!!detalhe} onOpenChange={(v) => !v && setDetalhe(null)}>
