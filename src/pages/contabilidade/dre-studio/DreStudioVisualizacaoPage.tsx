@@ -739,24 +739,10 @@ function Visualizacao() {
   const handleSincronizar = () => dispararMaterializacao();
   const handleRecalcular = () => dispararMaterializacao();
   const handleGerarResultado = () => dispararMaterializacao();
-  const handleAtualizarCacheSenior = async () => {
-    try {
-      await atualizarCacheSenior.mutateAsync({
-        anomes_ini: ini,
-        anomes_fim: fim,
-        codfil: codfilNum,
-        tipo: tipoModeloPayload,
-        limpar_periodo: true,
-        limpar_resultado: true,
-        modo_balanco: modoBalancoEfetivo,
-        data_corte: dataCorteEfetiva,
-        aplicar_referencia_senior: aplicarRefSeniorEfetivo,
-      });
-      toast.success("Cache Senior atualizado. Agora clique em Gerar resultado.");
-    } catch (e) {
-      toast.error((e as Error)?.message ?? "Falha ao atualizar cache Senior.");
-    }
-  };
+  // Legado: o passo "Atualizar cache Senior" era síncrono e estourava o timeout de 15s
+  // do contabilApi. O fluxo assíncrono materializar-resultado (job + polling) já faz
+  // sync do ERP + recálculo dentro do próprio job, então redirecionamos para lá.
+  const handleAtualizarCacheSenior = () => dispararMaterializacao();
   const handleRecarregar = async () => {
     toast.info("Recarregando resultado...");
     await qc.invalidateQueries({ queryKey: ["contabil", "resultado-pronto", id] });
@@ -765,7 +751,7 @@ function Visualizacao() {
 
   // ===== Executar tudo automaticamente =====
   const [autoRunning, setAutoRunning] = useState(false);
-  const [autoStep, setAutoStep] = useState<null | "vincular" | "cache" | "gerar">(null);
+  const [autoStep, setAutoStep] = useState<null | "vincular" | "gerar">(null);
   const autoRunLockRef = useRef(false);
   const autoTriggeredKeyRef = useRef<string | null>(null);
 
@@ -773,38 +759,26 @@ function Visualizacao() {
     if (autoRunLockRef.current) return;
     autoRunLockRef.current = true;
     setAutoRunning(true);
-    const semCacheAtual = q.meta?.status === "SEM_CACHE";
     try {
       if (semContas) {
         setAutoStep("vincular");
-        if (!opts?.silent) toast.info("Passo 1/3 · Vinculando contas do plano Senior...");
+        if (!opts?.silent) toast.info("Passo 1/2 · Vinculando contas do plano Senior...");
         await vincular.mutateAsync();
       }
-      if (isBalanco) {
-        setAutoStep("cache");
-        if (!opts?.silent) toast.info(`Passo ${semContas ? "2/3" : "1/2"} · Atualizando cache Senior...`);
-        await atualizarCacheSenior.mutateAsync({
-          anomes_ini: ini,
-          anomes_fim: fim,
-          codfil: codfilNum,
-          tipo: tipoModeloPayload,
-          limpar_periodo: true,
-          limpar_resultado: true,
-          modo_balanco: modoBalancoEfetivo,
-          data_corte: dataCorteEfetiva,
-          aplicar_referencia_senior: aplicarRefSeniorEfetivo,
-        });
+      setAutoStep("gerar");
+      if (!opts?.silent) {
+        toast.info(
+          semContas
+            ? "Passo 2/2 · Gerando resultado (sync ERP + recálculo)..."
+            : "Gerando resultado (sync ERP + recálculo)...",
+        );
       }
-      if (semContas || semCacheAtual || isBalanco) {
-        setAutoStep("gerar");
-        if (!opts?.silent) toast.info("Último passo · Gerando resultado...");
-        const r = await materializar.mutateAsync(filtrosComDatas);
-        if (r?.job_id) {
-          setMaterJobId(r.job_id);
-          setMaterOpen(true);
-        } else {
-          await qc.invalidateQueries({ queryKey: ["contabil", "resultado-pronto", id] });
-        }
+      const r = await materializar.mutateAsync(filtrosComDatas);
+      if (r?.job_id) {
+        setMaterJobId(r.job_id);
+        setMaterOpen(true);
+      } else {
+        await qc.invalidateQueries({ queryKey: ["contabil", "resultado-pronto", id] });
       }
       toast.success("Processo automático concluído.");
     } catch (e) {
@@ -1449,7 +1423,7 @@ function Visualizacao() {
         const mostrarStepper = semContas || semCache;
         if (!mostrarStepper) return null;
 
-        const passoAtual = semContas ? 1 : semCache ? 3 : 4;
+        const passoAtual = semContas ? 1 : semCache ? 2 : 3;
         const feito = (n: number) => n < passoAtual;
         const atual = (n: number) => n === passoAtual;
 
@@ -1477,20 +1451,9 @@ function Visualizacao() {
           },
           {
             num: 2,
-            titulo: "Atualizar cache Senior",
-            desc: "Traz os saldos mais recentes do ERP para o período selecionado.",
-            botao: atualizarCacheSenior.isPending ? "Atualizando..." : "Atualizar cache Senior",
-            icone: <Database className="h-4 w-4" />,
-            onClick: handleAtualizarCacheSenior,
-            disabled: atualizarCacheSenior.isPending || semContas,
-            loading: atualizarCacheSenior.isPending,
-            mostrar: isBalanco,
-          },
-          {
-            num: 3,
-            titulo: "Gerar resultado",
-            desc: "Materializa o snapshot da DRE/Balanço para consulta rápida.",
-            botao: materializar.isPending ? "Gerando..." : "Gerar resultado",
+            titulo: "Atualizar Resultado",
+            desc: "Sincroniza saldos do ERP + recalcula + materializa o snapshot. Roda em segundo plano (job com progresso) — pode levar de 30s a 1 min.",
+            botao: materializar.isPending ? "Iniciando..." : "Atualizar Resultado",
             icone: <PlayCircle className="h-4 w-4" />,
             onClick: handleGerarResultado,
             disabled: materializar.isPending || semContas,
@@ -1498,7 +1461,7 @@ function Visualizacao() {
             mostrar: true,
           },
           {
-            num: 4,
+            num: 3,
             titulo: "Conferir e exportar",
             desc: "Use Exportar, Histórico ou Editar estrutura conforme necessidade.",
             botao: "Ver ações",
@@ -1506,6 +1469,7 @@ function Visualizacao() {
             mostrar: true,
           },
         ].filter((p) => p.mostrar);
+
 
         return (
           <div className="mb-4 rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4 shadow-sm">
@@ -1519,7 +1483,7 @@ function Visualizacao() {
                 </div>
                 <div className="text-xs text-slate-600">
                   {autoRunning
-                    ? `Executando automaticamente · ${autoStep === "vincular" ? "Vinculando contas..." : autoStep === "cache" ? "Atualizando cache Senior..." : "Gerando resultado..."}`
+                    ? `Executando automaticamente · ${autoStep === "vincular" ? "Vinculando contas..." : "Atualizando resultado (sync ERP + recálculo)..."}`
                     : "Rode o processo completo com um clique ou execute cada passo abaixo."}
                 </div>
               </div>

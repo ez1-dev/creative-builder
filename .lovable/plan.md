@@ -1,57 +1,42 @@
+## Problema
 
-## Objetivo
+O botão "Atualizar Resultado" e o runner "Executar tudo automaticamente" chamam `POST /api/contabil/modelos/{id}/atualizar-cache`, que é **síncrono** e leva de 13 a 48s. O `contabilApi` tem timeout fixo de **15s**, então a chamada quase sempre estoura com:
 
-Quando não houver resultado materializado para o período (status `SEM_CACHE` ou modelo sem linhas), a tela `DreStudioVisualizacaoPage` deve exibir um **guia visual numerado** ensinando ao usuário a sequência correta de ações — e destacar (halo/pulse) o botão da etapa atual na barra de ações.
+> "Processo automático interrompido: API contábil não respondeu em 15s (.../atualizar-cache)"
 
-## O que muda
+O backend já expõe fluxo assíncrono (`POST .../materializar-resultado` → `job_id` → polling em `GET /api/contabil/jobs/{job_id}`), inclusive já usado em `dispararMaterializacao()` com o `MaterializacaoDialog` (modal "Processando DRE/Balanço..."). A correção é parar de usar `atualizar-cache` para operações pesadas e passar tudo pelo job assíncrono.
 
-Trocar o aviso amarelo curto de "Gerar resultado" por um **card de onboarding** com 4 passos numerados, cada um mostrando: o que faz, quando é necessário, e um botão que executa a ação daquele passo. Os botões existentes na barra "Dados / Saída" continuam funcionando iguais — o card apenas orienta a ordem.
+## Correção
 
-### Ordem oficial (DRE e Balanço)
+### 1. `src/pages/contabilidade/dre-studio/DreStudioVisualizacaoPage.tsx`
 
-```text
-1. Vincular contas          → só na 1ª vez ou quando o plano Senior mudou
-   (usa: Vincular contas / Vincular contas automaticamente)
-   Pode levar até 1 minuto.
+**Runner `executarTudoAutomatico`** (linhas ~772-817):
+- Remover o passo intermediário que chama `atualizarCacheSenior.mutateAsync(...)` para Balanço.
+- Passar direto de "Vincular contas" (quando faltar) para "Gerar resultado" via `materializar.mutateAsync(filtrosComDatas)` — o backend já faz sync do ERP + recálculo dentro do job (o payload de `useMaterializarResultado` já envia `sincronizar_erp: true`, `recalcular: true`, `fonte_saldo`, `modo_balanco`, `data_corte`, `aplicar_referencia_senior`).
+- Ajustar labels ("Passo 1/2 · Vinculando..." / "Passo 2/2 · Gerando resultado..." ou "Gerando resultado..." quando só faltar cache).
+- Reduzir o tipo de `autoStep` para `"vincular" | "gerar"` e atualizar os pontos onde é lido (badge/stepper) para refletir apenas essas duas etapas.
 
-2. Atualizar cache Senior   → traz os saldos mais recentes do ERP p/ o período
-   (usa: Atualizar cache Senior)
+**Handler `handleAtualizarCacheSenior`** (linhas ~742-759) e o botão do stepper que o dispara (linha ~1484):
+- Substituir a implementação por `dispararMaterializacao()` (mantendo o mesmo rótulo visível "Atualizar cache Senior" apenas se o usuário quiser distinção, ou renomear para "Atualizar Resultado" — ver pergunta abaixo). O importante é que a ação passe a abrir a modal de progresso do job.
 
-3. Gerar resultado          → materializa o snapshot da DRE/Balanço
-   (usa: Gerar resultado / Recalcular)
+**Stepper "Como gerar o resultado — passo a passo"**:
+- Colapsar as fases "Atualizar cache Senior" e "Gerar resultado" em uma única fase "Atualizar Resultado" (assíncrona) porque agora o job faz as duas coisas juntas. Manter "Vincular contas" como fase 1 quando aplicável.
 
-4. Conferir / Exportar      → grid carregada; usar Exportar, Histórico,
-                              Editar estrutura conforme necessidade.
-```
+### 2. `src/hooks/contabil/api.ts`
 
-## Como fica na tela
+- Marcar `useAtualizarCacheSenior` como legado com comentário explicando que não deve ser usado em fluxos que envolvam ano inteiro. Não remover (pode ainda ser útil para períodos curtos), mas deixar claro.
+- Opcional: no hook, elevar o timeout específico dessa chamada para 60s via um segundo argumento em `api.post` (se suportado) — só como salvaguarda. Se `contabilApi` não suportar override, deixar como está e apenas documentar.
 
-- **Card "Como gerar o resultado"** aparece no topo do conteúdo sempre que:
-  - `q.meta?.status === "SEM_CACHE"`, **ou**
-  - o modelo não tem linhas vinculadas ainda (reaproveita as flags já usadas nos blocos das linhas 1360-1440).
-- Layout: 4 mini-cards horizontais numerados (`1 → 2 → 3 → 4`) com ícone, título, 1 linha de descrição, e um botão pequeno "Executar este passo".
-- **Passo atual destacado** (ring azul + leve pulse). Regra simples:
-  - sem vínculos → passo 1
-  - com vínculos e sem cache Senior recente (nunca atualizado no período) → passo 2
-  - com cache Senior e sem materialização → passo 3
-  - materializado → passo 4 (card colapsa em uma linha "Tudo pronto ✓ — próximas ações abaixo")
-- Cada botão dispara exatamente o mesmo handler já existente (`vincular.mutate`, `atualizarCacheSenior.mutate`, `handleGerarResultado`) — nada de lógica nova de backend.
-- Ao concluir todos os passos, o card some automaticamente na próxima renderização.
+### 3. Nada a mexer em `MaterializacaoDialog.tsx` / `useJobStatus`
 
-## Detalhes técnicos
+O polling e o fechamento automático quando `status === CONCLUIDO` já estão corretos e invalidam `resultado-pronto`.
 
-- Arquivo único: `src/pages/contabilidade/dre-studio/DreStudioVisualizacaoPage.tsx`.
-- Novo componente local `PassoAPassoResultado` (mesmo arquivo, sem export) recebendo os handlers, estados `isPending` e o "passo atual" calculado.
-- Remove o bloco atual de `status === "SEM_CACHE"` (linhas 1774-1791) e os dois blocos "Vincular contas automaticamente" (1360-1440) — todos passam a viver dentro do novo card, evitando duplicidade.
-- Botões da barra "Dados / Saída" permanecem intactos; apenas ganham `data-step="1|2|3"` para (opcionalmente) receber o mesmo ring quando forem o passo atual (via classe condicional).
-- Copy sugerida por passo:
-  1. **Vincular contas** — "Lê o plano Senior e cria as linhas analíticas do modelo. Faça só na primeira vez ou quando o plano mudar."
-  2. **Atualizar cache Senior** — "Traz os saldos mais recentes do ERP para o período selecionado."
-  3. **Gerar resultado** — "Materializa o snapshot da DRE/Balanço para consulta rápida."
-  4. **Conferir e exportar** — "Use Exportar, Histórico ou Editar estrutura conforme necessidade."
+## Resultado esperado
 
-## Fora do escopo
+- "Atualizar Resultado" e "Executar tudo automaticamente" nunca mais dão timeout de 15s.
+- A modal "Processando DRE/Balanço... X de Y" passa a refletir o job real da operação completa (sync ERP + recálculo).
+- Operações de 30-48s concluem normalmente.
 
-- Nenhuma alteração em hooks, API, cache, backend ou lógica de negócio.
-- Sem mudança nos textos/labels dos botões da barra de ações.
-- Sem alteração na página de Configurações do DRE Studio.
+## Pergunta
+
+Confirma que posso **eliminar** o passo "Atualizar cache Senior" da UI (stepper + botão) e deixar só "Atualizar Resultado" (assíncrono, que já faz sync+recálculo)? Ou prefere manter o botão separado só para períodos curtos de 1-2 meses?
