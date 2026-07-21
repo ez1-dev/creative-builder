@@ -556,6 +556,7 @@ export function DrillDrawer({
 
                     {itens.map((r, i) => {
                       const divergeUsuario = r.usuario_origem_difere === true;
+                      const usuarioOrigemDisplay = r.usuario_origem ?? r.usuario ?? "";
                       const tooltipUsuario = divergeUsuario
                         ? `Lote aberto por ${r.usuario_origem ?? "—"}, lançado por ${r.usuario_lancamento ?? "—"}`
                         : "";
@@ -592,14 +593,14 @@ export function DrillDrawer({
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <span className="underline decoration-dotted decoration-amber-600">
-                                    {r.usuario_origem ?? ""}
+                                    {usuarioOrigemDisplay}
                                   </span>
                                 </TooltipTrigger>
                                 <TooltipContent>{tooltipUsuario}</TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
                           ) : (
-                            r.usuario_origem ?? ""
+                            usuarioOrigemDisplay
                           )}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
