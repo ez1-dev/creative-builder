@@ -1,37 +1,35 @@
-## Diagnóstico
+## Problema
 
-- `cesar.moreira@ezortea.com.br` (id `54abd12a-…9e415b`) **não tem** linha em `menu_layout_user` → recebe apenas o `menu_layout_global`.
-- O `menu_layout_global` (última alteração 20/07 17:59) está muito mais enxuto do que o menu que você usa no dia a dia: só 14 itens ocultos e 1 subgrupo custom, sem renames/orders.
-- O "menu novo" que você vê está salvo no **seu** `menu_layout_user` (renato.stank): 9 hidden, 2 subgrupos custom, com renames e orders.
+No modo **Sintético** da visualização da DRE, clicar no chevron (▶) ao lado da classificação não abre a árvore — nenhum filho aparece.
 
-Ou seja: o Cesar não está herdando o menu novo porque ele **nunca esteve no global** — está só no seu perfil.
+## Causa
 
-## Ação (escopo escolhido: só o Cesar)
+Em `src/pages/contabilidade/dre-studio/DreStudioVisualizacaoPage.tsx` (linha 2556), o filtro de renderização exclui **todas** as linhas `tipo_linha === "ANALITICA"` quando `modo === "SINTETICO"` (e o modelo não é Balanço). Como esse filtro é global, o estado de colapso/expansão do pai é ignorado: mesmo com o pai "aberto", os filhos analíticos continuam ocultos, então o clique no chevron não muda nada visível.
 
-Copiar o `layout` de `menu_layout_user` do renato.stank para uma nova linha de `menu_layout_user` do cesar.moreira. Global permanece intacto; nenhum outro usuário é afetado.
+Além disso, o estado inicial de `collapsed` é vazio (tudo "aberto"), então o chevron nasce como ▼ mas sem efeito prático — reforçando a percepção de que "não abre".
 
-SQL a executar via ferramenta de insert:
+## Correção
 
-```sql
-INSERT INTO public.menu_layout_user (user_id, layout, updated_at)
-SELECT
-  '54abd12a-ff67-4c20-90ee-0084ec9e415b'::uuid,
-  layout,
-  now()
-FROM public.menu_layout_user
-WHERE user_id = '5281f658-36d4-4976-9f03-813d84531549'::uuid
-ON CONFLICT (user_id) DO UPDATE
-  SET layout = EXCLUDED.layout,
-      updated_at = EXCLUDED.updated_at;
-```
+Escopo: apenas UI da visualização da DRE. Não altera dados, backend, nem o modo Analítico/Nível 3.
+
+1. **Ajustar o filtro de renderização (linha ~2553-2558)**  
+   Trocar a regra "esconde ANALITICA sempre que modo=SINTETICO" por:  
+   - Se `l.tipo_linha === "ANALITICA"` **e** `modo === "SINTETICO"` **e** o modelo é DRE → mostra somente se o pai imediato estiver expandido (ou seja, `l.linha_pai_id` **não** está em `collapsed` **e** `isHiddenByAncestor(l)` é falso).  
+   - Demais casos continuam iguais.
+   
+   Assim, sintético parte "fechado" e o clique no chevron do pai passa a revelar os analíticos daquele grupo.
+
+2. **Inicializar `collapsed` ao entrar em Sintético**  
+   Adicionar efeito equivalente ao já existente para "ANALITICO" (linhas 1113-1118): quando `modo === "SINTETICO"`, preencher `collapsed` com os IDs de todos os pais que têm filhos `ANALITICA` (via `childrenMap`), e definir `nivelExibido` como o nível-folha mais raso desses pais. Isso garante que a árvore começa recolhida no nível de classificação e o chevron muda de estado a cada clique.
+
+3. **Manter compatibilidade**  
+   - "Expandir tudo" / "Recolher tudo" / seletor de Nível continuam funcionando (já operam sobre `collapsed`/`nivelExibido`).  
+   - Balanço permanece intacto (a nova regra é escopada a `tipoModelo !== "BALANCO"`).  
+   - Linhas especiais, virtuais (VINCULAR/DRE), técnicas e 000 seguem com as regras atuais.
 
 ## Validação
 
-1. `SELECT updated_at, jsonb_array_length(layout->'hidden') FROM menu_layout_user WHERE user_id = '54abd12a-…9e415b';` deve retornar 9 hidden e timestamp de agora.
-2. Pedir ao Cesar para recarregar a aba (ou aguardar — o hook `useMenuLayout` tem realtime em `menu_layout_user` filtrado por `user_id=eq.<id>` e também refaz fetch no `focus`/`visibilitychange`, então costuma atualizar sozinho ao voltar pra aba).
-
-## Observações
-
-- Nenhuma mudança de código. É só uma cópia de dados.
-- Se o Cesar quiser depois personalizar o menu dele, continua funcionando normalmente — o que estamos criando é o *ponto de partida* dele igual ao seu.
-- Se um dia você quiser que **todos** os usuários novos já venham com esse menu, o caminho é publicar seu layout como global (outro plano).
+- Abrir `/contabilidade/dre-studio/:id/visualizacao` em modo Sintético: apenas classificações visíveis, chevron ▶ ao lado.  
+- Clicar no chevron de uma classificação → filhos analíticos aparecem; clicar de novo → recolhe.  
+- Alternar para Analítico → todas as linhas expandidas (comportamento atual preservado).  
+- Balanço: nenhum efeito colateral.
