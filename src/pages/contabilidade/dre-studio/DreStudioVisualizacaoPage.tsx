@@ -546,6 +546,49 @@ function Visualizacao() {
     return temAlgum ? acc : null;
   };
 
+  // Acumulado do ano = soma de TODOS os períodos do snapshot (ignora o filtro
+  // de meses visíveis). Para Balanço, usa o último período disponível.
+  const periodosAnoSnapshot = useMemo(() => {
+    return periodosApi
+      .filter((p) => {
+        const anomes = Number(p);
+        return Number.isFinite(anomes) && Math.floor(anomes / 100) === anoSelecionado;
+      })
+      .slice()
+      .sort((a, b) => Number(a) - Number(b));
+  }, [periodosApi, anoSelecionado]);
+
+  const calcAcumuladoAno = (obj: Record<string, number | null> | undefined): number | null => {
+    if (!periodosAnoSnapshot.length) return null;
+    if (isBalanco) {
+      for (let i = periodosAnoSnapshot.length - 1; i >= 0; i--) {
+        const v = obj?.[periodosAnoSnapshot[i]];
+        if (v !== null && v !== undefined) return Number(v);
+      }
+      return null;
+    }
+    let acc = 0;
+    let temAlgum = false;
+    for (const c of periodosAnoSnapshot) {
+      const v = obj?.[c];
+      if (v === null || v === undefined) continue;
+      acc += Number(v);
+      temAlgum = true;
+    }
+    return temAlgum ? acc : null;
+  };
+
+  // Colunas usadas SOMENTE na renderização da grid — inclui a coluna extra
+  // "Acumulado" ao final. Exportações continuam usando `colunasVisiveis`.
+  const colunasGrid: string[] = useMemo(
+    () => (colunasVisiveis.length > 0 ? [...colunasVisiveis, "ACUMULADO_ANO"] : colunasVisiveis),
+    [colunasVisiveis],
+  );
+  const labelAcumuladoAno = isBalanco ? "Saldo final do ano" : "Acumulado";
+  const tipAcumuladoAno = isBalanco
+    ? "Saldo do último mês do snapshot"
+    : "Soma de todos os meses do snapshot (ignora o filtro de meses)";
+
   // Linha 000 nunca é exibida na grade principal nem na exportação.
   // A pendência real é detectada via endpoint /diagnostico/ctared-zero e
   // mostrada em uma seção separada (PendenciasCtaredZeroPanel).
