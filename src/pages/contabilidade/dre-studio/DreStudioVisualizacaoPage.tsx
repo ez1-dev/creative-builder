@@ -1483,7 +1483,7 @@ function Visualizacao() {
                 </div>
                 <div className="text-xs text-slate-600">
                   {autoRunning
-                    ? `Executando automaticamente · ${autoStep === "vincular" ? "Vinculando contas..." : autoStep === "cache" ? "Atualizando cache Senior..." : "Gerando resultado..."}`
+                    ? `Executando automaticamente · ${autoStep === "vincular" ? "Vinculando contas..." : "Atualizando resultado (sync ERP + recálculo)..."}`
                     : "Rode o processo completo com um clique ou execute cada passo abaixo."}
                 </div>
               </div>
