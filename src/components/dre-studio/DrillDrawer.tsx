@@ -137,6 +137,7 @@ interface RazaoItem {
   origem_codigo?: string | null;
   origem_descricao?: string | null;
   usuario_origem?: string | null;
+  usuario?: string | null;
   usuario_lancamento?: string | null;
   usuario_origem_difere?: boolean;
   saldo_anterior?: number | null;
