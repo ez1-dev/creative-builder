@@ -34,7 +34,6 @@ import {
   useModelo,
   useResultadoPronto,
   useMaterializarResultado,
-  useAtualizarCacheSenior,
   usePeriodosStatus,
 } from "@/hooks/contabil/api";
 import { MaterializacaoDialog } from "@/components/contabil/MaterializacaoDialog";
@@ -81,6 +80,7 @@ interface DreVisFilterPreset {
   modoBalanco?: ModoBalanco;
   dataCorte?: string;
   aplicarRefSenior?: boolean;
+  expandirRE?: boolean;
 }
 
 
@@ -304,6 +304,23 @@ function Visualizacao() {
     try { window.localStorage.setItem(refSeniorStorageKey, String(v)); } catch {}
   };
 
+  // Toggle "Expandir resultado do exercício" — DEVE bater com o valor usado na
+  // materialização, senão o snapshot não é encontrado (SEM_CACHE) e a grade
+  // vem zerada. Default: ligado no Balanço Oficial (MENSAL_E650SAL) para casar
+  // com o snapshot atual sem re-materializar.
+  const expandirREStorageKey = `dre.visualizacao.${id}.expandirRE`;
+  const [expandirRE, setExpandirREState] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    const saved = window.localStorage.getItem(expandirREStorageKey);
+    if (saved === "true") return true;
+    if (saved === "false") return false;
+    return true;
+  });
+  const setExpandirRE = (v: boolean) => {
+    setExpandirREState(v);
+    try { window.localStorage.setItem(expandirREStorageKey, String(v)); } catch {}
+  };
+
 
   // Balanço exige codfil específico — nunca "todas" — para não misturar
   // registros codfil=1 com codfil=null no resultado-cache.
@@ -323,8 +340,10 @@ function Visualizacao() {
   // Aplicar referência Senior só faz sentido no Balanço Oficial (MENSAL_E650SAL).
   const aplicarRefSeniorEfetivo =
     isBalanco && modoBalancoEfetivo === "MENSAL_E650SAL" ? aplicarRefSenior : false;
+  // Expandir resultado do exercício: só entra no payload do Balanço Oficial
+  // (Onde o backend usa o flag). Para DRE/demais modos vai false.
   const expandirREEfetivo =
-    isBalanco && modoBalancoEfetivo === "MENSAL_E650SAL" ? true : false;
+    isBalanco && modoBalancoEfetivo === "MENSAL_E650SAL" ? expandirRE : false;
 
   const filtros = {
     anomes_ini: ini,
@@ -344,7 +363,7 @@ function Visualizacao() {
   const { data: centros } = useCentrosCusto();
   const q = useResultadoPronto(id, filtros, !cccc106SemData && !isConciliacaoSenior);
   const materializar = useMaterializarResultado(id);
-  const atualizarCacheSenior = useAtualizarCacheSenior(id);
+  // atualizarCacheSenior (sync) removido — o botão agora dispara materializar (job assíncrono).
   const [materJobId, setMaterJobId] = useState<string | null>(null);
   const [materOpen, setMaterOpen] = useState(false);
   const vincular = useVincularContasBalancoSenior(id);
@@ -353,7 +372,7 @@ function Visualizacao() {
   // ===== Presets de filtros salvos =====
   const currentPresetFilters: DreVisFilterPreset = {
     anoSelecionado, mesesVisiveis, codccu, codfil, visao,
-    dataIni, dataFim, modoBalanco, dataCorte, aplicarRefSenior,
+    dataIni, dataFim, modoBalanco, dataCorte, aplicarRefSenior, expandirRE,
   };
   const applyPresetFilters = (f: DreVisFilterPreset) => {
     if (f.anoSelecionado != null) setAnoSelecionado(f.anoSelecionado);
@@ -366,6 +385,7 @@ function Visualizacao() {
     if (f.modoBalanco) setModoBalanco(f.modoBalanco);
     if (f.dataCorte != null) setDataCorte(f.dataCorte);
     if (typeof f.aplicarRefSenior === "boolean") setAplicarRefSenior(f.aplicarRefSenior);
+    if (typeof f.expandirRE === "boolean") setExpandirRE(f.expandirRE);
   };
   const presetHook = useFilterPresets<DreVisFilterPreset>(DRE_VIS_PAGE_KEY);
   const [presetsBootstrapped, setPresetsBootstrapped] = useState(false);
@@ -380,7 +400,7 @@ function Visualizacao() {
     if (!presetsBootstrapped) return;
     presetHook.saveLastFilters(currentPresetFilters);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [anoSelecionado, mesesVisiveis, codccu, codfil, visao, dataIni, dataFim, modoBalanco, dataCorte, aplicarRefSenior]);
+  }, [anoSelecionado, mesesVisiveis, codccu, codfil, visao, dataIni, dataFim, modoBalanco, dataCorte, aplicarRefSenior, expandirRE]);
 
 
 
@@ -1660,6 +1680,18 @@ function Visualizacao() {
                 Aplicar referência Senior
               </label>
             )}
+            {modoBalanco === "MENSAL_E650SAL" && (
+              <label
+                className="flex items-center gap-2 text-xs text-slate-700 self-end pb-1"
+                title="Deve bater com o valor usado ao gerar o snapshot. Se ligar/desligar e a grade zerar, clique em Atualizar Resultado."
+              >
+                <Switch
+                  checked={expandirRE}
+                  onCheckedChange={setExpandirRE}
+                />
+                Expandir resultado do exercício
+              </label>
+            )}
           </div>
           {modoBalanco === "CCCC106_E640LCT_ACUMULADO" && (
             <div className="mb-4 flex items-start gap-3 rounded-lg border border-sky-300 bg-sky-50 p-3 text-sm text-sky-900">
@@ -1946,35 +1978,16 @@ function Visualizacao() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={async () => {
-                  try {
-                    await atualizarCacheSenior.mutateAsync({
-                      anomes_ini: ini,
-                      anomes_fim: fim,
-                      codfil: codfilNum,
-                      tipo: tipoModeloPayload,
-                      limpar_periodo: true,
-                      limpar_resultado: true,
-                      modo_balanco: modoBalancoEfetivo,
-                      data_corte: dataCorteEfetiva,
-                      aplicar_referencia_senior: aplicarRefSeniorEfetivo,
-                    });
-                    toast.success("Cache Senior atualizado. Materializando novo snapshot...");
-                    await dispararMaterializacao();
-                  } catch (e) {
-                    toast.error((e as Error)?.message ?? "Falha ao atualizar cache Senior.");
-                  }
-                }}
+                onClick={handleAtualizarCacheSenior}
                 disabled={
                   materializar.isPending ||
-                  atualizarCacheSenior.isPending ||
                   vincular.isPending ||
                   cccc106SemData
                 }
-                title="Limpa cache do período e re-sincroniza saldos do Senior antes de materializar."
+                title="Sincroniza saldos do Senior e materializa novo snapshot (job assíncrono com barra de progresso)."
               >
                 <Database className="h-4 w-4 mr-1.5" />
-                {atualizarCacheSenior.isPending ? "Atualizando..." : "Atualizar cache Senior"}
+                Atualizar cache Senior
               </Button>
             )}
             {tipoModelo === "BALANCO" && (
@@ -2302,11 +2315,49 @@ function Visualizacao() {
               </div>
             );
           })()
+        ) : q.meta?.status === "SEM_CACHE" ? (
+          <div className="p-6 space-y-4">
+            <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+              <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="font-semibold">
+                  Resultado ainda não materializado para estes parâmetros.
+                </div>
+                <div>
+                  Clique em <strong>Atualizar Resultado</strong> (acima) para gerar o snapshot. O
+                  snapshot é chaveado pelos 5 parâmetros abaixo — a leitura só encontra dados quando
+                  a combinação bate exatamente com a usada na materialização.
+                </div>
+                <ul className="text-xs list-disc pl-5 space-y-0.5">
+                  <li><strong>codfil:</strong> {codfilNum}</li>
+                  <li><strong>modo_balanco:</strong> {modoBalancoEfetivo ?? "—"}</li>
+                  <li><strong>fonte_saldo:</strong> E650SAL</li>
+                  <li><strong>aplicar_referencia_senior:</strong> {String(aplicarRefSeniorEfetivo)}</li>
+                  <li><strong>expandir_resultado_exercicio:</strong> {String(expandirREEfetivo)}</li>
+                </ul>
+                {isBalanco && modoBalancoEfetivo === "MENSAL_E650SAL" && (
+                  <div className="text-xs">
+                    Dica: se você já materializou antes, tente alternar o toggle
+                    <strong> Expandir resultado do exercício</strong> — o snapshot existente pode
+                    estar salvo com o valor oposto.
+                  </div>
+                )}
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => dispararMaterializacao()}
+              disabled={materializar.isPending || vincular.isPending}
+            >
+              <Database className="h-4 w-4 mr-1.5" />
+              Atualizar Resultado
+            </Button>
+          </div>
         ) : linhas.length === 0 ? (
           <div className="p-6 text-sm text-slate-600">
             {semContas
               ? "Este modelo ainda não possui contas vinculadas. O recálculo foi executado, mas não há base para calcular valores."
-              : <>Nenhum resultado calculado para este período. Clique em <strong>Atualizar Saldos</strong> e depois <strong>Recalcular Modelo</strong>.</>}
+              : <>Nenhum resultado calculado para este período. Clique em <strong>Atualizar Resultado</strong> para materializar o snapshot.</>}
           </div>
         ) : modo === "NIVEL3" ? (
           <table className="w-full text-sm">
