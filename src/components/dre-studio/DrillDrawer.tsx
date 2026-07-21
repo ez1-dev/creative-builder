@@ -1040,6 +1040,7 @@ export function DrillDrawer({
                       <TableCell></TableCell>
                       <TableCell></TableCell>
                       <TableCell></TableCell>
+                      <TableCell></TableCell>
                       <TableCell>SALDO</TableCell>
                       <TableCell></TableCell>
                       <TableCell></TableCell>
