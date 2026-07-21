@@ -1135,27 +1135,6 @@ export function DrillDrawer({
               );
               return (
               <div className="space-y-3">
-                {detalhe.usuario_origem_difere === true && hasDisplayValue(detalhe.usuario_origem) && (
-                  <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                    <div>
-                      <div className="font-medium">Divergência de usuário</div>
-                      <div>
-                        {fonte === "documento" ? (
-                          <>
-                            Documento emitido por <strong>{usuarioOrigemTxt}</strong>,
-                            lançado por <strong>{usuarioLctoTxt}</strong>.
-                          </>
-                        ) : (
-                          <>
-                            Lote aberto por <strong>{usuarioOrigemTxt}</strong>,
-                            lançado por <strong>{usuarioLctoTxt}</strong>.
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
                 {/* Rastreabilidade da origem */}
                 <div className="rounded-md border bg-muted/20 px-3 py-2 text-xs">
                   <div className="flex items-center justify-between gap-2 mb-1">
