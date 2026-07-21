@@ -2543,8 +2543,10 @@ function Visualizacao() {
                   Conta Contábil
                 </th>
 
-                {colunasVisiveis.map((c) => {
-                  const st = isTotalAnoCol(c) ? undefined : statusByAnomes.get(c);
+                {colunasGrid.map((c) => {
+                  const isAcumAno = isAcumuladoAnoCol(c);
+                  const isAgregado = isTotalAnoCol(c) || isAcumAno;
+                  const st = isAgregado ? undefined : statusByAnomes.get(c);
                   const statusUp = String(st?.status ?? "").toUpperCase();
                   const dotCls =
                     !st
@@ -2555,8 +2557,10 @@ function Visualizacao() {
                           ? "bg-red-500"
                           : "bg-amber-400";
                   const isMesSemCache =
-                    !isTotalAnoCol(c) && !processadosSet.has(String(c));
-                  const tip = isTotalAnoCol(c)
+                    !isAgregado && !processadosSet.has(String(c));
+                  const tip = isAcumAno
+                    ? tipAcumuladoAno
+                    : isTotalAnoCol(c)
                     ? (isBalanco ? "Saldo do último mês visível" : "Soma apenas dos meses selecionados")
                     : [
                         st?.status ? `Cache: ${st.status}` : "Cache: SEM CACHE",
@@ -2565,6 +2569,11 @@ function Visualizacao() {
                         isBalanco && st?.fechamento_ok === true ? "Balanço fechado" : undefined,
                         isBalanco && st?.fechamento_ok === false ? "Balanço divergente" : undefined,
                       ].filter(Boolean).join(" • ");
+                  const labelCol = isAcumAno
+                    ? labelAcumuladoAno
+                    : isTotalAnoCol(c)
+                    ? labelTotalVisivel
+                    : formatAnomes(c);
                   return (
                     <th
                       key={c}
@@ -2572,19 +2581,20 @@ function Visualizacao() {
                         "text-center px-2 py-2 border-l border-b bg-slate-50",
                         visao === "COMP" ? "min-w-[260px]" : "min-w-[120px]",
                         isTotalAnoCol(c) && "bg-slate-100",
+                        isAcumAno && "bg-sky-50 border-l-2 border-l-sky-300",
                         isMesSemCache && "bg-amber-50",
                       )}
                       title={tip}
                     >
                       <div className="flex items-center justify-center gap-1.5">
-                        {!isTotalAnoCol(c) && dotCls && (
+                        {!isAgregado && dotCls && (
                           <span className={cn("inline-block h-2 w-2 rounded-full", dotCls)} aria-hidden />
                         )}
-                        <span>{isTotalAnoCol(c) ? labelTotalVisivel : formatAnomes(c)}</span>
-                        {isBalanco && !isTotalAnoCol(c) && st?.fechamento_ok === true && (
+                        <span className={cn(isAcumAno && "font-semibold text-sky-900")}>{labelCol}</span>
+                        {isBalanco && !isAgregado && st?.fechamento_ok === true && (
                           <span className="text-[10px] text-emerald-700" title="Balanço fechado">✓</span>
                         )}
-                        {isBalanco && !isTotalAnoCol(c) && st?.fechamento_ok === false && (
+                        {isBalanco && !isAgregado && st?.fechamento_ok === false && (
                           <span className="text-[10px] text-red-700" title="Balanço divergente">⚠</span>
                         )}
                       </div>
