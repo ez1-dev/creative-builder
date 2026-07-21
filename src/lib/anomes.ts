@@ -6,6 +6,7 @@ const MESES_PT = [
 export function formatAnomes(col: string | number): string {
   const s = String(col);
   if (s === "TOTAL_ANO") return "Total Anual";
+  if (s === "ACUMULADO_ANO") return "Acumulado";
   if (/^\d{6}$/.test(s)) {
     const ano = s.slice(0, 4);
     const mes = parseInt(s.slice(4, 6), 10);
@@ -16,4 +17,8 @@ export function formatAnomes(col: string | number): string {
 
 export function isTotalAnoCol(col: string): boolean {
   return col === "TOTAL_ANO";
+}
+
+export function isAcumuladoAnoCol(col: string): boolean {
+  return col === "ACUMULADO_ANO";
 }
