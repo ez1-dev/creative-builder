@@ -118,6 +118,86 @@ function ConfiguracoesContabeisPage() {
 }
 
 // ============================================================
+// Modelo padrão (DRE Padrão)
+// ============================================================
+function ModeloPadraoCard() {
+  const modelos = useModelos();
+  const [current, setCurrent] = useState<string>("");
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useMemo(() => {
+    (async () => {
+      try {
+        const mod = await import("@/integrations/supabase/client");
+        const { data } = await mod.supabase
+          .from("app_settings")
+          .select("value")
+          .eq("key", "contabil_dre_modelo_padrao_id")
+          .maybeSingle();
+        const v = (data as any)?.value;
+        if (typeof v === "string") setCurrent(v);
+      } catch { /* ignore */ }
+      setLoaded(true);
+    })();
+    return null;
+  }, []);
+
+  const opcoesDre = ((modelos.data?.itens ?? []) as any[]).filter(
+    (m: any) => (m?.tipo_modelo ?? m?.tipo) === "DRE",
+  );
+
+  async function salvar(v: string) {
+    setSaving(true);
+    try {
+      const mod = await import("@/integrations/supabase/client");
+      await mod.supabase
+        .from("app_settings")
+        .upsert({ key: "contabil_dre_modelo_padrao_id", value: v }, { onConflict: "key" });
+      setCurrent(v);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Modelo DRE padrão</CardTitle>
+        <CardDescription>
+          Modelo utilizado pela página <strong>Contabilidade → DRE Padrão</strong>. A escolha fica gravada
+          nas configurações da aplicação e é lida por todos os usuários.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="min-w-[280px] flex-1">
+            <Label className="text-xs">Modelo (tipo DRE)</Label>
+            <Select
+              value={current || undefined}
+              onValueChange={salvar}
+              disabled={!loaded || saving || modelos.isLoading}
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder={loaded ? "Selecione um modelo" : "Carregando..."} />
+              </SelectTrigger>
+              <SelectContent>
+                {opcoesDre.map((m: any) => (
+                  <SelectItem key={m.id} value={String(m.id)}>
+                    {m.nome ?? m.id}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {saving && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ============================================================
 // Helpers visuais
 // ============================================================
 function fmtDataHora(iso?: string | null): string {
