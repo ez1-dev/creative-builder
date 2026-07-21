@@ -1,73 +1,69 @@
-# Ajustes no Razão (drill-lancamentos) — novo contrato do backend
+## Ajustes finais no Razão (DRE + Balanço) para o novo contrato
 
-Alvo: `src/components/dre-studio/DrillDrawer.tsx` (o arquivo em `src/components/contabil/DrillDrawer.tsx` é reexport, cobre os dois). Também `src/lib/contabil/drillLancamentosApi.ts` (tipos) e `src/hooks/contabil/api.ts` (`useDrillLancamentos` — repassar novos campos).
+O drawer (`src/components/dre-studio/DrillDrawer.tsx`) já consome quase todo o contrato novo: colunas separadas de usuário, destaque `usuario_origem_difere`, tooltip com `documento_origem`, sufixo `(?)` para `ambiguo`, seleção de conta quando `precisa_selecionar_conta === true`, botão "Trocar conta", e o modal já tem seções para documento de origem e "Origem do usuário". Faltam 5 ajustes objetivos para bater 100% com a especificação.
 
-O front já:
-- Manda `modelo_id` + `linha_id` (nunca `clacta=<codigo da linha>`);
-- Suporta `anomes_ini`/`anomes_fim` (todos os meses);
-- Mostra badge/tooltip/AlertTriangle quando `usuario_origem_difere===true`;
-- Renderiza `mov_debito`, `mov_credito`, `saldo_anterior`, `saldo`, `saldo_inicial`/`saldo_final`, `total_debito`/`total_credito`, `truncado`, `qtd_total`/`qtd_exibida`;
-- Respeita `drillavel=false` (DrillsMenu não aparece) e `drills_menu`.
+### 1. Parar de mandar `clacta` na chamada da DRE
 
-Ficam faltando três coisas do novo contrato:
+Hoje o drawer envia `clacta` para o hook quando `args.clacta` chega preenchido, e o hook (`src/hooks/contabil/api.ts`, `useDrillLancamentos`) repassa para a URL. A spec exige que a DRE use **apenas** `modelo_id + linha_id` (e, depois da seleção, `ctared`), nunca junto com `clacta`. Ajuste:
 
-## 1. Distinguir `usuario_origem_fonte` = "documento" vs "lote"
+- Em `DrillDrawer.tsx`, remover o campo `clacta` do payload passado a `useDrillLancamentos`.
+- Continuar exibindo `clacta` só como rótulo no cabeçalho (via `meta.clacta`/`contaEscolhida.clacta`), sem virar parâmetro de consulta.
+- O hook continua aceitando `clacta` para os poucos consumidores legados (drill de grupo), mas o drawer não usa mais.
 
-Regras de destaque na tabela e no modal:
-- `fonte === "documento"` **e** `usuario_origem_difere === true` → é a informação de auditoria útil (VEN/CPR/PAG/REC). Manter badge âmbar + AlertTriangle atuais, mas trocar o tooltip para:
-  *"Documento emitido por **{usuario_origem}** · Lançamento por **{usuario_lancamento}**"*.
-- `fonte === "lote"` → não é divergência de módulo, é fallback (mesma pessoa em ~99% dos casos). Não pintar linha; se `difere===true` (raro, 3/169k), badge azul discreto com tooltip "Lote aberto por … · lançado por …".
-- `fonte === null` ou ausente → comportamento atual (sem destaque).
+### 2. Chip visível "Documento" / "Lote" na coluna Usuário Origem
 
-Ajustar `usuarioOrigemValue`/`usuarioLancamentoValue` para permanecerem como estão; a lógica extra vive no cálculo de `divergeUsuario`.
+Hoje a fonte aparece apenas no tooltip. Spec pede indicador discreto sempre visível. Ajuste:
 
-## 2. Coluna "Usuário Origem" com detalhe do documento
+- Ao lado do nome de `usuario_origem` renderizar um `<span>` pequeno com classes tipo `text-[10px] uppercase tracking-wide` mostrando `Documento`, `Lote` ou nada quando `usuario_origem_fonte` for `null`.
+- Cor neutra (muted) por padrão; âmbar quando `divergeDocumento`; azul quando `divergeLote`.
+- Quando `usuario_origem` for `—`, não mostrar o chip.
 
-Quando `documento_origem` existir na linha, transformar o texto do usuário em um trigger de tooltip com o resumo do documento:
+### 3. Badge "Diferente do lançamento" ao lado do usuário
 
-```
-NFE 20568 — RIZZI & CIA LTDA
-Emitida por kamila.leite
-```
+Além do fundo âmbar/faixa lateral, mostrar um selo textual explícito quando `usuario_origem_difere === true` **e** `usuario_origem_fonte === "documento"` (o único caso com significado operacional). Ex.: `<Badge variant="outline">Diferente do lançamento</Badge>` na mesma célula. Para `fonte === "lote"`, manter apenas o realce discreto atual, sem badge.
 
-Formato do rótulo: `{tipo|serie} {numero} — {parceiro_nome}` (usar `serie` para NFV/NFC quando presente; senão `tipo`; nos títulos TCP/TCR não há série).
+### 4. Aviso de truncamento no rodapé
 
-Se `documento_origem.ambiguo === true`, adicionar sufixo "(?)" e nota no tooltip "Número casou com múltiplos documentos com emissores diferentes — usuário caiu no dono do lote".
+Já existe `q.data.truncado`/`qtd_total`/`qtd_exibida` sendo lidos, mas nada é renderizado. Adicionar no rodapé (`temContratoRazao` block, junto dos totais) uma linha condicional quando `truncado === true`:
 
-No **modal de detalhe** (Dialog "Lançamento N") adicionar seção "Documento de origem" com os campos: tipo/descricao, série, número, parceiro (tipo + código + nome), e badge amarelo quando `ambiguo`. Reaproveitar `documento_origem.numero`/`serie` para preencher o campo "Documento" quando `detalhe.documento` estiver vazio.
+> Exibindo **{qtdExib}** de **{qtdTotal}** lançamentos. Aumente o limite para ver mais.
 
-Também adicionar a linha "Origem do usuário" no modal: "Documento (USUGER)" | "Lote (E640LOT)" | "—".
+Botão "Aumentar limite" continua funcionando com `LIMITE_STEPS` (já existe).
 
-## 3. Passo de seleção de conta (`precisa_selecionar_conta`)
+### 5. Reorganizar o modal como seção "Rastreabilidade"
 
-Novidade estrutural. Hoje o drawer pressupõe conta única. Quando a linha da DRE tem várias contas, o backend responde:
+O `Dialog` do detalhe (`Lançamento {n}`) já tem os campos, mas embaralhados com dados contábeis. Reagrupar em blocos nomeados, sem alterar dados:
 
-```json
-{ "precisa_selecionar_conta": true, "contas": [ { "ctared", "clacta", "descricao", "mov_debito", "mov_credito", "qtd_lancamentos" } ], "itens": [] }
-```
+1. **Cabeçalho** (atual): banner de divergência âmbar quando aplicável.
+2. **Documento de origem** (atual): mantém como está.
+3. **Rastreabilidade** (nova subseção com título): agrupar
+   - Origem do lançamento — `origem_codigo` + `origem_descricao` (usando `labelOrigem`)
+   - Usuário de origem — `usuario_origem`
+   - Fonte do usuário — `Documento (USUGER)` / `Lote (E640LOT)` / `—`
+   - Usuário do lançamento — `usuario_lancamento`
+   - Documento — `detalhe.documento` (fallback para `{tipo|serie} {numero}` do `documento_origem`)
+   - Tipo / Número / Série / Parceiro (só se `documento_origem` presente e ainda não exibido acima)
+   - Campos vazios continuam mostrando `—` via componente `Info`.
+4. **Contábil** (atual): empresa, filial, lote, contas D/C, CCU, valores, histórico permanecem no grid abaixo.
 
-Comportamento novo:
-- Estender `DrillLancamentosResponse` com `precisa_selecionar_conta?: boolean` e `contas?: Array<{ ctared, clacta, descricao, mov_debito, mov_credito, qtd_lancamentos }>`.
-- Adicionar estado local `contaEscolhida: {ctared, clacta, descricao} | null` no DrillDrawer, resetado quando o drawer reabre.
-- No hook `useDrillLancamentos`, incluir `ctared` no `queryKey`/`params` quando `contaEscolhida` estiver setado (já suportado nos params).
-- Enquanto `contaEscolhida` for null **e** a resposta tiver `precisa_selecionar_conta`, renderizar uma tela intermediária: título "Escolha a conta contábil", tabela leve com colunas Conta / Descrição / Débito / Crédito / Nº lançamentos / botão "Abrir razão". Clicar seta `contaEscolhida` → refetch já traz o razão da conta.
-- Quando a linha tem só 1 conta (backend já devolve o razão direto), fluxo atual não muda.
-- Botão "Trocar conta" no cabeçalho quando `contaEscolhida != null`, para voltar à lista.
-- Ajustar tipagem em `drillLancamentosApi.ts` e permitir que o drawer receba/envie `ctared` opcional na consulta.
+### 6. Compat e regras que já estão OK (não mexer)
 
-## 4. Miudezas
+- `usuarioOrigemValue` NÃO faz fallback para `usuario` — mantém.
+- `usuarioLancamentoValue` faz `usuario_lancamento ?? usuario` — permitido pela spec (item 12).
+- Não recalcular saldos: rodapé lê `total_debito`, `total_credito`, `saldo_final` do backend — mantém.
+- Nenhum join/dedução no front — mantém.
+- Sem alterações em `dreMatrizApi.ts`, `drillDreApi.ts`, `drillsMenu.ts`, hooks do stepper ou navegação.
 
-- Confirmar labels `IOD` (Integração) e `IMP` (Importação) já em `ORIGEM_LABELS` — ok.
-- Ajustar cabeçalho da coluna "Usuário Origem": tooltip atual fica; adicionar linha explicando que documento_origem alimenta o valor quando fonte=documento.
-- Excel: incluir colunas "Doc. Origem" (`{tipo} {numero}`) e "Emissor" (`documento_origem.parceiro_nome`) só quando pelo menos uma linha tiver `documento_origem`.
-- Manter compat: se backend antigo ainda não mandar `usuario_origem_fonte`/`documento_origem`, todos os novos comportamentos são no-ops.
+### Arquivos alterados
 
-## Arquivos a alterar
+- `src/components/dre-studio/DrillDrawer.tsx` — itens 1 (remover `clacta` do payload do hook), 2 (chip de fonte), 3 (badge de divergência), 4 (linha de truncamento no rodapé), 5 (agrupar seção Rastreabilidade no modal).
+- Nenhuma alteração em `src/hooks/contabil/api.ts` nem em `src/lib/contabil/drillLancamentosApi.ts` — o hook já suporta `precisa_selecionar_conta`, `contas`, `qtd_total`, `qtd_exibida` e `truncado`.
 
-- `src/lib/contabil/drillLancamentosApi.ts` — expandir `DrillLancamentoItem` (`usuario_origem_fonte`, `documento_origem`, `lado`, `conta_debito/credito` como objeto) e `DrillLancamentosResponse` (`precisa_selecionar_conta`, `contas`, `meta.descricao_conta`).
-- `src/hooks/contabil/api.ts` — nenhum ajuste no `useDrillLancamentos` além de garantir que `ctared` continue sendo passado quando fornecido.
-- `src/components/dre-studio/DrillDrawer.tsx` — 3 blocos: passo "seleção de conta", coluna/tooltip "Usuário Origem" c/ documento, modal com seção "Documento de origem".
+### Critérios de aceite (validação após reinício da API)
 
-Nada muda no menu de drills (`DrillsMenu`), na matriz (`dreMatrizApi`) ou no drill agregado (`drillDreApi`) — o backend já entrega `drills_menu`/`drillavel` e o front respeita.
-
-Sem alteração em cores, layout global ou fluxo do Stepper. Só ajuste de apresentação e um novo passo de escolha de conta no drawer.
+- VEN / CPR / PAG / REC: `Usuário Origem` mostra o usuário do documento com chip **Documento**; badge "Diferente do lançamento" quando `usuario_origem_difere`.
+- EST / MAN: `Usuário Origem` mostra o que vier (usuário do lote ou vazio) com chip **Lote** ou `—`; sem inferência no front.
+- Documentos com `ambiguo: true` mostram sufixo `(?)` e tooltip explicativo.
+- Chamada da DRE: URL nunca contém `clacta`; só `modelo_id + linha_id` (e `ctared` depois da seleção).
+- Rodapé mostra "Exibindo X de Y" quando `truncado === true`.
+- Modal exibe seção **Rastreabilidade** com todos os campos e `—` para vazios.
