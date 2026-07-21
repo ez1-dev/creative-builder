@@ -556,6 +556,68 @@ export function DrillDrawer({
             <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
               Erro ao carregar Razão: {(q.error as Error)?.message}
             </div>
+          ) : precisaSelecionarConta ? (
+            <div className="space-y-3">
+              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                <div className="font-medium">Escolha a conta contábil</div>
+                <div className="text-xs text-muted-foreground">
+                  Esta linha tem {contasCandidatas.length} contas vinculadas. Selecione uma para abrir o razão.
+                </div>
+              </div>
+              <div className="overflow-x-auto rounded border">
+                <Table className="text-xs">
+                  <TableHeader className="bg-primary sticky top-0 z-10">
+                    <TableRow className="hover:bg-primary">
+                      <TableHead className="text-primary-foreground">Conta reduzida</TableHead>
+                      <TableHead className="text-primary-foreground">Classificação</TableHead>
+                      <TableHead className="text-primary-foreground">Descrição</TableHead>
+                      <TableHead className="text-primary-foreground text-right">Mov. Débito</TableHead>
+                      <TableHead className="text-primary-foreground text-right">Mov. Crédito</TableHead>
+                      <TableHead className="text-primary-foreground text-right">Nº lçtos</TableHead>
+                      <TableHead className="text-primary-foreground"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {contasCandidatas.map((c, i) => (
+                      <TableRow
+                        key={`${c.ctared}-${i}`}
+                        className={cn(i % 2 === 1 && "bg-muted/20", "cursor-pointer hover:bg-accent/40")}
+                        onClick={() => setContaEscolhida(c)}
+                      >
+                        <TableCell className="tabular-nums">{String(c.ctared)}</TableCell>
+                        <TableCell className="whitespace-nowrap">{c.clacta ?? ""}</TableCell>
+                        <TableCell className="max-w-[320px] truncate" title={c.descricao ?? ""}>
+                          {c.descricao ?? ""}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {cellNum(c.mov_debito, { zeroBlank: true })}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {cellNum(c.mov_credito, { zeroBlank: true })}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {c.qtd_lancamentos ?? ""}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setContaEscolhida(c);
+                            }}
+                          >
+                            Abrir razão
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+
           ) : !temContratoRazao ? (
             <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-xs text-amber-900 space-y-2">
               <div className="font-medium text-sm">
