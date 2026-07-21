@@ -222,11 +222,13 @@ export function DrillDrawer({
   const [limite, setLimite] = useState<number>(500);
   const [detalhe, setDetalhe] = useState<RazaoItem | null>(null);
   const [expandido, setExpandido] = useState(false);
+  const [contaEscolhida, setContaEscolhida] = useState<ContaOpcao | null>(null);
 
   useEffect(() => {
     if (open) {
       setLimite(500);
       setDetalhe(null);
+      setContaEscolhida(null);
     }
   }, [open, args?.linhaId, args?.ctared]);
 
@@ -245,6 +247,14 @@ export function DrillDrawer({
     args?.anomes_fim != null;
   const usaMes = args?.anomes != null;
 
+  // Prioridade do ctared enviado ao backend: conta escolhida no picker > args.ctared.
+  const ctaredEfetivo =
+    contaEscolhida?.ctared != null
+      ? contaEscolhida.ctared
+      : hasCtared
+        ? args?.ctared
+        : undefined;
+
   const q = useDrillLancamentos(
     args && hasDrillContext && (usaMes || usaRange)
       ? {
@@ -255,7 +265,7 @@ export function DrillDrawer({
           anomes: usaMes ? args.anomes : undefined,
           anomes_ini: usaRange ? args.anomes_ini : undefined,
           anomes_fim: usaRange ? args.anomes_fim : undefined,
-          ctared: hasCtared ? args.ctared : undefined,
+          ctared: ctaredEfetivo,
           clacta: hasClacta ? args.clacta : undefined,
           codccu: args.codccu ?? null,
           limite,
@@ -263,6 +273,7 @@ export function DrillDrawer({
       : null,
     open,
   );
+
 
   const itens: RazaoItem[] = useMemo(() => {
     const data = q.data as (typeof q.data & {
