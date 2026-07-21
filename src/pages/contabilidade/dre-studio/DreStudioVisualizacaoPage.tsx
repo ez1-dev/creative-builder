@@ -2909,7 +2909,7 @@ function Visualizacao() {
                 );
               })}
               {linhas.length === 0 && (
-                <tr><td colSpan={colunasVisiveis.length + 3} className="text-center text-slate-500 py-10">
+                <tr><td colSpan={colunasGrid.length + 3} className="text-center text-slate-500 py-10">
 
                   Sem dados. Verifique o período ou monte a estrutura primeiro.
                 </td></tr>
