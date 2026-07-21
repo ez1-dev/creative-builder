@@ -1117,6 +1117,23 @@ function Visualizacao() {
     }
   }, [modo]);
 
+  // Ao entrar em SINTETICO na DRE, começa com todos os pais de linhas
+  // ANALITICAS recolhidos, para que o chevron passe a ter efeito visível
+  // (clicar expande os analíticos daquele grupo).
+  useEffect(() => {
+    if (modo !== "SINTETICO") return;
+    if (isBalanco) return;
+    const next = new Set<string>();
+    for (const l of linhas) {
+      if (l.tipo_linha === "ANALITICA" && l.linha_pai_id) {
+        next.add(l.linha_pai_id);
+      }
+    }
+    setCollapsed(next);
+    setNivelExibido("todos");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modo, isBalanco, linhas]);
+
   const semAnaliticas = useMemo(
     () => linhas.length > 0 && linhas.every((l) => l.tipo_linha !== "ANALITICA"),
     [linhas],
