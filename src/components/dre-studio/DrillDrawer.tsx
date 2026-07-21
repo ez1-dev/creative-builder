@@ -1048,6 +1048,34 @@ export function DrillDrawer({
                     )}
                   </div>
                 )}
+                <div className="rounded-md border bg-muted/20 px-3 py-2 text-xs">
+                  <div className="font-medium mb-1">Rastreabilidade</div>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                    <Info
+                      label="Origem do lançamento"
+                      value={
+                        detalhe.origem_codigo
+                          ? `${toDisplay(detalhe.origem_codigo)} — ${labelOrigem(detalhe.origem_codigo as string, detalhe.origem_descricao)}`
+                          : ""
+                      }
+                    />
+                    <Info label="Documento" value={documentoTxt} />
+                    <Info label="Usuário de origem" value={usuarioOrigemValue(detalhe, "—")} />
+                    <Info label="Fonte do usuário" value={fonteLabel} />
+                    <Info label="Usuário do lançamento" value={usuarioLancamentoValue(detalhe, "—")} />
+                    {doc && (
+                      <>
+                        <Info label="Tipo do documento" value={doc.descricao ?? doc.tipo ?? ""} />
+                        <Info label="Número" value={docNumero} />
+                        <Info label="Série" value={doc.serie ?? ""} />
+                        <Info
+                          label={doc.parceiro_tipo === "fornecedor" ? "Fornecedor" : doc.parceiro_tipo === "cliente" ? "Cliente" : "Parceiro"}
+                          value={doc.parceiro_nome ? `${doc.parceiro_codigo ?? ""} ${doc.parceiro_nome}`.trim() : ""}
+                        />
+                      </>
+                    )}
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-3 text-xs">
                 <Info label="Empresa" value={detalhe.codemp} />
                 <Info label="Filial" value={detalhe.codfil} />
@@ -1085,11 +1113,6 @@ export function DrillDrawer({
                     </ul>
                   </div>
                 )}
-                <Info label="Documento" value={documentoTxt} />
-                <Info label="Origem" value={detalhe.origem_codigo ? `${toDisplay(detalhe.origem_codigo)} - ${labelOrigem(detalhe.origem_codigo as string, detalhe.origem_descricao)}` : ""} />
-                <Info label="Usuário origem" value={usuarioOrigemValue(detalhe, "—")} />
-                <Info label="Origem do usuário" value={fonteLabel} />
-                <Info label="Usuário lançamento" value={usuarioLancamentoValue(detalhe, "—")} />
                 <Info
                   label="Valor integral"
                   value={detalhe.valor_integral != null ? fmtBRL(Number(detalhe.valor_integral)) : ""}
@@ -1103,6 +1126,7 @@ export function DrillDrawer({
                   <div className="mt-0.5">{detalhe.historico ?? ""}</div>
                 </div>
               </div>
+
               </div>
               );
             })()}
