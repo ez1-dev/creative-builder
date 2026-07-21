@@ -141,6 +141,17 @@ function fmtPeriodoBR(iniISO?: string | null, fimISO?: string | null): string {
   return `${fmtDataBR(iniISO) || "—"} a ${fmtDataBR(fimISO) || "—"}`;
 }
 
+interface DocumentoOrigem {
+  tipo?: string | null;
+  descricao?: string | null;
+  numero?: string | number | null;
+  serie?: string | null;
+  parceiro_tipo?: string | null;
+  parceiro_codigo?: string | number | null;
+  parceiro_nome?: string | null;
+  ambiguo?: boolean | null;
+}
+
 interface RazaoItem {
   lancamento?: number | string | null;
   lote?: number | string | null;
@@ -156,6 +167,8 @@ interface RazaoItem {
   usuario?: string | null;
   usuario_lancamento?: string | null;
   usuario_origem_difere?: boolean;
+  usuario_origem_fonte?: "documento" | "lote" | string | null;
+  documento_origem?: DocumentoOrigem | null;
   saldo_anterior?: number | null;
   mov_debito?: number | null;
   mov_credito?: number | null;
@@ -172,8 +185,30 @@ interface RazaoItem {
   valor_integral?: number | null;
   valor_rateado?: number | null;
   debcre?: string | null;
+  lado?: string | null;
   [k: string]: any;
 }
+
+interface ContaOpcao {
+  ctared: number | string;
+  clacta?: string | null;
+  descricao?: string | null;
+  mov_debito?: number | null;
+  mov_credito?: number | null;
+  qtd_lancamentos?: number | null;
+}
+
+/** Formata `documento_origem` como "NFE 20568 — RIZZI & CIA LTDA". */
+function labelDocumentoOrigem(doc?: DocumentoOrigem | null): string {
+  if (!doc) return "";
+  const head = String(doc.serie ?? doc.tipo ?? "").trim();
+  const num = doc.numero != null && String(doc.numero).trim() !== "" ? String(doc.numero) : "";
+  const parceiro = String(doc.parceiro_nome ?? "").trim();
+  const esq = [head, num].filter(Boolean).join(" ");
+  const parts = [esq, parceiro].filter(Boolean);
+  return parts.join(" — ");
+}
+
 
 export function DrillDrawer({
   open,
