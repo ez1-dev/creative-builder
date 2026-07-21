@@ -1,29 +1,76 @@
-## Remover alertas de divergência de usuário no Razão
+# Plano — Transação do documento no modal do Razão
 
-Hoje, quando o backend marca `usuario_origem_difere=true`, a UI mostra:
+Alteração puramente de apresentação em **`src/components/dre-studio/DrillDrawer.tsx`**. Sem mudança no backend, sem consulta ao ERP, sem parsing do histórico.
 
-1. Linha do grid pintada de âmbar (`!bg-amber-100/60`) com barra lateral âmbar.
-2. Badge "Diferente do lançamento" ao lado do usuário de origem.
-3. Ícone `AlertTriangle` âmbar na célula do usuário de lançamento, com sublinhado pontilhado e tooltip.
-4. Caixa de alerta "Divergência de usuário — Documento emitido por X, lançado por Y" no topo do modal de detalhe.
-5. Chip amarelo "DIFERE" no cabeçalho da seção "Rastreabilidade da origem" (linhas ~1097/1194) e o texto explicativo âmbar da linha 1264.
+## 1. Tipagem (interface `DocumentoOrigem`)
 
-O usuário quer o Razão limpo: sem realce amarelo, sem ícones de alerta e sem a mensagem "Divergência de usuário".
+Adicionar o campo opcional:
 
-### Mudanças em `src/components/dre-studio/DrillDrawer.tsx`
+```ts
+transacao?: {
+  codigo?: string | null;
+  descricao?: string | null;
+  multiplas?: Array<{ codigo?: string | null; descricao?: string | null }> | null;
+} | null;
+```
 
-- Remover as classes de destaque âmbar/sky da `TableRow` (linhas 847–848), mantendo apenas o zebrado (`i % 2 === 1 && "bg-muted/20"`) e hover padrão.
-- Remover o sublinhado, o `AlertTriangle` e o Tooltip da célula "Usuário Lcto." (linhas 1004–1029): exibir sempre `usuarioLancamentoDisplay` como texto simples.
-- Remover o badge "Diferente do lançamento" (linhas 983–987).
-- Remover a caixa "Divergência de usuário" no modal (linhas 1168–~1180).
-- Remover o chip âmbar "DIFERE" no header do modal (linhas 1097–1099) e o chip equivalente na seção Rastreabilidade (linha 1194).
-- Remover o texto âmbar explicativo (linha 1264) que descreve a divergência.
-- Manter os campos "Usuário Origem" e "Usuário Lcto." exibidos normalmente (sem cor/aviso) — a informação continua visível, sem destaque.
-- Manter o chip "Vários documentos" (ambiguo) — não é sobre divergência de usuário, é sobre múltiplos documentos casarem por número; útil e não é o que o usuário pediu para remover. (Confirmar se deve manter — vou manter por padrão; se quiser remover também, avise.)
-- Remover import `AlertTriangle` de `lucide-react` se ficar sem uso.
+Leitura defensiva — se `documento_origem?.transacao` vier ausente/null, comportamento atual permanece.
 
-### Fora do escopo
+## 2. Componente `TransacaoOrigemField`
 
-- Contrato do endpoint drill-lancamentos (o campo `usuario_origem_difere` continua sendo recebido, apenas não afeta mais o visual).
-- Export Excel (não usa realce visual).
-- Outros indicadores da grid (badge Documento/Lote, chip Vários documentos, badge Rateio).
+Novo componente local no mesmo arquivo, seguindo o design system (usar `Tooltip` do shadcn já importado):
+
+- `multiplas.length > 1` → renderiza `Várias (N)` com `Tooltip` listando todas no formato `codigo — descricao` (uma por linha).
+- Caso único → `codigo — descricao` (join com `— `, filtrando vazios). Se só código: `codigo`. Se só descrição: `descricao`.
+- Sem transação → `—`.
+- Nunca escolhe apenas a primeira transação; nunca oculta multiplicidade.
+
+## 3. Renderização no modal
+
+No bloco **Documento/Movimento** (linhas ~1184-1210), inserir logo após `Série` (antes de Cliente/Fornecedor):
+
+```tsx
+{doc?.transacao && (
+  <Info
+    label="Transação"
+    value={<TransacaoOrigemField transacao={doc.transacao} />}
+  />
+)}
+```
+
+`Info` hoje aceita `value: string`. Ajuste mínimo: permitir `ReactNode` para acomodar o tooltip de múltiplas transações (mantém compatibilidade com todas as chamadas existentes).
+
+Também garantir que `temMovimento` considere `doc.transacao` como sinal de movimento presente, para casos em que só há transação sem número.
+
+Observação: a linha **Transação** existente acima (linha 1157, derivada de `transacao_origem` do lançamento contábil) permanece inalterada — refere-se à transação da E085LAN e não é substituída pela transação do documento.
+
+## 4. Exportação Excel (`exportarExcel`)
+
+- Adicionar coluna **"Transação"** ao `header` (após "Origem", antes de "Usuário Origem" para manter proximidade da origem do documento).
+- Para cada linha, montar valor a partir de `r.documento_origem?.transacao`:
+  - Única: `codigo - descricao` (join `-`).
+  - Múltiplas: `cod1 - desc1; cod2 - desc2` (nunca exportar apenas `Várias (N)`).
+  - Ausente: `""`.
+- Ajustar `!isDRE` blocks (linhas SALDO INICIAL/FINAL) para preservar o número de colunas (adicionar `""` na posição correspondente).
+- Incluir "Transação" na regra de largura (`wch: 28`).
+
+## 5. Casos de validação
+
+- NFE 20567 → `5101S — Venda de Prod Estab C/SUSPENSAO-REIDI`
+- NFE 20582 → `6101 — Venda de Produção do Estabelecimento`
+- Múltiplas TNS → `Várias (N)` com lista completa no tooltip.
+
+## Fora de escopo
+
+- Backend `/api/contabil/drill-lancamentos` (o campo já é retornado).
+- Grid de lançamentos do drawer (apenas modal + export, conforme prompt).
+- Busca global na grid (o projeto não tem busca textual global no drawer hoje; se necessário depois, avaliar em nova iteração).
+
+## Critérios de aceite
+
+- Modal exibe linha "Transação" no bloco Documento/Movimento.
+- Transação única mostra `código — descrição`.
+- Múltiplas mostram `Várias (N)` + lista completa acessível via tooltip.
+- Exportação Excel inclui coluna "Transação" com todas as transações em caso múltiplo.
+- Nenhum outro campo do modal ou da grid é alterado.
+- Nenhuma alteração no backend.

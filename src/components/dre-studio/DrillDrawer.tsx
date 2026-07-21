@@ -141,6 +141,12 @@ function fmtPeriodoBR(iniISO?: string | null, fimISO?: string | null): string {
   return `${fmtDataBR(iniISO) || "—"} a ${fmtDataBR(fimISO) || "—"}`;
 }
 
+interface TransacaoDocumentoOrigem {
+  codigo?: string | null;
+  descricao?: string | null;
+  multiplas?: Array<{ codigo?: string | null; descricao?: string | null }> | null;
+}
+
 interface DocumentoOrigem {
   tipo?: string | null;
   descricao?: string | null;
@@ -157,6 +163,57 @@ interface DocumentoOrigem {
   bem?: string | null;
   data_movimento?: string | null;
   sequencia_movimento?: number | string | null;
+  transacao?: TransacaoDocumentoOrigem | null;
+}
+
+function formatarTransacaoUnica(t?: TransacaoDocumentoOrigem | null): string {
+  if (!t) return "";
+  return [t.codigo, t.descricao]
+    .map((p) => (p == null ? "" : String(p).trim()))
+    .filter(Boolean)
+    .join(" — ");
+}
+
+function transacaoDocumentoExport(t?: TransacaoDocumentoOrigem | null): string {
+  if (!t) return "";
+  const multi = Array.isArray(t.multiplas) ? t.multiplas : [];
+  if (multi.length > 1) {
+    return multi
+      .map((m) => [m?.codigo, m?.descricao].map((p) => (p == null ? "" : String(p).trim())).filter(Boolean).join(" - "))
+      .filter(Boolean)
+      .join("; ");
+  }
+  return [t.codigo, t.descricao]
+    .map((p) => (p == null ? "" : String(p).trim()))
+    .filter(Boolean)
+    .join(" - ");
+}
+
+function TransacaoOrigemField({ transacao }: { transacao?: TransacaoDocumentoOrigem | null }) {
+  if (!transacao) return <span>—</span>;
+  const multi = Array.isArray(transacao.multiplas) ? transacao.multiplas : [];
+  if (multi.length > 1) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="underline decoration-dotted cursor-help">Várias ({multi.length})</span>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-sm text-[11px] space-y-0.5">
+            {multi.map((m, idx) => {
+              const label = [m?.codigo, m?.descricao]
+                .map((p) => (p == null ? "" : String(p).trim()))
+                .filter(Boolean)
+                .join(" — ");
+              return <div key={`${m?.codigo ?? "sem-codigo"}-${idx}`}>{label || "—"}</div>;
+            })}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+  const label = formatarTransacaoUnica(transacao);
+  return <span>{label || "—"}</span>;
 }
 
 function numeroDocumentoValido(numero: string | number | null | undefined): boolean {
@@ -441,7 +498,7 @@ export function DrillDrawer({
     };
     const header = [
       "Lançamento", "Data", "Ctared", "Classificação", "Conta", "Observação",
-      "Origem Cód.", "Origem", "Usuário Origem", "Usuário Lcto.",
+      "Origem Cód.", "Origem", "Transação", "Usuário Origem", "Usuário Lcto.",
       ...(!isDRE ? ["Saldo Anterior"] : []),
       "Mov. Débito", "Mov. Crédito", "Saldo",
       "Centro de Custo", "Fonte do Centro de Custo",
@@ -449,7 +506,7 @@ export function DrillDrawer({
     const rows: any[][] = [];
     if (!isDRE) {
       rows.push([
-        "", fmtDataBR(dataIniISO), "", "", "SALDO INICIAL", "", "", "", "", "",
+        "", fmtDataBR(dataIniISO), "", "", "SALDO INICIAL", "", "", "", "", "", "",
         num(saldoInicial), null, null, num(saldoInicial), "", "",
       ]);
     }
@@ -458,6 +515,7 @@ export function DrillDrawer({
       const ccExport = cc.temMultiplos
         ? cc.itemsFormatted.join("; ")
         : [cc.codigo, cc.descricao].filter(Boolean).join(" - ");
+      const transacaoDocExport = transacaoDocumentoExport((r as any).documento_origem?.transacao);
       rows.push([
         r.lancamento ?? "",
         fmtDataBR(r.data),
@@ -467,6 +525,7 @@ export function DrillDrawer({
         r.observacao ?? r.historico ?? "",
         r.origem_codigo ?? "",
         labelOrigem(r.origem_codigo, r.origem_descricao),
+        transacaoDocExport,
         usuarioOrigemValue(r),
         usuarioLancamentoValue(r),
         ...(!isDRE ? [num(r.saldo_anterior)] : []),
@@ -478,7 +537,7 @@ export function DrillDrawer({
       ]);
     }
     rows.push([
-      "", fmtDataBR(dataFimISO), "", "", "SALDO FINAL", "", "", "", "", "",
+      "", fmtDataBR(dataFimISO), "", "", "SALDO FINAL", "", "", "", "", "", "",
       ...(!isDRE ? [null] : []),
       num(totalDebito), num(totalCredito), num(saldoFinal), "", "",
     ]);
@@ -509,8 +568,8 @@ export function DrillDrawer({
       }
     }
     ws["!cols"] = header.map((h) =>
-      ["Observação", "Conta", "Origem", "Centro de Custo"].includes(h) ? { wch: 32 } :
-      ["Usuário Origem", "Usuário Lcto.", "Classificação", "Fonte do Centro de Custo"].includes(h) ? { wch: 22 } :
+     ["Observação", "Conta", "Origem", "Centro de Custo", "Transação"].includes(h) ? { wch: 32 } :
+     ["Usuário Origem", "Usuário Lcto.", "Classificação", "Fonte do Centro de Custo"].includes(h) ? { wch: 22 } :
       h.startsWith("Mov.") || h === "Saldo" || h === "Saldo Anterior" ? { wch: 16 } :
       { wch: 12 }
     );
@@ -1131,7 +1190,8 @@ export function DrillDrawer({
                     doc.deposito ||
                     doc.bem ||
                     doc.data_movimento ||
-                    doc.sequencia_movimento != null),
+                    doc.sequencia_movimento != null ||
+                    (doc.transacao && (doc.transacao.codigo || doc.transacao.descricao || (Array.isArray(doc.transacao.multiplas) && doc.transacao.multiplas.length > 0)))),
               );
               return (
               <div className="space-y-3">
@@ -1189,6 +1249,9 @@ export function DrillDrawer({
                         {(doc?.descricao || doc?.tipo) && <Info label="Tipo" value={doc?.descricao ?? doc?.tipo ?? ""} />}
                         {numValido && <Info label="Número" value={docNumero} />}
                         {doc?.serie && <Info label="Série" value={doc.serie} />}
+                        {doc?.transacao && (doc.transacao.codigo || doc.transacao.descricao || (Array.isArray(doc.transacao.multiplas) && doc.transacao.multiplas.length > 0)) && (
+                          <Info label="Transação" value={<TransacaoOrigemField transacao={doc.transacao} />} />
+                        )}
                         {doc?.parceiro_nome && (
                           <Info
                             label={doc.parceiro_tipo === "fornecedor" ? "Fornecedor" : doc.parceiro_tipo === "cliente" ? "Cliente" : "Parceiro"}
@@ -1327,11 +1390,13 @@ function ResumoCard({
 }
 
 function Info({ label, value, strong }: { label: string; value: any; strong?: boolean }) {
+  const isEmpty = value == null || value === "";
+  const isNode = value !== null && typeof value === "object" && "props" in (value as any);
   return (
     <div>
       <div className="text-muted-foreground">{label}</div>
       <div className={cn("mt-0.5", strong && "font-semibold")}>
-        {value != null && value !== "" ? String(value) : "—"}
+        {isEmpty ? "—" : isNode ? value : String(value)}
       </div>
     </div>
   );
