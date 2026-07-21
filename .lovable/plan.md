@@ -1,69 +1,93 @@
-## Ajustes finais no Razão (DRE + Balanço) para o novo contrato
+## Razão Contábil — adotar o contrato completo de rastreabilidade
 
-O drawer (`src/components/dre-studio/DrillDrawer.tsx`) já consome quase todo o contrato novo: colunas separadas de usuário, destaque `usuario_origem_difere`, tooltip com `documento_origem`, sufixo `(?)` para `ambiguo`, seleção de conta quando `precisa_selecionar_conta === true`, botão "Trocar conta", e o modal já tem seções para documento de origem e "Origem do usuário". Faltam 5 ajustes objetivos para bater 100% com a especificação.
+Atualizar `src/components/dre-studio/DrillDrawer.tsx` (única superfície do Razão; `src/components/contabil/DrillDrawer.tsx` só re-exporta) e a tipagem em `src/lib/contabil/drillLancamentosApi.ts` para consumir os novos campos do endpoint `GET /api/contabil/drill-lancamentos`, sem alterar hooks nem lógica de saldos.
 
-### 1. Parar de mandar `clacta` na chamada da DRE
+### 1. Tipagem (`drillLancamentosApi.ts` + interfaces locais do drawer)
 
-Hoje o drawer envia `clacta` para o hook quando `args.clacta` chega preenchido, e o hook (`src/hooks/contabil/api.ts`, `useDrillLancamentos`) repassa para a URL. A spec exige que a DRE use **apenas** `modelo_id + linha_id` (e, depois da seleção, `ctared`), nunca junto com `clacta`. Ajuste:
+Estender `DrillLancamentoItem` e `DrillLancamentoDocumentoOrigem` com os campos novos, todos opcionais e defensivos:
 
-- Em `DrillDrawer.tsx`, remover o campo `clacta` do payload passado a `useDrillLancamentos`.
-- Continuar exibindo `clacta` só como rótulo no cabeçalho (via `meta.clacta`/`contaEscolhida.clacta`), sem virar parâmetro de consulta.
-- O hook continua aceitando `clacta` para os poucos consumidores legados (drill de grupo), mas o drawer não usa mais.
+- `usuario_origem_codigo?: string | number | null`
+- `usuario_origem_status?: string | null`
+- `usuario_origem_fonte_tabela?: string | null`
+- `usuario_lancamento_codigo?: string | number | null`
+- `transacao_origem?: string | null`
+- `transacao_origem_codigo?: string | number | null`
+- `transacao_origem_descricao?: string | null`
 
-### 2. Chip visível "Documento" / "Lote" na coluna Usuário Origem
+Em `DocumentoOrigem`, adicionar: `fonte_tabela`, `produto`, `derivacao`, `deposito`, `bem`, `data_movimento`, `sequencia_movimento`.
 
-Hoje a fonte aparece apenas no tooltip. Spec pede indicador discreto sempre visível. Ajuste:
+Nada muda em `fetchDrillLancamentos` nem no hook.
 
-- Ao lado do nome de `usuario_origem` renderizar um `<span>` pequeno com classes tipo `text-[10px] uppercase tracking-wide` mostrando `Documento`, `Lote` ou nada quando `usuario_origem_fonte` for `null`.
-- Cor neutra (muted) por padrão; âmbar quando `divergeDocumento`; azul quando `divergeLote`.
-- Quando `usuario_origem` for `—`, não mostrar o chip.
+### 2. Regras de leitura (defensivas, sem inferência)
 
-### 3. Badge "Diferente do lançamento" ao lado do usuário
+Centralizar helpers no drawer:
 
-Além do fundo âmbar/faixa lateral, mostrar um selo textual explícito quando `usuario_origem_difere === true` **e** `usuario_origem_fonte === "documento"` (o único caso com significado operacional). Ex.: `<Badge variant="outline">Diferente do lançamento</Badge>` na mesma célula. Para `fonte === "lote"`, manter apenas o realce discreto atual, sem badge.
+```ts
+const usuarioOrigem      = item.usuario_origem ?? null;                       // sem fallback
+const usuarioLancamento  = item.usuario_lancamento ?? item.usuario ?? null;   // fallback legado permitido
+const usuarioOrigemDifere = item.usuario_origem_difere ?? null;               // null = não comparável
+const documentoOrigem    = item.documento_origem ?? null;
+const transacaoOrigem    =
+  item.transacao_origem ??
+  [item.transacao_origem_codigo, item.transacao_origem_descricao].filter(Boolean).join(" - ") ||
+  null;
+```
 
-### 4. Aviso de truncamento no rodapé
+`numeroValido` do `documento_origem.numero` rejeita `null`, `""` e `"0"` (movimentos de estoque).
 
-Já existe `q.data.truncado`/`qtd_total`/`qtd_exibida` sendo lidos, mas nada é renderizado. Adicionar no rodapé (`temContratoRazao` block, junto dos totais) uma linha condicional quando `truncado === true`:
+### 3. Tabela do Razão
 
-> Exibindo **{qtdExib}** de **{qtdTotal}** lançamentos. Aumente o limite para ver mais.
+- Manter colunas independentes **Usuário Origem** e **Usuário Lcto.** (sem copiar uma na outra).
+- Chip da fonte junto ao Usuário Origem:
+  - `documento` → badge "Documento" (muted; âmbar se `usuario_origem_difere === true`).
+  - `lote` → badge "Lote" (tom azul discreto).
+  - `null` → sem chip; célula mostra `—`.
+- Badge "Diferente do lançamento" só quando `usuario_origem_difere === true` **e** `usuario_origem_fonte === "documento"`.
+- Quando `documento_origem.ambiguo === true`, badge "Vários documentos" com tooltip explicando que o backend não escolheu arbitrariamente.
+- Nenhuma nova linha é gerada a partir de `documento_origem`; contagem/renderização continua sendo 1:1 com `response.itens`.
+- Nada muda em saldo/mov: continua lendo `saldo_anterior`, `mov_debito`, `mov_credito`, `saldo`, `saldo_inicial`, `saldo_final`, `total_debito`, `total_credito` do backend.
 
-Botão "Aumentar limite" continua funcionando com `LIMITE_STEPS` (já existe).
+### 4. Modal "Rastreabilidade da origem"
 
-### 5. Reorganizar o modal como seção "Rastreabilidade"
+Substituir/renomear a seção Rastreabilidade existente do modal de detalhe para:
 
-O `Dialog` do detalhe (`Lançamento {n}`) já tem os campos, mas embaralhados com dados contábeis. Reagrupar em blocos nomeados, sem alterar dados:
+- **Origem** — `origem_codigo` + `labelOrigem(...)` (`origem_descricao` fallback).
+- **Documento/Movimento** — resumo textual de `documento_origem`:
+  - Se `numeroValido`: `tipo/serie numero — parceiro_nome` (formato atual `labelDocumentoOrigem`).
+  - Se não válido: montar a partir de campos específicos por origem (Produto, Derivação, Depósito, Bem, Data do movimento, Sequência); campos ausentes ficam ocultos (não mostrar `Documento 0`).
+  - Tipo/Descrição, Número (quando válido), Série, Parceiro (tipo/código/nome) continuam como linhas Info abaixo.
+  - Badge "Vários documentos" no cabeçalho da seção quando `ambiguo === true`.
+- **Usuário Origem** — `usuario_origem` (+ `usuario_origem_codigo` entre parênteses, se houver).
+- **Fonte do Usuário** — legenda amigável: `Documento` / `Lote` / `—`; abaixo, em texto pequeno, `usuario_origem_fonte_tabela` quando fornecido (ex.: `E644LES → E210MVP.USURES`).
+- **Status da resolução** — `usuario_origem_status` quando presente.
+- **Usuário Lcto.** — `usuario_lancamento` (+ `usuario_lancamento_codigo` entre parênteses).
+- **Transação** — `transacaoOrigem` calculada; oculta quando ausente.
 
-1. **Cabeçalho** (atual): banner de divergência âmbar quando aplicável.
-2. **Documento de origem** (atual): mantém como está.
-3. **Rastreabilidade** (nova subseção com título): agrupar
-   - Origem do lançamento — `origem_codigo` + `origem_descricao` (usando `labelOrigem`)
-   - Usuário de origem — `usuario_origem`
-   - Fonte do usuário — `Documento (USUGER)` / `Lote (E640LOT)` / `—`
-   - Usuário do lançamento — `usuario_lancamento`
-   - Documento — `detalhe.documento` (fallback para `{tipo|serie} {numero}` do `documento_origem`)
-   - Tipo / Número / Série / Parceiro (só se `documento_origem` presente e ainda não exibido acima)
-   - Campos vazios continuam mostrando `—` via componente `Info`.
-4. **Contábil** (atual): empresa, filial, lote, contas D/C, CCU, valores, histórico permanecem no grid abaixo.
+Bloco Contábil (empresa/filial/lote/contas D-C/CCU/valores/histórico) permanece como está.
 
-### 6. Compat e regras que já estão OK (não mexer)
+### 5. Chamada do endpoint
 
-- `usuarioOrigemValue` NÃO faz fallback para `usuario` — mantém.
-- `usuarioLancamentoValue` faz `usuario_lancamento ?? usuario` — permitido pela spec (item 12).
-- Não recalcular saldos: rodapé lê `total_debito`, `total_credito`, `saldo_final` do backend — mantém.
-- Nenhum join/dedução no front — mantém.
-- Sem alterações em `dreMatrizApi.ts`, `drillDreApi.ts`, `drillsMenu.ts`, hooks do stepper ou navegação.
+Não mudar: o drawer já envia `modelo_id + linha_id` (+ `ctared` após seleção da conta) e não envia `clacta`. Sem CPLLCT, sem joins no frontend, sem consultas a tabelas Senior.
+
+### 6. Compat e não-regressões
+
+- `usuarioOrigemValue` continua sem fallback para `usuario_lancamento`/`usuario`.
+- Exportação Excel continua com as duas colunas atuais (Usuário Origem, Usuário Lcto.); nenhuma coluna nova por enquanto.
+- Nenhum recálculo de saldo, nenhuma expansão por documento, nenhuma dedup.
+- Aviso de truncamento e botão "Aumentar limite" continuam como estão.
 
 ### Arquivos alterados
 
-- `src/components/dre-studio/DrillDrawer.tsx` — itens 1 (remover `clacta` do payload do hook), 2 (chip de fonte), 3 (badge de divergência), 4 (linha de truncamento no rodapé), 5 (agrupar seção Rastreabilidade no modal).
-- Nenhuma alteração em `src/hooks/contabil/api.ts` nem em `src/lib/contabil/drillLancamentosApi.ts` — o hook já suporta `precisa_selecionar_conta`, `contas`, `qtd_total`, `qtd_exibida` e `truncado`.
+- `src/lib/contabil/drillLancamentosApi.ts` — novos campos opcionais em `DrillLancamentoItem` e `DrillLancamentoDocumentoOrigem`.
+- `src/components/dre-studio/DrillDrawer.tsx` — chips de fonte, badge de ambiguidade, seção "Rastreabilidade da origem" reformulada, exibição de transação, tratamento de `numero === 0` no documento, código do usuário no modal, status/fonte_tabela quando presentes.
 
-### Critérios de aceite (validação após reinício da API)
+### Critérios de aceite (após restart da API porta 8070)
 
-- VEN / CPR / PAG / REC: `Usuário Origem` mostra o usuário do documento com chip **Documento**; badge "Diferente do lançamento" quando `usuario_origem_difere`.
-- EST / MAN: `Usuário Origem` mostra o que vier (usuário do lote ou vazio) com chip **Lote** ou `—`; sem inferência no front.
-- Documentos com `ambiguo: true` mostram sufixo `(?)` e tooltip explicativo.
-- Chamada da DRE: URL nunca contém `clacta`; só `modelo_id + linha_id` (e `ctared` depois da seleção).
-- Rodapé mostra "Exibindo X de Y" quando `truncado === true`.
-- Modal exibe seção **Rastreabilidade** com todos os campos e `—` para vazios.
+- VEN/CPR/PAG/REC/PAT/EST/TES exibem `Usuário Origem` quando o backend envia; MAN/VRB/IOD/IMP podem mostrar `Lote` ou `—` sem inferência.
+- Colunas Usuário Origem e Usuário Lcto. nunca compartilham valor por fallback.
+- `documento_origem.numero === 0` nunca renderiza como "Documento 0" — cai no bloco de movimento (produto/derivação/depósito/data).
+- `ambiguo === true` mostra badge "Vários documentos" na linha e no modal.
+- `usuario_origem_difere === true` só destaca quando a fonte é `documento`.
+- URL da DRE nunca contém `clacta`; só `modelo_id + linha_id` (e `ctared` após seleção).
+- Nenhuma linha do Razão é duplicada por documento; totais e saldos batem exatamente com o payload.
+- Frontend não parseia CPLLCT nem consulta tabelas do Senior.
