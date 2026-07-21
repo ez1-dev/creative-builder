@@ -226,11 +226,11 @@ interface ContaOpcao {
   qtd_lancamentos?: number | null;
 }
 
-/** Formata `documento_origem` como "NFE 20568 — RIZZI & CIA LTDA". */
+/** Formata `documento_origem` como "NFE 20568 — RIZZI & CIA LTDA". Ignora número 0/vazio. */
 function labelDocumentoOrigem(doc?: DocumentoOrigem | null): string {
   if (!doc) return "";
   const head = String(doc.serie ?? doc.tipo ?? "").trim();
-  const num = doc.numero != null && String(doc.numero).trim() !== "" ? String(doc.numero) : "";
+  const num = numeroDocumentoValido(doc.numero) ? String(doc.numero) : "";
   const parceiro = String(doc.parceiro_nome ?? "").trim();
   const esq = [head, num].filter(Boolean).join(" ");
   const parts = [esq, parceiro].filter(Boolean);
