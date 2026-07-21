@@ -76,6 +76,7 @@ export const TOP_MENUS: TopMenu[] = [
           { title: 'Conciliação EDocs', url: '/conciliacao-edocs', icon: Landmark },
           { title: 'Contas a Pagar', url: '/contas-pagar', icon: Landmark },
           { title: 'Contas a Receber', url: '/contas-receber', icon: Landmark },
+          { title: 'DRE Padrão', url: '/contabilidade/dre-padrao', icon: Landmark },
           { title: 'Balanço Patrimonial', url: '/contabilidade/balanco', icon: Landmark },
           { title: 'DRE Studio — Visão Geral', url: '/contabilidade/dre-studio', icon: Landmark },
           { title: 'DRE Studio — Novo Modelo', url: '/contabilidade/dre-studio/novo', icon: Landmark },
