@@ -290,7 +290,7 @@ export function DrillDrawer({
         r.conta_descricao ?? "",
         r.observacao ?? r.historico ?? "",
         r.origem_codigo ?? "",
-        r.origem_descricao ?? "",
+        labelOrigem(r.origem_codigo, r.origem_descricao),
         r.usuario_origem ?? "",
         r.usuario_lancamento ?? "",
         ...(!isDRE ? [num(r.saldo_anterior)] : []),
