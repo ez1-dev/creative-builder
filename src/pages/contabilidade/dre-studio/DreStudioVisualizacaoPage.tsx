@@ -1423,7 +1423,7 @@ function Visualizacao() {
         const mostrarStepper = semContas || semCache;
         if (!mostrarStepper) return null;
 
-        const passoAtual = semContas ? 1 : semCache ? 3 : 4;
+        const passoAtual = semContas ? 1 : semCache ? 2 : 3;
         const feito = (n: number) => n < passoAtual;
         const atual = (n: number) => n === passoAtual;
 
@@ -1451,20 +1451,9 @@ function Visualizacao() {
           },
           {
             num: 2,
-            titulo: "Atualizar cache Senior",
-            desc: "Traz os saldos mais recentes do ERP para o período selecionado.",
-            botao: atualizarCacheSenior.isPending ? "Atualizando..." : "Atualizar cache Senior",
-            icone: <Database className="h-4 w-4" />,
-            onClick: handleAtualizarCacheSenior,
-            disabled: atualizarCacheSenior.isPending || semContas,
-            loading: atualizarCacheSenior.isPending,
-            mostrar: isBalanco,
-          },
-          {
-            num: 3,
-            titulo: "Gerar resultado",
-            desc: "Materializa o snapshot da DRE/Balanço para consulta rápida.",
-            botao: materializar.isPending ? "Gerando..." : "Gerar resultado",
+            titulo: "Atualizar Resultado",
+            desc: "Sincroniza saldos do ERP + recalcula + materializa o snapshot. Roda em segundo plano (job com progresso) — pode levar de 30s a 1 min.",
+            botao: materializar.isPending ? "Iniciando..." : "Atualizar Resultado",
             icone: <PlayCircle className="h-4 w-4" />,
             onClick: handleGerarResultado,
             disabled: materializar.isPending || semContas,
@@ -1472,7 +1461,7 @@ function Visualizacao() {
             mostrar: true,
           },
           {
-            num: 4,
+            num: 3,
             titulo: "Conferir e exportar",
             desc: "Use Exportar, Histórico ou Editar estrutura conforme necessidade.",
             botao: "Ver ações",
@@ -1480,6 +1469,7 @@ function Visualizacao() {
             mostrar: true,
           },
         ].filter((p) => p.mostrar);
+
 
         return (
           <div className="mb-4 rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4 shadow-sm">
