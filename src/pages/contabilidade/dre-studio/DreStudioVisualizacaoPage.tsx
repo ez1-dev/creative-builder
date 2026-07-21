@@ -2126,7 +2126,7 @@ function Visualizacao(props: VisualizacaoProps = {}) {
                 Atualizar cache Senior
               </Button>
             )}
-            {tipoModelo === "BALANCO" && (
+            {tipoModelo === "BALANCO" && !modoBloqueado && (
               <Button
                 size="sm"
                 variant="outline"
