@@ -556,8 +556,10 @@ function Visualizacao() {
   // Colunas usadas SOMENTE na renderização da grid — inclui a coluna extra
   // "Acumulado" ao final. Exportações continuam usando `colunasVisiveis`.
   const colunasGrid: string[] = useMemo(
-    () => (colunasVisiveis.length > 0 ? [...colunasVisiveis, "ACUMULADO_ANO"] : colunasVisiveis),
-    [colunasVisiveis],
+    () => (!isBalanco && colunasVisiveis.length > 0
+      ? [...colunasVisiveis, "ACUMULADO_ANO"]
+      : colunasVisiveis),
+    [colunasVisiveis, isBalanco],
   );
   const labelAcumuladoAno = isBalanco ? "Saldo final do período" : "Acumulado";
   const tipAcumuladoAno = isBalanco
