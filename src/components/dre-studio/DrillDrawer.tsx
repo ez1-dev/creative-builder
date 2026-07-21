@@ -1331,7 +1331,18 @@ export function DrillDrawer({
                 />
                 <div className="col-span-2">
                   <div className="text-muted-foreground">Histórico</div>
-                  <div className="mt-0.5">{detalhe.historico ?? ""}</div>
+                  {(() => {
+                    const transacao = transacaoOrigemLabel(detalhe);
+                    return transacao ? (
+                      <div className="mt-0.5 text-xs">
+                        <span className="text-muted-foreground">Transação: </span>
+                        <span className="font-medium">{transacao}</span>
+                      </div>
+                    ) : null;
+                  })()}
+                  <div className="mt-1 max-h-32 overflow-y-auto rounded-md border bg-muted/30 p-2 text-sm whitespace-pre-wrap break-words">
+                    {detalhe.historico?.trim() ? detalhe.historico : "—"}
+                  </div>
                 </div>
               </div>
 
