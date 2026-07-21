@@ -317,9 +317,26 @@ export function DrillDrawer({
     (usaMes ? anomesToISO(args?.anomes, true) : anomesToISO(args?.anomes_fim, true));
 
   const contaDescricao =
-    meta?.descricao_conta ?? args?.contaDescricao ?? args?.linhaDescricao ?? "";
-  const clacta = meta?.clacta ?? (args?.clacta ?? null);
-  const ctaredNum = meta?.ctared ?? (hasCtared ? Number(args?.ctared) : null);
+    meta?.descricao_conta ??
+    contaEscolhida?.descricao ??
+    args?.contaDescricao ??
+    args?.linhaDescricao ??
+    "";
+  const clacta = meta?.clacta ?? contaEscolhida?.clacta ?? (args?.clacta ?? null);
+  const ctaredNum =
+    meta?.ctared ??
+    (contaEscolhida?.ctared != null ? Number(contaEscolhida.ctared) : null) ??
+    (hasCtared ? Number(args?.ctared) : null);
+
+  // Novo passo: backend pediu para o usuário escolher a conta (linha da DRE tem várias).
+  const precisaSelecionarConta =
+    q.data?.precisa_selecionar_conta === true &&
+    Array.isArray(q.data?.contas) &&
+    (q.data?.contas?.length ?? 0) > 0 &&
+    contaEscolhida == null;
+  const contasCandidatas: ContaOpcao[] = Array.isArray(q.data?.contas)
+    ? (q.data!.contas as ContaOpcao[])
+    : [];
 
   const proximoLimite = LIMITE_STEPS.find((n) => n > limite) ?? null;
 
