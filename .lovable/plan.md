@@ -1,99 +1,52 @@
-# Plano — DRE Padrão (Contabilidade)
+## Diagnóstico
 
-Objetivo: criar `/contabilidade/dre-padrao` como visão bloqueada (somente consulta + drill + export) do modelo DRE oficial, reutilizando integralmente o que já existe em `src/pages/contabilidade/dre-studio/DreStudioVisualizacaoPage.tsx` e componentes de `src/components/contabil` / `src/components/dre-studio`.
+O item "DRE Padrão" **existe no `menuCatalog.ts`** (subgrupo `erp-financeiro`) e a rota `/contabilidade/dre-padrao` está registrada. O motivo de não aparecer na sidebar do usuário RENATO (e do Cesar) é o **layout personalizado** salvo em `public.menu_layout_user`:
 
-Nenhuma lógica de cálculo, sinal, hierarquia ou drill será reimplementada — apenas encapsulada.
+- Todos os itens originais do subgrupo "Financeiro e Contábil" (`Conciliação EDocs`, `Balanço`, `DRE Studio — Visão Geral`, `DRE Studio — Novo Modelo`, etc.) foram **movidos** para um subgrupo customizado `custom:sub:mrt75hhvp3evt3` dentro do topo `erp`.
+- O novo item `/contabilidade/dre-padrao` **não tem entrada em `moves`**, então continua sob o subgrupo base `Financeiro e Contábil` — que o usuário abandonou / não abre mais.
 
-## 1. Configuração do modelo padrão
+Verificação (dados reais do Cloud):
+- `layout.moves` do RENATO inclui `/contabilidade/balanco`, `/contabilidade/dre-studio`, `/contabilidade/dre-studio/novo` → todos apontando para `topId:"erp"`, `subGroupId:"custom:sub:mrt75hhvp3evt3"`.
+- Não há `moves["/contabilidade/dre-padrao"]`.
+- `orders["erp:erp-financeiro"]` lista os antigos + `/auditoria-tributaria`, mas não o novo item.
 
-- Hoje o modelo oficial vive hardcoded em `src/lib/contabilConfig.ts` (`MODELO_DRE_OFICIAL_ID`).
-- Persistir a escolha em `public.app_settings` (tabela já usada em todo o projeto) com a chave `contabil_dre_modelo_padrao_id` (valor = UUID do modelo).
-- Criar hook `useDreModeloPadrao()` em `src/hooks/contabil/useDreModeloPadrao.ts`:
-  1. Se backend expuser `GET /api/contabil/configuracao?codemp=1`, usa a resposta (`dre_modelo_padrao_id` + `dre_modelo_padrao`).
-  2. Fallback: lê `app_settings` (`contabil_dre_modelo_padrao_id`).
-  3. Fallback final: constante `MODELO_DRE_OFICIAL_ID` (para não quebrar).
-- Escrita da configuração fica na tela existente `Contabilidade → Configurações` (`DreStudioConfiguracoesPage.tsx`): adicionar um combo "Modelo DRE padrão" listando modelos DRE ativos (via `fetchDreModelos`) e gravando em `app_settings` (mesmo padrão de upsert já usado na página).
+## Correção
 
-## 2. Rota e menu
+Migração one-shot no Cloud: para todos os `menu_layout_user` que já movem `/contabilidade/dre-studio` para algum subgrupo customizado, replicar o mesmo destino para `/contabilidade/dre-padrao` e anexá-lo à ordem daquele subgrupo (logo após `/contabilidade/balanco`, se existir). Mesma coisa para `menu_layout_global`.
 
-- Nova rota `/contabilidade/dre-padrao` em `src/App.tsx` (ou onde o router principal registra as rotas de contabilidade), renderizando `DrePadraoPage`.
-- Adicionar item no `src/config/menuCatalog.ts`, subgrupo `erp-financeiro`, antes de "DRE Studio — Visão Geral":
-  ```
-  { title: 'DRE Padrão', url: '/contabilidade/dre-padrao', icon: Landmark }
-  ```
-- Título "DRE Padrão", subtítulo "Demonstração do Resultado do Exercício".
+Pseudo-SQL:
 
-## 3. Página e componentização
+```text
+update menu_layout_user set layout = jsonb_set(...)
+  where layout->'moves'->'/contabilidade/dre-studio' is not null
+    and layout->'moves'->'/contabilidade/dre-padrao' is null;
+```
 
-Estratégia: extrair o miolo da `DreStudioVisualizacaoPage.tsx` num componente reutilizável e apresentar dois consumidores (Studio e Padrão) sem duplicar lógica.
+Passos:
+1. Ler cada linha alvo (`user_id`, `layout`).
+2. Em `layout.moves`, adicionar `"/contabilidade/dre-padrao": {topId, subGroupId}` copiando de `moves["/contabilidade/dre-studio"]`.
+3. Em `layout.orders["<topId>:<subGroupId>"]`, inserir `"/contabilidade/dre-padrao"` logo após `"/contabilidade/balanco"` (ou no início se este não estiver na lista).
+4. Persistir via `UPDATE`.
 
-- Criar `src/components/dre-studio/DreVisualizacaoView.tsx` com props:
-  ```
-  { modeloId: string; modeloNome?: string;
-    modoBloqueado?: boolean;         // esconde ações de edição
-    permiteConfigurar?: boolean;     // exibe botão "Configurar modelo"
-    onConfigurar?: () => void;
-    tituloOverride?: string;
-    subtituloOverride?: string; }
-  ```
-  Esse componente contém tudo que hoje está na `DreStudioVisualizacaoPage` (filtros, KPIs, matriz, drills, Razão, exportações, materialização assíncrona, auto-execução, etc.). É um refactor por *extract component*, não uma reimplementação: a página atual passa a chamar `<DreVisualizacaoView modeloId={id} />` sem `modoBloqueado`.
-- Criar `src/pages/contabilidade/dre-padrao/DrePadraoPage.tsx`:
-  - Usa `useDreModeloPadrao()` para obter `modeloId`.
-  - Estados especiais (renderiza mensagens amigáveis conforme requisito 20):
-    - Modelo não configurado → CTA "Definir modelo padrão" (só admin) para `/contabilidade/dre-studio/configuracoes`.
-    - Modelo inativo → mensagem correspondente.
-    - Erros de API preservam filtros (já é assim no view extraído).
-  - Passa `modoBloqueado`, `permiteConfigurar={isAdmin && has('DRE_MODELOS_CONFIGURAR')}`, `onConfigurar={() => navigate('/contabilidade/dre-studio/modelos/' + modeloId)}`.
+Feito isso, a DRE Padrão aparece no mesmo lugar onde os usuários já veem DRE Studio / Balanço, sem precisar mexer em Personalizar Menus.
 
-## 4. Modo bloqueado no `DreVisualizacaoView`
+## Prevenção (opcional, pequeno ajuste de código)
 
-Quando `modoBloqueado`, esconder/desativar apenas botões de edição (criar linha, editar, vincular contas, excluir, materializar-com-recalculo forçado do modelo etc.). Ações mantidas: filtros, expandir/recolher, drill (menu completo), Razão, "Atualizar dados" (materialização), exportações, tela cheia, "Configurar modelo" (quando permitido).
+Em `src/hooks/useMenuLayout.tsx > applyLayout`, quando um leaf **novo** entra em um subgrupo base cujos irmãos foram todos movidos para o mesmo destino, seguir o destino majoritário. Isso evita novos itens caírem em um subgrupo "esvaziado" para usuários que personalizaram o menu.
 
-Nada muda no backend nem no cálculo — apenas visibilidade dos controles.
+Regra:
+- Para cada subgrupo base, se ≥ 60% dos itens tem `moves[url]` apontando para o mesmo `{topId, subGroupId}`, e o item corrente não tem `moves`, aplicar esse destino como fallback.
 
-## 5. Filtros / KPIs / matriz / drills / Razão
+Este item é opcional — o passo 1 já resolve o incidente atual.
 
-Todos reutilizados sem alterações:
-- Filtros: empresa/filial/ano/mes_ini/mes_fim/unidade_negocio/codccu/visualização (já existentes no view). "Unidade de Negócio" segue tolerante (defensivo) até o backend consolidar.
-- Chamada: `fetchDreMatriz` em `src/lib/contabil/dreMatrizApi.ts` já usa `modelo_id`, `codemp/codfil` implícitos no client, `anomes_ini/fim`, `unidade`. Nada novo.
-- KPIs: leitura por `codigo_linha`/`codigo` semântico (já implementado); cards ausentes ficam ocultos.
-- Drills: usam `linha.drills` + `linha.drillavel` + `meta.modelo_id` + `linha.linha_id` (já é o contrato atual).
-- Razão: reaproveitar `DrillDrawer.tsx` como está — inclui documento, transação, centro de custo, usuários origem/lcto., modal de detalhe.
+## Arquivos / operações
 
-## 6. Exportações
+- `menu_layout_user` — UPDATEs por usuário afetado (ao menos RENATO e Cesar).
+- `menu_layout_global` — mesmo tratamento se `moves["/contabilidade/dre-studio"]` estiver presente.
+- (Opcional) `src/hooks/useMenuLayout.tsx` — heurística de "seguir irmãos movidos" para itens novos.
 
-Reaproveitar `ExportActions` já embutido no view (Excel/PDF/Imprimir). Cabeçalho já contempla empresa/filial/período/modelo/data — só ajustar o título para "DRE Padrão" quando `tituloOverride` estiver presente.
+## Critérios de aceite
 
-## 7. Permissões
-
-- Ler flags do `PermissionsContext`. Se ainda não existirem, adicionar 4 constantes lógicas no lado do frontend (usadas em `hasPermission`):
-  `DRE_PADRAO_VISUALIZAR`, `DRE_PADRAO_DRILL`, `DRE_PADRAO_EXPORTAR`, `DRE_MODELOS_CONFIGURAR`.
-- Guard na rota: sem `DRE_PADRAO_VISUALIZAR` → redirect / mensagem de acesso negado (padrão do projeto).
-- Botão "Configurar modelo" e ações de edição só aparecem com `DRE_MODELOS_CONFIGURAR`.
-
-## 8. Critérios de aceite
-
-- Rota `/contabilidade/dre-padrao` operacional; item de menu em Contabilidade.
-- Abre automaticamente o modelo definido em `app_settings` (ou endpoint de configuração quando existir).
-- Matriz, KPIs, drills, Razão, exportações, materialização e auto-execução idênticos aos da DRE Studio (porque é o mesmo componente).
-- Nenhuma edição de modelo/linhas/contas na página. Admin vê botão "Configurar modelo" que abre a tela do modelo em Modelos.
-- Nenhum UUID de modelo fixo em componentes novos.
-- Zero duplicação de cálculo/SQL — a página é uma casca sobre o motor existente.
-
-## Detalhes técnicos
-
-Arquivos que serão criados/alterados:
-
-Criados
-- `src/hooks/contabil/useDreModeloPadrao.ts`
-- `src/pages/contabilidade/dre-padrao/DrePadraoPage.tsx`
-- `src/components/dre-studio/DreVisualizacaoView.tsx` (extração do miolo da página existente)
-
-Alterados
-- `src/pages/contabilidade/dre-studio/DreStudioVisualizacaoPage.tsx` — passa a delegar para `DreVisualizacaoView`.
-- `src/config/menuCatalog.ts` — novo item "DRE Padrão".
-- `src/App.tsx` (router) — nova rota.
-- `src/pages/contabilidade/dre-studio/DreStudioConfiguracoesPage.tsx` — combo "Modelo DRE padrão" gravando em `app_settings`.
-- (Opcional) `src/lib/contabilConfig.ts` — manter `MODELO_DRE_OFICIAL_ID` só como fallback.
-
-Sem migrações de banco (usa `app_settings` já existente). Sem novos endpoints obrigatórios — o `GET /api/contabil/configuracao` é opcional; o frontend degrada para `app_settings` + fallback constante.
+- Após a migração, RENATO e Cesar veem "DRE Padrão" no mesmo subgrupo onde já enxergam "Balanço Patrimonial" e "DRE Studio — Visão Geral".
+- Nenhum item existente muda de posição.
+- Realtime do `menu_layout_user` propaga a mudança sem exigir refresh manual.
