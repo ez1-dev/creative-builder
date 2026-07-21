@@ -1681,6 +1681,18 @@ function Visualizacao() {
                 Aplicar referência Senior
               </label>
             )}
+            {modoBalanco === "MENSAL_E650SAL" && (
+              <label
+                className="flex items-center gap-2 text-xs text-slate-700 self-end pb-1"
+                title="Deve bater com o valor usado ao gerar o snapshot. Se ligar/desligar e a grade zerar, clique em Atualizar Resultado."
+              >
+                <Switch
+                  checked={expandirRE}
+                  onCheckedChange={setExpandirRE}
+                />
+                Expandir resultado do exercício
+              </label>
+            )}
           </div>
           {modoBalanco === "CCCC106_E640LCT_ACUMULADO" && (
             <div className="mb-4 flex items-start gap-3 rounded-lg border border-sky-300 bg-sky-50 p-3 text-sm text-sky-900">
