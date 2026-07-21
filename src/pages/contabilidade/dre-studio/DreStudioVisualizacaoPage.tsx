@@ -1897,15 +1897,28 @@ function Visualizacao() {
 
       {/* === CONTEXTO === Ano · Filial · Centro · Visão · Modelo */}
       <div className="rounded-xl border bg-white shadow-sm mb-3">
-        <div className="flex items-center justify-between px-4 py-2 border-b bg-slate-50/60 rounded-t-xl">
-          <span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Contexto</span>
-          <span className="text-xs text-slate-600 truncate max-w-[60%] text-right">
-            <span className="inline-flex items-center rounded-md bg-slate-900 text-white px-2 py-0.5 text-[10px] font-semibold mr-2">
+        <button
+          type="button"
+          onClick={() => setContextoOpen((v) => !v)}
+          className={`flex w-full items-center justify-between px-4 py-2 bg-slate-50/60 rounded-t-xl hover:bg-slate-100 text-left ${contextoOpen ? "border-b" : ""}`}
+        >
+          <span className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
+            {contextoOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            Contexto
+          </span>
+          <span className="text-xs text-slate-600 truncate max-w-[75%] text-right flex items-center justify-end gap-2">
+            {!contextoOpen && (
+              <span className="text-slate-600 truncate">
+                {anoSelecionado} · {codfil === "todas" ? "Todas filiais" : (filiais.find(f => String(f.codfil) === codfil)?.nome ?? `Filial ${codfil}`)} · {codccu === "todos" ? "Todos CC" : codccu} · {visao === "REAL" ? "Realizado" : visao === "ORC" ? "Orçado" : visao === "VARV" ? "Variação R$" : visao === "VARP" ? "Variação %" : "Comparativo"}
+              </span>
+            )}
+            <span className="inline-flex items-center rounded-md bg-slate-900 text-white px-2 py-0.5 text-[10px] font-semibold">
               {modelo?.modelo?.tipo_modelo}
             </span>
-            {modelo?.modelo?.nome}
+            <span className="truncate max-w-[220px]">{modelo?.modelo?.nome}</span>
           </span>
-        </div>
+        </button>
+        {contextoOpen && (
         <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <label className="text-[11px] uppercase tracking-wide text-slate-500 font-medium block mb-1">Ano</label>
