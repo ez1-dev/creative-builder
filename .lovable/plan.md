@@ -1,35 +1,31 @@
-## Problema
+## Objetivo
 
-No modo **Sintético** da visualização da DRE, clicar no chevron (▶) ao lado da classificação não abre a árvore — nenhum filho aparece.
+Adicionar uma coluna extra ao final da grid da DRE — **"Acumulado ano"** — ao lado da coluna existente "Total visível". Ela soma **todos os períodos mensais do snapshot** (ignora o filtro de meses visíveis).
 
-## Causa
+Escopo: apenas a grid da tela de visualização (`DreStudioVisualizacaoPage.tsx`). Não altera backend, exportação, ou modo Nível 3/Balanço nesta iteração.
 
-Em `src/pages/contabilidade/dre-studio/DreStudioVisualizacaoPage.tsx` (linha 2556), o filtro de renderização exclui **todas** as linhas `tipo_linha === "ANALITICA"` quando `modo === "SINTETICO"` (e o modelo não é Balanço). Como esse filtro é global, o estado de colapso/expansão do pai é ignorado: mesmo com o pai "aberto", os filhos analíticos continuam ocultos, então o clique no chevron não muda nada visível.
+## Alterações
 
-Além disso, o estado inicial de `collapsed` é vazio (tudo "aberto"), então o chevron nasce como ▼ mas sem efeito prático — reforçando a percepção de que "não abre".
+1. **Helper de rótulo** (`src/lib/anomes.ts`)  
+   Adicionar `isAcumuladoAnoCol(col)` e reconhecer `"ACUMULADO_ANO"` em `formatAnomes` → retorna `"Acumulado"`.
 
-## Correção
+2. **Estado derivado** (`DreStudioVisualizacaoPage.tsx`)  
+   - `calcAcumuladoAno(obj)`: soma `obj[c]` para todo `c ∈ periodosMensais` (variável já derivada na linha 449 a partir de `q.data.periodos`), ignorando null.  
+   - `colunasGrid = [...colunas, "ACUMULADO_ANO"]` usado somente na renderização.
 
-Escopo: apenas UI da visualização da DRE. Não altera dados, backend, nem o modo Analítico/Nível 3.
+3. **Cabeçalho `<thead>`** (linha ~2508)  
+   Iterar sobre `colunasGrid`. Para a coluna `ACUMULADO_ANO`: label "Acumulado", `title="Soma de todos os meses do ano no snapshot"`, mesmo destaque visual do TOTAL_ANO (`bg-slate-100`).
 
-1. **Ajustar o filtro de renderização (linha ~2553-2558)**  
-   Trocar a regra "esconde ANALITICA sempre que modo=SINTETICO" por:  
-   - Se `l.tipo_linha === "ANALITICA"` **e** `modo === "SINTETICO"` **e** o modelo é DRE → mostra somente se o pai imediato estiver expandido (ou seja, `l.linha_pai_id` **não** está em `collapsed` **e** `isHiddenByAncestor(l)` é falso).  
-   - Demais casos continuam iguais.
-   
-   Assim, sintético parte "fechado" e o clique no chevron do pai passa a revelar os analíticos daquele grupo.
+4. **Renderização das células**  
+   - `renderSingleCell` e `renderCompCell`: quando `isAcumuladoAnoCol(col)` → usa `calcAcumuladoAno` no lugar de `calcTotalVisivel`; caso `visao === "VARP"`, `v = null` (mesmo tratamento atual do TOTAL_ANO).  
+   - Linha do rodapé `TOTAL_GERAL`/subtotais existentes seguem o mesmo padrão.  
+   - `openDrill`: para a coluna `ACUMULADO_ANO`, usa `anomes_ini`/`anomes_fim` cobrindo `min…max` dos `periodosMensais`.
 
-2. **Inicializar `collapsed` ao entrar em Sintético**  
-   Adicionar efeito equivalente ao já existente para "ANALITICO" (linhas 1113-1118): quando `modo === "SINTETICO"`, preencher `collapsed` com os IDs de todos os pais que têm filhos `ANALITICA` (via `childrenMap`), e definir `nivelExibido` como o nível-folha mais raso desses pais. Isso garante que a árvore começa recolhida no nível de classificação e o chevron muda de estado a cada clique.
-
-3. **Manter compatibilidade**  
-   - "Expandir tudo" / "Recolher tudo" / seletor de Nível continuam funcionando (já operam sobre `collapsed`/`nivelExibido`).  
-   - Balanço permanece intacto (a nova regra é escopada a `tipoModelo !== "BALANCO"`).  
-   - Linhas especiais, virtuais (VINCULAR/DRE), técnicas e 000 seguem com as regras atuais.
+5. **Modo NIVEL3** e **exportação Excel**: fora do escopo desta correção. Permanecem apenas com "Total visível".
 
 ## Validação
 
-- Abrir `/contabilidade/dre-studio/:id/visualizacao` em modo Sintético: apenas classificações visíveis, chevron ▶ ao lado.  
-- Clicar no chevron de uma classificação → filhos analíticos aparecem; clicar de novo → recolhe.  
-- Alternar para Analítico → todas as linhas expandidas (comportamento atual preservado).  
-- Balanço: nenhum efeito colateral.
+- Abrir `/contabilidade/dre-studio/:id/visualizacao` (DRE) → surge nova coluna "Acumulado" após "Total visível".  
+- Alternar o seletor de meses visíveis: "Total visível" muda, "Acumulado" permanece constante (soma de todos os períodos do snapshot).  
+- Clicar em uma célula da coluna "Acumulado" → drill abre com intervalo do ano todo.  
+- Modos Sintético/Analítico/Comparativo continuam funcionais; Balanço inalterado.

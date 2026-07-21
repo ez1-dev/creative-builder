@@ -42,7 +42,7 @@ import { History } from "lucide-react";
 
 import type { ComparativoLinhaV2, ContaVinculada, ModoBalanco, PeriodoStatus } from "@/types/contabil";
 
-import { formatAnomes, isTotalAnoCol } from "@/lib/anomes";
+import { formatAnomes, isTotalAnoCol, isAcumuladoAnoCol } from "@/lib/anomes";
 import { CODFIL, MODELO_DRE_OFICIAL_ID } from "@/lib/contabilConfig";
 import { ConciliacaoDREBalancoPanel } from "@/components/contabil/ConciliacaoDREBalancoPanel";
 
@@ -545,6 +545,49 @@ function Visualizacao() {
     }
     return temAlgum ? acc : null;
   };
+
+  // Acumulado do ano = soma de TODOS os períodos do snapshot (ignora o filtro
+  // de meses visíveis). Para Balanço, usa o último período disponível.
+  const periodosAnoSnapshot = useMemo(() => {
+    return periodosApi
+      .filter((p) => {
+        const anomes = Number(p);
+        return Number.isFinite(anomes) && Math.floor(anomes / 100) === anoSelecionado;
+      })
+      .slice()
+      .sort((a, b) => Number(a) - Number(b));
+  }, [periodosApi, anoSelecionado]);
+
+  const calcAcumuladoAno = (obj: Record<string, number | null> | undefined): number | null => {
+    if (!periodosAnoSnapshot.length) return null;
+    if (isBalanco) {
+      for (let i = periodosAnoSnapshot.length - 1; i >= 0; i--) {
+        const v = obj?.[periodosAnoSnapshot[i]];
+        if (v !== null && v !== undefined) return Number(v);
+      }
+      return null;
+    }
+    let acc = 0;
+    let temAlgum = false;
+    for (const c of periodosAnoSnapshot) {
+      const v = obj?.[c];
+      if (v === null || v === undefined) continue;
+      acc += Number(v);
+      temAlgum = true;
+    }
+    return temAlgum ? acc : null;
+  };
+
+  // Colunas usadas SOMENTE na renderização da grid — inclui a coluna extra
+  // "Acumulado" ao final. Exportações continuam usando `colunasVisiveis`.
+  const colunasGrid: string[] = useMemo(
+    () => (colunasVisiveis.length > 0 ? [...colunasVisiveis, "ACUMULADO_ANO"] : colunasVisiveis),
+    [colunasVisiveis],
+  );
+  const labelAcumuladoAno = isBalanco ? "Saldo final do ano" : "Acumulado";
+  const tipAcumuladoAno = isBalanco
+    ? "Saldo do último mês do snapshot"
+    : "Soma de todos os meses do snapshot (ignora o filtro de meses)";
 
   // Linha 000 nunca é exibida na grade principal nem na exportação.
   // A pendência real é detectada via endpoint /diagnostico/ctared-zero e
@@ -1365,11 +1408,20 @@ function Visualizacao() {
         clacta = candidato ? String(candidato).trim() || null : null;
       }
     }
-    // Escolhe janela: coluna mensal → anomes; coluna TOTAL_ANO → intervalo acumulado.
-    const anomes = !isTotalAno ? Number(col) : undefined;
-    const anomes_ini = isTotalAno ? ini : undefined;
-    const anomes_fim = isTotalAno ? fim : undefined;
-    if (!isTotalAno && !Number.isFinite(anomes as number)) return;
+    // Escolhe janela: coluna mensal → anomes; TOTAL_ANO/ACUMULADO_ANO → intervalo do ano.
+    const isAcumAno = isAcumuladoAnoCol(col);
+    const isAgregado = isTotalAno || isAcumAno;
+    const anomes = !isAgregado ? Number(col) : undefined;
+    let anomes_ini: number | undefined;
+    let anomes_fim: number | undefined;
+    if (isAcumAno && periodosAnoSnapshot.length > 0) {
+      anomes_ini = Number(periodosAnoSnapshot[0]);
+      anomes_fim = Number(periodosAnoSnapshot[periodosAnoSnapshot.length - 1]);
+    } else if (isTotalAno) {
+      anomes_ini = ini;
+      anomes_fim = fim;
+    }
+    if (!isAgregado && !Number.isFinite(anomes as number)) return;
     setDrill({
       modeloId: id,
       linhaId: linha.linha_id,
@@ -1387,22 +1439,25 @@ function Visualizacao() {
 
   const renderSingleCell = (l: ComparativoLinhaV2, col: string) => {
     const isTotalAno = isTotalAnoCol(col);
+    const isAcumAno = isAcumuladoAnoCol(col);
+    const isAgregado = isTotalAno || isAcumAno;
     const variant = visao === "VARP" ? "pct" : "money";
     const canDrill = visao === "REAL";
     let v: number | null;
-    if (isTotalAno) {
+    if (isAgregado) {
       if (visao === "VARP") {
         v = null;
       } else {
         const campo: "realizado"|"orcado"|"variacao" =
           visao === "ORC" ? "orcado" : visao === "VARV" ? "variacao" : "realizado";
-        v = calcTotalVisivel(l[campo] as Record<string, number | null> | undefined);
+        const obj = l[campo] as Record<string, number | null> | undefined;
+        v = isAcumAno ? calcAcumuladoAno(obj) : calcTotalVisivel(obj);
       }
     } else {
       v = pickValue(l, visao, col);
     }
     return (
-      <td key={col} className={cn("border-l", isTotalAno && "bg-slate-100")}>
+      <td key={col} className={cn("border-l", isTotalAno && "bg-slate-100", isAcumAno && "bg-sky-50")}>
         <MoneyCell
           value={v}
           variant={variant}
@@ -1416,15 +1471,16 @@ function Visualizacao() {
 
   const renderCompCell = (l: ComparativoLinhaV2, col: string) => {
     const isTotalAno = isTotalAnoCol(col);
+    const isAcumAno = isAcumuladoAnoCol(col);
+    const isAgregado = isTotalAno || isAcumAno;
     return (
-      <td key={col} className={cn("border-l px-0", isTotalAno && "bg-slate-100")}>
+      <td key={col} className={cn("border-l px-0", isTotalAno && "bg-slate-100", isAcumAno && "bg-sky-50")}>
         <div className="grid grid-cols-4 gap-0">
           {SUB_COLS.map((sc) => {
             let v: number | null;
-            if (isTotalAno) {
-              v = sc.pct
-                ? null
-                : calcTotalVisivel(l[sc.key] as Record<string, number | null> | undefined);
+            if (isAgregado) {
+              const obj = l[sc.key] as Record<string, number | null> | undefined;
+              v = sc.pct ? null : (isAcumAno ? calcAcumuladoAno(obj) : calcTotalVisivel(obj));
             } else {
               v = (l[sc.key] as Record<string, number | null>)?.[col] ?? null;
             }
@@ -2487,8 +2543,10 @@ function Visualizacao() {
                   Conta Contábil
                 </th>
 
-                {colunasVisiveis.map((c) => {
-                  const st = isTotalAnoCol(c) ? undefined : statusByAnomes.get(c);
+                {colunasGrid.map((c) => {
+                  const isAcumAno = isAcumuladoAnoCol(c);
+                  const isAgregado = isTotalAnoCol(c) || isAcumAno;
+                  const st = isAgregado ? undefined : statusByAnomes.get(c);
                   const statusUp = String(st?.status ?? "").toUpperCase();
                   const dotCls =
                     !st
@@ -2499,8 +2557,10 @@ function Visualizacao() {
                           ? "bg-red-500"
                           : "bg-amber-400";
                   const isMesSemCache =
-                    !isTotalAnoCol(c) && !processadosSet.has(String(c));
-                  const tip = isTotalAnoCol(c)
+                    !isAgregado && !processadosSet.has(String(c));
+                  const tip = isAcumAno
+                    ? tipAcumuladoAno
+                    : isTotalAnoCol(c)
                     ? (isBalanco ? "Saldo do último mês visível" : "Soma apenas dos meses selecionados")
                     : [
                         st?.status ? `Cache: ${st.status}` : "Cache: SEM CACHE",
@@ -2509,6 +2569,11 @@ function Visualizacao() {
                         isBalanco && st?.fechamento_ok === true ? "Balanço fechado" : undefined,
                         isBalanco && st?.fechamento_ok === false ? "Balanço divergente" : undefined,
                       ].filter(Boolean).join(" • ");
+                  const labelCol = isAcumAno
+                    ? labelAcumuladoAno
+                    : isTotalAnoCol(c)
+                    ? labelTotalVisivel
+                    : formatAnomes(c);
                   return (
                     <th
                       key={c}
@@ -2516,19 +2581,20 @@ function Visualizacao() {
                         "text-center px-2 py-2 border-l border-b bg-slate-50",
                         visao === "COMP" ? "min-w-[260px]" : "min-w-[120px]",
                         isTotalAnoCol(c) && "bg-slate-100",
+                        isAcumAno && "bg-sky-50 border-l-2 border-l-sky-300",
                         isMesSemCache && "bg-amber-50",
                       )}
                       title={tip}
                     >
                       <div className="flex items-center justify-center gap-1.5">
-                        {!isTotalAnoCol(c) && dotCls && (
+                        {!isAgregado && dotCls && (
                           <span className={cn("inline-block h-2 w-2 rounded-full", dotCls)} aria-hidden />
                         )}
-                        <span>{isTotalAnoCol(c) ? labelTotalVisivel : formatAnomes(c)}</span>
-                        {isBalanco && !isTotalAnoCol(c) && st?.fechamento_ok === true && (
+                        <span className={cn(isAcumAno && "font-semibold text-sky-900")}>{labelCol}</span>
+                        {isBalanco && !isAgregado && st?.fechamento_ok === true && (
                           <span className="text-[10px] text-emerald-700" title="Balanço fechado">✓</span>
                         )}
-                        {isBalanco && !isTotalAnoCol(c) && st?.fechamento_ok === false && (
+                        {isBalanco && !isAgregado && st?.fechamento_ok === false && (
                           <span className="text-[10px] text-red-700" title="Balanço divergente">⚠</span>
                         )}
                       </div>
@@ -2835,14 +2901,15 @@ function Visualizacao() {
                       );
                     })()}
 
-                    {colunasVisiveis.map((c) =>
+                    {colunasGrid.map((c) =>
+
                       visao === "COMP" ? renderCompCell(l, c) : renderSingleCell(l, c),
                     )}
                   </tr>
                 );
               })}
               {linhas.length === 0 && (
-                <tr><td colSpan={colunasVisiveis.length + 3} className="text-center text-slate-500 py-10">
+                <tr><td colSpan={colunasGrid.length + 3} className="text-center text-slate-500 py-10">
 
                   Sem dados. Verifique o período ou monte a estrutura primeiro.
                 </td></tr>
