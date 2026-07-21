@@ -2331,15 +2331,17 @@ function Visualizacao(props: VisualizacaoProps = {}) {
             Para ver a árvore completa, recrie o modelo com{" "}
             <code className="font-mono">nivel_max=9</code> (modo COMPLETO).
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            className="border-amber-400 bg-white text-amber-900 hover:bg-amber-100 shrink-0"
-            disabled={recriarCompleto.isPending}
-            onClick={() => setConfirmRecriar(true)}
-          >
-            {recriarCompleto.isPending ? "Recriando..." : "Recriar como COMPLETO"}
-          </Button>
+          {!modoBloqueado && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-amber-400 bg-white text-amber-900 hover:bg-amber-100 shrink-0"
+              disabled={recriarCompleto.isPending}
+              onClick={() => setConfirmRecriar(true)}
+            >
+              {recriarCompleto.isPending ? "Recriando..." : "Recriar como COMPLETO"}
+            </Button>
+          )}
         </div>
       )}
 
