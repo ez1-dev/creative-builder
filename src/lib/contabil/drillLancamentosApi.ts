@@ -5,6 +5,17 @@
 
 import { contabilApi } from './contabilApi';
 
+export interface DrillLancamentoDocumentoOrigem {
+  tipo?: string | null;                 // NFV | NFC | TCP | TCR
+  descricao?: string | null;            // "Nota Fiscal de Venda", "Título a Receber", ...
+  numero?: string | number | null;
+  serie?: string | null;
+  parceiro_tipo?: 'cliente' | 'fornecedor' | string | null;
+  parceiro_codigo?: string | number | null;
+  parceiro_nome?: string | null;
+  ambiguo?: boolean | null;
+}
+
 export interface DrillLancamentoItem {
   // Identificação
   lancamento?: string | number | null;
@@ -16,11 +27,13 @@ export interface DrillLancamentoItem {
   codfil?: number | string | null;
   // Lado do lançamento
   debcre?: 'D' | 'C' | string | null;
+  lado?: 'D' | 'C' | string | null;
   debito?: number | null;
   credito?: number | null;
-  // Contas
-  conta_debito?: string | null;
-  conta_credito?: string | null;
+  // Contas (podem vir como string ou objeto { ctared, clacta, descricao })
+  conta_debito?: string | number | Record<string, any> | null;
+  conta_credito?: string | number | Record<string, any> | null;
+  conta_selecionada?: Record<string, any> | null;
   ctared?: string | number | null;
   clacta?: string | null;
   conta_descricao?: string | null;
@@ -28,13 +41,18 @@ export interface DrillLancamentoItem {
   codccu?: string | null;
   desccu?: string | null;
   ccu?: string | null;
+  centro_custo?: { codccu?: string | null; descricao?: string | null } | null;
   multiplos?: Array<{ codccu: string; desccu?: string | null }> | null;
   // Documento / origem
   documento?: string | null;
+  documento_origem?: DrillLancamentoDocumentoOrigem | null;
   origem_codigo?: string | null;
   origem_descricao?: string | null;
   // Usuários
+  usuario?: string | null;
   usuario_origem?: string | null;
+  usuario_origem_fonte?: 'documento' | 'lote' | null | string;
+  usuario_origem_difere?: boolean | null;
   usuario_lancamento?: string | null;
   // Valores
   valor?: number | null;
@@ -49,6 +67,7 @@ export interface DrillLancamentoItem {
   observacao?: string | null;
   [k: string]: any;
 }
+
 
 export interface DrillLancamentosParams {
   modelo_id: string;
