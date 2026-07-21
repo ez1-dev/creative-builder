@@ -841,12 +841,10 @@ export function DrillDrawer({
                       return (
                       <TableRow
                         key={i}
-                        className={cn(
-                          i % 2 === 1 && "bg-muted/20",
-                          "cursor-pointer hover:bg-accent/40",
-                          destacarAmbar && "!bg-amber-100/60 hover:!bg-amber-100 border-l-4 border-l-amber-500",
-                          divergeLote && "border-l-4 border-l-sky-400",
-                        )}
+                         className={cn(
+                           i % 2 === 1 && "bg-muted/20",
+                           "cursor-pointer hover:bg-accent/40",
+                         )}
                         onClick={() => setDetalhe(r)}
                       >
                         <TableCell>
@@ -980,11 +978,7 @@ export function DrillDrawer({
                                 Lote
                               </span>
                             )}
-                            {divergeDocumento && (
-                              <span className="rounded border border-amber-500 bg-amber-50 px-1.5 py-0.5 text-[9px] uppercase tracking-wide font-medium text-amber-800">
-                                Diferente do lançamento
-                              </span>
-                            )}
+                          
                             {docOrigem?.ambiguo === true && (
                               <TooltipProvider>
                                 <Tooltip>
@@ -1002,31 +996,7 @@ export function DrillDrawer({
                           </div>
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
-                          {(destacarAmbar || divergeLote) ? (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span
-                                    className={cn(
-                                      "inline-flex items-center gap-1 underline decoration-dotted",
-                                      destacarAmbar ? "decoration-amber-600" : "decoration-sky-500",
-                                    )}
-                                  >
-                                    {usuarioLancamentoDisplay}
-                                    {destacarAmbar && (
-                                      <AlertTriangle
-                                        className="h-3.5 w-3.5 text-amber-600"
-                                        aria-label="Usuário do documento difere do lançamento"
-                                      />
-                                    )}
-                                  </span>
-                                </TooltipTrigger>
-                                <TooltipContent>{tooltipUsuario}</TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          ) : (
-                            usuarioLancamentoDisplay
-                          )}
+                          {usuarioLancamentoDisplay}
                         </TableCell>
 
 
@@ -1165,27 +1135,6 @@ export function DrillDrawer({
               );
               return (
               <div className="space-y-3">
-                {detalhe.usuario_origem_difere === true && hasDisplayValue(detalhe.usuario_origem) && (
-                  <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                    <div>
-                      <div className="font-medium">Divergência de usuário</div>
-                      <div>
-                        {fonte === "documento" ? (
-                          <>
-                            Documento emitido por <strong>{usuarioOrigemTxt}</strong>,
-                            lançado por <strong>{usuarioLctoTxt}</strong>.
-                          </>
-                        ) : (
-                          <>
-                            Lote aberto por <strong>{usuarioOrigemTxt}</strong>,
-                            lançado por <strong>{usuarioLctoTxt}</strong>.
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
                 {/* Rastreabilidade da origem */}
                 <div className="rounded-md border bg-muted/20 px-3 py-2 text-xs">
                   <div className="flex items-center justify-between gap-2 mb-1">
