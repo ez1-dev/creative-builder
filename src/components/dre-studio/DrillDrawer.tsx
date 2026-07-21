@@ -150,6 +150,27 @@ interface DocumentoOrigem {
   parceiro_codigo?: string | number | null;
   parceiro_nome?: string | null;
   ambiguo?: boolean | null;
+  fonte_tabela?: string | null;
+  produto?: string | null;
+  derivacao?: string | null;
+  deposito?: string | null;
+  bem?: string | null;
+  data_movimento?: string | null;
+  sequencia_movimento?: number | string | null;
+}
+
+function numeroDocumentoValido(numero: string | number | null | undefined): boolean {
+  if (numero === null || numero === undefined) return false;
+  const s = String(numero).trim();
+  return s !== "" && s !== "0";
+}
+
+function transacaoOrigemLabel(r: Pick<RazaoItem, "transacao_origem" | "transacao_origem_codigo" | "transacao_origem_descricao">): string | null {
+  if (hasDisplayValue(r.transacao_origem)) return String(r.transacao_origem).trim();
+  const parts = [r.transacao_origem_codigo, r.transacao_origem_descricao]
+    .filter((p) => p !== null && p !== undefined && String(p).trim() !== "")
+    .map((p) => String(p).trim());
+  return parts.length ? parts.join(" - ") : null;
 }
 
 interface RazaoItem {
@@ -164,10 +185,17 @@ interface RazaoItem {
   origem_codigo?: string | null;
   origem_descricao?: string | null;
   usuario_origem?: string | null;
+  usuario_origem_codigo?: string | number | null;
   usuario?: string | null;
   usuario_lancamento?: string | null;
+  usuario_lancamento_codigo?: string | number | null;
   usuario_origem_difere?: boolean;
   usuario_origem_fonte?: "documento" | "lote" | string | null;
+  usuario_origem_fonte_tabela?: string | null;
+  usuario_origem_status?: string | null;
+  transacao_origem?: string | null;
+  transacao_origem_codigo?: string | number | null;
+  transacao_origem_descricao?: string | null;
   documento_origem?: DocumentoOrigem | null;
   saldo_anterior?: number | null;
   mov_debito?: number | null;
