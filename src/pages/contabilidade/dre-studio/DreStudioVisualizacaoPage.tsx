@@ -1976,6 +1976,7 @@ function Visualizacao() {
             </Select>
           </div>
         </div>
+        )}
       </div>
 
       {/* === PERÍODO === Meses visíveis com atalhos */}
