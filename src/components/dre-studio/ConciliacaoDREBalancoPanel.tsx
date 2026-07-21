@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Loader2, AlertTriangle } from "lucide-react";
 
 import { useResultadoCache } from "@/hooks/contabil/api";
-import { MODELO_BALANCO_OFICIAL_ID } from "@/lib/contabilConfig";
+import { useContabilConfiguracao } from "@/hooks/contabil/useContabilConfiguracao";
 import { formatAnomes } from "@/lib/anomes";
 import { MoneyCell } from "@/components/contabil/MoneyCell";
 import type { ComparativoLinhaV2, ComparativoResponseV2 } from "@/types/contabil";
@@ -40,8 +40,10 @@ export function ConciliacaoDREBalancoPanel({
   anomesFim: number;
 }) {
   void dreModeloId;
+  const { data: cfg } = useContabilConfiguracao();
+  const balancoModeloId = cfg?.balanco_modelo_padrao_id ?? "";
   const balQ = useResultadoCache(
-    MODELO_BALANCO_OFICIAL_ID,
+    balancoModeloId,
     {
       codfil,
       anomes_ini: anomesIni,
@@ -49,7 +51,7 @@ export function ConciliacaoDREBalancoPanel({
       modo_balanco: "MENSAL_E650SAL",
       aplicar_referencia_senior: true,
     },
-    true,
+    Boolean(balancoModeloId),
   );
 
   const linhas = useMemo(() => {
@@ -80,6 +82,18 @@ export function ConciliacaoDREBalancoPanel({
   const carregando = !!dreLoading || balQ.isLoading;
   const semDados =
     !carregando && (linhas.length === 0 || (!dreResultado && !balQ.data));
+  if (!balancoModeloId) {
+    return (
+      <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 flex items-start gap-2">
+        <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+        <span>
+          Nenhum modelo padrão de Balanço Patrimonial foi definido para esta empresa — conciliação
+          indisponível. Configure em <strong>Contabilidade → Configurações</strong>.
+        </span>
+      </div>
+    );
+  }
+
 
   return (
     <div className="mb-6 rounded-lg border border-slate-200 bg-white">
