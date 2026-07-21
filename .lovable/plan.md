@@ -1,76 +1,99 @@
-# Plano — Transação do documento no modal do Razão
+# Plano — DRE Padrão (Contabilidade)
 
-Alteração puramente de apresentação em **`src/components/dre-studio/DrillDrawer.tsx`**. Sem mudança no backend, sem consulta ao ERP, sem parsing do histórico.
+Objetivo: criar `/contabilidade/dre-padrao` como visão bloqueada (somente consulta + drill + export) do modelo DRE oficial, reutilizando integralmente o que já existe em `src/pages/contabilidade/dre-studio/DreStudioVisualizacaoPage.tsx` e componentes de `src/components/contabil` / `src/components/dre-studio`.
 
-## 1. Tipagem (interface `DocumentoOrigem`)
+Nenhuma lógica de cálculo, sinal, hierarquia ou drill será reimplementada — apenas encapsulada.
 
-Adicionar o campo opcional:
+## 1. Configuração do modelo padrão
 
-```ts
-transacao?: {
-  codigo?: string | null;
-  descricao?: string | null;
-  multiplas?: Array<{ codigo?: string | null; descricao?: string | null }> | null;
-} | null;
-```
+- Hoje o modelo oficial vive hardcoded em `src/lib/contabilConfig.ts` (`MODELO_DRE_OFICIAL_ID`).
+- Persistir a escolha em `public.app_settings` (tabela já usada em todo o projeto) com a chave `contabil_dre_modelo_padrao_id` (valor = UUID do modelo).
+- Criar hook `useDreModeloPadrao()` em `src/hooks/contabil/useDreModeloPadrao.ts`:
+  1. Se backend expuser `GET /api/contabil/configuracao?codemp=1`, usa a resposta (`dre_modelo_padrao_id` + `dre_modelo_padrao`).
+  2. Fallback: lê `app_settings` (`contabil_dre_modelo_padrao_id`).
+  3. Fallback final: constante `MODELO_DRE_OFICIAL_ID` (para não quebrar).
+- Escrita da configuração fica na tela existente `Contabilidade → Configurações` (`DreStudioConfiguracoesPage.tsx`): adicionar um combo "Modelo DRE padrão" listando modelos DRE ativos (via `fetchDreModelos`) e gravando em `app_settings` (mesmo padrão de upsert já usado na página).
 
-Leitura defensiva — se `documento_origem?.transacao` vier ausente/null, comportamento atual permanece.
+## 2. Rota e menu
 
-## 2. Componente `TransacaoOrigemField`
+- Nova rota `/contabilidade/dre-padrao` em `src/App.tsx` (ou onde o router principal registra as rotas de contabilidade), renderizando `DrePadraoPage`.
+- Adicionar item no `src/config/menuCatalog.ts`, subgrupo `erp-financeiro`, antes de "DRE Studio — Visão Geral":
+  ```
+  { title: 'DRE Padrão', url: '/contabilidade/dre-padrao', icon: Landmark }
+  ```
+- Título "DRE Padrão", subtítulo "Demonstração do Resultado do Exercício".
 
-Novo componente local no mesmo arquivo, seguindo o design system (usar `Tooltip` do shadcn já importado):
+## 3. Página e componentização
 
-- `multiplas.length > 1` → renderiza `Várias (N)` com `Tooltip` listando todas no formato `codigo — descricao` (uma por linha).
-- Caso único → `codigo — descricao` (join com `— `, filtrando vazios). Se só código: `codigo`. Se só descrição: `descricao`.
-- Sem transação → `—`.
-- Nunca escolhe apenas a primeira transação; nunca oculta multiplicidade.
+Estratégia: extrair o miolo da `DreStudioVisualizacaoPage.tsx` num componente reutilizável e apresentar dois consumidores (Studio e Padrão) sem duplicar lógica.
 
-## 3. Renderização no modal
+- Criar `src/components/dre-studio/DreVisualizacaoView.tsx` com props:
+  ```
+  { modeloId: string; modeloNome?: string;
+    modoBloqueado?: boolean;         // esconde ações de edição
+    permiteConfigurar?: boolean;     // exibe botão "Configurar modelo"
+    onConfigurar?: () => void;
+    tituloOverride?: string;
+    subtituloOverride?: string; }
+  ```
+  Esse componente contém tudo que hoje está na `DreStudioVisualizacaoPage` (filtros, KPIs, matriz, drills, Razão, exportações, materialização assíncrona, auto-execução, etc.). É um refactor por *extract component*, não uma reimplementação: a página atual passa a chamar `<DreVisualizacaoView modeloId={id} />` sem `modoBloqueado`.
+- Criar `src/pages/contabilidade/dre-padrao/DrePadraoPage.tsx`:
+  - Usa `useDreModeloPadrao()` para obter `modeloId`.
+  - Estados especiais (renderiza mensagens amigáveis conforme requisito 20):
+    - Modelo não configurado → CTA "Definir modelo padrão" (só admin) para `/contabilidade/dre-studio/configuracoes`.
+    - Modelo inativo → mensagem correspondente.
+    - Erros de API preservam filtros (já é assim no view extraído).
+  - Passa `modoBloqueado`, `permiteConfigurar={isAdmin && has('DRE_MODELOS_CONFIGURAR')}`, `onConfigurar={() => navigate('/contabilidade/dre-studio/modelos/' + modeloId)}`.
 
-No bloco **Documento/Movimento** (linhas ~1184-1210), inserir logo após `Série` (antes de Cliente/Fornecedor):
+## 4. Modo bloqueado no `DreVisualizacaoView`
 
-```tsx
-{doc?.transacao && (
-  <Info
-    label="Transação"
-    value={<TransacaoOrigemField transacao={doc.transacao} />}
-  />
-)}
-```
+Quando `modoBloqueado`, esconder/desativar apenas botões de edição (criar linha, editar, vincular contas, excluir, materializar-com-recalculo forçado do modelo etc.). Ações mantidas: filtros, expandir/recolher, drill (menu completo), Razão, "Atualizar dados" (materialização), exportações, tela cheia, "Configurar modelo" (quando permitido).
 
-`Info` hoje aceita `value: string`. Ajuste mínimo: permitir `ReactNode` para acomodar o tooltip de múltiplas transações (mantém compatibilidade com todas as chamadas existentes).
+Nada muda no backend nem no cálculo — apenas visibilidade dos controles.
 
-Também garantir que `temMovimento` considere `doc.transacao` como sinal de movimento presente, para casos em que só há transação sem número.
+## 5. Filtros / KPIs / matriz / drills / Razão
 
-Observação: a linha **Transação** existente acima (linha 1157, derivada de `transacao_origem` do lançamento contábil) permanece inalterada — refere-se à transação da E085LAN e não é substituída pela transação do documento.
+Todos reutilizados sem alterações:
+- Filtros: empresa/filial/ano/mes_ini/mes_fim/unidade_negocio/codccu/visualização (já existentes no view). "Unidade de Negócio" segue tolerante (defensivo) até o backend consolidar.
+- Chamada: `fetchDreMatriz` em `src/lib/contabil/dreMatrizApi.ts` já usa `modelo_id`, `codemp/codfil` implícitos no client, `anomes_ini/fim`, `unidade`. Nada novo.
+- KPIs: leitura por `codigo_linha`/`codigo` semântico (já implementado); cards ausentes ficam ocultos.
+- Drills: usam `linha.drills` + `linha.drillavel` + `meta.modelo_id` + `linha.linha_id` (já é o contrato atual).
+- Razão: reaproveitar `DrillDrawer.tsx` como está — inclui documento, transação, centro de custo, usuários origem/lcto., modal de detalhe.
 
-## 4. Exportação Excel (`exportarExcel`)
+## 6. Exportações
 
-- Adicionar coluna **"Transação"** ao `header` (após "Origem", antes de "Usuário Origem" para manter proximidade da origem do documento).
-- Para cada linha, montar valor a partir de `r.documento_origem?.transacao`:
-  - Única: `codigo - descricao` (join `-`).
-  - Múltiplas: `cod1 - desc1; cod2 - desc2` (nunca exportar apenas `Várias (N)`).
-  - Ausente: `""`.
-- Ajustar `!isDRE` blocks (linhas SALDO INICIAL/FINAL) para preservar o número de colunas (adicionar `""` na posição correspondente).
-- Incluir "Transação" na regra de largura (`wch: 28`).
+Reaproveitar `ExportActions` já embutido no view (Excel/PDF/Imprimir). Cabeçalho já contempla empresa/filial/período/modelo/data — só ajustar o título para "DRE Padrão" quando `tituloOverride` estiver presente.
 
-## 5. Casos de validação
+## 7. Permissões
 
-- NFE 20567 → `5101S — Venda de Prod Estab C/SUSPENSAO-REIDI`
-- NFE 20582 → `6101 — Venda de Produção do Estabelecimento`
-- Múltiplas TNS → `Várias (N)` com lista completa no tooltip.
+- Ler flags do `PermissionsContext`. Se ainda não existirem, adicionar 4 constantes lógicas no lado do frontend (usadas em `hasPermission`):
+  `DRE_PADRAO_VISUALIZAR`, `DRE_PADRAO_DRILL`, `DRE_PADRAO_EXPORTAR`, `DRE_MODELOS_CONFIGURAR`.
+- Guard na rota: sem `DRE_PADRAO_VISUALIZAR` → redirect / mensagem de acesso negado (padrão do projeto).
+- Botão "Configurar modelo" e ações de edição só aparecem com `DRE_MODELOS_CONFIGURAR`.
 
-## Fora de escopo
+## 8. Critérios de aceite
 
-- Backend `/api/contabil/drill-lancamentos` (o campo já é retornado).
-- Grid de lançamentos do drawer (apenas modal + export, conforme prompt).
-- Busca global na grid (o projeto não tem busca textual global no drawer hoje; se necessário depois, avaliar em nova iteração).
+- Rota `/contabilidade/dre-padrao` operacional; item de menu em Contabilidade.
+- Abre automaticamente o modelo definido em `app_settings` (ou endpoint de configuração quando existir).
+- Matriz, KPIs, drills, Razão, exportações, materialização e auto-execução idênticos aos da DRE Studio (porque é o mesmo componente).
+- Nenhuma edição de modelo/linhas/contas na página. Admin vê botão "Configurar modelo" que abre a tela do modelo em Modelos.
+- Nenhum UUID de modelo fixo em componentes novos.
+- Zero duplicação de cálculo/SQL — a página é uma casca sobre o motor existente.
 
-## Critérios de aceite
+## Detalhes técnicos
 
-- Modal exibe linha "Transação" no bloco Documento/Movimento.
-- Transação única mostra `código — descrição`.
-- Múltiplas mostram `Várias (N)` + lista completa acessível via tooltip.
-- Exportação Excel inclui coluna "Transação" com todas as transações em caso múltiplo.
-- Nenhum outro campo do modal ou da grid é alterado.
-- Nenhuma alteração no backend.
+Arquivos que serão criados/alterados:
+
+Criados
+- `src/hooks/contabil/useDreModeloPadrao.ts`
+- `src/pages/contabilidade/dre-padrao/DrePadraoPage.tsx`
+- `src/components/dre-studio/DreVisualizacaoView.tsx` (extração do miolo da página existente)
+
+Alterados
+- `src/pages/contabilidade/dre-studio/DreStudioVisualizacaoPage.tsx` — passa a delegar para `DreVisualizacaoView`.
+- `src/config/menuCatalog.ts` — novo item "DRE Padrão".
+- `src/App.tsx` (router) — nova rota.
+- `src/pages/contabilidade/dre-studio/DreStudioConfiguracoesPage.tsx` — combo "Modelo DRE padrão" gravando em `app_settings`.
+- (Opcional) `src/lib/contabilConfig.ts` — manter `MODELO_DRE_OFICIAL_ID` só como fallback.
+
+Sem migrações de banco (usa `app_settings` já existente). Sem novos endpoints obrigatórios — o `GET /api/contabil/configuracao` é opcional; o frontend degrada para `app_settings` + fallback constante.

@@ -236,8 +236,17 @@ function defaultDataFim(anomesFim: number): string {
   return today < last ? today : last;
 }
 
-function Visualizacao() {
-  const { id } = useParams() as any;
+interface VisualizacaoProps {
+  modeloIdProp?: string;
+  modoBloqueado?: boolean;
+  permiteConfigurar?: boolean;
+  onConfigurar?: () => void;
+}
+
+function Visualizacao(props: VisualizacaoProps = {}) {
+  const params = useParams() as any;
+  const id = props.modeloIdProp ?? params.id;
+  const modoBloqueado = !!props.modoBloqueado;
   const matrizScrollRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const recriarCompleto = useCriarBalancoPadraoSenior();
@@ -2117,7 +2126,7 @@ function Visualizacao() {
                 Atualizar cache Senior
               </Button>
             )}
-            {tipoModelo === "BALANCO" && (
+            {tipoModelo === "BALANCO" && !modoBloqueado && (
               <Button
                 size="sm"
                 variant="outline"
@@ -2154,10 +2163,18 @@ function Visualizacao() {
               <History className="h-4 w-4 mr-1.5" />
               Histórico
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setEditorEstruturaOpen(true)}>
-              <Pencil className="h-4 w-4 mr-1.5" />
-              Editar estrutura
-            </Button>
+            {!modoBloqueado && (
+              <Button size="sm" variant="outline" onClick={() => setEditorEstruturaOpen(true)}>
+                <Pencil className="h-4 w-4 mr-1.5" />
+                Editar estrutura
+              </Button>
+            )}
+            {modoBloqueado && props.permiteConfigurar && props.onConfigurar && (
+              <Button size="sm" variant="outline" onClick={props.onConfigurar} title="Abrir o modelo em Modelos para configurar">
+                <Pencil className="h-4 w-4 mr-1.5" />
+                Configurar modelo
+              </Button>
+            )}
           </div>
 
           {/* Grupo: Visualização (à direita) */}
@@ -2314,15 +2331,17 @@ function Visualizacao() {
             Para ver a árvore completa, recrie o modelo com{" "}
             <code className="font-mono">nivel_max=9</code> (modo COMPLETO).
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            className="border-amber-400 bg-white text-amber-900 hover:bg-amber-100 shrink-0"
-            disabled={recriarCompleto.isPending}
-            onClick={() => setConfirmRecriar(true)}
-          >
-            {recriarCompleto.isPending ? "Recriando..." : "Recriar como COMPLETO"}
-          </Button>
+          {!modoBloqueado && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-amber-400 bg-white text-amber-900 hover:bg-amber-100 shrink-0"
+              disabled={recriarCompleto.isPending}
+              onClick={() => setConfirmRecriar(true)}
+            >
+              {recriarCompleto.isPending ? "Recriando..." : "Recriar como COMPLETO"}
+            </Button>
+          )}
         </div>
       )}
 
