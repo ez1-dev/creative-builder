@@ -494,9 +494,10 @@ export function DrillDrawer({
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     const money = "#,##0.00;(#,##0.00);-";
     const moneyStart = header.indexOf("Mov. Débito");
+    const moneyEnd = header.indexOf("Saldo"); // inclusivo
     const dataStartRow = meta_aoa.length + 1; // após header
     for (let R = dataStartRow; R < dataStartRow + rows.length; R++) {
-      for (let C = moneyStart; C < header.length; C++) {
+      for (let C = moneyStart; C <= moneyEnd; C++) {
         const addr = XLSX.utils.encode_cell({ r: R, c: C });
         const cell = ws[addr];
         if (cell && typeof cell.v === "number") cell.z = money;
@@ -508,8 +509,8 @@ export function DrillDrawer({
       }
     }
     ws["!cols"] = header.map((h) =>
-      ["Observação", "Conta", "Origem"].includes(h) ? { wch: 32 } :
-      ["Usuário Origem", "Usuário Lcto.", "Classificação"].includes(h) ? { wch: 18 } :
+      ["Observação", "Conta", "Origem", "Centro de Custo"].includes(h) ? { wch: 32 } :
+      ["Usuário Origem", "Usuário Lcto.", "Classificação", "Fonte do Centro de Custo"].includes(h) ? { wch: 22 } :
       h.startsWith("Mov.") || h === "Saldo" || h === "Saldo Anterior" ? { wch: 16 } :
       { wch: 12 }
     );
