@@ -1188,7 +1188,8 @@ export function DrillDrawer({
                     doc.deposito ||
                     doc.bem ||
                     doc.data_movimento ||
-                    doc.sequencia_movimento != null),
+                    doc.sequencia_movimento != null ||
+                    (doc.transacao && (doc.transacao.codigo || doc.transacao.descricao || (Array.isArray(doc.transacao.multiplas) && doc.transacao.multiplas.length > 0)))),
               );
               return (
               <div className="space-y-3">
