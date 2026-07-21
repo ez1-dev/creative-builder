@@ -77,7 +77,7 @@ export default function LoginPage() {
             <HubLogo variant="horizontal" wordmarkClassName="text-foreground" />
           </div>
           <CardTitle className="text-base font-medium text-muted-foreground">
-            Do dado à <span style={{ color: '#22C55E' }}>decisão.</span>
+            Transformando dados em <span style={{ color: '#22C55E' }}>decisões.</span>
           </CardTitle>
           <p className="text-xs text-muted-foreground mt-1">
             Acesso restrito a contas corporativas Microsoft
