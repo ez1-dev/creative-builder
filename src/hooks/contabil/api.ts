@@ -1407,6 +1407,8 @@ export function useDrillLancamentos(
         total_credito:
           typeof src.total_credito === "number" ? src.total_credito : null,
         itens: registros,
+        precisa_selecionar_conta: src.precisa_selecionar_conta === true,
+        contas: Array.isArray(src.contas) ? src.contas : null,
       };
     },
 
