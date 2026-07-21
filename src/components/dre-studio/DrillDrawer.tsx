@@ -829,6 +829,7 @@ export function DrillDrawer({
                       const docTooltipExtra = temDocOrigem
                         ? `${docLabel}${docOrigem?.ambiguo ? "  (número casou com múltiplos documentos — usuário caiu no dono do lote)" : ""}`
                         : "";
+                      const ccInfo = getCentroCustoInfo(r);
                       return (
                       <TableRow
                         key={i}
@@ -851,6 +852,39 @@ export function DrillDrawer({
                         <TableCell className="max-w-[220px] truncate" title={`${r.clacta ?? ""} ${r.conta_descricao ?? ""}`}>
                           {r.clacta ? <span className="text-muted-foreground mr-1">{r.clacta}</span> : null}
                           {r.conta_descricao ?? ""}
+                        </TableCell>
+                        <TableCell className="max-w-[200px] whitespace-nowrap">
+                          {ccInfo.label === "—" ? (
+                            <span className="text-muted-foreground">—</span>
+                          ) : (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="cursor-help underline decoration-dotted underline-offset-2 decoration-muted-foreground">
+                                    {ccInfo.label}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs space-y-1 text-[11px]">
+                                  {ccInfo.temMultiplos ? (
+                                    <ul className="space-y-0.5">
+                                      {ccInfo.itemsFormatted.map((it, idx) => (
+                                        <li key={idx} className="tabular-nums">{it}</li>
+                                      ))}
+                                    </ul>
+                                  ) : (
+                                    <div className="tabular-nums">
+                                      {[ccInfo.codigo, ccInfo.descricao].filter(Boolean).join(" - ")}
+                                    </div>
+                                  )}
+                                  {ccInfo.fonteLabel && (
+                                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground pt-1 border-t">
+                                      Fonte: {ccInfo.fonteLabel}
+                                    </div>
+                                  )}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
                         </TableCell>
                         <TableCell className="max-w-[220px] truncate" title={r.historico ?? r.observacao ?? ""}>
                           {r.observacao ?? r.historico ?? ""}
