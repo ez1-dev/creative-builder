@@ -373,7 +373,7 @@ function Visualizacao() {
   // ===== Presets de filtros salvos =====
   const currentPresetFilters: DreVisFilterPreset = {
     anoSelecionado, mesesVisiveis, codccu, codfil, visao,
-    dataIni, dataFim, modoBalanco, dataCorte, aplicarRefSenior,
+    dataIni, dataFim, modoBalanco, dataCorte, aplicarRefSenior, expandirRE,
   };
   const applyPresetFilters = (f: DreVisFilterPreset) => {
     if (f.anoSelecionado != null) setAnoSelecionado(f.anoSelecionado);
@@ -386,6 +386,7 @@ function Visualizacao() {
     if (f.modoBalanco) setModoBalanco(f.modoBalanco);
     if (f.dataCorte != null) setDataCorte(f.dataCorte);
     if (typeof f.aplicarRefSenior === "boolean") setAplicarRefSenior(f.aplicarRefSenior);
+    if (typeof f.expandirRE === "boolean") setExpandirRE(f.expandirRE);
   };
   const presetHook = useFilterPresets<DreVisFilterPreset>(DRE_VIS_PAGE_KEY);
   const [presetsBootstrapped, setPresetsBootstrapped] = useState(false);
@@ -400,7 +401,7 @@ function Visualizacao() {
     if (!presetsBootstrapped) return;
     presetHook.saveLastFilters(currentPresetFilters);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [anoSelecionado, mesesVisiveis, codccu, codfil, visao, dataIni, dataFim, modoBalanco, dataCorte, aplicarRefSenior]);
+  }, [anoSelecionado, mesesVisiveis, codccu, codfil, visao, dataIni, dataFim, modoBalanco, dataCorte, aplicarRefSenior, expandirRE]);
 
 
 
