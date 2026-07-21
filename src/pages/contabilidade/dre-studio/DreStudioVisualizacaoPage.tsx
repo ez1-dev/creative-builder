@@ -1140,6 +1140,7 @@ function Visualizacao() {
   const [filtroConta, setFiltroConta] = useState("TODAS");
   const [mostrarTecnicas, setMostrarTecnicas] = useState<boolean>(false);
   const [semCasasDecimais, setSemCasasDecimais] = useState<boolean>(false);
+  const sinteticoInitKeyRef = useRef("");
   useEffect(() => {
     setCollapsed(new Set());
     setNivelExibido("todos");
@@ -1164,8 +1165,21 @@ function Visualizacao() {
   // ANALITICAS recolhidos. A árvore sintética fica visível nas classificações,
   // e o chevron do pai revela/recolhe seus analíticos.
   useEffect(() => {
-    if (modo !== "SINTETICO") return;
-    if (isBalanco) return;
+    if (modo !== "SINTETICO" || isBalanco) {
+      sinteticoInitKeyRef.current = "";
+      return;
+    }
+
+    const initKey = [
+      id,
+      tipoModelo,
+      linhas.length,
+      linhas[0]?.linha_id ?? "",
+      linhas[linhas.length - 1]?.linha_id ?? "",
+    ].join("|");
+    if (sinteticoInitKeyRef.current === initKey) return;
+    sinteticoInitKeyRef.current = initKey;
+
     const next = new Set<string>();
     let nivelMaisRaso: number | null = null;
 
