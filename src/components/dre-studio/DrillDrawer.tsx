@@ -444,15 +444,20 @@ export function DrillDrawer({
       "Origem Cód.", "Origem", "Usuário Origem", "Usuário Lcto.",
       ...(!isDRE ? ["Saldo Anterior"] : []),
       "Mov. Débito", "Mov. Crédito", "Saldo",
+      "Centro de Custo", "Fonte do Centro de Custo",
     ];
     const rows: any[][] = [];
     if (!isDRE) {
       rows.push([
         "", fmtDataBR(dataIniISO), "", "", "SALDO INICIAL", "", "", "", "", "",
-        num(saldoInicial), null, null, num(saldoInicial),
+        num(saldoInicial), null, null, num(saldoInicial), "", "",
       ]);
     }
     for (const r of itens) {
+      const cc = getCentroCustoInfo(r);
+      const ccExport = cc.temMultiplos
+        ? cc.itemsFormatted.join("; ")
+        : [cc.codigo, cc.descricao].filter(Boolean).join(" - ");
       rows.push([
         r.lancamento ?? "",
         fmtDataBR(r.data),
@@ -468,12 +473,14 @@ export function DrillDrawer({
         num(r.mov_debito),
         num(r.mov_credito),
         num(r.saldo),
+        ccExport,
+        cc.fonteLabel ?? "",
       ]);
     }
     rows.push([
       "", fmtDataBR(dataFimISO), "", "", "SALDO FINAL", "", "", "", "", "",
       ...(!isDRE ? [null] : []),
-      num(totalDebito), num(totalCredito), num(saldoFinal),
+      num(totalDebito), num(totalCredito), num(saldoFinal), "", "",
     ]);
 
     const meta_aoa = [
