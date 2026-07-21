@@ -1,26 +1,30 @@
-## Plano de correção — Drill de lançamentos DRE/Balanço
+## Objetivo
+Fazer a coluna **Usuário Origem** aparecer no drill (Razão) da DRE/Balanço mesmo quando o backend devolve `usuario_origem = null`.
 
-### Diagnóstico confirmado
-- O clique está chamando `/api/contabil/drill-lancamentos` corretamente, com `modelo_id`, `linha_id`, `ctared`, `codemp`, `codfil` e período.
-- O retorno do backend está vindo `200`, mas com `qtd_total: 0`.
-- O request atual está enviando também `codccu=49171` / `centro_custo=49171`; pelos exemplos enviados, a conta 2160 em janeiro traz lançamentos quando não fica presa a esse filtro de centro de custo.
+## Diagnóstico (verificado)
+Chamando `GET /api/contabil/drill-lancamentos?codemp=1&ctared=2160&anomes=202601`, cada item vem com três campos de usuário:
 
-### Ajustes que vou fazer
-1. **Não restringir o Razão por centro de custo por padrão**
-   - No clique da grid da DRE/Balanço, remover o envio automático de `codccu` para o endpoint de lançamentos.
-   - Manter empresa, filial, período, `modelo_id`, `linha_id`, `ctared`/`clacta`.
+- `usuario_origem` — hoje quase sempre `null` (só preenchido quando há divergência real de lote)
+- `usuario` — usuário do módulo de origem (ex.: `"agendador"` para VEN, o operador do faturamento etc.)
+- `usuario_lancamento` — quem efetivou o lançamento contábil
 
-2. **Preservar opção técnica para centro de custo quando necessário**
-   - Não remover suporte do hook; apenas evitar que a visualização principal filtre o razão por centro de custo quando o usuário clica no valor da grid.
-   - Assim o backend pode retornar os lançamentos consolidados da conta/linha, como no exemplo com 26 lançamentos.
+O `DrillDrawer` renderiza apenas `r.usuario_origem`, então a coluna fica vazia em praticamente todos os lançamentos originados de subsistemas.
 
-3. **Melhorar fallback do frontend**
-   - Garantir que o drawer leia resultados de `itens`, `dados`, `rows` ou `lancamentos`, caso o backend varie o nome do array.
-   - Manter os totais do cabeçalho vindos do backend.
+## Mudança proposta
+Em `src/components/dre-studio/DrillDrawer.tsx`, tratar a coluna **Usuário Origem** com fallback:
 
-4. **Validar no preview**
-   - Repetir o clique na conta 2160/2232 e conferir a URL gerada.
-   - Confirmar visualmente que o drawer passa a listar os lançamentos quando o backend retornar registros.
+```
+usuarioOrigemDisplay = r.usuario_origem ?? r.usuario ?? ""
+```
 
-### Resultado esperado
-Ao clicar nos valores da DRE/Balanço, o Razão deve abrir com os lançamentos do período, igual ao exemplo enviado, sem ficar zerado por causa de filtro indevido de centro de custo.
+Aplicar em três pontos:
+
+1. Célula da grid (linhas ~588-603) — mostrar `usuarioOrigemDisplay`. Manter o realce âmbar + tooltip apenas quando `usuario_origem_difere === true` (comportamento atual).
+2. Modal de detalhe (linha ~754) — `Info label="Usuário origem"` usa o mesmo fallback.
+3. Export Excel (linha ~304) — coluna "Usuário Origem" grava `usuarioOrigemDisplay` em vez de `r.usuario_origem ?? ""`.
+
+O tooltip de divergência continua citando `r.usuario_origem` cru (para deixar claro qual é o campo canônico do backend), e a coluna **Usuário Lcto.** permanece intocada.
+
+## Fora de escopo
+- Nenhuma mudança no backend, no endpoint ou nos filtros do drill.
+- Nenhuma alteração de estilo/layout além da célula.
