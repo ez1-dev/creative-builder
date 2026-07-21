@@ -26,7 +26,34 @@ import {
 import { useDrillLancamentos } from "@/hooks/contabil/api";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
-import { Download } from "lucide-react";
+import { Download, AlertTriangle } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+/** Rótulos oficiais das ORIGENS (módulos) — sobrescrevem descrição vinda do backend. */
+const ORIGEM_LABELS: Record<string, string> = {
+  EST: "Estoque",
+  PAT: "Patrimônio/Ativo Fixo",
+  CPR: "Contas a Pagar",
+  PAG: "Pagamentos",
+  VRB: "Verbas",
+  TES: "Tesouraria",
+  VEN: "Faturamento/Vendas",
+  REC: "Contas a Receber",
+  IOD: "Integração",
+  IMP: "Importação",
+  MAN: "Manual (contabilidade)",
+};
+
+function labelOrigem(codigo?: string | null, descricaoFallback?: string | null): string {
+  const key = String(codigo ?? "").trim().toUpperCase();
+  if (key && ORIGEM_LABELS[key]) return ORIGEM_LABELS[key];
+  return descricaoFallback ?? "";
+}
 
 /** Converte qualquer valor em texto legível. Evita "[object Object]" quando o
  *  backend envia campos estruturados (ex.: conta_debito como { ctared, descta }). */
@@ -111,6 +138,7 @@ interface RazaoItem {
   origem_descricao?: string | null;
   usuario_origem?: string | null;
   usuario_lancamento?: string | null;
+  usuario_origem_difere?: boolean;
   saldo_anterior?: number | null;
   mov_debito?: number | null;
   mov_credito?: number | null;
@@ -262,7 +290,7 @@ export function DrillDrawer({
         r.conta_descricao ?? "",
         r.observacao ?? r.historico ?? "",
         r.origem_codigo ?? "",
-        r.origem_descricao ?? "",
+        labelOrigem(r.origem_codigo, r.origem_descricao),
         r.usuario_origem ?? "",
         r.usuario_lancamento ?? "",
         ...(!isDRE ? [num(r.saldo_anterior)] : []),
@@ -517,12 +545,18 @@ export function DrillDrawer({
                       </TableRow>
                     )}
 
-                    {itens.map((r, i) => (
+                    {itens.map((r, i) => {
+                      const divergeUsuario = r.usuario_origem_difere === true;
+                      const tooltipUsuario = divergeUsuario
+                        ? `Lote aberto por ${r.usuario_origem ?? "—"}, lançado por ${r.usuario_lancamento ?? "—"}`
+                        : "";
+                      return (
                       <TableRow
                         key={i}
                         className={cn(
                           i % 2 === 1 && "bg-muted/20",
                           "cursor-pointer hover:bg-accent/40",
+                          divergeUsuario && "!bg-amber-100/60 hover:!bg-amber-100 border-l-4 border-l-amber-500",
                         )}
                         onClick={() => setDetalhe(r)}
                       >
@@ -542,9 +576,43 @@ export function DrillDrawer({
                           {r.observacao ?? r.historico ?? ""}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">{r.origem_codigo ?? ""}</TableCell>
-                        <TableCell className="whitespace-nowrap">{r.origem_descricao ?? ""}</TableCell>
-                        <TableCell className="whitespace-nowrap">{r.usuario_origem ?? ""}</TableCell>
-                        <TableCell className="whitespace-nowrap">{r.usuario_lancamento ?? ""}</TableCell>
+                        <TableCell className="whitespace-nowrap">{labelOrigem(r.origem_codigo, r.origem_descricao)}</TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {divergeUsuario ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="underline decoration-dotted decoration-amber-600">
+                                    {r.usuario_origem ?? ""}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>{tooltipUsuario}</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : (
+                            r.usuario_origem ?? ""
+                          )}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {divergeUsuario ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-flex items-center gap-1 underline decoration-dotted decoration-amber-600">
+                                    {r.usuario_lancamento ?? ""}
+                                    <AlertTriangle
+                                      className="h-3.5 w-3.5 text-amber-600"
+                                      aria-label="Usuário do lote difere do lançamento"
+                                    />
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>{tooltipUsuario}</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : (
+                            r.usuario_lancamento ?? ""
+                          )}
+                        </TableCell>
                         {!isDRE && (
                           <TableCell className="text-right tabular-nums">
                             {r.saldo_anterior != null ? fmtBRL(Number(r.saldo_anterior)) : ""}
@@ -560,7 +628,8 @@ export function DrillDrawer({
                           {r.saldo != null ? fmtBRL(Number(r.saldo)) : ""}
                         </TableCell>
                       </TableRow>
-                    ))}
+                      );
+                    })}
 
                     {/* Linha SALDO FINAL */}
                     <TableRow className="bg-muted/40 font-medium">
@@ -622,7 +691,20 @@ export function DrillDrawer({
               </DialogTitle>
             </DialogHeader>
             {detalhe && (
-              <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="space-y-3">
+                {detalhe.usuario_origem_difere === true && (
+                  <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="font-medium">Divergência de usuário</div>
+                      <div>
+                        Lote aberto por <strong>{detalhe.usuario_origem ?? "—"}</strong>,
+                        lançado por <strong>{detalhe.usuario_lancamento ?? "—"}</strong>.
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-3 text-xs">
                 <Info label="Empresa" value={detalhe.codemp} />
                 <Info label="Filial" value={detalhe.codfil} />
                 <Info label="Lote" value={detalhe.lote} />
@@ -660,7 +742,7 @@ export function DrillDrawer({
                   </div>
                 )}
                 <Info label="Documento" value={toDisplay(detalhe.documento)} />
-                <Info label="Origem" value={detalhe.origem_codigo ? `${toDisplay(detalhe.origem_codigo)} - ${toDisplay(detalhe.origem_descricao)}` : ""} />
+                <Info label="Origem" value={detalhe.origem_codigo ? `${toDisplay(detalhe.origem_codigo)} - ${labelOrigem(detalhe.origem_codigo as string, detalhe.origem_descricao)}` : ""} />
                 <Info label="Usuário origem" value={toDisplay(detalhe.usuario_origem)} />
                 <Info label="Usuário lançamento" value={toDisplay(detalhe.usuario_lancamento)} />
                 <Info
@@ -675,6 +757,7 @@ export function DrillDrawer({
                   <div className="text-muted-foreground">Histórico</div>
                   <div className="mt-0.5">{detalhe.historico ?? ""}</div>
                 </div>
+              </div>
               </div>
             )}
           </DialogContent>
