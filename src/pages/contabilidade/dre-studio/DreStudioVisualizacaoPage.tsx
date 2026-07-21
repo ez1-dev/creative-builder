@@ -236,8 +236,17 @@ function defaultDataFim(anomesFim: number): string {
   return today < last ? today : last;
 }
 
-function Visualizacao() {
-  const { id } = useParams() as any;
+interface VisualizacaoProps {
+  modeloIdProp?: string;
+  modoBloqueado?: boolean;
+  permiteConfigurar?: boolean;
+  onConfigurar?: () => void;
+}
+
+function Visualizacao(props: VisualizacaoProps = {}) {
+  const params = useParams() as any;
+  const id = props.modeloIdProp ?? params.id;
+  const modoBloqueado = !!props.modoBloqueado;
   const matrizScrollRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const recriarCompleto = useCriarBalancoPadraoSenior();
