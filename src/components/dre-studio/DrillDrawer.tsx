@@ -753,7 +753,7 @@ export function DrillDrawer({
                 )}
                 <Info label="Documento" value={toDisplay(detalhe.documento)} />
                 <Info label="Origem" value={detalhe.origem_codigo ? `${toDisplay(detalhe.origem_codigo)} - ${labelOrigem(detalhe.origem_codigo as string, detalhe.origem_descricao)}` : ""} />
-                <Info label="Usuário origem" value={toDisplay(detalhe.usuario_origem)} />
+                <Info label="Usuário origem" value={toDisplay(detalhe.usuario_origem ?? detalhe.usuario)} />
                 <Info label="Usuário lançamento" value={toDisplay(detalhe.usuario_lancamento)} />
                 <Info
                   label="Valor integral"
