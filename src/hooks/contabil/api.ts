@@ -1276,6 +1276,15 @@ export interface DrillLancamentosParams {
   limite?: number;
 }
 
+export interface DrillLancamentosContaOpcao {
+  ctared: number | string;
+  clacta?: string | null;
+  descricao?: string | null;
+  mov_debito?: number | null;
+  mov_credito?: number | null;
+  qtd_lancamentos?: number | null;
+}
+
 export interface DrillLancamentosResponse {
   dados: DrillLancamento[];
   movimento_liquido?: number | null;
@@ -1298,6 +1307,10 @@ export interface DrillLancamentosResponse {
   total_debito?: number | null;
   total_credito?: number | null;
   itens?: any[] | null;
+  /** Backend informa que a linha da DRE tem várias contas — o front precisa pedir escolha. */
+  precisa_selecionar_conta?: boolean;
+  /** Contas candidatas quando `precisa_selecionar_conta === true`. */
+  contas?: DrillLancamentosContaOpcao[] | null;
 }
 
 
@@ -1394,6 +1407,8 @@ export function useDrillLancamentos(
         total_credito:
           typeof src.total_credito === "number" ? src.total_credito : null,
         itens: registros,
+        precisa_selecionar_conta: src.precisa_selecionar_conta === true,
+        contas: Array.isArray(src.contas) ? src.contas : null,
       };
     },
 

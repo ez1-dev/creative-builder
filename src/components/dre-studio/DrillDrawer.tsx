@@ -141,6 +141,17 @@ function fmtPeriodoBR(iniISO?: string | null, fimISO?: string | null): string {
   return `${fmtDataBR(iniISO) || "—"} a ${fmtDataBR(fimISO) || "—"}`;
 }
 
+interface DocumentoOrigem {
+  tipo?: string | null;
+  descricao?: string | null;
+  numero?: string | number | null;
+  serie?: string | null;
+  parceiro_tipo?: string | null;
+  parceiro_codigo?: string | number | null;
+  parceiro_nome?: string | null;
+  ambiguo?: boolean | null;
+}
+
 interface RazaoItem {
   lancamento?: number | string | null;
   lote?: number | string | null;
@@ -156,6 +167,8 @@ interface RazaoItem {
   usuario?: string | null;
   usuario_lancamento?: string | null;
   usuario_origem_difere?: boolean;
+  usuario_origem_fonte?: "documento" | "lote" | string | null;
+  documento_origem?: DocumentoOrigem | null;
   saldo_anterior?: number | null;
   mov_debito?: number | null;
   mov_credito?: number | null;
@@ -172,8 +185,30 @@ interface RazaoItem {
   valor_integral?: number | null;
   valor_rateado?: number | null;
   debcre?: string | null;
+  lado?: string | null;
   [k: string]: any;
 }
+
+interface ContaOpcao {
+  ctared: number | string;
+  clacta?: string | null;
+  descricao?: string | null;
+  mov_debito?: number | null;
+  mov_credito?: number | null;
+  qtd_lancamentos?: number | null;
+}
+
+/** Formata `documento_origem` como "NFE 20568 — RIZZI & CIA LTDA". */
+function labelDocumentoOrigem(doc?: DocumentoOrigem | null): string {
+  if (!doc) return "";
+  const head = String(doc.serie ?? doc.tipo ?? "").trim();
+  const num = doc.numero != null && String(doc.numero).trim() !== "" ? String(doc.numero) : "";
+  const parceiro = String(doc.parceiro_nome ?? "").trim();
+  const esq = [head, num].filter(Boolean).join(" ");
+  const parts = [esq, parceiro].filter(Boolean);
+  return parts.join(" — ");
+}
+
 
 export function DrillDrawer({
   open,
@@ -187,11 +222,13 @@ export function DrillDrawer({
   const [limite, setLimite] = useState<number>(500);
   const [detalhe, setDetalhe] = useState<RazaoItem | null>(null);
   const [expandido, setExpandido] = useState(false);
+  const [contaEscolhida, setContaEscolhida] = useState<ContaOpcao | null>(null);
 
   useEffect(() => {
     if (open) {
       setLimite(500);
       setDetalhe(null);
+      setContaEscolhida(null);
     }
   }, [open, args?.linhaId, args?.ctared]);
 
@@ -210,6 +247,14 @@ export function DrillDrawer({
     args?.anomes_fim != null;
   const usaMes = args?.anomes != null;
 
+  // Prioridade do ctared enviado ao backend: conta escolhida no picker > args.ctared.
+  const ctaredEfetivo =
+    contaEscolhida?.ctared != null
+      ? contaEscolhida.ctared
+      : hasCtared
+        ? args?.ctared
+        : undefined;
+
   const q = useDrillLancamentos(
     args && hasDrillContext && (usaMes || usaRange)
       ? {
@@ -220,7 +265,7 @@ export function DrillDrawer({
           anomes: usaMes ? args.anomes : undefined,
           anomes_ini: usaRange ? args.anomes_ini : undefined,
           anomes_fim: usaRange ? args.anomes_fim : undefined,
-          ctared: hasCtared ? args.ctared : undefined,
+          ctared: ctaredEfetivo,
           clacta: hasClacta ? args.clacta : undefined,
           codccu: args.codccu ?? null,
           limite,
@@ -228,6 +273,7 @@ export function DrillDrawer({
       : null,
     open,
   );
+
 
   const itens: RazaoItem[] = useMemo(() => {
     const data = q.data as (typeof q.data & {
@@ -271,9 +317,26 @@ export function DrillDrawer({
     (usaMes ? anomesToISO(args?.anomes, true) : anomesToISO(args?.anomes_fim, true));
 
   const contaDescricao =
-    meta?.descricao_conta ?? args?.contaDescricao ?? args?.linhaDescricao ?? "";
-  const clacta = meta?.clacta ?? (args?.clacta ?? null);
-  const ctaredNum = meta?.ctared ?? (hasCtared ? Number(args?.ctared) : null);
+    meta?.descricao_conta ??
+    contaEscolhida?.descricao ??
+    args?.contaDescricao ??
+    args?.linhaDescricao ??
+    "";
+  const clacta = meta?.clacta ?? contaEscolhida?.clacta ?? (args?.clacta ?? null);
+  const ctaredNum =
+    meta?.ctared ??
+    (contaEscolhida?.ctared != null ? Number(contaEscolhida.ctared) : null) ??
+    (hasCtared ? Number(args?.ctared) : null);
+
+  // Novo passo: backend pediu para o usuário escolher a conta (linha da DRE tem várias).
+  const precisaSelecionarConta =
+    q.data?.precisa_selecionar_conta === true &&
+    Array.isArray(q.data?.contas) &&
+    (q.data?.contas?.length ?? 0) > 0 &&
+    contaEscolhida == null;
+  const contasCandidatas: ContaOpcao[] = Array.isArray(q.data?.contas)
+    ? (q.data!.contas as ContaOpcao[])
+    : [];
 
   const proximoLimite = LIMITE_STEPS.find((n) => n > limite) ?? null;
 
@@ -385,6 +448,18 @@ export function DrillDrawer({
           <div className="flex items-start justify-between gap-2">
             <SheetTitle className="text-primary-foreground">Lançamentos</SheetTitle>
             <div className="flex items-center gap-2">
+              {contaEscolhida && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setContaEscolhida(null)}
+                  className="h-7 px-2 text-xs"
+                  title="Voltar para a lista de contas da linha"
+                >
+                  Trocar conta
+                </Button>
+              )}
               <Button
                 type="button"
                 size="sm"
@@ -407,6 +482,7 @@ export function DrillDrawer({
                 {expandido ? "Recolher" : "Expandir"}
               </Button>
             </div>
+
           </div>
           <SheetDescription asChild>
             <div className="text-primary-foreground/80 space-y-0.5">
@@ -424,7 +500,7 @@ export function DrillDrawer({
           </SheetDescription>
 
           {/* Resumo */}
-          {temContratoRazao && (
+          {temContratoRazao && !precisaSelecionarConta && (
             <div className={cn("mt-3 grid gap-3 text-xs", isDRE ? "grid-cols-3" : "grid-cols-4")}>
               {!isDRE && <ResumoCard label="Saldo Anterior" value={saldoInicial} />}
               <ResumoCard label="Total Débito" value={totalDebito} />
@@ -435,7 +511,7 @@ export function DrillDrawer({
         </SheetHeader>
 
         {/* Subfaixa fixa: contador + ação de aumentar limite */}
-        {temContratoRazao && (
+        {temContratoRazao && !precisaSelecionarConta && (
           <div className="shrink-0 border-b bg-background px-4 py-2 flex items-center justify-between text-xs text-muted-foreground">
             <div>
               Mostrando <strong>{qtdExib}</strong>
@@ -462,6 +538,7 @@ export function DrillDrawer({
           </div>
         )}
 
+
         <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-3 pb-6">
 
           {!hasDrillContext ? (
@@ -479,6 +556,68 @@ export function DrillDrawer({
             <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
               Erro ao carregar Razão: {(q.error as Error)?.message}
             </div>
+          ) : precisaSelecionarConta ? (
+            <div className="space-y-3">
+              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                <div className="font-medium">Escolha a conta contábil</div>
+                <div className="text-xs text-muted-foreground">
+                  Esta linha tem {contasCandidatas.length} contas vinculadas. Selecione uma para abrir o razão.
+                </div>
+              </div>
+              <div className="overflow-x-auto rounded border">
+                <Table className="text-xs">
+                  <TableHeader className="bg-primary sticky top-0 z-10">
+                    <TableRow className="hover:bg-primary">
+                      <TableHead className="text-primary-foreground">Conta reduzida</TableHead>
+                      <TableHead className="text-primary-foreground">Classificação</TableHead>
+                      <TableHead className="text-primary-foreground">Descrição</TableHead>
+                      <TableHead className="text-primary-foreground text-right">Mov. Débito</TableHead>
+                      <TableHead className="text-primary-foreground text-right">Mov. Crédito</TableHead>
+                      <TableHead className="text-primary-foreground text-right">Nº lçtos</TableHead>
+                      <TableHead className="text-primary-foreground"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {contasCandidatas.map((c, i) => (
+                      <TableRow
+                        key={`${c.ctared}-${i}`}
+                        className={cn(i % 2 === 1 && "bg-muted/20", "cursor-pointer hover:bg-accent/40")}
+                        onClick={() => setContaEscolhida(c)}
+                      >
+                        <TableCell className="tabular-nums">{String(c.ctared)}</TableCell>
+                        <TableCell className="whitespace-nowrap">{c.clacta ?? ""}</TableCell>
+                        <TableCell className="max-w-[320px] truncate" title={c.descricao ?? ""}>
+                          {c.descricao ?? ""}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {cellNum(c.mov_debito, { zeroBlank: true })}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {cellNum(c.mov_credito, { zeroBlank: true })}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {c.qtd_lancamentos ?? ""}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setContaEscolhida(c);
+                            }}
+                          >
+                            Abrir razão
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+
           ) : !temContratoRazao ? (
             <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-xs text-amber-900 space-y-2">
               <div className="font-medium text-sm">
@@ -586,9 +725,26 @@ export function DrillDrawer({
                       const usuarioLancamentoDisplay = usuarioLancamentoValue(r, "—");
                       const temUsuarioOrigem = hasDisplayValue(r.usuario_origem);
                       const temUsuarioLancamento = hasDisplayValue(r.usuario_lancamento) || hasDisplayValue(r.usuario);
+                      const fonteOrigem = (r.usuario_origem_fonte ?? null) as null | string;
+                      const docOrigem = (r as any).documento_origem as DocumentoOrigem | null | undefined;
+                      const docLabel = labelDocumentoOrigem(docOrigem);
+                      const temDocOrigem = Boolean(docOrigem && (docOrigem.numero != null || docOrigem.parceiro_nome));
                       const divergeUsuario = r.usuario_origem_difere === true && temUsuarioOrigem && temUsuarioLancamento;
-                      const tooltipUsuario = divergeUsuario
-                        ? `Lote aberto por ${usuarioOrigemDisplay}, lançado por ${usuarioLancamentoDisplay}`
+                      const divergeDocumento = divergeUsuario && fonteOrigem === "documento";
+                      // Divergência via "lote" existe (raríssimo); destaca de forma discreta.
+                      const divergeLote = divergeUsuario && fonteOrigem === "lote";
+                      // Compat: quando o backend antigo não manda `fonte`, mantém realce âmbar como antes.
+                      const divergeGenerico = divergeUsuario && !fonteOrigem;
+                      const destacarAmbar = divergeDocumento || divergeGenerico;
+                      const tooltipUsuario = divergeDocumento
+                        ? `Documento emitido por ${usuarioOrigemDisplay} · Lançamento por ${usuarioLancamentoDisplay}`
+                        : divergeLote
+                          ? `Lote aberto por ${usuarioOrigemDisplay} · Lançado por ${usuarioLancamentoDisplay}`
+                          : divergeGenerico
+                            ? `Lote aberto por ${usuarioOrigemDisplay}, lançado por ${usuarioLancamentoDisplay}`
+                            : "";
+                      const docTooltipExtra = temDocOrigem
+                        ? `${docLabel}${docOrigem?.ambiguo ? "  (número casou com múltiplos documentos — usuário caiu no dono do lote)" : ""}`
                         : "";
                       return (
                       <TableRow
@@ -596,7 +752,8 @@ export function DrillDrawer({
                         className={cn(
                           i % 2 === 1 && "bg-muted/20",
                           "cursor-pointer hover:bg-accent/40",
-                          divergeUsuario && "!bg-amber-100/60 hover:!bg-amber-100 border-l-4 border-l-amber-500",
+                          destacarAmbar && "!bg-amber-100/60 hover:!bg-amber-100 border-l-4 border-l-amber-500",
+                          divergeLote && "border-l-4 border-l-sky-400",
                         )}
                         onClick={() => setDetalhe(r)}
                       >
@@ -618,15 +775,47 @@ export function DrillDrawer({
                         <TableCell className="whitespace-nowrap">{r.origem_codigo ?? ""}</TableCell>
                         <TableCell className="whitespace-nowrap">{labelOrigem(r.origem_codigo, r.origem_descricao)}</TableCell>
                         <TableCell className="whitespace-nowrap">
-                          {divergeUsuario ? (
+                          {(destacarAmbar || divergeLote || temDocOrigem) ? (
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <span className="underline decoration-dotted decoration-amber-600">
+                                  <span
+                                    className={cn(
+                                      "underline decoration-dotted underline-offset-2",
+                                      destacarAmbar
+                                        ? "decoration-amber-600"
+                                        : divergeLote
+                                          ? "decoration-sky-500"
+                                          : "decoration-muted-foreground",
+                                    )}
+                                  >
                                     {usuarioOrigemDisplay}
+                                    {docOrigem?.ambiguo ? " (?)" : ""}
                                   </span>
                                 </TooltipTrigger>
-                                <TooltipContent>{tooltipUsuario}</TooltipContent>
+                                <TooltipContent className="max-w-xs space-y-1">
+                                  {tooltipUsuario && <div>{tooltipUsuario}</div>}
+                                  {docTooltipExtra && (
+                                    <div className="text-[11px]">
+                                      {docLabel}
+                                      {docOrigem?.parceiro_nome && usuarioOrigemDisplay !== "—" && (
+                                        <div className="text-muted-foreground">
+                                          Emitida por {usuarioOrigemDisplay}
+                                        </div>
+                                      )}
+                                      {docOrigem?.ambiguo && (
+                                        <div className="text-amber-700">
+                                          Número casou com múltiplos documentos — usuário caiu no dono do lote.
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                  {fonteOrigem && (
+                                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                      Fonte: {fonteOrigem === "documento" ? "Documento (USUGER)" : "Lote (E640LOT)"}
+                                    </div>
+                                  )}
+                                </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
                           ) : (
@@ -634,16 +823,23 @@ export function DrillDrawer({
                           )}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
-                          {divergeUsuario ? (
+                          {(destacarAmbar || divergeLote) ? (
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <span className="inline-flex items-center gap-1 underline decoration-dotted decoration-amber-600">
+                                  <span
+                                    className={cn(
+                                      "inline-flex items-center gap-1 underline decoration-dotted",
+                                      destacarAmbar ? "decoration-amber-600" : "decoration-sky-500",
+                                    )}
+                                  >
                                     {usuarioLancamentoDisplay}
-                                    <AlertTriangle
-                                      className="h-3.5 w-3.5 text-amber-600"
-                                      aria-label="Usuário do lote difere do lançamento"
-                                    />
+                                    {destacarAmbar && (
+                                      <AlertTriangle
+                                        className="h-3.5 w-3.5 text-amber-600"
+                                        aria-label="Usuário do documento difere do lançamento"
+                                      />
+                                    )}
                                   </span>
                                 </TooltipTrigger>
                                 <TooltipContent>{tooltipUsuario}</TooltipContent>
@@ -653,6 +849,7 @@ export function DrillDrawer({
                             usuarioLancamentoDisplay
                           )}
                         </TableCell>
+
                         {!isDRE && (
                           <TableCell className="text-right tabular-nums">
                             {r.saldo_anterior != null ? fmtBRL(Number(r.saldo_anterior)) : ""}
@@ -730,7 +927,23 @@ export function DrillDrawer({
                 Lançamento {detalhe?.lancamento ?? ""}
               </DialogTitle>
             </DialogHeader>
-            {detalhe && (
+            {detalhe && (() => {
+              const doc = (detalhe as any).documento_origem as DocumentoOrigem | null | undefined;
+              const fonte = detalhe.usuario_origem_fonte as string | null | undefined;
+              const fonteLabel =
+                fonte === "documento"
+                  ? "Documento (USUGER)"
+                  : fonte === "lote"
+                    ? "Lote (E640LOT)"
+                    : "—";
+              const docNumero = doc?.numero != null && String(doc.numero).trim() !== "" ? String(doc.numero) : "";
+              const documentoTxt =
+                hasDisplayValue(detalhe.documento)
+                  ? String(detalhe.documento)
+                  : doc && (docNumero || doc.serie)
+                    ? [doc.serie ?? doc.tipo, docNumero].filter(Boolean).join(" ")
+                    : "";
+              return (
               <div className="space-y-3">
                 {detalhe.usuario_origem_difere === true && hasDisplayValue(detalhe.usuario_origem) && (
                   <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
@@ -738,10 +951,45 @@ export function DrillDrawer({
                     <div>
                       <div className="font-medium">Divergência de usuário</div>
                       <div>
-                        Lote aberto por <strong>{usuarioOrigemValue(detalhe, "—")}</strong>,
-                        lançado por <strong>{usuarioLancamentoValue(detalhe, "—")}</strong>.
+                        {fonte === "documento" ? (
+                          <>
+                            Documento emitido por <strong>{usuarioOrigemValue(detalhe, "—")}</strong>,
+                            lançado por <strong>{usuarioLancamentoValue(detalhe, "—")}</strong>.
+                          </>
+                        ) : (
+                          <>
+                            Lote aberto por <strong>{usuarioOrigemValue(detalhe, "—")}</strong>,
+                            lançado por <strong>{usuarioLancamentoValue(detalhe, "—")}</strong>.
+                          </>
+                        )}
                       </div>
                     </div>
+                  </div>
+                )}
+                {doc && (docNumero || doc.parceiro_nome) && (
+                  <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="font-medium">Documento de origem</div>
+                      {doc.ambiguo && (
+                        <span className="rounded bg-amber-100 text-amber-900 px-2 py-0.5 text-[10px] font-medium">
+                          Ambíguo
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
+                      <Info label="Tipo" value={doc.descricao ?? doc.tipo ?? ""} />
+                      <Info label="Série" value={doc.serie ?? ""} />
+                      <Info label="Número" value={docNumero} />
+                      <Info
+                        label={doc.parceiro_tipo === "fornecedor" ? "Fornecedor" : doc.parceiro_tipo === "cliente" ? "Cliente" : "Parceiro"}
+                        value={doc.parceiro_nome ? `${doc.parceiro_codigo ?? ""} ${doc.parceiro_nome}`.trim() : ""}
+                      />
+                    </div>
+                    {doc.ambiguo && (
+                      <div className="mt-2 text-[11px] text-amber-800">
+                        Este número casou com mais de um documento de emissores diferentes — o usuário de origem foi resolvido para o dono do lote.
+                      </div>
+                    )}
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-3 text-xs">
@@ -750,16 +998,16 @@ export function DrillDrawer({
                 <Info label="Lote" value={detalhe.lote} />
                 <Info label="Número" value={detalhe.numero ?? detalhe.lancamento} />
                 <Info label="Data" value={fmtDataBR(detalhe.data)} />
-                <Info label="Lado (D/C)" value={detalhe.debcre} />
+                <Info label="Lado (D/C)" value={detalhe.lado ?? detalhe.debcre} />
                 <Info
                   label="Conta Débito"
                   value={toDisplay(detalhe.conta_debito)}
-                  strong={String(detalhe.debcre ?? '').toUpperCase() === 'D'}
+                  strong={String(detalhe.lado ?? detalhe.debcre ?? '').toUpperCase() === 'D'}
                 />
                 <Info
                   label="Conta Crédito"
                   value={toDisplay(detalhe.conta_credito)}
-                  strong={String(detalhe.debcre ?? '').toUpperCase() === 'C'}
+                  strong={String(detalhe.lado ?? detalhe.debcre ?? '').toUpperCase() === 'C'}
                 />
                 <Info
                   label="Conta selecionada"
@@ -781,9 +1029,10 @@ export function DrillDrawer({
                     </ul>
                   </div>
                 )}
-                <Info label="Documento" value={toDisplay(detalhe.documento)} />
+                <Info label="Documento" value={documentoTxt} />
                 <Info label="Origem" value={detalhe.origem_codigo ? `${toDisplay(detalhe.origem_codigo)} - ${labelOrigem(detalhe.origem_codigo as string, detalhe.origem_descricao)}` : ""} />
                 <Info label="Usuário origem" value={usuarioOrigemValue(detalhe, "—")} />
+                <Info label="Origem do usuário" value={fonteLabel} />
                 <Info label="Usuário lançamento" value={usuarioLancamentoValue(detalhe, "—")} />
                 <Info
                   label="Valor integral"
@@ -799,7 +1048,8 @@ export function DrillDrawer({
                 </div>
               </div>
               </div>
-            )}
+              );
+            })()}
           </DialogContent>
         </Dialog>
       </SheetContent>
