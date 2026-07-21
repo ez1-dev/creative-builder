@@ -978,11 +978,7 @@ export function DrillDrawer({
                                 Lote
                               </span>
                             )}
-                            {divergeDocumento && (
-                              <span className="rounded border border-amber-500 bg-amber-50 px-1.5 py-0.5 text-[9px] uppercase tracking-wide font-medium text-amber-800">
-                                Diferente do lançamento
-                              </span>
-                            )}
+                          
                             {docOrigem?.ambiguo === true && (
                               <TooltipProvider>
                                 <Tooltip>
