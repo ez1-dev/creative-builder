@@ -1979,35 +1979,16 @@ function Visualizacao() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={async () => {
-                  try {
-                    await atualizarCacheSenior.mutateAsync({
-                      anomes_ini: ini,
-                      anomes_fim: fim,
-                      codfil: codfilNum,
-                      tipo: tipoModeloPayload,
-                      limpar_periodo: true,
-                      limpar_resultado: true,
-                      modo_balanco: modoBalancoEfetivo,
-                      data_corte: dataCorteEfetiva,
-                      aplicar_referencia_senior: aplicarRefSeniorEfetivo,
-                    });
-                    toast.success("Cache Senior atualizado. Materializando novo snapshot...");
-                    await dispararMaterializacao();
-                  } catch (e) {
-                    toast.error((e as Error)?.message ?? "Falha ao atualizar cache Senior.");
-                  }
-                }}
+                onClick={handleAtualizarCacheSenior}
                 disabled={
                   materializar.isPending ||
-                  atualizarCacheSenior.isPending ||
                   vincular.isPending ||
                   cccc106SemData
                 }
-                title="Limpa cache do período e re-sincroniza saldos do Senior antes de materializar."
+                title="Sincroniza saldos do Senior e materializa novo snapshot (job assíncrono com barra de progresso)."
               >
                 <Database className="h-4 w-4 mr-1.5" />
-                {atualizarCacheSenior.isPending ? "Atualizando..." : "Atualizar cache Senior"}
+                Atualizar cache Senior
               </Button>
             )}
             {tipoModelo === "BALANCO" && (
