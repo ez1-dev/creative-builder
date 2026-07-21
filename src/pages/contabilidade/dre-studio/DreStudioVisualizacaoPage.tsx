@@ -364,7 +364,7 @@ function Visualizacao() {
   const { data: centros } = useCentrosCusto();
   const q = useResultadoPronto(id, filtros, !cccc106SemData && !isConciliacaoSenior);
   const materializar = useMaterializarResultado(id);
-  const atualizarCacheSenior = useAtualizarCacheSenior(id);
+  // atualizarCacheSenior (sync) removido — o botão agora dispara materializar (job assíncrono).
   const [materJobId, setMaterJobId] = useState<string | null>(null);
   const [materOpen, setMaterOpen] = useState(false);
   const vincular = useVincularContasBalancoSenior(id);
