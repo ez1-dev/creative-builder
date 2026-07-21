@@ -1247,6 +1247,9 @@ export function DrillDrawer({
                         {(doc?.descricao || doc?.tipo) && <Info label="Tipo" value={doc?.descricao ?? doc?.tipo ?? ""} />}
                         {numValido && <Info label="Número" value={docNumero} />}
                         {doc?.serie && <Info label="Série" value={doc.serie} />}
+                        {doc?.transacao && (doc.transacao.codigo || doc.transacao.descricao || (Array.isArray(doc.transacao.multiplas) && doc.transacao.multiplas.length > 0)) && (
+                          <Info label="Transação" value={<TransacaoOrigemField transacao={doc.transacao} />} />
+                        )}
                         {doc?.parceiro_nome && (
                           <Info
                             label={doc.parceiro_tipo === "fornecedor" ? "Fornecedor" : doc.parceiro_tipo === "cliente" ? "Cliente" : "Parceiro"}
