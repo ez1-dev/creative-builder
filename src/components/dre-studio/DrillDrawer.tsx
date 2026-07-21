@@ -150,6 +150,27 @@ interface DocumentoOrigem {
   parceiro_codigo?: string | number | null;
   parceiro_nome?: string | null;
   ambiguo?: boolean | null;
+  fonte_tabela?: string | null;
+  produto?: string | null;
+  derivacao?: string | null;
+  deposito?: string | null;
+  bem?: string | null;
+  data_movimento?: string | null;
+  sequencia_movimento?: number | string | null;
+}
+
+function numeroDocumentoValido(numero: string | number | null | undefined): boolean {
+  if (numero === null || numero === undefined) return false;
+  const s = String(numero).trim();
+  return s !== "" && s !== "0";
+}
+
+function transacaoOrigemLabel(r: Pick<RazaoItem, "transacao_origem" | "transacao_origem_codigo" | "transacao_origem_descricao">): string | null {
+  if (hasDisplayValue(r.transacao_origem)) return String(r.transacao_origem).trim();
+  const parts = [r.transacao_origem_codigo, r.transacao_origem_descricao]
+    .filter((p) => p !== null && p !== undefined && String(p).trim() !== "")
+    .map((p) => String(p).trim());
+  return parts.length ? parts.join(" - ") : null;
 }
 
 interface RazaoItem {
@@ -164,10 +185,17 @@ interface RazaoItem {
   origem_codigo?: string | null;
   origem_descricao?: string | null;
   usuario_origem?: string | null;
+  usuario_origem_codigo?: string | number | null;
   usuario?: string | null;
   usuario_lancamento?: string | null;
+  usuario_lancamento_codigo?: string | number | null;
   usuario_origem_difere?: boolean;
   usuario_origem_fonte?: "documento" | "lote" | string | null;
+  usuario_origem_fonte_tabela?: string | null;
+  usuario_origem_status?: string | null;
+  transacao_origem?: string | null;
+  transacao_origem_codigo?: string | number | null;
+  transacao_origem_descricao?: string | null;
   documento_origem?: DocumentoOrigem | null;
   saldo_anterior?: number | null;
   mov_debito?: number | null;
@@ -198,11 +226,11 @@ interface ContaOpcao {
   qtd_lancamentos?: number | null;
 }
 
-/** Formata `documento_origem` como "NFE 20568 — RIZZI & CIA LTDA". */
+/** Formata `documento_origem` como "NFE 20568 — RIZZI & CIA LTDA". Ignora número 0/vazio. */
 function labelDocumentoOrigem(doc?: DocumentoOrigem | null): string {
   if (!doc) return "";
   const head = String(doc.serie ?? doc.tipo ?? "").trim();
-  const num = doc.numero != null && String(doc.numero).trim() !== "" ? String(doc.numero) : "";
+  const num = numeroDocumentoValido(doc.numero) ? String(doc.numero) : "";
   const parceiro = String(doc.parceiro_nome ?? "").trim();
   const esq = [head, num].filter(Boolean).join(" ");
   const parts = [esq, parceiro].filter(Boolean);
@@ -854,6 +882,20 @@ export function DrillDrawer({
                                 Diferente do lançamento
                               </span>
                             )}
+                            {docOrigem?.ambiguo === true && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="rounded border border-amber-400 bg-amber-50 px-1.5 py-0.5 text-[9px] uppercase tracking-wide font-medium text-amber-800 cursor-help">
+                                      Vários documentos
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-xs">
+                                    Este lançamento está ligado a mais de um documento ou título. O backend não escolheu arbitrariamente um usuário de origem.
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
@@ -988,17 +1030,35 @@ export function DrillDrawer({
               const fonte = detalhe.usuario_origem_fonte as string | null | undefined;
               const fonteLabel =
                 fonte === "documento"
-                  ? "Documento (USUGER)"
+                  ? "Documento"
                   : fonte === "lote"
-                    ? "Lote (E640LOT)"
+                    ? "Lote"
                     : "—";
-              const docNumero = doc?.numero != null && String(doc.numero).trim() !== "" ? String(doc.numero) : "";
+              const numValido = numeroDocumentoValido(doc?.numero);
+              const docNumero = numValido ? String(doc!.numero) : "";
               const documentoTxt =
                 hasDisplayValue(detalhe.documento)
                   ? String(detalhe.documento)
-                  : doc && (docNumero || doc.serie)
+                  : doc && (numValido || doc.serie)
                     ? [doc.serie ?? doc.tipo, docNumero].filter(Boolean).join(" ")
                     : "";
+              const usuarioOrigemTxt = usuarioOrigemValue(detalhe, "—");
+              const usuarioLctoTxt = usuarioLancamentoValue(detalhe, "—");
+              const usuarioOrigemCod = detalhe.usuario_origem_codigo;
+              const usuarioLctoCod = detalhe.usuario_lancamento_codigo;
+              const transacao = transacaoOrigemLabel(detalhe);
+              // Documento/movimento é exibido quando há número válido OU quaisquer campos de movimento.
+              const temMovimento = Boolean(
+                doc &&
+                  (numValido ||
+                    doc.parceiro_nome ||
+                    doc.produto ||
+                    doc.derivacao ||
+                    doc.deposito ||
+                    doc.bem ||
+                    doc.data_movimento ||
+                    doc.sequencia_movimento != null),
+              );
               return (
               <div className="space-y-3">
                 {detalhe.usuario_origem_difere === true && hasDisplayValue(detalhe.usuario_origem) && (
@@ -1009,72 +1069,100 @@ export function DrillDrawer({
                       <div>
                         {fonte === "documento" ? (
                           <>
-                            Documento emitido por <strong>{usuarioOrigemValue(detalhe, "—")}</strong>,
-                            lançado por <strong>{usuarioLancamentoValue(detalhe, "—")}</strong>.
+                            Documento emitido por <strong>{usuarioOrigemTxt}</strong>,
+                            lançado por <strong>{usuarioLctoTxt}</strong>.
                           </>
                         ) : (
                           <>
-                            Lote aberto por <strong>{usuarioOrigemValue(detalhe, "—")}</strong>,
-                            lançado por <strong>{usuarioLancamentoValue(detalhe, "—")}</strong>.
+                            Lote aberto por <strong>{usuarioOrigemTxt}</strong>,
+                            lançado por <strong>{usuarioLctoTxt}</strong>.
                           </>
                         )}
                       </div>
                     </div>
                   </div>
                 )}
-                {doc && (docNumero || doc.parceiro_nome) && (
-                  <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="font-medium">Documento de origem</div>
-                      {doc.ambiguo && (
-                        <span className="rounded bg-amber-100 text-amber-900 px-2 py-0.5 text-[10px] font-medium">
-                          Ambíguo
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
-                      <Info label="Tipo" value={doc.descricao ?? doc.tipo ?? ""} />
-                      <Info label="Série" value={doc.serie ?? ""} />
-                      <Info label="Número" value={docNumero} />
-                      <Info
-                        label={doc.parceiro_tipo === "fornecedor" ? "Fornecedor" : doc.parceiro_tipo === "cliente" ? "Cliente" : "Parceiro"}
-                        value={doc.parceiro_nome ? `${doc.parceiro_codigo ?? ""} ${doc.parceiro_nome}`.trim() : ""}
-                      />
-                    </div>
-                    {doc.ambiguo && (
-                      <div className="mt-2 text-[11px] text-amber-800">
-                        Este número casou com mais de um documento de emissores diferentes — o usuário de origem foi resolvido para o dono do lote.
-                      </div>
+                {/* Rastreabilidade da origem */}
+                <div className="rounded-md border bg-muted/20 px-3 py-2 text-xs">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <div className="font-medium">Rastreabilidade da origem</div>
+                    {doc?.ambiguo === true && (
+                      <span className="rounded bg-amber-100 text-amber-900 px-2 py-0.5 text-[10px] font-medium">
+                        Vários documentos
+                      </span>
                     )}
                   </div>
-                )}
-                <div className="rounded-md border bg-muted/20 px-3 py-2 text-xs">
-                  <div className="font-medium mb-1">Rastreabilidade</div>
                   <div className="grid grid-cols-2 gap-x-3 gap-y-1">
                     <Info
-                      label="Origem do lançamento"
+                      label="Origem"
                       value={
                         detalhe.origem_codigo
                           ? `${toDisplay(detalhe.origem_codigo)} — ${labelOrigem(detalhe.origem_codigo as string, detalhe.origem_descricao)}`
                           : ""
                       }
                     />
-                    <Info label="Documento" value={documentoTxt} />
-                    <Info label="Usuário de origem" value={usuarioOrigemValue(detalhe, "—")} />
+                    {transacao && <Info label="Transação" value={transacao} />}
+                    <Info
+                      label="Usuário Origem"
+                      value={
+                        hasDisplayValue(detalhe.usuario_origem)
+                          ? `${usuarioOrigemTxt}${usuarioOrigemCod != null && String(usuarioOrigemCod).trim() !== "" ? ` (${usuarioOrigemCod})` : ""}`
+                          : "—"
+                      }
+                    />
                     <Info label="Fonte do usuário" value={fonteLabel} />
-                    <Info label="Usuário do lançamento" value={usuarioLancamentoValue(detalhe, "—")} />
-                    {doc && (
-                      <>
-                        <Info label="Tipo do documento" value={doc.descricao ?? doc.tipo ?? ""} />
-                        <Info label="Número" value={docNumero} />
-                        <Info label="Série" value={doc.serie ?? ""} />
-                        <Info
-                          label={doc.parceiro_tipo === "fornecedor" ? "Fornecedor" : doc.parceiro_tipo === "cliente" ? "Cliente" : "Parceiro"}
-                          value={doc.parceiro_nome ? `${doc.parceiro_codigo ?? ""} ${doc.parceiro_nome}`.trim() : ""}
-                        />
-                      </>
+                    <Info
+                      label="Usuário Lcto."
+                      value={
+                        hasDisplayValue(detalhe.usuario_lancamento) || hasDisplayValue(detalhe.usuario)
+                          ? `${usuarioLctoTxt}${usuarioLctoCod != null && String(usuarioLctoCod).trim() !== "" ? ` (${usuarioLctoCod})` : ""}`
+                          : "—"
+                      }
+                    />
+                    {hasDisplayValue(detalhe.usuario_origem_status) && (
+                      <Info label="Status da resolução" value={detalhe.usuario_origem_status} />
+                    )}
+                    {hasDisplayValue(detalhe.usuario_origem_fonte_tabela) && (
+                      <div className="col-span-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+                        {detalhe.usuario_origem_fonte_tabela}
+                      </div>
                     )}
                   </div>
+                  {temMovimento && (
+                    <div className="mt-2 border-t pt-2">
+                      <div className="text-muted-foreground mb-1">Documento/Movimento</div>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                        {documentoTxt && <Info label="Documento" value={documentoTxt} />}
+                        {(doc?.descricao || doc?.tipo) && <Info label="Tipo" value={doc?.descricao ?? doc?.tipo ?? ""} />}
+                        {numValido && <Info label="Número" value={docNumero} />}
+                        {doc?.serie && <Info label="Série" value={doc.serie} />}
+                        {doc?.parceiro_nome && (
+                          <Info
+                            label={doc.parceiro_tipo === "fornecedor" ? "Fornecedor" : doc.parceiro_tipo === "cliente" ? "Cliente" : "Parceiro"}
+                            value={`${doc.parceiro_codigo ?? ""} ${doc.parceiro_nome}`.trim()}
+                          />
+                        )}
+                        {doc?.produto && <Info label="Produto" value={doc.produto} />}
+                        {doc?.derivacao && <Info label="Derivação" value={doc.derivacao} />}
+                        {doc?.deposito && <Info label="Depósito" value={doc.deposito} />}
+                        {doc?.bem && <Info label="Bem" value={doc.bem} />}
+                        {doc?.data_movimento && <Info label="Data do movimento" value={fmtDataBR(doc.data_movimento)} />}
+                        {doc?.sequencia_movimento != null && String(doc.sequencia_movimento).trim() !== "" && (
+                          <Info label="Sequência" value={doc.sequencia_movimento} />
+                        )}
+                        {doc?.fonte_tabela && (
+                          <div className="col-span-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+                            {doc.fonte_tabela}
+                          </div>
+                        )}
+                      </div>
+                      {doc?.ambiguo && (
+                        <div className="mt-2 text-[11px] text-amber-800">
+                          Este lançamento está ligado a mais de um documento — o backend não escolheu arbitrariamente um usuário de origem.
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-xs">
                 <Info label="Empresa" value={detalhe.codemp} />
