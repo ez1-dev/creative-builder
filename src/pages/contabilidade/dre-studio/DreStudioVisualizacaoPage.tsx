@@ -2140,6 +2140,25 @@ function Visualizacao(props: VisualizacaoProps = {}) {
                   {vincular.isPending ? "Vinculando... (até 1 min)" : "Vincular contas"}
                 </Button>
               )}
+              {q.meta?.suporta_filtro_unidade === true && (
+                <Select value={unidade} onValueChange={setUnidade}>
+                  <SelectTrigger
+                    className="h-9 w-[200px]"
+                    title="Filtrar matriz por Unidade de Negócio"
+                    aria-label="Unidade de negócio"
+                  >
+                    <SelectValue placeholder="Unidade de negócio" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="TODOS">Todas (consolidado)</SelectItem>
+                    {(q.meta?.unidades_negocio ?? []).map((u) => (
+                      <SelectItem key={u.codigo} value={u.codigo}>
+                        {u.nome ? `${u.codigo} — ${u.nome}` : u.codigo}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               <Button
                 size="icon"
                 variant="ghost"
@@ -2153,6 +2172,7 @@ function Visualizacao(props: VisualizacaoProps = {}) {
               </Button>
             </div>
           </section>
+
 
           {/* Grupo: Saída */}
           <section
