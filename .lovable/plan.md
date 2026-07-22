@@ -1,53 +1,85 @@
-# Melhorar estrutura e organização do toolbar de ações
 
-Escopo: arquivo `src/pages/contabilidade/dre-studio/DreStudioVisualizacaoPage.tsx` — bloco "AÇÕES" (linhas ~2083–2235). Mudanças apenas visuais/estruturais; nenhuma lógica de cálculo, filtro, cache ou drill é tocada.
+## Contexto verificado
 
-## Objetivo
-Hoje a barra é uma única linha `flex-wrap` com três grupos (Dados / Saída / Visualização). Na DRE Padrão sobram poucos botões (Carregar ano, Atualizar Resultado, Recalcular, refresh, Exportar) e a linha fica desalinhada com o bloco de Visualização — como mostra o print anexo. Vamos deixar a hierarquia mais clara, com respiro, alinhamento consistente e melhor comportamento responsivo.
+- `src/components/dre-studio/DreFilters.tsx` **não** possui atualmente um filtro "Unidade de Negócio" na barra superior — nada precisa ser removido da UI de filtros. O que existe é o parâmetro `unidade` opcional em `dreMatrizApi.ts` (linhas 54 e 126), mas ele **não** é setado pela `DrePadraoPage`/`DreStudioVisualizacaoPage`, ou seja, a matriz já é chamada sem `unidade_negocio`.
+- O drill "Unidade de Negócio" já existe: `DrillsMenu.tsx` reconhece a dimensão, `drillDreApi.ts` a expõe como `unidade_negocio`, e `DrillResultadoPanel.tsx` renderiza colunas dirigidas pelo backend via `/api/contabil/drill-dre`. Não há hoje UI específica para Genius/Estrutural/Não classificado nem indicador de qualidade.
+- `DrePadraoPage.tsx` renderiza `DreStudioVisualizacaoPage` em modo bloqueado e não exibe hoje badge de "Visão consolidada" nem aviso temporário.
 
-## Nova estrutura visual
+Portanto, o trabalho é essencialmente: (1) reforçar garantias na chamada da matriz, (2) melhorar UX do cabeçalho da DRE Padrão, (3) enriquecer o painel de drill quando a dimensão for `unidade_negocio` — tudo respeitando a regra "o frontend nunca classifica".
 
-```text
-┌────────────────────────────────────────────────────────────────────────┐
-│  AÇÕES                                                                 │
-│  ┌──────────────────────────┐   ┌──────────────┐   ┌────────────────┐  │
-│  │ Dados                    │ | │ Saída        │ | │ Visualização   │  │
-│  │ [Carregar ano] primary   │ | │ [Exportar]   │ | │ [Modo][Nível]  │  │
-│  │ [Atualizar Resultado]    │ | │ [Histórico]* │ | │ [⇅ tudo][⇵]    │  │
-│  │ [Recalcular]  [⟳]        │ | │ [Editar]*    │ | │ [Centavos]     │  │
-│  │ [Vincular]* [Cache SR]*  │ |                   │                │  │
-│  └──────────────────────────┘   └──────────────┘   └────────────────┘  │
-│                                                                        │
-│  * itens só aparecem fora do modoBloqueado / conforme já hoje          │
-└────────────────────────────────────────────────────────────────────────┘
-```
+## Escopo
 
-### Mudanças concretas
+### 1. Matriz consolidada — reforçar contrato
+- Em `DreStudioVisualizacaoPage.tsx`, quando `modoBloqueado` (DRE Padrão), garantir que `unidade`/`unidade_negocio` **nunca** é enviado ao endpoint da matriz. Nenhum filtro superior de Unidade de Negócio é adicionado.
+- Preparar leitura de `response.meta?.suporta_filtro_unidade` do payload da matriz (sem ativar UI). Guardar em estado local; enquanto `false/undefined`, nada é renderizado.
+- Se o backend responder com `unidade_filtro_ignorado: true`, ignorar silenciosamente (sem toast).
 
-1. Card externo continua `rounded-xl border bg-white shadow-sm`, mas com padding um pouco maior (`p-4`) e `gap-y-4` para respiro entre grupos ao quebrar linha.
-2. Cada grupo (Dados / Saída / Visualização) vira um bloco com:
-   - Rótulo `Dados` / `Saída` / `Visualização` acima (não mais inline), em `text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1.5`.
-   - Container `flex flex-wrap items-center gap-2`.
-3. Divisores verticais (`h-8 w-px bg-slate-200`) substituídos por um espaçamento maior (`gap-x-6`) + rótulos como separadores visuais. Divisor só permanece antes de Visualização em telas ≥ md.
-4. Visualização deixa de depender de `ml-auto` puro:
-   - Em telas grandes (`lg:`), fica alinhada à direita.
-   - Em telas médias/pequenas, quebra para uma segunda linha alinhada à esquerda, mantendo a mesma altura visual dos outros grupos (hoje ela "desce" fora de linha, como no print).
-5. Botão "Carregar ano" continua primário; os demais em `variant="outline"`. Botão de refresh (`RefreshCw`) vira ícone puro `variant="ghost" size="icon"` com `title` — remove o vão vazio ao lado.
-6. Botão "Com centavos / Sem centavos" ganha ícone (`Coins`) para casar visualmente com o resto do grupo Visualização.
-7. Selects de Modo e Nível ganham largura consistente (`w-[130px]` e `w-[120px]`) e `h-9` (mesma altura dos botões `size="sm"` com ícone) para ficarem alinhados verticalmente com os controles Expandir/Recolher.
-8. Grupo Expandir/Recolher (`ChevronsUpDown` / `ChevronsDownUp`) mantido como toggle group, também `h-9`, com `title` melhor ("Expandir todos os níveis" / "Recolher todos os níveis").
-9. Quando `modoBloqueado` (DRE Padrão): grupo "Saída" mostra só "Exportar" — ok como hoje, mas alinhado no novo layout com rótulo próprio.
-10. Acessibilidade: cada grupo vira `<section aria-label="Ações de dados" />` etc.; botões só-ícone recebem `aria-label`.
+### 2. Cabeçalho "Visão consolidada" em `DrePadraoPage.tsx`
+- Adicionar badge discreto ao lado do título "DRE Padrão":
+  - Texto: `Visão consolidada`
+  - Tooltip: "A matriz principal apresenta os valores consolidados. A análise por Unidade de Negócio está disponível nos drills das linhas."
+- Renderizar apenas quando `suportaFiltroUnidade !== true` (padrão hoje).
 
-## Não faz parte deste plano
-- Nenhuma alteração em filtros, cache, drill, exportação, cálculo, endpoints, `modoBloqueado`, permissões ou textos de negócio.
-- Nenhum arquivo além de `DreStudioVisualizacaoPage.tsx`.
-- Painéis abaixo da toolbar (Filtros, Conciliação, grid) ficam como estão.
+### 3. Aviso temporário recolhível
+- Em `DrePadraoPage.tsx`, abaixo do header e acima da visualização, um alerta discreto (variant `default`/info) recolhível, persistindo estado em `localStorage` (`dre-padrao:aviso-unidade`):
+  - "A análise por Unidade de Negócio está disponível nos drills. O filtro da matriz será habilitado após a conclusão da materialização contábil por centro de custo."
+- Só aparece quando `suportaFiltroUnidade !== true`.
+
+### 4. Drill "Unidade de Negócio" enriquecido
+Em `src/components/dre-studio/DrillResultadoPanel.tsx`, ao detectar `ctx.agrupar_por === 'unidade_negocio'`:
+- Mapear apresentação apenas (sem classificar):
+  ```ts
+  const UN_LABELS = {
+    GENIUS: 'Genius',
+    ESTRUTURAL: 'Estrutural Zortea',
+    NAO_CLASSIFICADO: 'Não classificado',
+  };
+  ```
+  Aplicar no label da coluna `codigo`/`chave`/`unidade` conforme os campos que o backend devolver (usar o primeiro campo disponível entre `unidade_negocio`, `codigo`, `chave`).
+- Ordenar rows: `ESTRUTURAL` → `GENIUS` → `NAO_CLASSIFICADO`; demais categorias após, por maior valor.
+- Nunca ocultar/redistribuir `NAO_CLASSIFICADO`. Marcar visualmente com badge âmbar sutil + tooltip: "Lançamentos cujo centro de custo não possui identificação G- ou E- na descrição.".
+- Acima da tabela, exibir bloco "Qualidade da classificação":
+  - `Classificado: X%` (soma dos percentuais de GENIUS + ESTRUTURAL, quando o backend enviar `percentual`).
+  - `Não classificado: Y%`.
+  - Se algum dos itens não tiver `percentual`, calcular a partir de `valor` sobre o total do payload — apenas para indicador visual.
+- Conferência de total: comparar `sum(valor)` com `ctx.totalLinhaDre` (tolerância `0.01`). Se divergir, mostrar aviso discreto: "A classificação por unidade não fecha com o total da linha." — nunca corrigir.
+- Nada disso altera as demais dimensões.
+
+### 5. Exportação do drill (CSV/XLSX) para dimensão `unidade_negocio`
+- Cabeçalho customizado no XLSX quando `agrupar_por === 'unidade_negocio'`:
+  - "DRE Padrão — Análise por Unidade de Negócio"
+  - Modelo, Linha analisada, Período, Empresa, Filial (a partir de `ctx.filtros` e `ctx.linhaDescricao`/`modeloId`).
+- Colunas: Unidade de Negócio (com label amigável), Valor, Percentual, Quantidade de lançamentos. Incluir a linha "Não classificado".
+
+### 6. Restrições explícitas (não fazer)
+- Não filtrar `linhas` da matriz por unidade no frontend.
+- Não usar `descricaoCentroCusto.startsWith('G-'/'E-')` em lugar algum.
+- Não usar códigos `502`/`503`/`cd_centro_custos_3` do BI Comercial nesta trilha.
+- Não ativar filtro superior via constante — só via `meta.suporta_filtro_unidade`.
+- Não navegar do drill de Unidade para Razão filtrando localmente por descrição de CCU. Se o backend não expuser filtro `unidade_negocio` no `drill-lancamentos`, manter o item apenas como análise agregada (sem clique-para-Razão). Verificação em runtime: se `linha.drills` do próximo nível não trouxer `lancamento` com suporte, permanecer no nível agregado.
+
+## Arquivos a alterar
+
+- `src/pages/contabilidade/dre-padrao/DrePadraoPage.tsx` — badge "Visão consolidada" + aviso recolhível.
+- `src/pages/contabilidade/dre-studio/DreStudioVisualizacaoPage.tsx` — nunca enviar `unidade` na matriz quando `modoBloqueado`; capturar `meta.suporta_filtro_unidade` (leitura apenas) e propagar para `DrePadraoPage` via callback ou hook local.
+- `src/components/dre-studio/DrillResultadoPanel.tsx` — labels amigáveis, ordenação, badge de "Não classificado", indicador de qualidade, conferência de total, cabeçalho de exportação específico para `unidade_negocio`.
+- (Opcional) `src/lib/contabil/dreMatrizApi.ts` — expor `meta.suporta_filtro_unidade` no tipo de resposta se ainda não estiver mapeado.
 
 ## Detalhes técnicos
-- Trocar o wrapper atual `<div className="flex flex-wrap items-center gap-x-6 gap-y-3 p-3">` por um grid responsivo:
-  `className="grid gap-4 p-4 md:grid-cols-[auto_auto_1fr] md:items-start"`.
-- Cada grupo em `<div className="flex flex-col gap-1.5">` com header (label) + linha de controles.
-- Divisor `md:before:content-[''] md:before:w-px md:before:bg-slate-200` apenas no grupo Visualização para separar de Saída.
-- Preservar todas as props/handlers atuais (`handleCarregarAnoInteiro`, `handleSincronizar`, `setConfirmRecalcular`, `handleAtualizarCacheSenior`, `vincular.mutate`, `handleRecarregar`, `handleExportarExcel`, `setOpenHistoricoCache`, `setEditorEstruturaOpen`, `setModo`, `aplicarNivel`, `expandirTudo`, `recolherTudo`, `mostrarTecnicas`, `semCasasDecimais`).
-- Manter todos os `disabled`, `title` e condicionais (`isBalanco`, `tipoModelo === "BALANCO"`, `!modoBloqueado`, etc.) exatamente como estão.
+
+- Mapa `UN_LABELS` fica **apenas** dentro do `DrillResultadoPanel` (uso de apresentação). Nenhum outro componente conhece esses códigos.
+- Detecção do código canônico: usar `row.unidade_negocio ?? row.codigo ?? row.chave` como chave do mapa (uppercase, trim). Se não bater, exibir o valor original sem transformar.
+- Tolerância de conferência: `Math.abs(soma - totalLinhaDre) <= 0.01`.
+- Aviso recolhível: `useState` inicializado por `localStorage.getItem('dre-padrao:aviso-unidade')`; ao fechar, grava `'closed'`. Persiste entre sessões, não bloqueia página.
+- Flag `suportaFiltroUnidade` é somente-leitura no momento; qualquer render de UI de filtro fica atrás de `{suportaFiltroUnidade && ...}` — hoje sempre falso.
+
+## Critérios de aceite
+
+- Nenhum request para `/api/contabil/dre/matriz` inclui `unidade`/`unidade_negocio` na DRE Padrão.
+- Badge "Visão consolidada" e aviso recolhível visíveis em `/contabilidade/dre-padrao`.
+- Drill "Unidade de Negócio" mostra Genius / Estrutural Zortea / Não classificado com nomes amigáveis, ordenação estável e "Não classificado" sempre visível.
+- Indicador de qualidade calculado só a partir dos valores devolvidos pelo backend.
+- Divergência de total exibida como aviso, nunca corrigida.
+- Exportação XLSX/CSV do drill inclui as três categorias e cabeçalho contextual.
+- Nenhum lugar do frontend classifica CCU por prefixo `G-`/`E-` nem usa `502`/`503`.
+- Filtro superior de Unidade de Negócio permanece **ausente** e só surgirá quando `meta.suporta_filtro_unidade === true` for entregue pelo backend.
