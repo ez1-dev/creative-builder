@@ -509,6 +509,10 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
             <>
               <DataTableBI columns={columns} data={enrichedBase.rows} />
 
+              {cur?.drill_type === 'DETALHES_IMPOSTOS' && (
+                <ImpostosFooter cols={enrichedBase.columns} rows={enrichedBase.rows} />
+              )}
+
               <div className="flex items-center justify-between gap-2 pt-3 text-xs text-muted-foreground">
                 <span>
                   {resp.rows.length} {resp.rows.length === 1 ? 'linha' : 'linhas'}
