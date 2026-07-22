@@ -550,8 +550,9 @@ function fmtCsvValue(v: any, format?: DrillColumn['format']): string {
   return s;
 }
 
-export function downloadDrillCsv(resp: DrillResponse, filename?: string) {
-  const { columns: cols, rows } = withLiquidoAndTotals(resp);
+export function downloadDrillCsv(resp: DrillResponse, filename?: string, nivel?: NivelVisualizacao) {
+  const { columns: cols, rows } = withLiquidoAndTotals(resp, nivel);
+
   const header = cols.map((c) => c.label).join(';');
   const lines = rows.map((row) =>
     cols.map((c) => fmtCsvValue(row[c.key], c.format)).join(';'),
