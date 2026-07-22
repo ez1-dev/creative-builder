@@ -1046,6 +1046,10 @@ export interface ResultadoProntoMeta {
   referencia_senior_aplicada?: boolean | null;
   referencia_senior_origem?: string | null;
   qtd_referencias_aplicadas?: number | null;
+  /** Backend liberou a materialização/filtragem por unidade de negócio. */
+  suporta_filtro_unidade?: boolean;
+  /** Lista opcional de unidades para popular o Select. */
+  unidades_negocio?: Array<{ codigo: string; nome?: string | null }>;
 }
 
 
