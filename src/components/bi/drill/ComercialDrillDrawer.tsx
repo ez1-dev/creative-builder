@@ -554,3 +554,50 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
   );
 }
 
+const IMPOSTO_KEYS = [
+  'vl_icms', 'vl_icms_st', 'vl_pis', 'vl_cofins', 'vl_ipi', 'vl_iss',
+  'vl_outros_impostos', 'vl_outros',
+];
+
+function sumKey(rows: Record<string, any>[], key: string): number {
+  let s = 0;
+  for (const r of rows) {
+    const n = Number(r?.[key]);
+    if (Number.isFinite(n)) s += n;
+  }
+  return s;
+}
+
+function ImpostosFooter({ cols, rows }: { cols: DrillColumn[]; rows: Record<string, any>[] }) {
+  const hasVlItem = cols.some((c) => c.key === 'vl_item');
+  const hasVlItemLiq = cols.some((c) => c.key === 'vl_item_liquido');
+  const hasTotalImpostos = cols.some((c) => c.key === 'vl_total_impostos');
+
+  const valorItens = hasVlItem ? sumKey(rows, 'vl_item') : null;
+  const valorLiquido = hasVlItemLiq ? sumKey(rows, 'vl_item_liquido') : null;
+  const totalImpostos = hasTotalImpostos
+    ? sumKey(rows, 'vl_total_impostos')
+    : IMPOSTO_KEYS.reduce((s, k) => s + sumKey(rows, k), 0);
+
+  const qtdItens = rows.length;
+  const qtdNotas = countDistinctNotas(rows);
+
+  const Item = ({ label, value }: { label: string; value: string }) => (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
+      <span className="text-sm font-semibold tabular-nums">{value}</span>
+    </div>
+  );
+
+  return (
+    <div className="mt-3 rounded-md border bg-muted/30 px-3 py-2.5 flex flex-wrap gap-x-6 gap-y-2">
+      <Item label="Qtd. itens" value={formatNumber(qtdItens, 0)} />
+      <Item label="Qtd. notas" value={formatNumber(qtdNotas, 0)} />
+      {valorItens != null && <Item label="Valor total dos itens" value={formatCurrency(valorItens)} />}
+      <Item label="Total de impostos" value={formatCurrency(totalImpostos)} />
+      {valorLiquido != null && <Item label="Valor líquido dos itens" value={formatCurrency(valorLiquido)} />}
+    </div>
+  );
+}
+
+
