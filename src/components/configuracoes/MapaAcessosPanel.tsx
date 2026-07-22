@@ -429,7 +429,7 @@ export function MapaAcessosPanel({ screens }: Props) {
                             {row.map((cell, ci) => {
                               const col = filteredColumns[ci];
                               return (
-                                <td key={col.key} className="border-b p-0 w-[34px] h-[28px]">
+                                <td key={col.key} className="border-b p-0 w-[36px] h-[28px]">
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <div
