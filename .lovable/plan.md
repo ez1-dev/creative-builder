@@ -1,4 +1,8 @@
-Ocultar o bloco **Filtros salvos** quando `DreStudioVisualizacaoPage` for renderizado dentro da **DRE Padrão** (`modoBloqueado`).
+Tornar o painel **Conciliação DRE × Balanço Senior** colapsável, minimizado por padrão.
 
 ## Alteração
-- **`src/pages/contabilidade/dre-studio/DreStudioVisualizacaoPage.tsx`** (linhas 1533–1554): envolver o `<div className="mb-3 rounded-xl border bg-white shadow-sm">` (bloco de Filtros salvos) em `{!modoBloqueado && ( ... )}`, mantendo o restante da tela intacto para o DRE Studio configurável.
+**`src/components/dre-studio/ConciliacaoDREBalancoPanel.tsx`**
+- Adicionar `useState` inicial `open = false` (persistido em `localStorage` chave `dre-vis:conciliacao-open`).
+- Transformar o `<div>` do cabeçalho (linha 100) em `<button>` clicável mostrando um chevron (ChevronRight quando fechado / ChevronDown quando aberto).
+- Renderizar o conteúdo (erro, "sem dados", tabela) somente quando `open === true`.
+- Manter estilos/estrutura atuais; apenas envelopar a seção do corpo com condicional.
