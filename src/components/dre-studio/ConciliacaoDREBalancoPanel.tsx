@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Loader2, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
 
 import { useResultadoCache } from "@/hooks/contabil/api";
 import { useContabilConfiguracao } from "@/hooks/contabil/useContabilConfiguracao";
