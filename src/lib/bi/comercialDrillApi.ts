@@ -27,6 +27,19 @@ export interface DrillContexto {
 }
 
 
+export type NotaFiscalDrillContext = 'TODAS' | 'DEVOLUCOES' | 'IMPOSTOS';
+
+/** Deriva flags booleanas explícitas do recorte de Nota Fiscal. */
+export function buildNotaFiscalDrillFlags(ctx: NotaFiscalDrillContext | undefined): {
+  somente_devolucao: boolean;
+  somente_impostos: boolean;
+} {
+  return {
+    somente_devolucao: ctx === 'DEVOLUCOES',
+    somente_impostos: ctx === 'IMPOSTOS',
+  };
+}
+
 export interface DrillRequest {
   drill_type: DrillType;
   anomes_ini: string;
@@ -35,7 +48,10 @@ export interface DrillRequest {
   contexto: DrillContexto;
   page?: number;
   page_size?: number;
+  /** Recorte específico para drill_type = NOTA_FISCAL. Ignorado nos demais. */
+  nf_context?: NotaFiscalDrillContext;
 }
+
 
 export interface DrillColumn {
   key: string;
