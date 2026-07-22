@@ -167,7 +167,7 @@ export async function fetchComercialDrill(req: DrillRequest): Promise<DrillRespo
     titulo: r.titulo ?? '',
     drill_type: (r.drill_type ?? req.drill_type) as DrillType,
     breadcrumb: Array.isArray(r.breadcrumb) ? r.breadcrumb : [],
-    columns: Array.isArray(r.columns) ? r.columns : [],
+    columns: uniqueColumns(Array.isArray(r.columns) ? r.columns : []),
     rows: Array.isArray(r.rows) ? r.rows : [],
     total: typeof r.total === 'number' ? r.total : (Array.isArray(r.rows) ? r.rows.length : 0),
     page: typeof r.page === 'number' ? r.page : (req.page ?? 1),
