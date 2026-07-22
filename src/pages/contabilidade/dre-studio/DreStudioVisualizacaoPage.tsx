@@ -392,6 +392,13 @@ function Visualizacao(props: VisualizacaoProps = {}) {
   const vincular = useVincularContasBalancoSenior(id);
   const qc = useQueryClient();
 
+  const suportaFiltroUnidade = q.meta?.suporta_filtro_unidade === true;
+  const onSuporteUnidadeChange = props.onSuporteUnidadeChange;
+  useEffect(() => {
+    onSuporteUnidadeChange?.(suportaFiltroUnidade);
+  }, [suportaFiltroUnidade, onSuporteUnidadeChange]);
+
+
   // ===== Presets de filtros salvos =====
   const currentPresetFilters: DreVisFilterPreset = {
     anoSelecionado, mesesVisiveis, codccu, codfil, visao,
