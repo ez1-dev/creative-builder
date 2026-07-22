@@ -1,8 +1,8 @@
-Tornar o painel **Conciliação DRE × Balanço Senior** colapsável, minimizado por padrão.
+Ocultar os botões **Histórico** e **Configurar modelo** na DRE Padrão (`modoBloqueado`).
 
 ## Alteração
-**`src/components/dre-studio/ConciliacaoDREBalancoPanel.tsx`**
-- Adicionar `useState` inicial `open = false` (persistido em `localStorage` chave `dre-vis:conciliacao-open`).
-- Transformar o `<div>` do cabeçalho (linha 100) em `<button>` clicável mostrando um chevron (ChevronRight quando fechado / ChevronDown quando aberto).
-- Renderizar o conteúdo (erro, "sem dados", tabela) somente quando `open === true`.
-- Manter estilos/estrutura atuais; apenas envelopar a seção do corpo com condicional.
+**`src/pages/contabilidade/dre-studio/DreStudioVisualizacaoPage.tsx`** (linhas 2166–2181):
+- Envolver o botão **Histórico** (linhas 2166–2169) em `{!modoBloqueado && ( ... )}`.
+- Remover o bloco do botão **Configurar modelo** (linhas 2176–2181), já que só aparece em `modoBloqueado`.
+
+Modo configurável (DRE Studio) continua exibindo Histórico normalmente.
