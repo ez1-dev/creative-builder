@@ -1,41 +1,37 @@
 ## Objetivo
-Fazer as três abas de Estoque (Consulta, Curva ABC, Baixo Giro) exibirem corretamente Produto, Descrição, Depósito e demais indicadores usando o payload real do endpoint `/api/estoque/analise`.
 
-## Diagnóstico confirmado
-Resposta observada em `GET /api/estoque/analise` traz cada item com as chaves:
-`codigo, descricao, familia, tipo, unidade_medida, derivacao, deposito, saldo, custo_medio, valor_estoque, consumo_qtd, consumo_valor, saidas_periodo, ultima_saida, dias_sem_saida, cobertura_meses, giro, sem_saida_registrada, tipo_descricao, abc_posicao, abc_pct_acumulado, curva_abc`.
+Permitir que o administrador force o logout de **um usuário específico** (já existe) **ou de todos os usuários logados de uma vez**, para forçar recarregar o sistema após deploy.
 
-O código atual (`src/lib/estoque/analiseApi.ts` + abas) espera `codpro / despro / coddep / codder / consumo_quantidade / faixa_aging` — daí "—" em Produto e Descrição, e KPIs zerados.
+## O que já existe
 
-Campos que o backend **não** envia hoje e o front assume: `desdep, desder, reservado, disponivel, a_receber, ops_reservando, proxima_entrega, projetado, faixa_aging`, e o objeto `resumo` (`valor_total_estoque, consumo_periodo_valor, itens_curva_a/b/c, itens_sem_consumo, capital_parado_12m/24m, itens_sem_saida, aging{...}`).
+- Edge function `admin-force-logout` derruba um usuário por ID (revoga refresh token + seta `force_logout_at` em `user_sessions`).
+- Componente `MonitoramentoUsuarios.tsx` (tela Monitoramento) já tem botão **Derrubar** por linha.
+- Cliente checa `force_logout_at` no heartbeat (via `userTracking.ts`) e cai fora automaticamente.
 
-## Escopo (só frontend — não recalcular ABC/Giro; apenas normalizar e fallback visual)
+Falta apenas: opção **em massa**.
 
-### 1. `src/lib/estoque/analiseApi.ts`
-- Adicionar camada de normalização em `getEstoqueAnalise` que mapeia por item, preservando campos originais e expondo aliases usados pelas abas:
-  - `codpro ← codigo`
-  - `despro ← descricao`
-  - `coddep ← deposito`; `desdep ← deposito` (fallback até backend enviar descrição)
-  - `codder ← derivacao`; `desder ← derivacao`
-  - `codfam ← familia`
-  - `consumo_quantidade ← consumo_qtd`
-- Não inventar valores para `reservado / disponivel / a_receber / ops_reservando / proxima_entrega / projetado` — deixar `null` e o render já cai em "—".
-- Ajustar `faixaAging(item)` para também considerar `sem_saida_registrada === true` como `sem_saida` antes do fallback por `dias_sem_saida`.
-- `isSemConsumo` usar `consumo_qtd ?? consumo_quantidade`.
+## Mudanças
 
-### 2. Resumo (KPIs)
-- Como o backend não envia `resumo`, calcular no cliente **somente agregações triviais de exibição** (soma de `valor_estoque`, contagem por `curva_abc`, contagem `sem_consumo`, buckets de aging) — nada de recomputar ABC/Giro/Cobertura. Deixar comentário indicando "fallback de exibição enquanto backend não envia `resumo`".
-- Manter prioridade em `resumo?.campo` quando existir (para o dia em que o backend passar a enviar).
+### 1. Edge function `admin-force-logout`
 
-### 3. Abas
-- `ConsultaTab.tsx`, `CurvaAbcTab.tsx`, `BaixoGiroTab.tsx`: nenhuma mudança de layout. Apenas confirmar que continuam lendo `r.codpro / r.despro / r.coddep / r.consumo_quantidade` (que agora existem via alias) e que colunas opcionais (Reservado, Disponível, A receber, Próxima entrega, Projetado) exibem "—" graciosamente quando o backend não enviar.
+Aceitar novo modo além de `userId`:
 
-### 4. Observação para o usuário
-- Nada de mudar contrato do backend agora. Se ele passar a devolver `desdep`, `reservado`, `resumo{...}`, os aliases continuam válidos (fallback só se aplica quando o campo original falta).
+- `body.scope === 'all'` → derruba todos os usuários ativos (exceto o próprio admin que disparou), opcionalmente com filtro `onlyOnline: true` para usar apenas quem tem sessão em `user_sessions` nos últimos 2 min.
+- Continua exigindo `is_admin`.
+- Para cada usuário: `auth.admin.signOut(id, 'global')` + `update user_sessions.force_logout_at`.
+- Retorna `{ ok, total, falhas }`.
 
-## Fora do escopo
-- Alterar endpoint, layout das abas, exportações ou lógica de ABC/Giro.
-- Adicionar novos filtros ou colunas além dos já previstos.
+### 2. UI em `MonitoramentoUsuarios.tsx`
 
-## Verificação
-Após implementar, recarregar `/estoque?aba=baixo-giro` e `/estoque?aba=curva-abc`, confirmar que Produto/Descrição/Depósito aparecem preenchidos e que KPIs deixam de ficar zerados.
+No cabeçalho do card "Usuários Online" adicionar botão vermelho **"Derrubar todos"** com:
+
+- Confirm com aviso claro ("Todos os usuários logados serão desconectados. Você continuará conectado.").
+- Chamada `supabase.functions.invoke('admin-force-logout', { body: { scope: 'all', onlyOnline: true } })`.
+- Toast com total derrubado.
+- Botão fica desabilitado se não há ninguém online além do próprio admin.
+
+Nenhuma outra tela é alterada. Sem mudanças de schema.
+
+## Perguntas
+
+Só sigo com isso, ou você prefere que o "Derrubar todos" seja mais amplo (todos os usuários da base, mesmo os que não estão com sessão ativa nos últimos 2 min)?
