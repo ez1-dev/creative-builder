@@ -1530,6 +1530,7 @@ function Visualizacao(props: VisualizacaoProps = {}) {
   return (
     <MoneyDisplayProvider noCents={semCasasDecimais}>
     <div className="p-6">
+      {!modoBloqueado && (
       <div className="mb-3 rounded-xl border bg-white shadow-sm">
         <button
           type="button"
@@ -1552,6 +1553,7 @@ function Visualizacao(props: VisualizacaoProps = {}) {
           </div>
         )}
       </div>
+      )}
       {deveAvisarRefSeniorNaoAplicada && !!q.data && (
           <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm text-amber-900">
             <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
