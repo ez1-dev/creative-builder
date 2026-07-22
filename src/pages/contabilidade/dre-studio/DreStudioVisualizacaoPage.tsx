@@ -259,6 +259,7 @@ function Visualizacao(props: VisualizacaoProps = {}) {
   const fim = anoSelecionado * 100 + 12;
   const [codccu, setCodccu] = useState<string>("todos");
   const [codfil, setCodfil] = useState<string>("todas");
+  const [unidade, setUnidade] = useState<string>("TODOS");
   const [visao, setVisao] = useState<Visao>("REAL");
   const [drill, setDrill] = useState<DrillArgs | null>(null);
   const [drillCtx, setDrillCtx] = useState<DrillResultadoContext | null>(null);
