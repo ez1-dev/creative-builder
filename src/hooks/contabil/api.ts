@@ -1050,6 +1050,9 @@ export interface ResultadoProntoMeta {
   suporta_filtro_unidade?: boolean;
   /** Lista opcional de unidades para popular o Select. */
   unidades_negocio?: Array<{ codigo: string; nome?: string | null }>;
+  unidade_regra?: string | null;
+  unidade_indisponivel_motivo?: string | null;
+  unidade_filtro_ignorado?: boolean;
 }
 
 
@@ -1157,6 +1160,11 @@ export function useResultadoPronto(
           : Array.isArray(p.unidades_negocio)
             ? p.unidades_negocio
             : [],
+        unidade_regra: r.unidade_regra ?? p.unidade_regra ?? null,
+        unidade_indisponivel_motivo:
+          r.unidade_indisponivel_motivo ?? p.unidade_indisponivel_motivo ?? null,
+        unidade_filtro_ignorado:
+          (r.unidade_filtro_ignorado ?? p.unidade_filtro_ignorado) === true,
       };
       return { meta, payload: payloadNormalizado };
     },

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Landmark, Settings2, Info, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,6 +18,10 @@ import {
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ModeloOficialPendenciaCard } from "@/components/contabil/ModeloOficialPendenciaCard";
 import { CODEMP } from "@/lib/contabilConfig";
+import {
+  UNIDADE_CAPABILITIES_DEFAULT,
+  type UnidadeCapabilities,
+} from "@/lib/contabil/unidadeCapabilities";
 
 const AVISO_STORAGE_KEY = "dre-padrao:aviso-unidade";
 
@@ -28,10 +32,24 @@ export default function DrePadraoPage() {
   const pendencia = resolverPendencia(cfg, "DRE");
   const modeloId = !pendencia ? cfg?.dre_modelo_padrao_id ?? null : null;
 
-  // Sinalizado pela Visualização a partir de meta.suporta_filtro_unidade
-  // (resposta do backend). Enquanto false, mostramos "Visão consolidada" e o
-  // aviso azul. Quando true, o Select de Unidade aparece na barra da matriz.
-  const [suportaFiltroUnidade, setSuportaFiltroUnidade] = useState(false);
+  // Capacidade de filtro por Unidade de Negócio (contrato do backend).
+  const [unidadeCaps, setUnidadeCaps] = useState<UnidadeCapabilities>(
+    UNIDADE_CAPABILITIES_DEFAULT,
+  );
+  const suportaFiltroUnidade = unidadeCaps.suportaFiltro;
+
+  // Saneamento de URL: quando o backend não suporta o filtro, remover
+  // ?unidade= da querystring para não induzir o usuário a achar que o
+  // resultado está filtrado.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (!unidadeCaps.carregado) return;
+    if (!unidadeCaps.suportaFiltro && searchParams.has("unidade")) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("unidade");
+      setSearchParams(next, { replace: true });
+    }
+  }, [unidadeCaps.carregado, unidadeCaps.suportaFiltro, searchParams, setSearchParams]);
 
   const [avisoAberto, setAvisoAberto] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
@@ -46,6 +64,10 @@ export default function DrePadraoPage() {
       /* ignore */
     }
   };
+
+  const motivoIndisponibilidade =
+    unidadeCaps.motivo ??
+    "O filtro por Unidade de Negócio ainda não está disponível para esta matriz.";
 
   return (
     <div className="p-6 max-w-[1600px] mx-auto">
@@ -65,10 +87,17 @@ export default function DrePadraoPage() {
                       Visão consolidada
                     </Badge>
                   </TooltipTrigger>
-                  <TooltipContent className="max-w-xs text-xs">
-                    A matriz principal apresenta os valores consolidados. A
-                    análise por Unidade de Negócio está disponível nos drills
-                    das linhas.
+                  <TooltipContent className="max-w-xs text-xs space-y-1">
+                    <p>
+                      A matriz principal apresenta os valores consolidados. A
+                      análise por Unidade de Negócio está disponível nos drills
+                      das linhas.
+                    </p>
+                    {unidadeCaps.regra && (
+                      <p className="text-muted-foreground">
+                        Regra do backend: {unidadeCaps.regra}
+                      </p>
+                    )}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -93,10 +122,12 @@ export default function DrePadraoPage() {
       {!suportaFiltroUnidade && avisoAberto && (
         <div className="mb-3 flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-200">
           <Info className="h-4 w-4 shrink-0 mt-0.5" />
-          <div className="flex-1">
-            A análise por <strong>Unidade de Negócio</strong> está disponível
-            nos drills das linhas. O filtro da matriz será habilitado após a
-            conclusão da materialização contábil por centro de custo.
+          <div className="flex-1 space-y-1">
+            <div>{motivoIndisponibilidade}</div>
+            <div className="text-blue-800/80 dark:text-blue-300/80">
+              A análise por <strong>Unidade de Negócio</strong> continua
+              disponível nos drills das linhas.
+            </div>
           </div>
           <button
             type="button"
@@ -127,7 +158,7 @@ export default function DrePadraoPage() {
           modoBloqueado
           permiteConfigurar={isAdmin}
           onConfigurar={() => navigate("/contabilidade/dre-studio/configuracoes")}
-          onSuporteUnidadeChange={setSuportaFiltroUnidade}
+          onCapabilitiesChange={setUnidadeCaps}
         />
       )}
     </div>

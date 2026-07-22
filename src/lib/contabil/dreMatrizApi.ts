@@ -41,6 +41,10 @@ export interface DreMatrizMeta {
    *  o filtro `unidade`/`unidade_negocio`. Enquanto false/undefined, o
    *  frontend NÃO expõe filtro de unidade na barra superior. */
   suporta_filtro_unidade?: boolean;
+  unidades_negocio?: Array<{ codigo: string; nome?: string | null }>;
+  unidade_regra?: string | null;
+  unidade_indisponivel_motivo?: string | null;
+  unidade_filtro_ignorado?: boolean;
 }
 
 export interface DreMatrizResponse {
@@ -115,6 +119,10 @@ function normalizarMeta(raw: any): DreMatrizMeta {
     meses_incompletos: Array.isArray(m.meses_incompletos) ? m.meses_incompletos.map(String) : [],
     conciliacao_divergente: !!m.conciliacao_divergente,
     suporta_filtro_unidade: m.suporta_filtro_unidade === true,
+    unidades_negocio: Array.isArray(m.unidades_negocio) ? m.unidades_negocio : [],
+    unidade_regra: m.unidade_regra ?? null,
+    unidade_indisponivel_motivo: m.unidade_indisponivel_motivo ?? null,
+    unidade_filtro_ignorado: m.unidade_filtro_ignorado === true,
   };
 }
 

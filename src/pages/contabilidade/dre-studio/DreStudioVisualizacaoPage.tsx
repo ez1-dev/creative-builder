@@ -48,6 +48,7 @@ import { useContabilConfiguracao } from "@/hooks/contabil/useContabilConfiguraca
 import { ConciliacaoDREBalancoPanel } from "@/components/contabil/ConciliacaoDREBalancoPanel";
 
 import { cn } from "@/lib/utils";
+import { getUnidadeCapabilities } from "@/lib/contabil/unidadeCapabilities";
 import { useCriarBalancoPadraoSenior } from "@/hooks/contabil/useCriarBalancoPadraoSenior";
 import { useVincularContasBalancoSenior } from "@/hooks/contabil/useVincularContasBalancoSenior";
 import { Link2, Pencil, CheckCircle2, ArrowRight, PlayCircle } from "lucide-react";
@@ -242,8 +243,9 @@ interface VisualizacaoProps {
   modoBloqueado?: boolean;
   permiteConfigurar?: boolean;
   onConfigurar?: () => void;
-  /** Notifica o pai (ex.: DRE Padrão) sobre o suporte a filtro por unidade. */
+  /** Notifica o pai (ex.: DRE Padrão) sobre a capacidade de filtro por unidade. */
   onSuporteUnidadeChange?: (suporta: boolean) => void;
+  onCapabilitiesChange?: (caps: import('@/lib/contabil/unidadeCapabilities').UnidadeCapabilities) => void;
 }
 
 function Visualizacao(props: VisualizacaoProps = {}) {
@@ -392,11 +394,36 @@ function Visualizacao(props: VisualizacaoProps = {}) {
   const vincular = useVincularContasBalancoSenior(id);
   const qc = useQueryClient();
 
-  const suportaFiltroUnidade = q.meta?.suporta_filtro_unidade === true;
+  const unidadeCaps = getUnidadeCapabilities(q.meta);
+  const suportaFiltroUnidade = unidadeCaps.suportaFiltro;
+  const mostrarFiltroUnidade = unidadeCaps.carregado && unidadeCaps.suportaFiltro;
   const onSuporteUnidadeChange = props.onSuporteUnidadeChange;
+  const onCapabilitiesChange = props.onCapabilitiesChange;
   useEffect(() => {
     onSuporteUnidadeChange?.(suportaFiltroUnidade);
   }, [suportaFiltroUnidade, onSuporteUnidadeChange]);
+  useEffect(() => {
+    onCapabilitiesChange?.(unidadeCaps);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    onCapabilitiesChange,
+    unidadeCaps.carregado,
+    unidadeCaps.suportaFiltro,
+    unidadeCaps.filtroIgnorado,
+    unidadeCaps.motivo,
+    unidadeCaps.regra,
+    // lista de unidades: comparar por tamanho + primeiro código já é suficiente
+    unidadeCaps.unidades.length,
+    unidadeCaps.unidades[0]?.codigo,
+  ]);
+  // Reset defensivo: se o backend deixou de suportar (troca de período/modelo)
+  // ou informou que ignorou o filtro, voltar a Consolidado.
+  useEffect(() => {
+    if (!unidadeCaps.carregado) return;
+    if ((!unidadeCaps.suportaFiltro || unidadeCaps.filtroIgnorado) && unidade !== "TODOS") {
+      setUnidade("TODOS");
+    }
+  }, [unidadeCaps.carregado, unidadeCaps.suportaFiltro, unidadeCaps.filtroIgnorado, unidade]);
 
 
   // ===== Presets de filtros salvos =====
@@ -2149,7 +2176,7 @@ function Visualizacao(props: VisualizacaoProps = {}) {
                   {vincular.isPending ? "Vinculando... (até 1 min)" : "Vincular contas"}
                 </Button>
               )}
-              {q.meta?.suporta_filtro_unidade === true && (
+              {mostrarFiltroUnidade && (
                 <Select value={unidade} onValueChange={setUnidade}>
                   <SelectTrigger
                     className="h-9 w-[200px]"
@@ -2160,7 +2187,7 @@ function Visualizacao(props: VisualizacaoProps = {}) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="TODOS">Todas (consolidado)</SelectItem>
-                    {(q.meta?.unidades_negocio ?? []).map((u) => (
+                    {unidadeCaps.unidades.map((u) => (
                       <SelectItem key={u.codigo} value={u.codigo}>
                         {u.nome ? `${u.codigo} — ${u.nome}` : u.codigo}
                       </SelectItem>
@@ -2484,6 +2511,11 @@ function Visualizacao(props: VisualizacaoProps = {}) {
         </div>
       )}
 
+      {unidadeCaps.filtroIgnorado && (
+        <div className="mb-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+          O filtro de Unidade de Negócio não foi aplicado pelo backend. Os valores exibidos são consolidados.
+        </div>
+      )}
 
       <div className="relative">
       <div ref={matrizScrollRef} className="relative rounded-lg border bg-white overflow-auto isolate [&::-webkit-scrollbar:horizontal]:hidden">
