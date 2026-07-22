@@ -201,7 +201,9 @@ function cleanContexto(ctx: DrillContexto): DrillContexto {
 
 export async function fetchComercialDrill(req: DrillRequest): Promise<DrillResponse> {
   const contextoLimpo = cleanContexto(req.contexto || {});
-  const body = {
+  const isNF = req.drill_type === 'NOTA_FISCAL';
+  const flags = isNF ? buildNotaFiscalDrillFlags(req.nf_context ?? 'TODAS') : null;
+  const body: Record<string, any> = {
     drill_type: req.drill_type,
     anomes_ini: req.anomes_ini,
     anomes_fim: req.anomes_fim,
@@ -210,6 +212,10 @@ export async function fetchComercialDrill(req: DrillRequest): Promise<DrillRespo
     page: req.page ?? 1,
     page_size: req.page_size ?? 100,
   };
+  if (flags) {
+    body.somente_devolucao = flags.somente_devolucao;
+    body.somente_impostos = flags.somente_impostos;
+  }
   const data = await api.post<any>('/api/bi/comercial/drill', body);
   // Tolera envelope { bi_comercial_drill: ... }
   const unwrapped =
@@ -227,6 +233,7 @@ export async function fetchComercialDrill(req: DrillRequest): Promise<DrillRespo
       anomes_fim: body.anomes_fim,
       unidade_negocio: body.unidade_negocio,
       contexto: contextoLimpo,
+      ...(flags ? { somente_devolucao: flags.somente_devolucao, somente_impostos: flags.somente_impostos } : {}),
     },
   };
   return {
@@ -241,6 +248,7 @@ export async function fetchComercialDrill(req: DrillRequest): Promise<DrillRespo
     page_size: typeof r.page_size === 'number' ? r.page_size : (req.page_size ?? 100),
   };
 }
+
 
 function isNumericString(value: string): boolean {
   return /^-?\d+(\.\d+)?$/.test(value.trim());
