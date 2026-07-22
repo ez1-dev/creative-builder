@@ -15,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Download, Copy, ChevronDown, AlertCircle, Info } from 'lucide-react';
@@ -137,6 +138,38 @@ const LCT_COLUMNS: DrillDreColumn[] = [
   { key: 'valor', label: 'Valor', format: 'currency' },
 ];
 
+// ============== Unidade de Negócio (apenas apresentação) ==============
+// Mapa exclusivo do DrillResultadoPanel — o frontend NUNCA classifica
+// lançamentos por prefixo do centro de custo. Estes rótulos apenas
+// traduzem os códigos canônicos devolvidos pelo backend.
+const UN_LABELS: Record<string, string> = {
+  GENIUS: 'Genius',
+  ESTRUTURAL: 'Estrutural Zortea',
+  NAO_CLASSIFICADO: 'Não classificado',
+};
+const UN_ORDER: Record<string, number> = {
+  ESTRUTURAL: 0,
+  GENIUS: 1,
+  NAO_CLASSIFICADO: 2,
+};
+
+function unidadeCodigoRaw(row: Record<string, any>): string {
+  const raw =
+    row?.unidade_negocio ??
+    row?.unidade ??
+    row?.codigo ??
+    row?.chave ??
+    '';
+  return String(raw ?? '').trim().toUpperCase();
+}
+function unidadeLabel(row: Record<string, any>): string {
+  const code = unidadeCodigoRaw(row);
+  return UN_LABELS[code] ?? (row?.descricao ? String(row.descricao) : code || '—');
+}
+function isNaoClassificado(row: Record<string, any>): boolean {
+  return unidadeCodigoRaw(row) === 'NAO_CLASSIFICADO';
+}
+
 export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(500);
@@ -193,12 +226,29 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
   const error = (isLancamento ? qLct.error : qAgg.error) as Error | null;
   const isFetching = isLancamento ? qLct.isFetching : qAgg.isFetching;
 
+  const isUnidade = ctx?.agrupar_por === 'unidade_negocio';
+
   const columns: DrillDreColumn[] = isLancamento
     ? LCT_COLUMNS
     : (qAgg.data?.columns ?? []);
-  const rows: Array<Record<string, any>> = isLancamento
+  const rawRows: Array<Record<string, any>> = isLancamento
     ? ((qLct.data?.itens ?? []) as DrillLancamentoItem[])
     : (qAgg.data?.rows ?? []);
+
+  // Ordenação Estrutural → Genius → Não classificado (apenas para a dimensão
+  // unidade_negocio). Demais categorias entram no final por maior valor.
+  const rows: Array<Record<string, any>> = useMemo(() => {
+    if (!isUnidade || !rawRows.length) return rawRows;
+    const valorKey =
+      columns.find((c) => c.format === 'currency' && /valor|total|saldo/i.test(c.key))?.key ??
+      'valor';
+    return [...rawRows].sort((a, b) => {
+      const oa = UN_ORDER[unidadeCodigoRaw(a)] ?? 99;
+      const ob = UN_ORDER[unidadeCodigoRaw(b)] ?? 99;
+      if (oa !== ob) return oa - ob;
+      return (Number(b[valorKey]) || 0) - (Number(a[valorKey]) || 0);
+    });
+  }, [isUnidade, rawRows, columns]);
 
   const truncado = isLancamento ? Boolean(qLct.data?.truncado) : false;
   const qtdTotal = isLancamento ? (qLct.data?.qtd_total ?? 0) : 0;
@@ -216,9 +266,47 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
     return rows.reduce((s, r) => s + (Number(r[c.key]) || 0), 0);
   }, [isLancamento, qLct.data, qAgg.data, rows, columns]);
 
+  // Indicador de qualidade da classificação (apenas visual). Nunca altera
+  // valores contábeis nem redistribui "Não classificado".
+  const unidadeStats = useMemo(() => {
+    if (!isUnidade || !rows.length) return null;
+    const valorKey =
+      columns.find((c) => c.format === 'currency' && /valor|total|saldo/i.test(c.key))?.key ??
+      'valor';
+    const pctKey =
+      columns.find((c) => c.format === 'percent')?.key ??
+      (rows.some((r) => r.percentual != null) ? 'percentual' : null);
+    const totalAbs = rows.reduce((s, r) => s + Math.abs(Number(r[valorKey]) || 0), 0);
+    let pctGenius = 0;
+    let pctEstrutural = 0;
+    let pctNao = 0;
+    for (const r of rows) {
+      const code = unidadeCodigoRaw(r);
+      let pct: number;
+      if (pctKey && r[pctKey] != null && Number.isFinite(Number(r[pctKey]))) {
+        pct = Number(r[pctKey]);
+      } else if (totalAbs > 0) {
+        pct = (Math.abs(Number(r[valorKey]) || 0) / totalAbs) * 100;
+      } else {
+        pct = 0;
+      }
+      if (code === 'GENIUS') pctGenius += pct;
+      else if (code === 'ESTRUTURAL') pctEstrutural += pct;
+      else if (code === 'NAO_CLASSIFICADO') pctNao += pct;
+    }
+    return {
+      classificado: pctGenius + pctEstrutural,
+      naoClassificado: pctNao,
+      temNaoClassificado: rows.some((r) => isNaoClassificado(r)),
+    };
+  }, [isUnidade, rows, columns]);
+
   const totalLinha = ctx?.totalLinhaDre ?? qAgg.data?.total_linha ?? null;
   const diferenca =
     totalLinha != null && totalDrill != null ? totalLinha - totalDrill : null;
+  const unidadeDivergente =
+    isUnidade && totalLinha != null && totalDrill != null &&
+    Math.abs(totalLinha - totalDrill) > 0.01;
 
   const periodoLabel = ctx
     ? `${anomesLabel(ctx.filtros.anomes_ini)} a ${anomesLabel(ctx.filtros.anomes_fim)}`
@@ -244,8 +332,19 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
   const exportXlsx = () => {
     if (!ctx || !rows.length) return;
     const header = columns.map((c) => c.label);
-    const linhas = rows.map((r) =>
+    const bodyRows = rows.map((r) =>
       columns.map((c) => {
+        // Na dimensão unidade_negocio, substitui a coluna textual da chave
+        // pelo rótulo amigável (Genius / Estrutural Zortea / Não classificado).
+        if (isUnidade && (c.format === 'text' || !c.format)) {
+          const isKeyCol =
+            c.key === 'unidade_negocio' ||
+            c.key === 'unidade' ||
+            c.key === 'codigo' ||
+            c.key === 'chave' ||
+            c.key === 'descricao';
+          if (isKeyCol) return unidadeLabel(r);
+        }
         const v = r[c.key];
         if (c.format === 'currency' || c.format === 'number' || c.format === 'percent') {
           const n = Number(v);
@@ -255,7 +354,20 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
         return v ?? '';
       }),
     );
-    const ws = XLSX.utils.aoa_to_sheet([header, ...linhas]);
+
+    const aoa: any[][] = [];
+    if (isUnidade) {
+      aoa.push(['DRE Padrão — Análise por Unidade de Negócio']);
+      aoa.push(['Modelo', ctx.modeloId ?? '']);
+      aoa.push(['Linha analisada', ctx.linhaDescricao]);
+      aoa.push(['Período', periodoLabel]);
+      aoa.push(['Empresa', ctx.filtros.codemp ?? '']);
+      aoa.push(['Filial', ctx.filtros.codfil ?? '']);
+      aoa.push([]);
+    }
+    aoa.push(header, ...bodyRows);
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Drill');
     XLSX.writeFile(
@@ -357,6 +469,44 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
             </div>
           ) : (
             <>
+              {isUnidade && unidadeStats && (
+                <div className="mb-3 rounded-lg border bg-muted/20 p-3 text-xs">
+                  <div className="mb-1 font-medium text-foreground">
+                    Qualidade da classificação
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <div className="text-muted-foreground">Classificado</div>
+                      <div className="tabular-nums font-semibold">
+                        {fmtPct(unidadeStats.classificado)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Não classificado</div>
+                      <div
+                        className={cn(
+                          'tabular-nums font-semibold',
+                          unidadeStats.naoClassificado > 0 &&
+                            'text-amber-700 dark:text-amber-400',
+                        )}
+                      >
+                        {fmtPct(unidadeStats.naoClassificado)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-1 text-[11px] text-muted-foreground">
+                    Indicador visual calculado a partir dos valores devolvidos pelo backend.
+                    O frontend não classifica lançamentos.
+                  </div>
+                  {unidadeDivergente && (
+                    <div className="mt-2 flex items-start gap-1.5 text-[11px] text-destructive">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                      A classificação por unidade não fecha com o total da linha.
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div ref={drillScrollRef} className="overflow-x-auto rounded-lg border">
                 <Table style={{ minWidth: Math.max(980, columns.length * 150) }}>
                   <TableHeader>
@@ -378,31 +528,61 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {rows.map((r, i) => (
-                      <TableRow key={i}>
-                        {columns.map((c) => {
-                          const v = r[c.key];
-                          const isNumeric =
-                            c.format === 'currency' || c.format === 'number' || c.format === 'percent';
-                          const n = Number(v);
-                          return (
-                            <TableCell
-                              key={c.key}
-                              className={cn(
-                                'text-xs',
-                                isNumeric && 'text-right tabular-nums',
-                                isNumeric && Number.isFinite(n) && n < 0 && 'text-destructive',
-                              )}
-                            >
-                              {fmtCell(c, v)}
-                            </TableCell>
-                          );
-                        })}
-                      </TableRow>
-                    ))}
+                    {rows.map((r, i) => {
+                      const naoClass = isUnidade && isNaoClassificado(r);
+                      return (
+                        <TableRow key={i}>
+                          {columns.map((c, ci) => {
+                            const v = r[c.key];
+                            const isNumeric =
+                              c.format === 'currency' || c.format === 'number' || c.format === 'percent';
+                            const n = Number(v);
+                            // Primeira coluna textual em dimensão unidade: mostra rótulo amigável + badge.
+                            const isKeyCol =
+                              isUnidade &&
+                              !isNumeric &&
+                              ci === 0;
+                            return (
+                              <TableCell
+                                key={c.key}
+                                className={cn(
+                                  'text-xs',
+                                  isNumeric && 'text-right tabular-nums',
+                                  isNumeric && Number.isFinite(n) && n < 0 && 'text-destructive',
+                                )}
+                              >
+                                {isKeyCol ? (
+                                  <span className="inline-flex items-center gap-1.5">
+                                    <span className="font-medium">{unidadeLabel(r)}</span>
+                                    {naoClass && (
+                                      <TooltipProvider delayDuration={150}>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <span className="rounded-sm bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 cursor-help">
+                                              atenção
+                                            </span>
+                                          </TooltipTrigger>
+                                          <TooltipContent className="max-w-xs text-xs">
+                                            Lançamentos cujo centro de custo não possui
+                                            identificação G- ou E- na descrição.
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                    )}
+                                  </span>
+                                ) : (
+                                  fmtCell(c, v)
+                                )}
+                              </TableCell>
+                            );
+                          })}
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
+
 
               {!isLancamento && qAgg.data?.has_more && (
                 <div className="mt-3 flex justify-center">
