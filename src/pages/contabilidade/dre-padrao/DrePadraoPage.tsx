@@ -127,6 +127,7 @@ export default function DrePadraoPage() {
           modoBloqueado
           permiteConfigurar={isAdmin}
           onConfigurar={() => navigate("/contabilidade/dre-studio/configuracoes")}
+          onSuporteUnidadeChange={setSuportaFiltroUnidade}
         />
       )}
     </div>
