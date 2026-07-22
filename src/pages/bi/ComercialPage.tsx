@@ -31,6 +31,7 @@ import { ComercialDrillDrawer } from '@/components/bi/drill/ComercialDrillDrawer
 import { useComercialDrillStack } from '@/hooks/useComercialDrillStack';
 import { useBiClientesMap } from '@/hooks/useBiClientesMap';
 import type { DrillType, DrillContexto, NotaFiscalDrillContext } from '@/lib/bi/comercialDrillApi';
+import { downloadComercialExportCompleto } from '@/lib/bi/comercialDrillApi';
 import { DashboardPage } from '@/components/bi/layout/DashboardLayout';
 import { ComercialDashboardGrid } from '@/components/bi/runtime/ComercialDashboardGrid';
 import { ConfigureBiWidgetDialog } from '@/components/bi/runtime/ConfigureBiWidgetDialog';
