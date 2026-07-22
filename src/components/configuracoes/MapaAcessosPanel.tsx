@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Download, Map as MapIcon, Search, Loader2 } from 'lucide-react';
+import { Download, Map as MapIcon, Search, Loader2, Maximize2, Minimize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FEATURE_CATALOG, type FeatureArea } from '@/config/featureCatalog';
 import * as XLSX from 'xlsx';
@@ -53,6 +53,19 @@ export function MapaAcessosPanel({ screens }: Props) {
   const [profileFilter, setProfileFilter] = useState<string>('__all__');
   const [onlyBlocked, setOnlyBlocked] = useState(false);
   const [onlyOverrides, setOnlyOverrides] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setExpanded(false); };
+    document.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [expanded]);
 
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['mapa-acessos'],
@@ -271,7 +284,8 @@ export function MapaAcessosPanel({ screens }: Props) {
 
   return (
     <TooltipProvider delayDuration={100}>
-      <Card>
+      <div className={cn(expanded && 'fixed inset-0 z-50 bg-background overflow-auto p-3 md:p-4')}>
+      <Card className={cn(expanded && 'border-0 shadow-none rounded-none')}>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <CardTitle className="text-base flex items-center gap-2">
@@ -288,6 +302,10 @@ export function MapaAcessosPanel({ screens }: Props) {
               <Button variant="outline" size="sm" onClick={exportXlsx} disabled={!data}>
                 <Download className="h-3.5 w-3.5 mr-1.5" />
                 Exportar XLSX
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setExpanded(v => !v)} title={expanded ? 'Sair da tela cheia (Esc)' : 'Expandir para tela cheia'}>
+                {expanded ? <Minimize2 className="h-3.5 w-3.5 mr-1.5" /> : <Maximize2 className="h-3.5 w-3.5 mr-1.5" />}
+                {expanded ? 'Reduzir' : 'Expandir'}
               </Button>
             </div>
           </div>
