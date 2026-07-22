@@ -26,6 +26,7 @@ import { formatDate } from '@/lib/format';
 import { PermissoesPorTelaPanel } from '@/components/configuracoes/PermissoesPorTelaPanel';
 import { DemoModeSection } from '@/components/configuracoes/DemoModeSection';
 import { LiberacoesPanel } from '@/components/configuracoes/LiberacoesPanel';
+import { MapaAcessosPanel } from '@/components/configuracoes/MapaAcessosPanel';
 import { Sliders } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
