@@ -275,7 +275,7 @@ export function MapaAcessosPanel({ screens }: Props) {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <CardTitle className="text-base flex items-center gap-2">
-              <Map className="h-4 w-4 text-primary" />
+              <MapIcon className="h-4 w-4 text-primary" />
               Mapa de Acessos
               <Badge variant="outline" className="text-xs font-normal">
                 {filteredUsers.length} usuários × {filteredColumns.length} itens
