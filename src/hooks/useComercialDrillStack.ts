@@ -69,9 +69,11 @@ export function useComercialDrillStack() {
         contexto: ctx,
         page: 1,
         addedFilter: added,
+        nfContext: init.nfContext ?? 'TODAS',
       }],
     });
   }, []);
+
 
   const pushDrill = useCallback(
     (next: DrillType, rowFilters: DrillContexto = {}, opts: PushOpts = {}) => {
