@@ -94,15 +94,82 @@ export interface EstoqueAnaliseParams {
   situacao?: string;
 }
 
+function normalizeItem(raw: any): EstoqueAnaliseItem {
+  const codpro = raw.codpro ?? raw.codigo ?? null;
+  const despro = raw.despro ?? raw.descricao ?? null;
+  const coddep = raw.coddep ?? raw.deposito ?? null;
+  const desdep = raw.desdep ?? raw.deposito ?? null;
+  const codder = raw.codder ?? raw.derivacao ?? null;
+  const desder = raw.desder ?? raw.derivacao ?? null;
+  const consumo_quantidade = raw.consumo_quantidade ?? raw.consumo_qtd ?? null;
+  return {
+    ...raw,
+    codpro,
+    despro,
+    coddep,
+    desdep,
+    codder,
+    desder,
+    codfam: raw.codfam ?? raw.familia ?? null,
+    consumo_quantidade,
+  };
+}
+
+function buildResumoFallback(items: EstoqueAnaliseItem[], base: EstoqueAnaliseResumo | null): EstoqueAnaliseResumo {
+  // Fallback de exibição enquanto o backend não envia `resumo`.
+  const acc: any = {
+    valor_total_estoque: 0,
+    consumo_periodo_valor: 0,
+    itens_curva_a: 0,
+    itens_curva_b: 0,
+    itens_curva_c: 0,
+    itens_sem_consumo: 0,
+    valor_itens_sem_consumo: 0,
+    universo: items.length,
+    capital_parado_12m: 0,
+    capital_parado_24m: 0,
+    itens_sem_saida: 0,
+    valor_itens_sem_saida: 0,
+    itens_baixo_giro_com_compra: 0,
+    aging: {
+      ate_6m: 0, de_6_12m: 0, de_12_24m: 0, acima_24m: 0, sem_saida: 0,
+      valor_ate_6m: 0, valor_de_6_12m: 0, valor_de_12_24m: 0, valor_acima_24m: 0, valor_sem_saida: 0,
+    },
+  };
+  for (const it of items) {
+    const val = Number(it.valor_estoque ?? 0);
+    acc.valor_total_estoque += val;
+    acc.consumo_periodo_valor += Number(it.consumo_valor ?? 0);
+    const cls = it.curva_abc;
+    if (cls === 'A') acc.itens_curva_a += 1;
+    else if (cls === 'B') acc.itens_curva_b += 1;
+    else if (cls === 'C') acc.itens_curva_c += 1;
+    if (isSemConsumo(it)) { acc.itens_sem_consumo += 1; acc.valor_itens_sem_consumo += val; }
+    const f = faixaAging(it);
+    acc.aging[f] += 1;
+    acc.aging[`valor_${f}`] += val;
+    if (f === 'sem_saida') { acc.itens_sem_saida += 1; acc.valor_itens_sem_saida += val; }
+    if (f === 'de_12_24m' || f === 'acima_24m' || f === 'sem_saida') acc.capital_parado_12m += val;
+    if (f === 'acima_24m' || f === 'sem_saida') acc.capital_parado_24m += val;
+    if ((f !== 'ate_6m' || isSemConsumo(it)) && Number(it.a_receber ?? 0) > 0) acc.itens_baixo_giro_com_compra += 1;
+  }
+  return { ...acc, ...(base ?? {}) };
+}
+
 export async function getEstoqueAnalise(params: EstoqueAnaliseParams, signal?: AbortSignal): Promise<EstoqueAnaliseResponse> {
   const clean: Record<string, any> = { ...params };
   if (clean.codfil === 'all' || clean.codfil === '') delete clean.codfil;
-  return api.get<EstoqueAnaliseResponse>('/api/estoque/analise', clean);
+  const raw = await api.get<EstoqueAnaliseResponse>('/api/estoque/analise', clean);
+  const dados = (raw?.dados ?? []).map(normalizeItem);
+  const resumo = buildResumoFallback(dados, raw?.resumo ?? null);
+  return { ...raw, dados, resumo };
 }
 
 export function isSemConsumo(item: EstoqueAnaliseItem): boolean {
-  return item.curva_abc == null && (item.consumo_valor == null || Number(item.consumo_valor) === 0)
-    && (item.consumo_quantidade == null || Number(item.consumo_quantidade) === 0);
+  const cq = item.consumo_quantidade ?? (item as any).consumo_qtd;
+  const cv = item.consumo_valor;
+  return item.curva_abc == null && (cv == null || Number(cv) === 0)
+    && (cq == null || Number(cq) === 0);
 }
 
 export function classificarBadge(item: EstoqueAnaliseItem): 'A' | 'B' | 'C' | 'SEM_CONSUMO' {
