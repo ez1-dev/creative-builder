@@ -177,21 +177,23 @@ function ModeloPadraoCard() {
     );
   }
 
+  // Flag temporária: Balanço Padrão será entregue em uma próxima etapa.
+  const MOSTRAR_BALANCO_PADRAO = false;
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base">Modelos oficiais</CardTitle>
         <CardDescription>
-          Define quais modelos são usados nas páginas <strong>DRE Padrão</strong> e{" "}
-          <strong>Balanço Padrão</strong>. A configuração fica gravada no backend e é lida por
-          todos os usuários.
+          Define qual modelo é usado na página <strong>DRE Padrão</strong>. A configuração fica
+          gravada no backend e é lida por todos os usuários.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {isLoading ? (
           <Skeleton className="h-9 w-full" />
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className={`grid gap-4 ${MOSTRAR_BALANCO_PADRAO ? "md:grid-cols-2" : "md:grid-cols-1"}`}>
             <div>
               <Label className="text-xs">Modelo padrão da DRE</Label>
               <Select value={dreId || undefined} onValueChange={setDreId}>
@@ -213,29 +215,32 @@ function ModeloPadraoCard() {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label className="text-xs">Modelo padrão do Balanço Patrimonial</Label>
-              <Select value={balId || undefined} onValueChange={setBalId}>
-                <SelectTrigger className="h-auto min-h-9">
-                  <SelectValue placeholder="Selecione um modelo Balanço" />
-                </SelectTrigger>
-                <SelectContent>
-                  {opcoesBal.length === 0 ? (
-                    <div className="p-2 text-xs text-muted-foreground">
-                      Nenhum modelo Balanço disponível.
-                    </div>
-                  ) : (
-                    opcoesBal.map((m) => (
-                      <SelectItem key={m.id} value={m.id}>
-                        {renderOpcao(m)}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
+            {MOSTRAR_BALANCO_PADRAO && (
+              <div>
+                <Label className="text-xs">Modelo padrão do Balanço Patrimonial</Label>
+                <Select value={balId || undefined} onValueChange={setBalId}>
+                  <SelectTrigger className="h-auto min-h-9">
+                    <SelectValue placeholder="Selecione um modelo Balanço" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {opcoesBal.length === 0 ? (
+                      <div className="p-2 text-xs text-muted-foreground">
+                        Nenhum modelo Balanço disponível.
+                      </div>
+                    ) : (
+                      opcoesBal.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {renderOpcao(m)}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
         )}
+
 
         {(cfg?.pendencias?.length ?? 0) > 0 && (
           <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 space-y-1">
