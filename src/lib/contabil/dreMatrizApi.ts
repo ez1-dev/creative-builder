@@ -37,6 +37,10 @@ export interface DreMatrizMeta {
   modelo_nome: string | null;
   meses_incompletos?: string[];
   conciliacao_divergente?: boolean;
+  /** Se true, o backend materializa a matriz por unidade de negócio e aceita
+   *  o filtro `unidade`/`unidade_negocio`. Enquanto false/undefined, o
+   *  frontend NÃO expõe filtro de unidade na barra superior. */
+  suporta_filtro_unidade?: boolean;
 }
 
 export interface DreMatrizResponse {
