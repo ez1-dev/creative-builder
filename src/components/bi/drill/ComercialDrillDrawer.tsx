@@ -18,11 +18,12 @@ import {
 import { cn } from '@/lib/utils';
 
 import {
-  fetchComercialDrill, downloadDrillCsv, downloadDrillXlsx, enrichForDisplay,
+  fetchComercialDrill, downloadComercialDrillExport, enrichForDisplay,
   countDistinctNotas, inferNivelVisualizacao, buildNotaFiscalDrillFlags,
   type DrillColumn, type DrillContexto, type DrillResponse, type DrillType, type NivelVisualizacao,
   type NotaFiscalDrillContext,
 } from '@/lib/bi/comercialDrillApi';
+import { toast } from 'sonner';
 
 
 import { DRILL_LABELS, NEXT_DRILLS, ROW_TO_CTX_KEY, CTX_LABELS } from '@/lib/bi/comercialDrillCatalog';
