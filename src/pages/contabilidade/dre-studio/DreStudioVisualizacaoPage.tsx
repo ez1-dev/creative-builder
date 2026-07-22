@@ -377,6 +377,7 @@ function Visualizacao(props: VisualizacaoProps = {}) {
     aplicar_referencia_senior: aplicarRefSeniorEfetivo,
     expandir_resultado_exercicio: expandirREEfetivo,
     fonte_saldo: "E650SAL",
+    unidade: unidade === "TODOS" ? undefined : unidade,
   };
 
 
