@@ -378,7 +378,12 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
     : nfContext === 'IMPOSTOS' ? ' — somente impostos'
     : '';
   const baseTitulo = resp?.titulo || (cur ? DRILL_LABELS[cur.drill_type] : 'Drill');
-  const titulo = cur?.drill_type === 'NOTA_FISCAL' ? `${baseTitulo}${nfSuffix}` : baseTitulo;
+  // Backend pode devolver o sufixo já embutido (ex.: "Drill por Nota Fiscal — somente devoluções").
+  // Só concatena se ainda não estiver presente para evitar duplicação.
+  const titulo =
+    cur?.drill_type === 'NOTA_FISCAL' && nfSuffix && !baseTitulo.includes(nfSuffix.trim())
+      ? `${baseTitulo}${nfSuffix}`
+      : baseTitulo;
   const nfBadgeLabel =
     nfContext === 'DEVOLUCOES' ? 'Filtro aplicado: Devoluções'
     : nfContext === 'IMPOSTOS' ? 'Filtro aplicado: Impostos'
