@@ -373,7 +373,21 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
     return Math.max(1, Math.ceil(total / size));
   }, [resp]);
 
-  const titulo = resp?.titulo || (cur ? DRILL_LABELS[cur.drill_type] : 'Drill');
+  const nfSuffix =
+    nfContext === 'DEVOLUCOES' ? ' — somente devoluções'
+    : nfContext === 'IMPOSTOS' ? ' — somente impostos'
+    : '';
+  const baseTitulo = resp?.titulo || (cur ? DRILL_LABELS[cur.drill_type] : 'Drill');
+  const titulo = cur?.drill_type === 'NOTA_FISCAL' ? `${baseTitulo}${nfSuffix}` : baseTitulo;
+  const nfBadgeLabel =
+    nfContext === 'DEVOLUCOES' ? 'Filtro aplicado: Devoluções'
+    : nfContext === 'IMPOSTOS' ? 'Filtro aplicado: Impostos'
+    : null;
+  const nfFilenameSlug =
+    nfContext === 'DEVOLUCOES' ? '-devolucoes'
+    : nfContext === 'IMPOSTOS' ? '-impostos'
+    : '';
+
 
   return (
     <Sheet open={stack.open} onOpenChange={stack.setOpen}>
