@@ -219,6 +219,27 @@ export default function ComercialPage() {
   const handlePickBg = (color: string) => { setBgOverride(unidade, color); setBgOverrideTick((t) => t + 1); };
   const handleResetBg = () => { clearBgOverride(unidade); setBgOverrideTick((t) => t + 1); };
 
+  const [exportandoCompleto, setExportandoCompleto] = useState(false);
+  const handleExportCompleto = async () => {
+    if (exportandoCompleto) return;
+    setExportandoCompleto(true);
+    const tid = toast.loading('Gerando Excel completo (10 abas). Pode levar ~15 s…');
+    try {
+      await downloadComercialExportCompleto({
+        drill_type: 'NOTA_FISCAL',
+        anomes_ini: filters.anomes_ini,
+        anomes_fim: filters.anomes_fim,
+        unidade_negocio: filters.unidade_negocio,
+        contexto: {},
+      });
+      toast.success('Excel gerado com sucesso.', { id: tid });
+    } catch (e: any) {
+      toast.error(e?.message || 'Não foi possível gerar o Excel completo.', { id: tid });
+    } finally {
+      setExportandoCompleto(false);
+    }
+  };
+
   // Guarda o último período efetivamente aplicado no topo (botão "Aplicar filtros").
   // Não usar `draft` para restaurar — ele pode estar em edição e fora de sincronia.
   const periodoTopoAplicadoRef = useRef<{ anomes_ini: string; anomes_fim: string }>({
