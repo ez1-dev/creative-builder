@@ -26,7 +26,8 @@ import { formatDate } from '@/lib/format';
 import { PermissoesPorTelaPanel } from '@/components/configuracoes/PermissoesPorTelaPanel';
 import { DemoModeSection } from '@/components/configuracoes/DemoModeSection';
 import { LiberacoesPanel } from '@/components/configuracoes/LiberacoesPanel';
-import { Sliders } from 'lucide-react';
+import { MapaAcessosPanel } from '@/components/configuracoes/MapaAcessosPanel';
+import { Sliders, Map as MapIcon } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -754,6 +755,7 @@ export default function ConfiguracoesPage() {
         { value: 'profiles', label: 'Perfis de Acesso', icon: Shield, description: 'Perfis e telas liberadas' },
         { value: 'permissions', label: 'Permissões por Tela', icon: Eye, description: 'Matriz perfil × tela' },
         { value: 'liberacoes', label: 'Liberações', icon: Sliders, description: 'Funcionalidades, integrações e overrides por usuário' },
+        { value: 'mapa-acessos', label: 'Mapa de Acessos', icon: MapIcon, description: 'Matriz visual usuários × telas/funcionalidades' },
         { value: 'users', label: 'Usuários', icon: Users, description: 'Atribuição de perfis' },
         { value: 'approvals', label: 'Aprovações', icon: UserCheck, badge: pendingUsers.length, description: 'Solicitações de acesso' },
       ],
@@ -1150,6 +1152,13 @@ export default function ConfiguracoesPage() {
             onRefresh={fetchData}
           />
         </TabsContent>
+
+        {/* === MAPA DE ACESSOS === */}
+        <TabsContent value="mapa-acessos" className="space-y-4">
+          <MapaAcessosPanel screens={ALL_SCREENS} />
+        </TabsContent>
+
+
 
 
         {/* === GRÁFICOS E MAPAS === */}
