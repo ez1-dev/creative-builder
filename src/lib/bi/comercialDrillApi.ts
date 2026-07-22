@@ -201,14 +201,6 @@ function toNumberSafe(value: any): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-function getNotaKey(row: any): string {
-  const emp = String(row?.cd_empresa ?? '').trim();
-  const fil = String(row?.cd_filial ?? '').trim();
-  const nf = String(row?.cd_nf ?? row?.nf ?? '').trim();
-  const serie = String(row?.cd_serie ?? row?.serie ?? '').trim();
-  if (emp || fil) return `${emp}|${fil}|${nf}|${serie}`;
-  return `${nf}|${serie}`;
-}
 
 function getValorTotalLinha(row: any): number {
   return toNumberSafe(
