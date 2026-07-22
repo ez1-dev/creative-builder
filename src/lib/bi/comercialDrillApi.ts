@@ -239,6 +239,15 @@ export function enrichRowsWithNotaTotals(resp: Pick<DrillResponse, 'columns' | '
 
   if (!rows.length) return { columns: cols, rows };
 
+  // Se o backend já emite as colunas (por key OU nível NOTA), não injeta nada.
+  const backendEmitsTotalCol = cols.some(
+    (c) => NOTA_TOTAL_KEYS.includes(c.key as any) || (c.nivel === 'NOTA' && /total/i.test(c.key) && !/liq/i.test(c.key)),
+  );
+  const backendEmitsLiquidoCol = cols.some(
+    (c) => NOTA_LIQUIDO_KEYS.includes(c.key as any) || (c.nivel === 'NOTA' && /liq/i.test(c.key)),
+  );
+  if (backendEmitsTotalCol && backendEmitsLiquidoCol) return { columns: cols, rows };
+
   const hasNfCol = cols.some((c) => c.key === 'cd_nf' || c.key === 'nf');
   const hasNfInRow = rows.some(
     (r) => (r && r.cd_nf != null && r.cd_nf !== '') || (r && (r as any).nf != null && (r as any).nf !== ''),
@@ -277,15 +286,16 @@ export function enrichRowsWithNotaTotals(resp: Pick<DrillResponse, 'columns' | '
   });
 
   const newCols: DrillColumn[] = [...cols];
-  if (!alreadyHasTotalNota) {
-    newCols.push({ key: 'total_nota', label: 'Total da Nota', align: 'right', format: 'currency' });
-  }
-  if (!alreadyHasLiquidoNota) {
+  if (!alreadyHasTotalNota && !backendEmitsTotalCol) {
     newCols.push({
-      key: 'total_liquido_nota',
-      label: 'Total Líquido da Nota',
-      align: 'right',
-      format: 'currency',
+      key: 'total_nota', label: 'Total da Nota', align: 'right', format: 'currency',
+      agregavel: false, nivel: 'NOTA',
+    });
+  }
+  if (!alreadyHasLiquidoNota && !backendEmitsLiquidoCol) {
+    newCols.push({
+      key: 'total_liquido_nota', label: 'Total Líquido da Nota', align: 'right', format: 'currency',
+      agregavel: false, nivel: 'NOTA',
     });
   }
 
