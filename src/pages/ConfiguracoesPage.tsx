@@ -755,6 +755,7 @@ export default function ConfiguracoesPage() {
         { value: 'profiles', label: 'Perfis de Acesso', icon: Shield, description: 'Perfis e telas liberadas' },
         { value: 'permissions', label: 'Permissões por Tela', icon: Eye, description: 'Matriz perfil × tela' },
         { value: 'liberacoes', label: 'Liberações', icon: Sliders, description: 'Funcionalidades, integrações e overrides por usuário' },
+        { value: 'mapa-acessos', label: 'Mapa de Acessos', icon: Map, description: 'Matriz visual usuários × telas/funcionalidades' },
         { value: 'users', label: 'Usuários', icon: Users, description: 'Atribuição de perfis' },
         { value: 'approvals', label: 'Aprovações', icon: UserCheck, badge: pendingUsers.length, description: 'Solicitações de acesso' },
       ],
