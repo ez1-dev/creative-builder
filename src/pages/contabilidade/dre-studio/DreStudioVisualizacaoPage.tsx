@@ -48,6 +48,7 @@ import { useContabilConfiguracao } from "@/hooks/contabil/useContabilConfiguraca
 import { ConciliacaoDREBalancoPanel } from "@/components/contabil/ConciliacaoDREBalancoPanel";
 
 import { cn } from "@/lib/utils";
+import { getUnidadeCapabilities } from "@/lib/contabil/unidadeCapabilities";
 import { useCriarBalancoPadraoSenior } from "@/hooks/contabil/useCriarBalancoPadraoSenior";
 import { useVincularContasBalancoSenior } from "@/hooks/contabil/useVincularContasBalancoSenior";
 import { Link2, Pencil, CheckCircle2, ArrowRight, PlayCircle } from "lucide-react";
