@@ -236,6 +236,7 @@ export function PermissoesPorTelaPanel({ screens, profiles, profileScreens, onTo
                     {items.map(s => {
                       const viewers = countViewers(s.path);
                       const active = s.path === selectedPath;
+                      const isNew = profileScreens.every(ps => ps.screen_path !== s.path);
                       return (
                         <li key={s.path}>
                           <button
@@ -248,8 +249,13 @@ export function PermissoesPorTelaPanel({ screens, profiles, profileScreens, onTo
                                 : 'hover:bg-accent text-foreground border-transparent',
                             )}
                           >
-                            <span className="text-sm leading-snug whitespace-normal break-words">
+                            <span className="text-sm leading-snug whitespace-normal break-words flex items-center gap-1.5">
                               {s.name}
+                              {isNew && (
+                                <Badge className="h-4 px-1.5 text-[9px] font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/15">
+                                  NOVA
+                                </Badge>
+                              )}
                             </span>
                             <span className="flex items-center gap-2 w-full min-w-0">
                               <Badge
