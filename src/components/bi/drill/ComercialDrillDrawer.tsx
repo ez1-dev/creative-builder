@@ -226,7 +226,7 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
 
   const enrichedBase = useMemo(() => {
     if (!resp) return { columns: [] as DrillColumn[], rows: [] as Record<string, any>[] };
-    return enrichRowsWithNotaTotals({ columns: resp.columns ?? [], rows: resp.rows ?? [] });
+    return enrichForDisplay({ columns: resp.columns ?? [], rows: resp.rows ?? [] });
   }, [resp]);
 
   const displayColumns = useMemo(() => {
