@@ -119,6 +119,10 @@ function normalizarMeta(raw: any): DreMatrizMeta {
     meses_incompletos: Array.isArray(m.meses_incompletos) ? m.meses_incompletos.map(String) : [],
     conciliacao_divergente: !!m.conciliacao_divergente,
     suporta_filtro_unidade: m.suporta_filtro_unidade === true,
+    unidades_negocio: Array.isArray(m.unidades_negocio) ? m.unidades_negocio : [],
+    unidade_regra: m.unidade_regra ?? null,
+    unidade_indisponivel_motivo: m.unidade_indisponivel_motivo ?? null,
+    unidade_filtro_ignorado: m.unidade_filtro_ignorado === true,
   };
 }
 
