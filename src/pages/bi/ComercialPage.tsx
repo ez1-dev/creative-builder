@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { RefreshCw, RotateCcw, Sparkles, X, Pencil, Save, Plus, Eye, ChevronDown, ChevronUp, Filter, Palette, RotateCw, Users, Package, Building2 } from 'lucide-react';
+import { RefreshCw, RotateCcw, Sparkles, X, Pencil, Save, Plus, Eye, ChevronDown, ChevronUp, Filter, Palette, RotateCw, Users, Package, Building2, Download, Loader2 } from 'lucide-react';
 import { formatEstadoLabel } from '@/lib/bi/ufLabels';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { api } from '@/lib/api';
