@@ -136,7 +136,7 @@ function QtdCell({ value, tone }: { value: number | null | undefined; tone?: 'cr
   return <span className={`tabular-nums ${cls}`}>{fmtQtd(value ?? null)}</span>;
 }
 
-export default function EstoquePage() {
+export function ConsultaTab() {
   const [filters, setFilters] = useState<Filtros>(FILTROS_INICIAIS);
   const [data, setData] = useState<PaginatedResponse<EstoqueItem> | null>(null);
   const [loading, setLoading] = useState(false);
@@ -341,13 +341,11 @@ export default function EstoquePage() {
 
   return (
     <TooltipProvider delayDuration={150}>
-      <div className="space-y-4 p-4">
-        <ErpConnectionAlert />
-        <PageHeader
-          title="Consulta de Estoque"
-          description="Saldo físico, reservas de OPs ativas, compras pendentes e disponibilidade real."
-          actions={<ExportButton endpoint="/api/export/estoque" params={filters as any} />}
-        />
+      <div className="space-y-4">
+        <div className="flex justify-end">
+          <ExportButton endpoint="/api/export/estoque" params={filters as any} />
+        </div>
+
 
         <FilterPanel
           onSearch={() => search(1)}
