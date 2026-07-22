@@ -51,6 +51,7 @@ export function MonitoramentoUsuarios() {
   const [userFilter, setUserFilter] = useState<string>('all');
   const [page, setPage] = useState(0);
   const [killing, setKilling] = useState<string | null>(null);
+  const [killingAll, setKillingAll] = useState(false);
 
   const fetchOnline = useCallback(async () => {
     const since = new Date(Date.now() - 2 * 60 * 1000).toISOString();
@@ -139,6 +140,29 @@ export function MonitoramentoUsuarios() {
     }
   };
 
+  const handleKickAll = async () => {
+    const outros = online.filter((s) => s.user_id !== user?.id).length;
+    if (outros === 0) {
+      toast.info('Nenhum outro usuário online para derrubar');
+      return;
+    }
+    if (!confirm(`Derrubar TODOS os ${outros} usuários logados?\n\nTodos serão desconectados em alguns segundos e precisarão entrar novamente. Você continuará conectado.`)) return;
+    setKillingAll(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-force-logout', {
+        body: { scope: 'all', onlyOnline: true },
+      });
+      if (error) throw error;
+      const total = (data as any)?.sucesso ?? (data as any)?.total ?? outros;
+      toast.success(`${total} usuário(s) desconectado(s)`);
+      fetchOnline();
+    } catch (e: any) {
+      toast.error(e?.message || 'Falha ao derrubar todos');
+    } finally {
+      setKillingAll(false);
+    }
+  };
+
   const paged = activity.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const totalPages = Math.max(1, Math.ceil(activity.length / PAGE_SIZE));
 
@@ -151,9 +175,21 @@ export function MonitoramentoUsuarios() {
             <Activity className="h-4 w-4 text-primary" /> Online agora
             <Badge variant="secondary">{online.length}</Badge>
           </CardTitle>
-          <Button variant="outline" size="sm" onClick={fetchOnline}>
-            <RefreshCw className="h-3.5 w-3.5 mr-1" /> Atualizar
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleKickAll}
+              disabled={killingAll || online.filter((s) => s.user_id !== user?.id).length === 0}
+              title="Desconecta todos os usuários online (exceto você)"
+            >
+              <LogOut className="h-3.5 w-3.5 mr-1" />
+              {killingAll ? 'Derrubando...' : 'Derrubar todos'}
+            </Button>
+            <Button variant="outline" size="sm" onClick={fetchOnline}>
+              <RefreshCw className="h-3.5 w-3.5 mr-1" /> Atualizar
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <p className="text-xs text-muted-foreground mb-2">
