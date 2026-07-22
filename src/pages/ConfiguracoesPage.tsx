@@ -54,6 +54,7 @@ const ALL_SCREENS = [
   { path: '/contabilidade/dre-studio', name: 'DRE Studio — Visão Geral' },
   { path: '/contabilidade/dre-studio/modelos', name: 'DRE Studio — Modelos' },
   { path: '/contabilidade/dre-studio/modelos/novo', name: 'DRE Studio — Novo Modelo' },
+  { path: '/contabilidade/dre-padrao', name: 'Contabilidade — DRE Padrão' },
   
   
   { path: '/numero-serie', name: 'Reserva Nº Série' },
