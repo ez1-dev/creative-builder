@@ -225,12 +225,29 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
   const error = (isLancamento ? qLct.error : qAgg.error) as Error | null;
   const isFetching = isLancamento ? qLct.isFetching : qAgg.isFetching;
 
+  const isUnidade = ctx?.agrupar_por === 'unidade_negocio';
+
   const columns: DrillDreColumn[] = isLancamento
     ? LCT_COLUMNS
     : (qAgg.data?.columns ?? []);
-  const rows: Array<Record<string, any>> = isLancamento
+  const rawRows: Array<Record<string, any>> = isLancamento
     ? ((qLct.data?.itens ?? []) as DrillLancamentoItem[])
     : (qAgg.data?.rows ?? []);
+
+  // Ordenação Estrutural → Genius → Não classificado (apenas para a dimensão
+  // unidade_negocio). Demais categorias entram no final por maior valor.
+  const rows: Array<Record<string, any>> = useMemo(() => {
+    if (!isUnidade || !rawRows.length) return rawRows;
+    const valorKey =
+      columns.find((c) => c.format === 'currency' && /valor|total|saldo/i.test(c.key))?.key ??
+      'valor';
+    return [...rawRows].sort((a, b) => {
+      const oa = UN_ORDER[unidadeCodigoRaw(a)] ?? 99;
+      const ob = UN_ORDER[unidadeCodigoRaw(b)] ?? 99;
+      if (oa !== ob) return oa - ob;
+      return (Number(b[valorKey]) || 0) - (Number(a[valorKey]) || 0);
+    });
+  }, [isUnidade, rawRows, columns]);
 
   const truncado = isLancamento ? Boolean(qLct.data?.truncado) : false;
   const qtdTotal = isLancamento ? (qLct.data?.qtd_total ?? 0) : 0;
@@ -248,9 +265,47 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
     return rows.reduce((s, r) => s + (Number(r[c.key]) || 0), 0);
   }, [isLancamento, qLct.data, qAgg.data, rows, columns]);
 
+  // Indicador de qualidade da classificação (apenas visual). Nunca altera
+  // valores contábeis nem redistribui "Não classificado".
+  const unidadeStats = useMemo(() => {
+    if (!isUnidade || !rows.length) return null;
+    const valorKey =
+      columns.find((c) => c.format === 'currency' && /valor|total|saldo/i.test(c.key))?.key ??
+      'valor';
+    const pctKey =
+      columns.find((c) => c.format === 'percent')?.key ??
+      (rows.some((r) => r.percentual != null) ? 'percentual' : null);
+    const totalAbs = rows.reduce((s, r) => s + Math.abs(Number(r[valorKey]) || 0), 0);
+    let pctGenius = 0;
+    let pctEstrutural = 0;
+    let pctNao = 0;
+    for (const r of rows) {
+      const code = unidadeCodigoRaw(r);
+      let pct: number;
+      if (pctKey && r[pctKey] != null && Number.isFinite(Number(r[pctKey]))) {
+        pct = Number(r[pctKey]);
+      } else if (totalAbs > 0) {
+        pct = (Math.abs(Number(r[valorKey]) || 0) / totalAbs) * 100;
+      } else {
+        pct = 0;
+      }
+      if (code === 'GENIUS') pctGenius += pct;
+      else if (code === 'ESTRUTURAL') pctEstrutural += pct;
+      else if (code === 'NAO_CLASSIFICADO') pctNao += pct;
+    }
+    return {
+      classificado: pctGenius + pctEstrutural,
+      naoClassificado: pctNao,
+      temNaoClassificado: rows.some((r) => isNaoClassificado(r)),
+    };
+  }, [isUnidade, rows, columns]);
+
   const totalLinha = ctx?.totalLinhaDre ?? qAgg.data?.total_linha ?? null;
   const diferenca =
     totalLinha != null && totalDrill != null ? totalLinha - totalDrill : null;
+  const unidadeDivergente =
+    isUnidade && totalLinha != null && totalDrill != null &&
+    Math.abs(totalLinha - totalDrill) > 0.01;
 
   const periodoLabel = ctx
     ? `${anomesLabel(ctx.filtros.anomes_ini)} a ${anomesLabel(ctx.filtros.anomes_fim)}`
