@@ -438,8 +438,14 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
           <div className="flex items-start justify-between gap-2 pr-8">
             <SheetTitle className="text-base md:text-lg flex items-center gap-2 min-w-0">
               <span className="truncate">{titulo}</span>
+              {nfBadgeLabel && (
+                <Badge variant="outline" className="text-[10px] font-normal shrink-0">
+                  {nfBadgeLabel}
+                </Badge>
+              )}
               {query.isFetching && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
             </SheetTitle>
+
             <div className="flex items-center gap-1 shrink-0">
               {allowedNext.length > 0 && (
                 <Popover open={selectorOpenInline} onOpenChange={setSelectorOpenInline}>
