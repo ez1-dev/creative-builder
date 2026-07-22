@@ -183,6 +183,7 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
   const cur = stack.current;
   const { maskUnidade } = useDemoMode();
   const [selectorOpenInline, setSelectorOpenInline] = useState(false);
+  const [exportando, setExportando] = useState<null | 'xlsx' | 'csv'>(null);
 
   const nfContext: NotaFiscalDrillContext =
     cur?.drill_type === 'NOTA_FISCAL' ? (cur?.nfContext ?? 'TODAS') : 'TODAS';
