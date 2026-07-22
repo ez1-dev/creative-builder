@@ -114,6 +114,7 @@ function normalizarMeta(raw: any): DreMatrizMeta {
     modelo_nome: m.modelo_nome ?? m.modelo ?? null,
     meses_incompletos: Array.isArray(m.meses_incompletos) ? m.meses_incompletos.map(String) : [],
     conciliacao_divergente: !!m.conciliacao_divergente,
+    suporta_filtro_unidade: m.suporta_filtro_unidade === true,
   };
 }
 
