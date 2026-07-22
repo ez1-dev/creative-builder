@@ -1,30 +1,46 @@
-# Plano — Entregar apenas DRE Padrão nesta etapa
+## Contexto
 
-Manter toda a arquitetura dinâmica de configuração já implementada (`useContabilConfiguracao`, `ModeloOficialPendenciaCard`, endpoint `GET/PUT /api/contabil/configuracao`), mas expor ao usuário somente a página **DRE Padrão**. O Balanço Padrão fica preservado no código para a próxima entrega, apenas invisível no menu e sem rota ativa.
+O backend ainda não publicou dois endpoints do DRE Studio:
 
-## Alterações
+- `POST /api/contabil/modelos/{id}/clonar-vinculos-oficial`
+- `GET  /api/contabil/modelos/{id}/validar-vinculos`
 
-1. **`src/config/menuCatalog.ts`**
-   - Remover a entrada `{ title: 'Balanço Padrão', url: '/contabilidade/balanco-padrao', ... }` do subgrupo `erp-financeiro`.
-   - Manter `DRE Padrão` como está.
+Hoje, ao clicar em **Clonar vínculos** ou **Validar** na aba *Vínculos* de `/contabilidade/dre-studio/configuracoes`, o front chama a API, recebe 404, dispara toast de erro e ainda grava um registro em `error_logs` (Supabase) a cada tentativa — poluindo os logs e assustando o usuário.
 
-2. **`src/App.tsx`**
-   - Comentar/remover a rota `/contabilidade/balanco-padrao` (mantendo o import da página fora do bundle via remoção do import).
-   - Nenhuma outra rota é afetada.
+O padrão já usado nas outras seções (Snapshots, Referência Senior, Agendamentos) é: detectar 404, marcar `unavailable: true`, exibir o banner `EndpointIndisponivel` e desabilitar as ações. Falta aplicar o mesmo tratamento a esses dois recursos.
 
-3. **`src/pages/contabilidade/dre-studio/DreStudioConfiguracoesPage.tsx`**
-   - Na seção "Modelos oficiais", ocultar temporariamente o seletor de **Modelo padrão de Balanço**, deixando apenas o seletor de **Modelo padrão de DRE** visível.
-   - Não remover o código do seletor de Balanço — apenas envolver em um bloco condicional/flag local `MOSTRAR_BALANCO_PADRAO = false` para reativação futura em um único ponto.
+## Objetivo
 
-4. **Arquivos preservados (sem alteração agora)**
-   - `src/pages/contabilidade/balanco-padrao/BalancoPadraoPage.tsx` fica no repositório para a próxima etapa.
-   - `useContabilConfiguracao`, `ModeloOficialPendenciaCard` e helpers continuam servindo à DRE Padrão e serão reaproveitados quando o Balanço voltar.
+Tratar os dois endpoints como "indisponíveis" de forma silenciosa: sem toast de erro, sem gravar em `error_logs`, e com a UI já em estado degradado (banner + botões desabilitados) antes mesmo do usuário clicar.
 
-## Fora do escopo
-- Não mexer em `ConciliacaoDREBalancoPanel` nem em hooks de dashboard geral: eles continuam resolvendo o modelo de balanço dinamicamente pelo backend, o que é inofensivo mesmo sem a página exposta.
-- Não alterar layouts personalizados de usuários (`menu_layout_user`) — como o item de Balanço nunca foi propagado a esses layouts customizados, basta ele sumir do catálogo base.
+## Mudanças
 
-## Validação
-- Após o build: menu ERP → Financeiro e Contábil mostra "DRE Padrão" e não mostra "Balanço Padrão".
-- Rota `/contabilidade/balanco-padrao` deixa de existir (cai no NotFound).
-- Página de Configurações Contábeis mostra apenas o card de modelo oficial da DRE.
+### 1. `src/lib/contabil/contabilApi.ts`
+Não logar em `error_logs` quando o status é 404 (é uma resposta esperada, os hooks já convertem em `unavailable`). Manter o `throw` normal — só suprimir o `logError` para 404.
+
+### 2. `src/hooks/contabil/configuracoes.ts`
+- **`useClonarVinculosOficial`**: em vez de `throw new Error("...solicite ao backend...")` no 404, retornar `{ unavailable: true }`. Ajustar assinatura do retorno da mutation para `{ vinculos_clonados?: number; unavailable?: boolean }`. No `onSuccess`, se `unavailable` for true, não mostrar toast de sucesso.
+- **Novo helper `useClonarVinculosDisponivel(modeloId)`**: probe leve via `useQuery` que faz um `HEAD`/`OPTIONS`... simplificar: reutilizar o próprio `useValidarVinculos` já retorna `unavailable` no 404. Como os dois endpoints costumam ser publicados juntos (mesmo módulo backend), usar o resultado do `validar-vinculos` (executado silenciosamente uma vez ao selecionar o modelo, com `enabled=true`) como sinal de disponibilidade também para `clonar-vinculos-oficial`.
+
+### 3. `src/pages/contabilidade/dre-studio/DreStudioConfiguracoesPage.tsx` (aba Vínculos)
+- Executar `useValidarVinculos` automaticamente ao selecionar o modelo (setar `enabled = !!modeloId`) para descobrir a disponibilidade sem exigir clique.
+- Quando `validar.data?.unavailable === true`:
+  - Manter/mostrar o banner `EndpointIndisponivel` já existente.
+  - Mostrar também um segundo banner (ou ampliar o texto) informando que **Clonar vínculos** e **Validar vínculos** dependem de endpoints ainda não publicados no backend.
+  - Desabilitar os botões dos `ActionCard` "Clonar do modelo oficial" e "Validar vínculos" com tooltip "Endpoint indisponível — solicite ao backend".
+- Os cards "Vincular contas Senior (DRE/Balanço)" continuam funcionais.
+
+### 4. Sem alterações em outras telas / hooks
+Nada muda no fluxo de vínculos por E045PLA, cache, drills etc. — só a experiência dos dois endpoints ausentes.
+
+## Detalhes técnicos
+
+- `logError` fica condicional a `statusCode !== 404` em `contabilApi.ts`.
+- O `unavailable` do `useClonarVinculosOficial` é derivado (não muda a estrutura da mutation existente para consumidores); a página só usa `disabled` a partir de `validar.data?.unavailable`.
+- Não há mudança de contrato com o backend nem de tokens de design.
+
+## Fora de escopo
+
+- Publicar os endpoints (é do backend).
+- Reescrever a aba Vínculos ou o motor de cache/drill.
+- Alterar comportamento das outras abas.
