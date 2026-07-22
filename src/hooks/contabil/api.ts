@@ -1095,8 +1095,13 @@ export function useResultadoPronto(
             ? undefined
             : filtros.expandir_resultado_exercicio,
         fonte_saldo: filtros.fonte_saldo ?? "E650SAL",
+        unidade:
+          filtros.unidade && filtros.unidade !== "TODOS"
+            ? filtros.unidade
+            : undefined,
       });
     },
+
 
     enabled: enabled && isValidId(modeloId),
     retry: 0,
