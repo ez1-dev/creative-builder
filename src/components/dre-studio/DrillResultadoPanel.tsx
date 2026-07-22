@@ -468,6 +468,44 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
             </div>
           ) : (
             <>
+              {isUnidade && unidadeStats && (
+                <div className="mb-3 rounded-lg border bg-muted/20 p-3 text-xs">
+                  <div className="mb-1 font-medium text-foreground">
+                    Qualidade da classificação
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <div className="text-muted-foreground">Classificado</div>
+                      <div className="tabular-nums font-semibold">
+                        {fmtPct(unidadeStats.classificado)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Não classificado</div>
+                      <div
+                        className={cn(
+                          'tabular-nums font-semibold',
+                          unidadeStats.naoClassificado > 0 &&
+                            'text-amber-700 dark:text-amber-400',
+                        )}
+                      >
+                        {fmtPct(unidadeStats.naoClassificado)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-1 text-[11px] text-muted-foreground">
+                    Indicador visual calculado a partir dos valores devolvidos pelo backend.
+                    O frontend não classifica lançamentos.
+                  </div>
+                  {unidadeDivergente && (
+                    <div className="mt-2 flex items-start gap-1.5 text-[11px] text-destructive">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                      A classificação por unidade não fecha com o total da linha.
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div ref={drillScrollRef} className="overflow-x-auto rounded-lg border">
                 <Table style={{ minWidth: Math.max(980, columns.length * 150) }}>
                   <TableHeader>
@@ -489,31 +527,61 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {rows.map((r, i) => (
-                      <TableRow key={i}>
-                        {columns.map((c) => {
-                          const v = r[c.key];
-                          const isNumeric =
-                            c.format === 'currency' || c.format === 'number' || c.format === 'percent';
-                          const n = Number(v);
-                          return (
-                            <TableCell
-                              key={c.key}
-                              className={cn(
-                                'text-xs',
-                                isNumeric && 'text-right tabular-nums',
-                                isNumeric && Number.isFinite(n) && n < 0 && 'text-destructive',
-                              )}
-                            >
-                              {fmtCell(c, v)}
-                            </TableCell>
-                          );
-                        })}
-                      </TableRow>
-                    ))}
+                    {rows.map((r, i) => {
+                      const naoClass = isUnidade && isNaoClassificado(r);
+                      return (
+                        <TableRow key={i}>
+                          {columns.map((c, ci) => {
+                            const v = r[c.key];
+                            const isNumeric =
+                              c.format === 'currency' || c.format === 'number' || c.format === 'percent';
+                            const n = Number(v);
+                            // Primeira coluna textual em dimensão unidade: mostra rótulo amigável + badge.
+                            const isKeyCol =
+                              isUnidade &&
+                              !isNumeric &&
+                              ci === 0;
+                            return (
+                              <TableCell
+                                key={c.key}
+                                className={cn(
+                                  'text-xs',
+                                  isNumeric && 'text-right tabular-nums',
+                                  isNumeric && Number.isFinite(n) && n < 0 && 'text-destructive',
+                                )}
+                              >
+                                {isKeyCol ? (
+                                  <span className="inline-flex items-center gap-1.5">
+                                    <span className="font-medium">{unidadeLabel(r)}</span>
+                                    {naoClass && (
+                                      <TooltipProvider delayDuration={150}>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <span className="rounded-sm bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 cursor-help">
+                                              atenção
+                                            </span>
+                                          </TooltipTrigger>
+                                          <TooltipContent className="max-w-xs text-xs">
+                                            Lançamentos cujo centro de custo não possui
+                                            identificação G- ou E- na descrição.
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                    )}
+                                  </span>
+                                ) : (
+                                  fmtCell(c, v)
+                                )}
+                              </TableCell>
+                            );
+                          })}
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
+
 
               {!isLancamento && qAgg.data?.has_more && (
                 <div className="mt-3 flex justify-center">
