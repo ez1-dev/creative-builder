@@ -137,6 +137,38 @@ const LCT_COLUMNS: DrillDreColumn[] = [
   { key: 'valor', label: 'Valor', format: 'currency' },
 ];
 
+// ============== Unidade de Negócio (apenas apresentação) ==============
+// Mapa exclusivo do DrillResultadoPanel — o frontend NUNCA classifica
+// lançamentos por prefixo do centro de custo. Estes rótulos apenas
+// traduzem os códigos canônicos devolvidos pelo backend.
+const UN_LABELS: Record<string, string> = {
+  GENIUS: 'Genius',
+  ESTRUTURAL: 'Estrutural Zortea',
+  NAO_CLASSIFICADO: 'Não classificado',
+};
+const UN_ORDER: Record<string, number> = {
+  ESTRUTURAL: 0,
+  GENIUS: 1,
+  NAO_CLASSIFICADO: 2,
+};
+
+function unidadeCodigoRaw(row: Record<string, any>): string {
+  const raw =
+    row?.unidade_negocio ??
+    row?.unidade ??
+    row?.codigo ??
+    row?.chave ??
+    '';
+  return String(raw ?? '').trim().toUpperCase();
+}
+function unidadeLabel(row: Record<string, any>): string {
+  const code = unidadeCodigoRaw(row);
+  return UN_LABELS[code] ?? (row?.descricao ? String(row.descricao) : code || '—');
+}
+function isNaoClassificado(row: Record<string, any>): boolean {
+  return unidadeCodigoRaw(row) === 'NAO_CLASSIFICADO';
+}
+
 export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(500);
