@@ -25,6 +25,8 @@ import { getContabilBaseUrl, setContabilBaseUrl, pingContabilHealth, pingErpHeal
 import { formatDate } from '@/lib/format';
 import { PermissoesPorTelaPanel } from '@/components/configuracoes/PermissoesPorTelaPanel';
 import { DemoModeSection } from '@/components/configuracoes/DemoModeSection';
+import { LiberacoesPanel } from '@/components/configuracoes/LiberacoesPanel';
+import { Sliders } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -750,6 +752,7 @@ export default function ConfiguracoesPage() {
       items: [
         { value: 'profiles', label: 'Perfis de Acesso', icon: Shield, description: 'Perfis e telas liberadas' },
         { value: 'permissions', label: 'Permissões por Tela', icon: Eye, description: 'Matriz perfil × tela' },
+        { value: 'liberacoes', label: 'Liberações', icon: Sliders, description: 'Funcionalidades, integrações e overrides por usuário' },
         { value: 'users', label: 'Usuários', icon: Users, description: 'Atribuição de perfis' },
         { value: 'approvals', label: 'Aprovações', icon: UserCheck, badge: pendingUsers.length, description: 'Solicitações de acesso' },
       ],
@@ -1134,6 +1137,17 @@ export default function ConfiguracoesPage() {
               </Card>
             </div>
           )}
+        </TabsContent>
+
+        {/* === LIBERAÇÕES === */}
+        <TabsContent value="liberacoes" className="space-y-4">
+          <LiberacoesPanel
+            screens={ALL_SCREENS}
+            profiles={profiles.map(p => ({ id: p.id, name: p.name }))}
+            profileScreens={profileScreens}
+            onToggle={toggleScreen}
+            onRefresh={fetchData}
+          />
         </TabsContent>
 
 
