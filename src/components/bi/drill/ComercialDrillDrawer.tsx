@@ -18,7 +18,8 @@ import {
 import { cn } from '@/lib/utils';
 
 import {
-  fetchComercialDrill, downloadDrillCsv, downloadDrillXlsx, enrichRowsWithNotaTotals,
+  fetchComercialDrill, downloadDrillCsv, downloadDrillXlsx, enrichForDisplay,
+  countDistinctNotas,
   type DrillColumn, type DrillContexto, type DrillResponse, type DrillType,
 } from '@/lib/bi/comercialDrillApi';
 import { DRILL_LABELS, NEXT_DRILLS, ROW_TO_CTX_KEY, CTX_LABELS } from '@/lib/bi/comercialDrillCatalog';
@@ -225,7 +226,7 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
 
   const enrichedBase = useMemo(() => {
     if (!resp) return { columns: [] as DrillColumn[], rows: [] as Record<string, any>[] };
-    return enrichRowsWithNotaTotals({ columns: resp.columns ?? [], rows: resp.rows ?? [] });
+    return enrichForDisplay({ columns: resp.columns ?? [], rows: resp.rows ?? [] });
   }, [resp]);
 
   const displayColumns = useMemo(() => {
@@ -508,6 +509,10 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
             <>
               <DataTableBI columns={columns} data={enrichedBase.rows} />
 
+              {cur?.drill_type === 'DETALHES_IMPOSTOS' && (
+                <ImpostosFooter cols={enrichedBase.columns} rows={enrichedBase.rows} />
+              )}
+
               <div className="flex items-center justify-between gap-2 pt-3 text-xs text-muted-foreground">
                 <span>
                   {resp.rows.length} {resp.rows.length === 1 ? 'linha' : 'linhas'}
@@ -548,4 +553,51 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
     </Sheet>
   );
 }
+
+const IMPOSTO_KEYS = [
+  'vl_icms', 'vl_icms_st', 'vl_pis', 'vl_cofins', 'vl_ipi', 'vl_iss',
+  'vl_outros_impostos', 'vl_outros',
+];
+
+function sumKey(rows: Record<string, any>[], key: string): number {
+  let s = 0;
+  for (const r of rows) {
+    const n = Number(r?.[key]);
+    if (Number.isFinite(n)) s += n;
+  }
+  return s;
+}
+
+function ImpostosFooter({ cols, rows }: { cols: DrillColumn[]; rows: Record<string, any>[] }) {
+  const hasVlItem = cols.some((c) => c.key === 'vl_item');
+  const hasVlItemLiq = cols.some((c) => c.key === 'vl_item_liquido');
+  const hasTotalImpostos = cols.some((c) => c.key === 'vl_total_impostos');
+
+  const valorItens = hasVlItem ? sumKey(rows, 'vl_item') : null;
+  const valorLiquido = hasVlItemLiq ? sumKey(rows, 'vl_item_liquido') : null;
+  const totalImpostos = hasTotalImpostos
+    ? sumKey(rows, 'vl_total_impostos')
+    : IMPOSTO_KEYS.reduce((s, k) => s + sumKey(rows, k), 0);
+
+  const qtdItens = rows.length;
+  const qtdNotas = countDistinctNotas(rows);
+
+  const Item = ({ label, value }: { label: string; value: string }) => (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
+      <span className="text-sm font-semibold tabular-nums">{value}</span>
+    </div>
+  );
+
+  return (
+    <div className="mt-3 rounded-md border bg-muted/30 px-3 py-2.5 flex flex-wrap gap-x-6 gap-y-2">
+      <Item label="Qtd. itens" value={formatNumber(qtdItens, 0)} />
+      <Item label="Qtd. notas" value={formatNumber(qtdNotas, 0)} />
+      {valorItens != null && <Item label="Valor total dos itens" value={formatCurrency(valorItens)} />}
+      <Item label="Total de impostos" value={formatCurrency(totalImpostos)} />
+      {valorLiquido != null && <Item label="Valor líquido dos itens" value={formatCurrency(valorLiquido)} />}
+    </div>
+  );
+}
+
 

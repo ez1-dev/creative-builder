@@ -1,89 +1,114 @@
 ## Objetivo
 
-Atualizar `src/pages/EstoquePage.tsx` para exibir os novos campos do endpoint `GET /api/estoque` (saldo real, reservas de OPs ativas, disponível, compras a receber, projetado, próxima entrega e situação do material), sem cálculos paralelos no frontend e sem tocar em `E210EST.QTDRES`.
+Corrigir totalização, colunas duplicadas e exportação do drill **Detalhes de Impostos** (BI Comercial), respeitando novos metadados do backend (`agregavel`, `nivel`) e novas colunas por item (`vl_item`, `vl_item_liquido`). Nada muda nos impostos ou no backend.
 
-## Arquivo alterado
+## Diagnóstico (verificado)
 
-Somente `src/pages/EstoquePage.tsx`.
+- `src/lib/bi/comercialDrillApi.ts` hoje **inventa** as colunas `total_nota` e `total_liquido_nota` via `enrichRowsWithNotaTotals()`, somando linha a linha — daí a duplicação (backend também envia essas colunas agora) e o rodapé dobrado (R$ 1.300.000,00 na NF 20997).
+- `withLiquidoAndTotals()` só ignora `SKIP_TOTAL_SUM_KEYS = {total_nota, total_liquido_nota}`; não lê `column.agregavel` nem `column.nivel`.
+- Grid usa `DataTableBI` em `ComercialDrillDrawer.tsx`; hoje não há rodapé visível dedicado ao drill de impostos (só CSV/XLSX totalizam).
+
+## Escopo
+
+Somente frontend. Arquivos:
+
+1. `src/lib/bi/comercialDrillApi.ts`
+2. `src/components/bi/drill/ComercialDrillDrawer.tsx`
 
 ## Mudanças
 
-### 1. Filtros
-Acrescentar em `filters`:
-- `somente_com_reserva: false`
-- `somente_com_compra: false`
-- `somente_com_falta: false`
-- `criticidade: 'todas'` (todas | com_falta | falta_sem_compra | compra_cobre | compra_insuficiente | com_reserva | com_compra)
+### 1. Contrato (`comercialDrillApi.ts`)
 
-Enviados ao backend em `search()` (nunca aplicados só na página carregada).
+Estender `DrillColumn`:
 
-Regra de compatibilidade: quando `somente_com_reserva`, `somente_com_compra` ou `somente_com_falta` estiverem ativos, forçar `somente_com_estoque=false` e exibir toast informativo:
-> "O filtro 'Somente com estoque' foi removido para incluir materiais reservados ou comprados com saldo zero."
+```ts
+export interface DrillColumn {
+  key: string;
+  label: string;
+  align?: 'left' | 'right' | 'center';
+  format?: 'currency' | 'number' | 'date' | 'text';
+  agregavel?: boolean;      // novo
+  nivel?: 'ITEM' | 'NOTA';  // novo
+}
+```
 
-### 2. Colunas da grid
-Ordem final:
-Produto · Descrição · Derivação · Depósito · Saldo físico · Reservado em OP · Disponível · A receber · Projetado · OPs reservando · Próxima entrega · Situação.
+Helper novo:
 
-Leitura defensiva conforme spec §19 (`item.saldo ?? item.qtdest ?? 0`, `item.reservado ?? 0`, `item.disponivel ?? saldo`, etc.). Nenhum cálculo derivado — apenas fallback anti-quebra.
+```ts
+export function isAgregavel(c: DrillColumn) {
+  return c.agregavel !== false && c.nivel !== 'NOTA';
+}
+```
 
-Formatação:
-- Quantidades: `formatNumber(v, 3)` padrão pt-BR, negativos entre parênteses.
-- Data: `dd/MM/yyyy`, `—` quando vazio.
-- OPs reservando: `"N OP"` / `"N OPs"`.
+Helper de chave fiscal e contagem distinta:
 
-Destaques (via classes de token do design system, sem cores hardcoded):
-- `disponivel < 0` → `text-destructive font-semibold` (parênteses)
-- `disponivel = 0` → `text-warning`
-- `projetado < 0` → `text-destructive font-semibold`
-- `reservado > 0` → badge/ícone OP
-- `a_receber > 0` → badge/ícone compra
+```ts
+function getNotaKey(row): string { /* codemp|codfil|numnfv|codsnf, com fallback p/ cd_empresa|cd_filial|cd_nf|cd_serie */ }
+export function countDistinctNotas(rows): number { /* Set(getNotaKey) */ }
+```
 
-### 3. Coluna Situação
-Badge derivado priorizando `item.falta_material` do backend; texto conforme spec §5:
-- `disponivel < 0 && a_receber <= 0` → **Falta sem compra** (destructive)
-- `disponivel < 0 && a_receber > 0 && projetado >= 0` → **Compra cobre a falta** (warning)
-- `disponivel < 0 && a_receber > 0 && projetado < 0` → **Compra insuficiente** (destructive)
-- `disponivel >= 0` → **Disponível** (success)
+### 2. Deduplicar colunas por `key`
 
-### 4. Tooltips
-- Reservado em OP: "Quantidade ainda necessária em OPs abertas ou liberadas. OPs encerradas não são consideradas."
-- A receber: "Quantidade pendente em ordens de compra ativas. Itens cancelados não são considerados."
-- Próxima entrega: "Data de entrega mais próxima entre os itens de compra pendentes."
+Adicionar `uniqueColumns(cols)` (Map por `c.key`) e aplicar dentro de `fetchComercialDrill` antes de retornar. Isso elimina "Total da Nota / Total Líquido" duplicados quando o backend passar a enviá-los.
 
-### 5. Ordenação
-Adicionar select "Ordenar por" com atalhos enviados ao backend (`ordenar_por`, `ordem`):
-Saldo físico · Reservado · Disponível · A receber · Projetado · Qtd OPs · Próxima entrega · Maior falta · Maior reserva · Maior a receber · Entrega mais próxima · Compra insuficiente.
+### 3. Ajustar `enrichRowsWithNotaTotals`
 
-### 6. KPIs (cards superiores)
-Se `data.meta` (ou similar) trouxer totais globais, exibir: Itens consultados, Com reserva, Com falta, Com compra pendente, Compra cobre a falta, Compra insuficiente.
+- Se backend já envia colunas `vl_total_nota`/`total_nota` ou `vl_total_liquido`/`total_liquido_nota` **não injetar**.
+- Ao injetar (fallback legado), marcar as colunas como `{ agregavel: false, nivel: 'NOTA' }`.
+- Manter o cálculo de valor apenas para exibição por linha (não por soma no rodapé).
 
-Se o backend não fornecer totais e houver paginação, prefixar o bloco com o rótulo **"Resultados da página atual"** e calcular somente sobre `dados` da página (contagem, não recalcula quantidades por item). Cards existentes (Total Registros / Itens na Página / Saldo Total) preservados.
+### 4. Colunas novas "Valor do Item" e "Líquido do Item"
 
-### 7. Modal de detalhes
-Ao clicar numa linha, abrir `Dialog` com todos os campos + nota explicativa:
-> "Disponível = saldo físico menos reservas de OPs ativas. Projetado = disponível mais compras pendentes."
+Nova função `injectItemColumns({columns, rows})`:
 
-Sem números calculados no navegador — apenas texto conceitual.
+- Se qualquer linha tem `vl_item`/`valor_item` e a coluna ainda não existe, injetar após `cd_produto`/`ds_produto`:
+  ```ts
+  { key: 'vl_item', label: 'Valor do Item', align: 'right', format: 'currency', agregavel: true, nivel: 'ITEM' }
+  ```
+- Idem para `vl_item_liquido` → `"Líquido do Item"`.
+- Leitura defensiva: `row.vl_item ?? row.valor_item ?? null`. Nunca usar `vl_total_nota` como fallback.
+- Se ausentes, não injetar (colunas somem — não mostrar `—` genérico como pediu o item 16).
 
-### 8. Drill de OPs (futuro)
-`ops_reservando` renderizado como `<button>` que hoje só mostra toast "Detalhamento de OPs em breve". Deixa a estrutura pronta para `GET /api/estoque/reservas-ops` sem consultar `E900CMO`.
+Chamar em sequência: `uniqueColumns → enrichRowsWithNotaTotals → injectItemColumns`. Exportar `enrichForDisplay()` unificada usada tanto pela grid quanto pelo XLSX/CSV.
 
-### 9. Exportação
-Manter `ExportButton` apontando para `/api/export/estoque` e propagar todos os novos filtros em `params` — a exportação continua sendo feita pelo backend com o conjunto completo, respeitando filtros e ordenação.
+### 5. Rodapé/Totais (grid + exportação)
 
-### 10. Estado vazio
-Mensagens contextuais quando `somente_com_reserva` / `somente_com_compra` estiverem ativos e o retorno for vazio (§20).
+Nova função `computeFooterRow(cols, rows)`:
 
-### 11. Contexto para IA
-Atualizar `useAiPageContext` com os novos KPIs e filtros.
+```ts
+for (const c of cols) {
+  if (!isAgregavel(c)) { footer[c.key] = null; continue; } // renderiza "—"
+  if (c.format === 'currency' || c.format === 'number') {
+    footer[c.key] = sum(rows, c.key);
+  }
+}
+```
 
-## Fora de escopo
+- **CSV/XLSX** (`withLiquidoAndTotals`): trocar `SKIP_TOTAL_SUM_KEYS` por `!isAgregavel(c)`; célula desses campos vira `""` (Excel) / `—` (visual). Manter cálculo de "Valor Líquido" só se backend não enviar; **não** somar `vl_total_nota` nem `vl_total_liquido`.
+- **Grid** (`ComercialDrillDrawer.tsx`): adicionar rodapé próprio para o drill `DETALHES_IMPOSTOS` (bloco abaixo do `DataTableBI`) com:
+  - Quantidade de itens: `rows.length`
+  - Quantidade de notas: `countDistinctNotas(rows)`
+  - Valor total dos itens: soma de `vl_item`
+  - Total de impostos: soma de `vl_total_impostos` (ou soma de ICMS+PIS+COFINS+IPI+ISS+outros se ausente)
+  - Valor líquido dos itens: soma de `vl_item_liquido`
+- Tooltip nas colunas `vl_total_nota` / `vl_total_liquido` (nivel NOTA) e `vl_item` / `vl_item_liquido` (nivel ITEM) conforme item 15.
 
-- Backend (endpoint `/api/estoque` já publicado).
-- Outras páginas de estoque (`EstoqueMinMaxPage`, `SugestaoMinMaxPage`, dashboards).
-- Cálculos derivados de `saldo`/`reservado`/`disponivel`/`projetado` — sempre vindos da API.
-- Consulta direta a `E210EST.QTDRES` ou `E900CMO` — proibida.
+### 6. Agrupamentos e sort/filtro
 
-## Critérios de aceite
+- `Valor do Item` e `Líquido do Item` entram nas colunas normais → `DataTableBI` já provê sort/filtro numérico (formato `currency`).
+- Regra de agrupamento (quando existir) reaproveita `isAgregavel`. Nenhum agrupador soma `vl_total_nota` por item.
 
-Reproduzem a lista da especificação (§Critérios de aceite): TER005 exibindo Saldo 180 / Reservado 6.822 / Disponível -6.642 / A receber 6.898 / Projetado 256 / Situação "Compra cobre a falta"; BR128 sem reserva fantasma; filtros `somente_com_reserva`, `somente_com_compra` e `somente_com_falta` operando pelo backend; exportação com novas colunas; nenhum cálculo baseado em QTDRES no frontend.
+## Critérios de aceite (NF 20997)
+
+- Grid mostra 2 linhas com `Valor do Item` = R$ 559.000 e R$ 91.000.
+- Rodapé: itens=2, notas=1, valor itens=R$ 650.000,00, impostos=R$ 61.838,48, líquido=R$ 588.161,52.
+- Colunas `Total da Nota` / `Total Líquido da Nota` aparecem uma única vez e mostram `—` no rodapé.
+- CSV/XLSX seguem exatamente as mesmas colunas e totais da grid; sem duplicatas.
+- Impostos (ICMS/PIS/COFINS/IPI/ISS) inalterados.
+
+## Detalhes técnicos
+
+- Tipagem: `DrillColumn.agregavel?: boolean; nivel?: 'ITEM'|'NOTA'`.
+- Backward-compat: colunas sem `agregavel` continuam agregando (default `true`), exceto se `nivel === 'NOTA'`.
+- Sem alterações em `comercialDrillContract.ts`, `comercialDrillCatalog.ts` ou hooks.
+- Reset de estado / restart do dev server não necessário; após deploy, o usuário reinicia a API na 8070 para os novos campos aparecerem.

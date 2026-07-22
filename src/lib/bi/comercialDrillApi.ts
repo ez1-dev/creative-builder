@@ -42,6 +42,44 @@ export interface DrillColumn {
   label: string;
   align?: 'left' | 'right' | 'center';
   format?: 'currency' | 'number' | 'date' | 'text';
+  /** Backend flag: false -> valor não deve ser somado em rodapé/agrupamentos. */
+  agregavel?: boolean;
+  /** Backend flag: 'NOTA' -> repete em cada item da NF, não somar por linha. */
+  nivel?: 'ITEM' | 'NOTA' | string;
+}
+
+/** Coluna pode ser somada em rodapé/agrupamento? default true. */
+export function isAgregavel(c: DrillColumn): boolean {
+  if (c.agregavel === false) return false;
+  if (c.nivel === 'NOTA') return false;
+  return true;
+}
+
+/** Deduplica colunas por chave técnica, mantendo a primeira ocorrência. */
+export function uniqueColumns(cols: DrillColumn[]): DrillColumn[] {
+  const map = new Map<string, DrillColumn>();
+  for (const c of cols || []) {
+    if (c && c.key && !map.has(c.key)) map.set(c.key, c);
+  }
+  return Array.from(map.values());
+}
+
+/** Chave fiscal composta para contagem/deduplicação de NF. */
+export function getNotaKey(row: any): string {
+  const emp = String(row?.codemp ?? row?.cd_empresa ?? '').trim();
+  const fil = String(row?.codfil ?? row?.cd_filial ?? '').trim();
+  const nf = String(row?.numnfv ?? row?.numero_nota ?? row?.cd_nf ?? row?.nf ?? '').trim();
+  const serie = String(row?.codsnf ?? row?.serie ?? row?.cd_serie ?? '').trim();
+  return `${emp}|${fil}|${nf}|${serie}`;
+}
+
+export function countDistinctNotas(rows: any[]): number {
+  const set = new Set<string>();
+  for (const r of rows || []) {
+    const k = getNotaKey(r);
+    if (k.replace(/\|/g, '').trim()) set.add(k);
+  }
+  return set.size;
 }
 
 export interface DrillBreadcrumbItem {
@@ -129,7 +167,7 @@ export async function fetchComercialDrill(req: DrillRequest): Promise<DrillRespo
     titulo: r.titulo ?? '',
     drill_type: (r.drill_type ?? req.drill_type) as DrillType,
     breadcrumb: Array.isArray(r.breadcrumb) ? r.breadcrumb : [],
-    columns: Array.isArray(r.columns) ? r.columns : [],
+    columns: uniqueColumns(Array.isArray(r.columns) ? r.columns : []),
     rows: Array.isArray(r.rows) ? r.rows : [],
     total: typeof r.total === 'number' ? r.total : (Array.isArray(r.rows) ? r.rows.length : 0),
     page: typeof r.page === 'number' ? r.page : (req.page ?? 1),
@@ -163,14 +201,6 @@ function toNumberSafe(value: any): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-function getNotaKey(row: any): string {
-  const emp = String(row?.cd_empresa ?? '').trim();
-  const fil = String(row?.cd_filial ?? '').trim();
-  const nf = String(row?.cd_nf ?? row?.nf ?? '').trim();
-  const serie = String(row?.cd_serie ?? row?.serie ?? '').trim();
-  if (emp || fil) return `${emp}|${fil}|${nf}|${serie}`;
-  return `${nf}|${serie}`;
-}
 
 function getValorTotalLinha(row: any): number {
   return toNumberSafe(
@@ -208,6 +238,15 @@ export function enrichRowsWithNotaTotals(resp: Pick<DrillResponse, 'columns' | '
   const rows = [...(resp.rows ?? [])];
 
   if (!rows.length) return { columns: cols, rows };
+
+  // Se o backend já emite as colunas (por key OU nível NOTA), não injeta nada.
+  const backendEmitsTotalCol = cols.some(
+    (c) => NOTA_TOTAL_KEYS.includes(c.key as any) || (c.nivel === 'NOTA' && /total/i.test(c.key) && !/liq/i.test(c.key)),
+  );
+  const backendEmitsLiquidoCol = cols.some(
+    (c) => NOTA_LIQUIDO_KEYS.includes(c.key as any) || (c.nivel === 'NOTA' && /liq/i.test(c.key)),
+  );
+  if (backendEmitsTotalCol && backendEmitsLiquidoCol) return { columns: cols, rows };
 
   const hasNfCol = cols.some((c) => c.key === 'cd_nf' || c.key === 'nf');
   const hasNfInRow = rows.some(
@@ -247,23 +286,97 @@ export function enrichRowsWithNotaTotals(resp: Pick<DrillResponse, 'columns' | '
   });
 
   const newCols: DrillColumn[] = [...cols];
-  if (!alreadyHasTotalNota) {
-    newCols.push({ key: 'total_nota', label: 'Total da Nota', align: 'right', format: 'currency' });
-  }
-  if (!alreadyHasLiquidoNota) {
+  if (!alreadyHasTotalNota && !backendEmitsTotalCol) {
     newCols.push({
-      key: 'total_liquido_nota',
-      label: 'Total Líquido da Nota',
-      align: 'right',
-      format: 'currency',
+      key: 'total_nota', label: 'Total da Nota', align: 'right', format: 'currency',
+      agregavel: false, nivel: 'NOTA',
+    });
+  }
+  if (!alreadyHasLiquidoNota && !backendEmitsLiquidoCol) {
+    newCols.push({
+      key: 'total_liquido_nota', label: 'Total Líquido da Nota', align: 'right', format: 'currency',
+      agregavel: false, nivel: 'NOTA',
     });
   }
 
   return { columns: newCols, rows: enrichedRows };
 }
 
-/** Chaves que NÃO devem ser somadas no rodapé TOTAL (evita duplicar valores por NF). */
-const SKIP_TOTAL_SUM_KEYS = new Set(['total_nota', 'total_liquido_nota']);
+/**
+ * Injeta colunas "Valor do Item" e "Líquido do Item" quando o backend enviar
+ * `vl_item` / `vl_item_liquido` (ou aliases) nas linhas. Ambas são agregáveis.
+ * Nunca usa vl_total_nota como fallback.
+ */
+export function injectItemColumns(resp: Pick<DrillResponse, 'columns' | 'rows'>): {
+  columns: DrillColumn[];
+  rows: DrillRow[];
+} {
+  const cols = [...(resp.columns ?? [])];
+  const rows = [...(resp.rows ?? [])];
+  if (!rows.length) return { columns: cols, rows };
+
+  const hasVlItemInRow = rows.some((r) => r?.vl_item != null || (r as any)?.valor_item != null);
+  const hasVlItemLiqInRow = rows.some(
+    (r) => (r as any)?.vl_item_liquido != null || (r as any)?.valor_item_liquido != null,
+  );
+
+  let workingRows = rows;
+  let workingCols = cols;
+
+  const insertAfter = (colsArr: DrillColumn[], newCol: DrillColumn): DrillColumn[] => {
+    const anchor = colsArr.findIndex((c) => c.key === 'ds_produto' || c.key === 'nm_produto');
+    const idx = anchor >= 0 ? anchor : colsArr.findIndex((c) => c.key === 'cd_produto');
+    if (idx < 0) return [...colsArr, newCol];
+    return [...colsArr.slice(0, idx + 1), newCol, ...colsArr.slice(idx + 1)];
+  };
+
+  if (hasVlItemInRow && !workingCols.some((c) => c.key === 'vl_item')) {
+    workingRows = workingRows.map((r) => ({
+      ...r,
+      vl_item: r?.vl_item ?? (r as any)?.valor_item ?? null,
+    }));
+    workingCols = insertAfter(workingCols, {
+      key: 'vl_item',
+      label: 'Valor do Item',
+      align: 'right',
+      format: 'currency',
+      agregavel: true,
+      nivel: 'ITEM',
+    });
+  }
+  if (hasVlItemLiqInRow && !workingCols.some((c) => c.key === 'vl_item_liquido')) {
+    workingRows = workingRows.map((r) => ({
+      ...r,
+      vl_item_liquido:
+        (r as any)?.vl_item_liquido ?? (r as any)?.valor_item_liquido ?? null,
+    }));
+    workingCols = insertAfter(workingCols, {
+      key: 'vl_item_liquido',
+      label: 'Líquido do Item',
+      align: 'right',
+      format: 'currency',
+      agregavel: true,
+      nivel: 'ITEM',
+    });
+  }
+
+  return { columns: uniqueColumns(workingCols), rows: workingRows };
+}
+
+/**
+ * Pipeline único de enriquecimento para exibição (grid + exportação).
+ * Ordem: dedup → total-por-nota → colunas de item.
+ */
+export function enrichForDisplay(resp: Pick<DrillResponse, 'columns' | 'rows'>): {
+  columns: DrillColumn[];
+  rows: DrillRow[];
+} {
+  const step0 = { columns: uniqueColumns(resp.columns ?? []), rows: resp.rows ?? [] };
+  const step1 = enrichRowsWithNotaTotals(step0);
+  const step2 = injectItemColumns(step1);
+  return { columns: uniqueColumns(step2.columns), rows: step2.rows };
+}
+
 
 /**
  * Enriquece a resposta de drill para exportação:
@@ -304,16 +417,17 @@ function withLiquidoAndTotals(resp: DrillResponse): { columns: DrillColumn[]; ro
     workingCols = [...cols.slice(0, idx + 1), liquidoCol, ...cols.slice(idx + 1)];
   }
 
-  // 2) Total da Nota / Total Líquido da Nota
-  const enriched = enrichRowsWithNotaTotals({ columns: workingCols, rows: workingRows });
+  // 2) Total da Nota / Total Líquido da Nota + colunas de item
+  const enriched = enrichForDisplay({ columns: workingCols, rows: workingRows });
   workingCols = enriched.columns;
   workingRows = enriched.rows;
 
-  // 3) Linha TOTAL
+  // 3) Linha TOTAL — respeita agregavel/nivel
   const totalRow: DrillRow = {};
   let labelPlaced = false;
   workingCols.forEach((c) => {
-    if ((c.format === 'currency' || c.format === 'number') && !SKIP_TOTAL_SUM_KEYS.has(c.key)) {
+    const numeric = c.format === 'currency' || c.format === 'number';
+    if (numeric && isAgregavel(c)) {
       let sum = 0;
       let any = false;
       for (const r of workingRows) {
@@ -324,7 +438,8 @@ function withLiquidoAndTotals(resp: DrillResponse): { columns: DrillColumn[]; ro
         }
       }
       totalRow[c.key] = any ? sum : '';
-    } else if (SKIP_TOTAL_SUM_KEYS.has(c.key)) {
+    } else if (numeric && !isAgregavel(c)) {
+      // Colunas nível NOTA — não somar por linha.
       totalRow[c.key] = '';
     } else if (!labelPlaced) {
       totalRow[c.key] = 'TOTAL';
