@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Download, Map, Search, Loader2 } from 'lucide-react';
+import { Download, Map as MapIcon, Search, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FEATURE_CATALOG, type FeatureArea } from '@/config/featureCatalog';
 import * as XLSX from 'xlsx';
