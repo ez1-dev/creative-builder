@@ -576,6 +576,9 @@ export interface CacheFiltros {
   consolidado?: boolean;
   /** Fonte de saldo (E650SAL, E640LCT). Padrão: E650SAL. */
   fonte_saldo?: string;
+  /** Unidade de negócio. Ativo apenas quando o backend sinaliza
+   *  meta.suporta_filtro_unidade === true. "TODOS"/undefined = consolidado. */
+  unidade?: string | null;
 }
 
 
