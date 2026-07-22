@@ -394,10 +394,10 @@ export function MapaAcessosPanel({ screens }: Props) {
                         </th>
                         {filteredColumns.map(c => (
                           <th key={c.key} className="sticky top-0 z-20 bg-background border-b p-0 align-bottom">
-                            <div className="h-[140px] w-[34px] flex items-end justify-center">
+                            <div className="h-[180px] w-[36px] flex items-end justify-center">
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <div className="rotate-[-70deg] origin-bottom-left translate-x-3 whitespace-nowrap text-[11px] text-muted-foreground max-w-[130px] truncate">
+                                  <div className="rotate-[-70deg] origin-bottom-left translate-x-3 whitespace-nowrap text-xs text-foreground/80 w-[170px] overflow-visible">
                                     {c.label}
                                   </div>
                                 </TooltipTrigger>
@@ -429,7 +429,7 @@ export function MapaAcessosPanel({ screens }: Props) {
                             {row.map((cell, ci) => {
                               const col = filteredColumns[ci];
                               return (
-                                <td key={col.key} className="border-b p-0 w-[34px] h-[28px]">
+                                <td key={col.key} className="border-b p-0 w-[36px] h-[28px]">
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <div
