@@ -2163,20 +2163,16 @@ function Visualizacao(props: VisualizacaoProps = {}) {
               <FileSpreadsheet className="h-4 w-4 mr-1.5" />
               Exportar
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setOpenHistoricoCache(true)}>
-              <History className="h-4 w-4 mr-1.5" />
-              Histórico
-            </Button>
+            {!modoBloqueado && (
+              <Button size="sm" variant="outline" onClick={() => setOpenHistoricoCache(true)}>
+                <History className="h-4 w-4 mr-1.5" />
+                Histórico
+              </Button>
+            )}
             {!modoBloqueado && (
               <Button size="sm" variant="outline" onClick={() => setEditorEstruturaOpen(true)}>
                 <Pencil className="h-4 w-4 mr-1.5" />
                 Editar estrutura
-              </Button>
-            )}
-            {modoBloqueado && props.permiteConfigurar && props.onConfigurar && (
-              <Button size="sm" variant="outline" onClick={props.onConfigurar} title="Abrir o modelo em Modelos para configurar">
-                <Pencil className="h-4 w-4 mr-1.5" />
-                Configurar modelo
               </Button>
             )}
           </div>
