@@ -95,83 +95,101 @@ export function ConciliacaoDREBalancoPanel({
   }
 
 
+  const [open, setOpen] = useState<boolean>(() => {
+    try { return localStorage.getItem("dre-vis:conciliacao-open") === "1"; } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("dre-vis:conciliacao-open", open ? "1" : "0"); } catch {}
+  }, [open]);
+
   return (
     <div className="mb-6 rounded-lg border border-slate-200 bg-white">
-      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between border-b border-slate-200 px-4 py-2 text-left hover:bg-slate-50 rounded-t-lg"
+      >
         <div>
-          <h3 className="text-sm font-semibold text-slate-800">
+          <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
+            {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             Conciliação DRE × Balanço Senior
           </h3>
-          <p className="text-xs text-slate-500">
-            Resultado DRE (linha total do modelo) acumulado vs Balanço (linha VINCULAR, sinal invertido).
-          </p>
+          {open && (
+            <p className="text-xs text-slate-500 ml-5">
+              Resultado DRE (linha total do modelo) acumulado vs Balanço (linha VINCULAR, sinal invertido).
+            </p>
+          )}
         </div>
         {carregando && <Loader2 className="h-4 w-4 animate-spin text-slate-500" />}
-      </div>
+      </button>
 
-      {balQ.isError && (
-        <div className="flex items-start gap-2 px-4 py-3 text-sm text-amber-800 bg-amber-50">
-          <AlertTriangle className="h-4 w-4 mt-0.5" />
-          <span>
-            Não foi possível carregar o Balanço oficial para conciliação:{" "}
-            {(balQ.error as Error)?.message ?? "erro desconhecido"}.
-          </span>
-        </div>
-      )}
+      {open && (
+        <>
+          {balQ.isError && (
+            <div className="flex items-start gap-2 px-4 py-3 text-sm text-amber-800 bg-amber-50">
+              <AlertTriangle className="h-4 w-4 mt-0.5" />
+              <span>
+                Não foi possível carregar o Balanço oficial para conciliação:{" "}
+                {(balQ.error as Error)?.message ?? "erro desconhecido"}.
+              </span>
+            </div>
+          )}
 
-      {semDados ? (
-        <div className="px-4 py-6 text-sm text-slate-500 text-center">
-          Sem dados para conciliar neste período.
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-600">
-              <tr>
-                <th className="px-3 py-2 text-left font-medium">Período</th>
-                <th className="px-3 py-2 text-right font-medium">Resultado DRE mensal</th>
-                <th className="px-3 py-2 text-right font-medium">Resultado DRE acumulado</th>
-                <th className="px-3 py-2 text-right font-medium">Resultado Balanço acumulado</th>
-                <th className="px-3 py-2 text-right font-medium">Diferença</th>
-                <th className="px-3 py-2 text-left font-medium">Origem Balanço</th>
-              </tr>
-            </thead>
-            <tbody>
-              {linhas.map((l) => {
-                const ok = l.diferenca != null && Math.abs(l.diferenca) < 0.01;
-                return (
-                  <tr key={l.anomes} className="border-t border-slate-100">
-                    <td className="px-3 py-1.5 text-slate-700">
-                      {formatAnomes(l.anomes)}
-                    </td>
-                    <td className="px-3 py-1.5">
-                      <MoneyCell value={l.dreMes} />
-                    </td>
-                    <td className="px-3 py-1.5">
-                      <MoneyCell value={l.dreAcum} />
-                    </td>
-                    <td className="px-3 py-1.5">
-                      <MoneyCell value={l.balAcum} />
-                    </td>
-                    <td
-                      className={
-                        "px-3 py-1.5 " + (l.diferenca == null ? "" : ok ? "" : "bg-red-50")
-                      }
-                    >
-                      <MoneyCell
-                        value={l.diferenca}
-                        className={ok ? "text-emerald-700" : "text-red-700"}
-                      />
-                    </td>
-                    <td className="px-3 py-1.5 text-xs text-slate-500">
-                      {l.origemBalanco ?? "—"}
-                    </td>
+          {semDados ? (
+            <div className="px-4 py-6 text-sm text-slate-500 text-center">
+              Sem dados para conciliar neste período.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 text-slate-600">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-medium">Período</th>
+                    <th className="px-3 py-2 text-right font-medium">Resultado DRE mensal</th>
+                    <th className="px-3 py-2 text-right font-medium">Resultado DRE acumulado</th>
+                    <th className="px-3 py-2 text-right font-medium">Resultado Balanço acumulado</th>
+                    <th className="px-3 py-2 text-right font-medium">Diferença</th>
+                    <th className="px-3 py-2 text-left font-medium">Origem Balanço</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody>
+                  {linhas.map((l) => {
+                    const ok = l.diferenca != null && Math.abs(l.diferenca) < 0.01;
+                    return (
+                      <tr key={l.anomes} className="border-t border-slate-100">
+                        <td className="px-3 py-1.5 text-slate-700">
+                          {formatAnomes(l.anomes)}
+                        </td>
+                        <td className="px-3 py-1.5">
+                          <MoneyCell value={l.dreMes} />
+                        </td>
+                        <td className="px-3 py-1.5">
+                          <MoneyCell value={l.dreAcum} />
+                        </td>
+                        <td className="px-3 py-1.5">
+                          <MoneyCell value={l.balAcum} />
+                        </td>
+                        <td
+                          className={
+                            "px-3 py-1.5 " + (l.diferenca == null ? "" : ok ? "" : "bg-red-50")
+                          }
+                        >
+                          <MoneyCell
+                            value={l.diferenca}
+                            className={ok ? "text-emerald-700" : "text-red-700"}
+                          />
+                        </td>
+                        <td className="px-3 py-1.5 text-xs text-slate-500">
+                          {l.origemBalanco ?? "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
