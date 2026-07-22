@@ -42,6 +42,44 @@ export interface DrillColumn {
   label: string;
   align?: 'left' | 'right' | 'center';
   format?: 'currency' | 'number' | 'date' | 'text';
+  /** Backend flag: false -> valor não deve ser somado em rodapé/agrupamentos. */
+  agregavel?: boolean;
+  /** Backend flag: 'NOTA' -> repete em cada item da NF, não somar por linha. */
+  nivel?: 'ITEM' | 'NOTA' | string;
+}
+
+/** Coluna pode ser somada em rodapé/agrupamento? default true. */
+export function isAgregavel(c: DrillColumn): boolean {
+  if (c.agregavel === false) return false;
+  if (c.nivel === 'NOTA') return false;
+  return true;
+}
+
+/** Deduplica colunas por chave técnica, mantendo a primeira ocorrência. */
+export function uniqueColumns(cols: DrillColumn[]): DrillColumn[] {
+  const map = new Map<string, DrillColumn>();
+  for (const c of cols || []) {
+    if (c && c.key && !map.has(c.key)) map.set(c.key, c);
+  }
+  return Array.from(map.values());
+}
+
+/** Chave fiscal composta para contagem/deduplicação de NF. */
+export function getNotaKey(row: any): string {
+  const emp = String(row?.codemp ?? row?.cd_empresa ?? '').trim();
+  const fil = String(row?.codfil ?? row?.cd_filial ?? '').trim();
+  const nf = String(row?.numnfv ?? row?.numero_nota ?? row?.cd_nf ?? row?.nf ?? '').trim();
+  const serie = String(row?.codsnf ?? row?.serie ?? row?.cd_serie ?? '').trim();
+  return `${emp}|${fil}|${nf}|${serie}`;
+}
+
+export function countDistinctNotas(rows: any[]): number {
+  const set = new Set<string>();
+  for (const r of rows || []) {
+    const k = getNotaKey(r);
+    if (k.replace(/\|/g, '').trim()) set.add(k);
+  }
+  return set.size;
 }
 
 export interface DrillBreadcrumbItem {
