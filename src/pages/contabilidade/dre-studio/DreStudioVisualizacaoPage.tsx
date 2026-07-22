@@ -2943,6 +2943,7 @@ function Visualizacao(props: VisualizacaoProps = {}) {
                                   anomes_fim: fim,
                                   centro_custo: codccu === "todos" ? null : codccu,
                                   modo_balanco: modoBalancoEfetivo ?? null,
+                                  unidade: unidade === "TODOS" ? null : unidade,
                                 },
                               })
                             }
