@@ -41,6 +41,10 @@ export interface DreMatrizMeta {
    *  o filtro `unidade`/`unidade_negocio`. Enquanto false/undefined, o
    *  frontend NÃO expõe filtro de unidade na barra superior. */
   suporta_filtro_unidade?: boolean;
+  unidades_negocio?: Array<{ codigo: string; nome?: string | null }>;
+  unidade_regra?: string | null;
+  unidade_indisponivel_motivo?: string | null;
+  unidade_filtro_ignorado?: boolean;
 }
 
 export interface DreMatrizResponse {
