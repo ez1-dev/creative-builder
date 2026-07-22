@@ -1,5 +1,120 @@
-import { api } from '@/lib/api';
+import { api, getApiUrl } from '@/lib/api';
 import { compactDrillContext } from './comercialDrillContract';
+
+// ============================================================
+// Export server-side (BI Comercial) — backend gera o XLSX completo.
+// Nunca reconstruir o Excel no navegador a partir de páginas locais.
+// ============================================================
+
+function parseContentDisposition(headers: Headers): string | null {
+  const disp = headers.get('content-disposition') || headers.get('Content-Disposition');
+  if (!disp) return null;
+  const m = disp.match(/filename\*?=(?:UTF-8'')?["']?([^"';]+)/i);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+async function extractBackendError(response: Response): Promise<string> {
+  try {
+    const text = await response.text();
+    if (!text) return `Erro ${response.status}`;
+    try {
+      const j = JSON.parse(text);
+      return j?.detail || j?.message || j?.error || text;
+    } catch {
+      return text;
+    }
+  } catch {
+    return `Erro ${response.status}`;
+  }
+}
+
+function buildDrillBody(req: DrillRequest) {
+  const contextoLimpo = cleanContexto(req.contexto || {});
+  const isNF = req.drill_type === 'NOTA_FISCAL';
+  const flags = isNF ? buildNotaFiscalDrillFlags(req.nf_context ?? 'TODAS') : null;
+  const body: Record<string, any> = {
+    drill_type: req.drill_type,
+    anomes_ini: req.anomes_ini,
+    anomes_fim: req.anomes_fim,
+    unidade_negocio: req.unidade_negocio,
+    contexto: contextoLimpo,
+  };
+  if (flags) {
+    body.somente_devolucao = flags.somente_devolucao;
+    body.somente_impostos = flags.somente_impostos;
+  }
+  const busca = typeof req.busca === 'string' ? req.busca.trim() : '';
+  if (busca) body.busca = busca;
+  return body;
+}
+
+async function downloadBlob(url: string, body: Record<string, any>, fallbackFilename: string, timeoutMs = 60_000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true',
+  };
+  const token = api.getToken();
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (err: any) {
+    clearTimeout(timer);
+    if (err?.name === 'AbortError') {
+      throw new Error('Tempo esgotado (60 s) ao gerar o Excel. Tente reduzir o período e refazer.');
+    }
+    throw err;
+  }
+  clearTimeout(timer);
+  if (!response.ok) {
+    const msg = await extractBackendError(response);
+    throw new Error(msg);
+  }
+  const blob = await response.blob();
+  const filename = parseContentDisposition(response.headers) || fallbackFilename;
+  const objUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = objUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(objUrl), 1500);
+  return filename;
+}
+
+/** Baixa o XLSX completo do BI Comercial (10 abas). */
+export async function downloadComercialExportCompleto(
+  req: DrillRequest,
+  opts?: { dimensoes?: string[] },
+) {
+  const body = buildDrillBody(req);
+  const qs = opts?.dimensoes && opts.dimensoes.length > 0
+    ? `?dimensoes=${encodeURIComponent(opts.dimensoes.join(','))}`
+    : '';
+  const url = `${getApiUrl()}/api/bi/comercial/exportar${qs}`;
+  const fallback = `bi-comercial-faturamento-${req.anomes_ini}-${req.anomes_fim}.xlsx`;
+  return downloadBlob(url, body, fallback);
+}
+
+/** Baixa o XLSX/CSV do drill atual, com todo o conjunto (1 aba). */
+export async function downloadComercialDrillExport(
+  req: DrillRequest,
+  formato: 'xlsx' | 'csv' = 'xlsx',
+  fallbackFilename?: string,
+) {
+  const body = buildDrillBody(req);
+  const url = `${getApiUrl()}/api/bi/comercial/drill/export?formato=${formato}`;
+  const fallback = fallbackFilename || `drill-${req.drill_type.toLowerCase()}.${formato}`;
+  return downloadBlob(url, body, fallback);
+}
 
 export type DrillType =
   | 'ACUMULADO'

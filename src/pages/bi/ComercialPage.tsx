@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { RefreshCw, RotateCcw, Sparkles, X, Pencil, Save, Plus, Eye, ChevronDown, ChevronUp, Filter, Palette, RotateCw, Users, Package, Building2 } from 'lucide-react';
+import { RefreshCw, RotateCcw, Sparkles, X, Pencil, Save, Plus, Eye, ChevronDown, ChevronUp, Filter, Palette, RotateCw, Users, Package, Building2, Download, Loader2 } from 'lucide-react';
 import { formatEstadoLabel } from '@/lib/bi/ufLabels';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { api } from '@/lib/api';
@@ -31,6 +31,7 @@ import { ComercialDrillDrawer } from '@/components/bi/drill/ComercialDrillDrawer
 import { useComercialDrillStack } from '@/hooks/useComercialDrillStack';
 import { useBiClientesMap } from '@/hooks/useBiClientesMap';
 import type { DrillType, DrillContexto, NotaFiscalDrillContext } from '@/lib/bi/comercialDrillApi';
+import { downloadComercialExportCompleto } from '@/lib/bi/comercialDrillApi';
 import { DashboardPage } from '@/components/bi/layout/DashboardLayout';
 import { ComercialDashboardGrid } from '@/components/bi/runtime/ComercialDashboardGrid';
 import { ConfigureBiWidgetDialog } from '@/components/bi/runtime/ConfigureBiWidgetDialog';
@@ -217,6 +218,27 @@ export default function ComercialPage() {
   const currentBg = getBgOverride(unidade);
   const handlePickBg = (color: string) => { setBgOverride(unidade, color); setBgOverrideTick((t) => t + 1); };
   const handleResetBg = () => { clearBgOverride(unidade); setBgOverrideTick((t) => t + 1); };
+
+  const [exportandoCompleto, setExportandoCompleto] = useState(false);
+  const handleExportCompleto = async () => {
+    if (exportandoCompleto) return;
+    setExportandoCompleto(true);
+    const tid = toast.loading('Gerando Excel completo (10 abas). Pode levar ~15 s…');
+    try {
+      await downloadComercialExportCompleto({
+        drill_type: 'NOTA_FISCAL',
+        anomes_ini: filters.anomes_ini,
+        anomes_fim: filters.anomes_fim,
+        unidade_negocio: filters.unidade_negocio,
+        contexto: {},
+      });
+      toast.success('Excel gerado com sucesso.', { id: tid });
+    } catch (e: any) {
+      toast.error(e?.message || 'Não foi possível gerar o Excel completo.', { id: tid });
+    } finally {
+      setExportandoCompleto(false);
+    }
+  };
 
   // Guarda o último período efetivamente aplicado no topo (botão "Aplicar filtros").
   // Não usar `draft` para restaurar — ele pode estar em edição e fora de sincronia.
@@ -1270,6 +1292,18 @@ export default function ComercialPage() {
                 className="rounded-full px-3 py-0.5 text-xs font-semibold"
                 style={{ backgroundColor: theme.chipBg, color: theme.chipText }}
               >{unidade}</span>
+
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 gap-1"
+                onClick={handleExportCompleto}
+                disabled={exportandoCompleto}
+                title="Gera XLSX com 10 abas (Detalhe, Mensal, Cliente, Produto, Revenda, Obra, Estado, Impostos, Acumulado, Parâmetros). Pode levar ~15 s."
+              >
+                {exportandoCompleto ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                <span className="hidden sm:inline">{exportandoCompleto ? 'Gerando Excel…' : 'Exportar Excel'}</span>
+              </Button>
 
               {/* Toggle Oficial / Minha versão */}
               <div className="inline-flex items-center rounded-md border bg-card p-0.5 text-xs">

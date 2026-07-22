@@ -18,11 +18,12 @@ import {
 import { cn } from '@/lib/utils';
 
 import {
-  fetchComercialDrill, downloadDrillCsv, downloadDrillXlsx, enrichForDisplay,
+  fetchComercialDrill, downloadComercialDrillExport, enrichForDisplay,
   countDistinctNotas, inferNivelVisualizacao, buildNotaFiscalDrillFlags,
   type DrillColumn, type DrillContexto, type DrillResponse, type DrillType, type NivelVisualizacao,
   type NotaFiscalDrillContext,
 } from '@/lib/bi/comercialDrillApi';
+import { toast } from 'sonner';
 
 
 import { DRILL_LABELS, NEXT_DRILLS, ROW_TO_CTX_KEY, CTX_LABELS } from '@/lib/bi/comercialDrillCatalog';
@@ -182,6 +183,7 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
   const cur = stack.current;
   const { maskUnidade } = useDemoMode();
   const [selectorOpenInline, setSelectorOpenInline] = useState(false);
+  const [exportando, setExportando] = useState<null | 'xlsx' | 'csv'>(null);
 
   const nfContext: NotaFiscalDrillContext =
     cur?.drill_type === 'NOTA_FISCAL' ? (cur?.nfContext ?? 'TODAS') : 'TODAS';
@@ -484,27 +486,61 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
                 size="sm"
                 variant="outline"
                 className="h-7 gap-1 text-xs"
-                onClick={() => resp && downloadDrillCsv(
-                  { ...resp, columns: enrichedBase.columns },
-                  `drill-${resp.drill_type.toLowerCase()}${nfFilenameSlug}.csv`,
-                  nivel,
-                )}
-                disabled={!resp || resp.rows.length === 0}
+                onClick={async () => {
+                  if (!cur || exportando) return;
+                  setExportando('csv');
+                  const tid = toast.loading('Gerando CSV com todos os resultados…');
+                  try {
+                    await downloadComercialDrillExport(
+                      {
+                        drill_type: cur.drill_type,
+                        anomes_ini, anomes_fim, unidade_negocio,
+                        contexto: cur.contexto,
+                        nf_context: nfContext,
+                      },
+                      'csv',
+                      `drill-${cur.drill_type.toLowerCase()}${nfFilenameSlug}.csv`,
+                    );
+                    toast.success('CSV gerado com sucesso.', { id: tid });
+                  } catch (e: any) {
+                    toast.error(e?.message || 'Não foi possível gerar o CSV.', { id: tid });
+                  } finally {
+                    setExportando(null);
+                  }
+                }}
+                disabled={!cur || !!exportando}
               >
-                <Download className="h-3.5 w-3.5" /> CSV
+                {exportando === 'csv' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} CSV
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 className="h-7 gap-1 text-xs"
-                onClick={() => resp && downloadDrillXlsx(
-                  { ...resp, columns: enrichedBase.columns },
-                  `drill-${resp.drill_type.toLowerCase()}${nfFilenameSlug}.xlsx`,
-                  nivel,
-                )}
-                disabled={!resp || resp.rows.length === 0}
+                onClick={async () => {
+                  if (!cur || exportando) return;
+                  setExportando('xlsx');
+                  const tid = toast.loading('Gerando Excel com todos os resultados… pode levar alguns segundos.');
+                  try {
+                    await downloadComercialDrillExport(
+                      {
+                        drill_type: cur.drill_type,
+                        anomes_ini, anomes_fim, unidade_negocio,
+                        contexto: cur.contexto,
+                        nf_context: nfContext,
+                      },
+                      'xlsx',
+                      `drill-${cur.drill_type.toLowerCase()}${nfFilenameSlug}.xlsx`,
+                    );
+                    toast.success('Excel gerado com sucesso.', { id: tid });
+                  } catch (e: any) {
+                    toast.error(e?.message || 'Não foi possível gerar o Excel.', { id: tid });
+                  } finally {
+                    setExportando(null);
+                  }
+                }}
+                disabled={!cur || !!exportando}
               >
-                <Download className="h-3.5 w-3.5" /> Excel
+                {exportando === 'xlsx' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Excel
               </Button>
 
 
