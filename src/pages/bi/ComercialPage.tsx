@@ -991,7 +991,10 @@ export default function ComercialPage() {
 
   const widgetDrillType = (w: ComercialWidget): DrillType | undefined => {
     const def = getWidgetDef(w.type);
-    if (def?.kind === 'kpi') return KPI_DRILL_MAP[def.kpiKey!] ?? 'NOTA_FISCAL';
+    if (def?.kind === 'kpi') {
+      if (def.kpiKey === 'devolucao' || def.kpiKey === 'impostos') return 'NOTA_FISCAL';
+      return KPI_DRILL_MAP[def.kpiKey!] ?? 'NOTA_FISCAL';
+    }
     if (def?.kind === 'serie-mensal') return 'MENSAL';
     if (def?.type === 'estados') return 'ESTADO';
     if (def?.type === 'revendas') return 'REVENDA';
@@ -1007,17 +1010,32 @@ export default function ComercialPage() {
     return 'NOTA_FISCAL';
   };
 
+  const widgetNotaFiscalContext = (w: ComercialWidget): NotaFiscalDrillContext | undefined => {
+    const def = getWidgetDef(w.type);
+    if (def?.kind !== 'kpi') return undefined;
+    if (def.kpiKey === 'devolucao') return 'DEVOLUCOES';
+    if (def.kpiKey === 'impostos') return 'IMPOSTOS';
+    return undefined;
+  };
+
   const blocks = useMemo(() => {
     const out: Record<string, ReactNode> = {};
     visibleWidgets.forEach((w) => {
       const title = w.customTitle || w.title || w.type;
       const dt = widgetDrillType(w);
+      const nfContext = widgetNotaFiscalContext(w);
       out[w.type] = (
         <WidgetErrorBoundary widgetKey={w.type} title={title}>
           <WidgetTitleStyle color={w.titleColor} bold={w.titleBold} valueColor={(w as any).valueColor}>
             <ChartContextMenu
               drillType={dt}
-              onOpenDrill={(next) => openDrill(next, {})}
+              onOpenDrill={(next) => openDrill(
+                next,
+                {},
+                next === 'NOTA_FISCAL' && nfContext
+                  ? { resetDrillFilters: true, nfContext }
+                  : {},
+              )}
               onClearAll={clearDrill}
               activeFiltersCount={chips.length}
             >
