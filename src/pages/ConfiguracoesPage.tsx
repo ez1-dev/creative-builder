@@ -1153,6 +1153,13 @@ export default function ConfiguracoesPage() {
           />
         </TabsContent>
 
+        {/* === MAPA DE ACESSOS === */}
+        <TabsContent value="mapa-acessos" className="space-y-4">
+          <MapaAcessosPanel screens={ALL_SCREENS} />
+        </TabsContent>
+
+
+
 
         {/* === GRÁFICOS E MAPAS === */}
         <TabsContent value="visuals">
