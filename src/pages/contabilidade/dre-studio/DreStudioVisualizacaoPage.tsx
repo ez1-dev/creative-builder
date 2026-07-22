@@ -242,8 +242,9 @@ interface VisualizacaoProps {
   modoBloqueado?: boolean;
   permiteConfigurar?: boolean;
   onConfigurar?: () => void;
-  /** Notifica o pai (ex.: DRE Padrão) sobre o suporte a filtro por unidade. */
+  /** Notifica o pai (ex.: DRE Padrão) sobre a capacidade de filtro por unidade. */
   onSuporteUnidadeChange?: (suporta: boolean) => void;
+  onCapabilitiesChange?: (caps: import('@/lib/contabil/unidadeCapabilities').UnidadeCapabilities) => void;
 }
 
 function Visualizacao(props: VisualizacaoProps = {}) {
@@ -392,11 +393,36 @@ function Visualizacao(props: VisualizacaoProps = {}) {
   const vincular = useVincularContasBalancoSenior(id);
   const qc = useQueryClient();
 
-  const suportaFiltroUnidade = q.meta?.suporta_filtro_unidade === true;
+  const unidadeCaps = getUnidadeCapabilities(q.meta);
+  const suportaFiltroUnidade = unidadeCaps.suportaFiltro;
+  const mostrarFiltroUnidade = unidadeCaps.carregado && unidadeCaps.suportaFiltro;
   const onSuporteUnidadeChange = props.onSuporteUnidadeChange;
+  const onCapabilitiesChange = props.onCapabilitiesChange;
   useEffect(() => {
     onSuporteUnidadeChange?.(suportaFiltroUnidade);
   }, [suportaFiltroUnidade, onSuporteUnidadeChange]);
+  useEffect(() => {
+    onCapabilitiesChange?.(unidadeCaps);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    onCapabilitiesChange,
+    unidadeCaps.carregado,
+    unidadeCaps.suportaFiltro,
+    unidadeCaps.filtroIgnorado,
+    unidadeCaps.motivo,
+    unidadeCaps.regra,
+    // lista de unidades: comparar por tamanho + primeiro código já é suficiente
+    unidadeCaps.unidades.length,
+    unidadeCaps.unidades[0]?.codigo,
+  ]);
+  // Reset defensivo: se o backend deixou de suportar (troca de período/modelo)
+  // ou informou que ignorou o filtro, voltar a Consolidado.
+  useEffect(() => {
+    if (!unidadeCaps.carregado) return;
+    if ((!unidadeCaps.suportaFiltro || unidadeCaps.filtroIgnorado) && unidade !== "TODOS") {
+      setUnidade("TODOS");
+    }
+  }, [unidadeCaps.carregado, unidadeCaps.suportaFiltro, unidadeCaps.filtroIgnorado, unidade]);
 
 
   // ===== Presets de filtros salvos =====
