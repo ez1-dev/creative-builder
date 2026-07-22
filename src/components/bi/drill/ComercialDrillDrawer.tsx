@@ -19,9 +19,11 @@ import { cn } from '@/lib/utils';
 
 import {
   fetchComercialDrill, downloadDrillCsv, downloadDrillXlsx, enrichForDisplay,
-  countDistinctNotas, inferNivelVisualizacao,
+  countDistinctNotas, inferNivelVisualizacao, buildNotaFiscalDrillFlags,
   type DrillColumn, type DrillContexto, type DrillResponse, type DrillType, type NivelVisualizacao,
+  type NotaFiscalDrillContext,
 } from '@/lib/bi/comercialDrillApi';
+
 
 import { DRILL_LABELS, NEXT_DRILLS, ROW_TO_CTX_KEY, CTX_LABELS } from '@/lib/bi/comercialDrillCatalog';
 import { cleanDrillValue, compactDrillContext } from '@/lib/bi/comercialDrillContract';
@@ -181,6 +183,10 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
   const { maskUnidade } = useDemoMode();
   const [selectorOpenInline, setSelectorOpenInline] = useState(false);
 
+  const nfContext: NotaFiscalDrillContext =
+    cur?.drill_type === 'NOTA_FISCAL' ? (cur?.nfContext ?? 'TODAS') : 'TODAS';
+  const nfFlags = buildNotaFiscalDrillFlags(nfContext);
+
   const query = useQuery<DrillResponse>({
     queryKey: [
       'comercial-drill',
@@ -188,6 +194,7 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
       cur?.contexto,
       cur?.page,
       anomes_ini, anomes_fim, unidade_negocio,
+      nfFlags.somente_devolucao, nfFlags.somente_impostos,
     ],
     queryFn: () =>
       fetchComercialDrill({
@@ -196,12 +203,14 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
         contexto: cur!.contexto,
         page: cur!.page,
         page_size: 100,
+        nf_context: nfContext,
       }),
     enabled: stack.open && !!cur,
     placeholderData: keepPreviousData,
     refetchOnWindowFocus: false,
     retry: 1,
   });
+
 
   const resp = query.data;
 
@@ -364,7 +373,21 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
     return Math.max(1, Math.ceil(total / size));
   }, [resp]);
 
-  const titulo = resp?.titulo || (cur ? DRILL_LABELS[cur.drill_type] : 'Drill');
+  const nfSuffix =
+    nfContext === 'DEVOLUCOES' ? ' — somente devoluções'
+    : nfContext === 'IMPOSTOS' ? ' — somente impostos'
+    : '';
+  const baseTitulo = resp?.titulo || (cur ? DRILL_LABELS[cur.drill_type] : 'Drill');
+  const titulo = cur?.drill_type === 'NOTA_FISCAL' ? `${baseTitulo}${nfSuffix}` : baseTitulo;
+  const nfBadgeLabel =
+    nfContext === 'DEVOLUCOES' ? 'Filtro aplicado: Devoluções'
+    : nfContext === 'IMPOSTOS' ? 'Filtro aplicado: Impostos'
+    : null;
+  const nfFilenameSlug =
+    nfContext === 'DEVOLUCOES' ? '-devolucoes'
+    : nfContext === 'IMPOSTOS' ? '-impostos'
+    : '';
+
 
   return (
     <Sheet open={stack.open} onOpenChange={stack.setOpen}>
@@ -415,8 +438,14 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
           <div className="flex items-start justify-between gap-2 pr-8">
             <SheetTitle className="text-base md:text-lg flex items-center gap-2 min-w-0">
               <span className="truncate">{titulo}</span>
+              {nfBadgeLabel && (
+                <Badge variant="outline" className="text-[10px] font-normal shrink-0">
+                  {nfBadgeLabel}
+                </Badge>
+              )}
               {query.isFetching && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
             </SheetTitle>
+
             <div className="flex items-center gap-1 shrink-0">
               {allowedNext.length > 0 && (
                 <Popover open={selectorOpenInline} onOpenChange={setSelectorOpenInline}>
@@ -450,7 +479,11 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
                 size="sm"
                 variant="outline"
                 className="h-7 gap-1 text-xs"
-                onClick={() => resp && downloadDrillCsv({ ...resp, columns: enrichedBase.columns }, undefined, nivel)}
+                onClick={() => resp && downloadDrillCsv(
+                  { ...resp, columns: enrichedBase.columns },
+                  `drill-${resp.drill_type.toLowerCase()}${nfFilenameSlug}.csv`,
+                  nivel,
+                )}
                 disabled={!resp || resp.rows.length === 0}
               >
                 <Download className="h-3.5 w-3.5" /> CSV
@@ -459,11 +492,16 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
                 size="sm"
                 variant="outline"
                 className="h-7 gap-1 text-xs"
-                onClick={() => resp && downloadDrillXlsx({ ...resp, columns: enrichedBase.columns }, undefined, nivel)}
+                onClick={() => resp && downloadDrillXlsx(
+                  { ...resp, columns: enrichedBase.columns },
+                  `drill-${resp.drill_type.toLowerCase()}${nfFilenameSlug}.xlsx`,
+                  nivel,
+                )}
                 disabled={!resp || resp.rows.length === 0}
               >
                 <Download className="h-3.5 w-3.5" /> Excel
               </Button>
+
 
               <Button
                 size="sm"
@@ -512,7 +550,20 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
               onRetry={() => query.refetch()}
             />
           ) : !resp || resp.rows.length === 0 ? (
-            <DrillEmptyDiagnostico stack={stack} response={resp} />
+            <div className="space-y-3">
+              {nfContext === 'DEVOLUCOES' && (
+                <div className="rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
+                  Nenhuma devolução foi encontrada no período e filtros selecionados. Confira o período informado e os demais filtros.
+                </div>
+              )}
+              {nfContext === 'IMPOSTOS' && (
+                <div className="rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
+                  Nenhum detalhe de impostos foi encontrado no período e filtros selecionados. Confira o período informado e os demais filtros.
+                </div>
+              )}
+              <DrillEmptyDiagnostico stack={stack} response={resp} />
+            </div>
+
           ) : (
             <>
               <DataTableBI columns={columns} data={enrichedBase.rows} />

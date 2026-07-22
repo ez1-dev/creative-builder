@@ -30,7 +30,7 @@ import { BrazilHeatMap } from '@/components/bi/maps/BrazilHeatMap';
 import { ComercialDrillDrawer } from '@/components/bi/drill/ComercialDrillDrawer';
 import { useComercialDrillStack } from '@/hooks/useComercialDrillStack';
 import { useBiClientesMap } from '@/hooks/useBiClientesMap';
-import type { DrillType, DrillContexto } from '@/lib/bi/comercialDrillApi';
+import type { DrillType, DrillContexto, NotaFiscalDrillContext } from '@/lib/bi/comercialDrillApi';
 import { DashboardPage } from '@/components/bi/layout/DashboardLayout';
 import { ComercialDashboardGrid } from '@/components/bi/runtime/ComercialDashboardGrid';
 import { ConfigureBiWidgetDialog } from '@/components/bi/runtime/ConfigureBiWidgetDialog';
@@ -444,14 +444,19 @@ export default function ComercialPage() {
   const openDrill = (
     drill_type: DrillType,
     contexto: DrillContexto = {},
-    opts: { resetDrillFilters?: boolean } = {},
+    opts: { resetDrillFilters?: boolean; nfContext?: NotaFiscalDrillContext } = {},
   ) => {
     // Para drill de KPI/Card (resetDrillFilters=true) não reaproveita filtros
     // técnicos residuais — usa só os filtros globais (anomes/un já vão fora do contexto).
     const base = opts.resetDrillFilters ? {} : buildCtxFromFilters();
     // row.filtros_drill (contexto) vence sobre base; tudo passa por sanitização.
     const merged = compactDrillContext({ ...base, ...contexto });
-    drillStack.openWith({ drill_type, contexto: merged, resetCtx: opts.resetDrillFilters });
+    drillStack.openWith({
+      drill_type,
+      contexto: merged,
+      resetCtx: opts.resetDrillFilters,
+      nfContext: drill_type === 'NOTA_FISCAL' ? (opts.nfContext ?? 'TODAS') : undefined,
+    });
   };
 
   // Compatibilidade com handlers antigos que mapeavam KPI -> escopo de notas
@@ -462,8 +467,11 @@ export default function ComercialPage() {
       escopo === 'clientes' ? 'CLIENTE' :
       escopo === 'vendas' ? 'NOTA_FISCAL' :
       'NOTA_FISCAL';
-    openDrill(drillType, {}, { resetDrillFilters: true });
+    const nfContext: NotaFiscalDrillContext =
+      escopo === 'devolucao' ? 'DEVOLUCOES' : 'TODAS';
+    openDrill(drillType, {}, { resetDrillFilters: true, nfContext });
   };
+
 
 
 
@@ -680,9 +688,18 @@ export default function ComercialPage() {
     const variant = w.variant ?? 'number';
     const isCurrency = ['faturamento','fat_liquido','impostos','devolucao','meta','diferenca','ticket_medio','preco_medio'].includes(kpiKey);
     const format = isCurrency ? 'currency' : 'number';
-    const drillType = KPI_DRILL_MAP[kpiKey] ?? 'NOTA_FISCAL';
-    const tooltip = kpiKey === 'impostos' ? 'Clique para detalhar impostos' : 'Clique para detalhar';
-    const ctxExtra: DrillContexto = kpiKey === 'devolucao' ? { categoria_custom: 'devolucao' } : {};
+    // Cards "impostos" e "devolucao" abrem NOTA_FISCAL com recorte próprio,
+    // sem depender de categoria_custom (que é filtro frontend não suportado).
+    const nfContext: NotaFiscalDrillContext | undefined =
+      kpiKey === 'devolucao' ? 'DEVOLUCOES' :
+      kpiKey === 'impostos'  ? 'IMPOSTOS'  :
+      undefined;
+    const drillType: DrillType =
+      nfContext ? 'NOTA_FISCAL' : (KPI_DRILL_MAP[kpiKey] ?? 'NOTA_FISCAL');
+    const tooltip =
+      kpiKey === 'impostos'  ? 'Clique para detalhar (somente impostos)' :
+      kpiKey === 'devolucao' ? 'Clique para detalhar (somente devoluções)' :
+      'Clique para detalhar';
 
     let inner: ReactNode;
     if (variant === 'sparkline') {
@@ -695,10 +712,11 @@ export default function ComercialPage() {
       inner = <KpiCard title={title} value={value} format={format} />;
     }
     return (
-      <Clickable title={tooltip} onClick={() => openDrill(drillType, ctxExtra, { resetDrillFilters: true })}>
+      <Clickable title={tooltip} onClick={() => openDrill(drillType, {}, { resetDrillFilters: true, nfContext })}>
         {inner}
       </Clickable>
     );
+
 
   }
 
