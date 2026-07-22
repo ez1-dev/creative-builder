@@ -627,7 +627,8 @@ function VinculosTab() {
   const clonar = useClonarVinculosOficial(modeloId ?? "");
   const vincularDRE = useVincularContasDRESenior(modeloId ?? "");
   const vincularBal = useVincularContasBalancoSenior(modeloId ?? "");
-  const validar = useValidarVinculos(modeloId ?? "", false);
+  const validar = useValidarVinculos(modeloId ?? "", !!modeloId);
+  const endpointsIndisponiveis = validar.data?.unavailable === true;
 
   return (
     <div className="space-y-4">
@@ -660,9 +661,13 @@ function VinculosTab() {
             <div className="grid gap-3 md:grid-cols-3">
               <ActionCard
                 titulo="Clonar do modelo oficial"
-                descricao="Copia os vínculos de contas do modelo Senior validado para este modelo."
+                descricao={
+                  endpointsIndisponiveis
+                    ? "Endpoint indisponível — solicite ao backend a publicação de /clonar-vinculos-oficial."
+                    : "Copia os vínculos de contas do modelo Senior validado para este modelo."
+                }
                 acao="Clonar vínculos"
-                disabled={clonar.isPending}
+                disabled={clonar.isPending || endpointsIndisponiveis}
                 loading={clonar.isPending}
                 onClick={() => clonar.mutate()}
               />
@@ -696,9 +701,13 @@ function VinculosTab() {
               )}
               <ActionCard
                 titulo="Validar vínculos"
-                descricao="Verifica contas sem vínculo, duplicadas e com ctared 0."
+                descricao={
+                  endpointsIndisponiveis
+                    ? "Endpoint indisponível — solicite ao backend a publicação de /validar-vinculos."
+                    : "Verifica contas sem vínculo, duplicadas e com ctared 0."
+                }
                 acao={validar.isFetching ? "Validando..." : "Validar"}
-                disabled={validar.isFetching}
+                disabled={validar.isFetching || endpointsIndisponiveis}
                 loading={validar.isFetching}
                 onClick={() => validar.refetch()}
               />
@@ -709,8 +718,8 @@ function VinculosTab() {
             </div>
           )}
 
-          {validar.data?.unavailable && (
-            <EndpointIndisponivel titulo="GET /api/contabil/modelos/{id}/validar-vinculos não disponível." />
+          {endpointsIndisponiveis && (
+            <EndpointIndisponivel titulo="Endpoints /clonar-vinculos-oficial e /validar-vinculos ainda não publicados no backend — ações desabilitadas." />
           )}
           {validar.data?.data && (
             <div className="grid gap-2 md:grid-cols-3">

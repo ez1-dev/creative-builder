@@ -87,7 +87,7 @@ export function useLimparSnapshot(modeloId: string) {
 // ============================================================
 export function useClonarVinculosOficial(modeloId: string) {
   const qc = useQueryClient();
-  return useMutation<{ vinculos_clonados?: number }, Error, void>({
+  return useMutation<{ vinculos_clonados?: number; unavailable?: boolean }, Error, void>({
     mutationFn: async () => {
       try {
         return await api.post<{ vinculos_clonados?: number }>(
@@ -96,14 +96,13 @@ export function useClonarVinculosOficial(modeloId: string) {
         );
       } catch (e) {
         if ((e as ApiError)?.status === 404) {
-          throw new Error(
-            "Endpoint /clonar-vinculos-oficial não disponível na API. Solicite ao backend a publicação.",
-          );
+          return { unavailable: true };
         }
         throw e;
       }
     },
     onSuccess: (r) => {
+      if (r?.unavailable) return;
       qc.invalidateQueries({ queryKey: ["contabil", "modelo", modeloId] });
       qc.invalidateQueries({ queryKey: ["contabil", "resultado-pronto", modeloId] });
       toast.success(

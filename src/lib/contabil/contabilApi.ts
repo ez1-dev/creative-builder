@@ -163,7 +163,9 @@ async function requestJson<T>(endpoint: string, options: RequestInit = {}, param
         details: parsed,
       },
     );
-    logError({ module: endpoint, message: err.message, statusCode: response.status, details: parsed });
+    if (response.status !== 404) {
+      logError({ module: endpoint, message: err.message, statusCode: response.status, details: parsed });
+    }
     throw err;
   }
 
