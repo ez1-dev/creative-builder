@@ -1,7 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { api, PaginatedResponse } from '@/lib/api';
-import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
-import { PageHeader } from '@/components/erp/PageHeader';
+import { useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { FilterPanel } from '@/components/erp/FilterPanel';
 import { DataTable, Column } from '@/components/erp/DataTable';
 import { PaginationControl, type PageSize } from '@/components/erp/PaginationControl';
