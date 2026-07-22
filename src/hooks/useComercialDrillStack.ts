@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import type { DrillType, DrillContexto } from '@/lib/bi/comercialDrillApi';
+import type { DrillType, DrillContexto, NotaFiscalDrillContext } from '@/lib/bi/comercialDrillApi';
 import { mergeCtx } from '@/lib/bi/comercialDrillCatalog';
 
 export interface DrillStackLevel {
@@ -7,6 +7,8 @@ export interface DrillStackLevel {
   contexto: DrillContexto;
   page: number;
   addedFilter?: { key: keyof DrillContexto; value: string };
+  /** Recorte da Nota Fiscal (default 'TODAS'). Só faz sentido quando drill_type=NOTA_FISCAL. */
+  nfContext?: NotaFiscalDrillContext;
 }
 
 interface InternalState {
@@ -26,7 +28,10 @@ export interface OpenInitial {
    * filtros residuais de um drill anterior.
    */
   resetCtx?: boolean;
+  /** Recorte da Nota Fiscal — default 'TODAS'. */
+  nfContext?: NotaFiscalDrillContext;
 }
+
 
 export interface PushOpts {
   /** Quando true (padrão), preserva chaves compatíveis do contexto atual. */
