@@ -28,11 +28,10 @@ export default function DrePadraoPage() {
   const pendencia = resolverPendencia(cfg, "DRE");
   const modeloId = !pendencia ? cfg?.dre_modelo_padrao_id ?? null : null;
 
-  // O backend ainda não materializa a matriz por unidade de negócio. Enquanto
-  // isso, mantemos a visão consolidada e permitimos que o usuário recolha o
-  // aviso temporário. Quando `meta.suporta_filtro_unidade === true` chegar do
-  // backend, o filtro superior poderá ser habilitado sem mudança estrutural.
-  const suportaFiltroUnidade = false;
+  // Sinalizado pela Visualização a partir de meta.suporta_filtro_unidade
+  // (resposta do backend). Enquanto false, mostramos "Visão consolidada" e o
+  // aviso azul. Quando true, o Select de Unidade aparece na barra da matriz.
+  const [suportaFiltroUnidade, setSuportaFiltroUnidade] = useState(false);
 
   const [avisoAberto, setAvisoAberto] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
