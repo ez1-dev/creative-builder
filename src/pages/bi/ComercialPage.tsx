@@ -444,14 +444,19 @@ export default function ComercialPage() {
   const openDrill = (
     drill_type: DrillType,
     contexto: DrillContexto = {},
-    opts: { resetDrillFilters?: boolean } = {},
+    opts: { resetDrillFilters?: boolean; nfContext?: NotaFiscalDrillContext } = {},
   ) => {
     // Para drill de KPI/Card (resetDrillFilters=true) não reaproveita filtros
     // técnicos residuais — usa só os filtros globais (anomes/un já vão fora do contexto).
     const base = opts.resetDrillFilters ? {} : buildCtxFromFilters();
     // row.filtros_drill (contexto) vence sobre base; tudo passa por sanitização.
     const merged = compactDrillContext({ ...base, ...contexto });
-    drillStack.openWith({ drill_type, contexto: merged, resetCtx: opts.resetDrillFilters });
+    drillStack.openWith({
+      drill_type,
+      contexto: merged,
+      resetCtx: opts.resetDrillFilters,
+      nfContext: drill_type === 'NOTA_FISCAL' ? (opts.nfContext ?? 'TODAS') : undefined,
+    });
   };
 
   // Compatibilidade com handlers antigos que mapeavam KPI -> escopo de notas
@@ -462,8 +467,11 @@ export default function ComercialPage() {
       escopo === 'clientes' ? 'CLIENTE' :
       escopo === 'vendas' ? 'NOTA_FISCAL' :
       'NOTA_FISCAL';
-    openDrill(drillType, {}, { resetDrillFilters: true });
+    const nfContext: NotaFiscalDrillContext =
+      escopo === 'devolucao' ? 'DEVOLUCOES' : 'TODAS';
+    openDrill(drillType, {}, { resetDrillFilters: true, nfContext });
   };
+
 
 
 
