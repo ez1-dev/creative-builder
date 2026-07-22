@@ -48,6 +48,8 @@ export interface DrillRequest {
   contexto: DrillContexto;
   page?: number;
   page_size?: number;
+  /** Busca server-side no backend; nunca filtrar apenas a página local. */
+  busca?: string;
   /** Recorte específico para drill_type = NOTA_FISCAL. Ignorado nos demais. */
   nf_context?: NotaFiscalDrillContext;
 }
@@ -216,6 +218,8 @@ export async function fetchComercialDrill(req: DrillRequest): Promise<DrillRespo
     body.somente_devolucao = flags.somente_devolucao;
     body.somente_impostos = flags.somente_impostos;
   }
+  const busca = typeof req.busca === 'string' ? req.busca.trim() : '';
+  if (busca) body.busca = busca;
   const data = await api.post<any>('/api/bi/comercial/drill', body);
   // Tolera envelope { bi_comercial_drill: ... }
   const unwrapped =
@@ -234,6 +238,7 @@ export async function fetchComercialDrill(req: DrillRequest): Promise<DrillRespo
       unidade_negocio: body.unidade_negocio,
       contexto: contextoLimpo,
       ...(flags ? { somente_devolucao: flags.somente_devolucao, somente_impostos: flags.somente_impostos } : {}),
+      ...(busca ? { busca } : {}),
     },
   };
   return {
