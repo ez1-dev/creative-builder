@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import {
   RefreshCw, Database, Calculator, CalendarRange, AlertTriangle,
-  ChevronRight, ChevronDown, ChevronsUpDown, ChevronsDownUp, FileSpreadsheet, Loader2,
+  ChevronRight, ChevronDown, ChevronsUpDown, ChevronsDownUp, FileSpreadsheet, Loader2, Coins,
 } from "lucide-react";
 import { ResultadoExercicioDialog } from "@/components/contabil/ResultadoExercicioDialog";
 
