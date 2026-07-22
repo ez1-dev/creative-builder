@@ -302,8 +302,81 @@ export function enrichRowsWithNotaTotals(resp: Pick<DrillResponse, 'columns' | '
   return { columns: newCols, rows: enrichedRows };
 }
 
-/** Chaves que NÃO devem ser somadas no rodapé TOTAL (evita duplicar valores por NF). */
-const SKIP_TOTAL_SUM_KEYS = new Set(['total_nota', 'total_liquido_nota']);
+/**
+ * Injeta colunas "Valor do Item" e "Líquido do Item" quando o backend enviar
+ * `vl_item` / `vl_item_liquido` (ou aliases) nas linhas. Ambas são agregáveis.
+ * Nunca usa vl_total_nota como fallback.
+ */
+export function injectItemColumns(resp: Pick<DrillResponse, 'columns' | 'rows'>): {
+  columns: DrillColumn[];
+  rows: DrillRow[];
+} {
+  const cols = [...(resp.columns ?? [])];
+  const rows = [...(resp.rows ?? [])];
+  if (!rows.length) return { columns: cols, rows };
+
+  const hasVlItemInRow = rows.some((r) => r?.vl_item != null || (r as any)?.valor_item != null);
+  const hasVlItemLiqInRow = rows.some(
+    (r) => (r as any)?.vl_item_liquido != null || (r as any)?.valor_item_liquido != null,
+  );
+
+  let workingRows = rows;
+  let workingCols = cols;
+
+  const insertAfter = (colsArr: DrillColumn[], newCol: DrillColumn): DrillColumn[] => {
+    const anchor = colsArr.findIndex((c) => c.key === 'ds_produto' || c.key === 'nm_produto');
+    const idx = anchor >= 0 ? anchor : colsArr.findIndex((c) => c.key === 'cd_produto');
+    if (idx < 0) return [...colsArr, newCol];
+    return [...colsArr.slice(0, idx + 1), newCol, ...colsArr.slice(idx + 1)];
+  };
+
+  if (hasVlItemInRow && !workingCols.some((c) => c.key === 'vl_item')) {
+    workingRows = workingRows.map((r) => ({
+      ...r,
+      vl_item: r?.vl_item ?? (r as any)?.valor_item ?? null,
+    }));
+    workingCols = insertAfter(workingCols, {
+      key: 'vl_item',
+      label: 'Valor do Item',
+      align: 'right',
+      format: 'currency',
+      agregavel: true,
+      nivel: 'ITEM',
+    });
+  }
+  if (hasVlItemLiqInRow && !workingCols.some((c) => c.key === 'vl_item_liquido')) {
+    workingRows = workingRows.map((r) => ({
+      ...r,
+      vl_item_liquido:
+        (r as any)?.vl_item_liquido ?? (r as any)?.valor_item_liquido ?? null,
+    }));
+    workingCols = insertAfter(workingCols, {
+      key: 'vl_item_liquido',
+      label: 'Líquido do Item',
+      align: 'right',
+      format: 'currency',
+      agregavel: true,
+      nivel: 'ITEM',
+    });
+  }
+
+  return { columns: uniqueColumns(workingCols), rows: workingRows };
+}
+
+/**
+ * Pipeline único de enriquecimento para exibição (grid + exportação).
+ * Ordem: dedup → total-por-nota → colunas de item.
+ */
+export function enrichForDisplay(resp: Pick<DrillResponse, 'columns' | 'rows'>): {
+  columns: DrillColumn[];
+  rows: DrillRow[];
+} {
+  const step0 = { columns: uniqueColumns(resp.columns ?? []), rows: resp.rows ?? [] };
+  const step1 = enrichRowsWithNotaTotals(step0);
+  const step2 = injectItemColumns(step1);
+  return { columns: uniqueColumns(step2.columns), rows: step2.rows };
+}
+
 
 /**
  * Enriquece a resposta de drill para exportação:
