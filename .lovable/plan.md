@@ -1,131 +1,88 @@
+# Módulo Estoque — 3 abas com motor único de análise
+
 ## Objetivo
 
-No drill **Detalhes de Impostos** (BI Comercial), separar corretamente a visualização por **ITEM** e por **NOTA**. Hoje, quando a grid está no nível ITEM, as colunas `Total da Nota` e `Total Líquido da Nota` aparecem repetidas por item e ainda são somadas no rodapé (R$ 650.000 + R$ 650.000 = R$ 1.300.000). Impostos e cálculos por item permanecem inalterados.
+Transformar a página atual `/estoque` em um módulo com três abas (**Consulta**, **Curva ABC**, **Baixo Giro**) mantendo a Consulta como está hoje e adicionando duas novas abas que consomem exclusivamente `GET /api/estoque/analise`. Sem cálculo de ABC, giro, cobertura, aging, última saída ou custo médio no frontend.
 
-## Diagnóstico (verificado)
+## Estrutura de arquivos
 
-- `src/lib/bi/comercialDrillApi.ts` já marca `total_nota`/`total_liquido_nota` como `nivel: 'NOTA', agregavel: false` e `withLiquidoAndTotals` já respeita `isAgregavel` para a linha TOTAL do CSV/XLSX. Porém as colunas continuam sendo **exibidas** no nível ITEM.
-- `src/components/bi/drill/ComercialDrillDrawer.tsx` renderiza `displayColumns` sem filtrar por `nivel` e não injeta rodapé próprio; o `DataTableBI` mostra o totalizador padrão que hoje ignora `isAgregavel` (daí o R$ 1.300.000 visível no screenshot).
-- Drill `DETALHES_IMPOSTOS` é sempre nível ITEM. Não existe ainda um drill agregado por NF (o `NOTA_FISCAL` atual já lista por nota, mas é um drill separado — não é reagrupamento da mesma tela).
+Criar:
+- `src/lib/estoque/analiseApi.ts` — tipos `EstoqueAnaliseItem`, `EstoqueAnaliseResumo`, `EstoqueAnaliseResponse` + função `getEstoqueAnalise(params)`.
+- `src/hooks/estoque/useEstoqueAnalise.ts` — React Query com cache/cancelamento por `[codemp, codfil, criterio_abc, meses_consumo, corte_a, corte_b, filtros]`.
+- `src/pages/estoque/tabs/ConsultaTab.tsx` — recebe o corpo atual de `EstoquePage.tsx` sem mudanças de regra.
+- `src/pages/estoque/tabs/CurvaAbcTab.tsx`
+- `src/pages/estoque/tabs/BaixoGiroTab.tsx`
+- `src/pages/estoque/components/AnaliseItemDrawer.tsx` — drawer de detalhes compartilhado (só apresentação).
+- `src/pages/estoque/components/AnaliseFiltrosHeader.tsx` — Empresa, Filial, Meses, Critério ABC, Cortes A/B, painel "Critérios da análise" (`response.observacoes`).
+- `src/pages/estoque/exportAnalise.ts` — helpers XLSX/CSV/PDF reaproveitando padrões existentes; cabeçalho com Empresa, Filial, Critério, Meses, Cortes A/B, Data.
 
-## Escopo
+Alterar:
+- `src/pages/EstoquePage.tsx` — vira shell com `<Tabs>` controlado pela URL (`?aba=consulta|abc|baixo-giro`) e monta `ConsultaTab` / `CurvaAbcTab` / `BaixoGiroTab`. Nenhuma lógica de negócio adicional aqui.
+- `src/config/menuCatalog.ts` — nenhuma nova rota; a página permanece em `/estoque`.
 
-Somente frontend. Sem alteração no backend, no cálculo de impostos ou nas dimensões.
+## Contrato consumido (somente leitura defensiva)
 
-Arquivos:
-1. `src/lib/bi/comercialDrillApi.ts`
-2. `src/components/bi/drill/ComercialDrillDrawer.tsx`
-
-## Mudanças
-
-### 1. Identificar o nível da visualização
-
-Em `comercialDrillApi.ts`, novo helper:
-
-```ts
-export type NivelVisualizacao = 'ITEM' | 'NOTA';
-
-export function inferNivelVisualizacao(
-  drillType: DrillType,
-  columns: DrillColumn[],
-  rows: DrillRow[],
-): NivelVisualizacao {
-  if (drillType === 'NOTA_FISCAL') return 'NOTA';
-  if (drillType === 'DETALHES_IMPOSTOS') return 'ITEM';
-  // Fallback: se qualquer coluna/linha tiver produto → ITEM.
-  const hasItem =
-    columns.some((c) => c.key === 'cd_produto' || c.key === 'vl_item') ||
-    rows.some((r) => r?.cd_produto != null || r?.vl_item != null);
-  return hasItem ? 'ITEM' : 'NOTA';
-}
 ```
-
-### 2. Filtrar colunas conforme o nível (grid + export)
-
-Novo helper compartilhado:
-
-```ts
-const COLUNAS_NIVEL_NOTA = new Set([
-  'vl_total_nota', 'total_nota', 'vl_nf', 'valor_total_nota',
-  'vl_liquido_nota', 'total_liquido_nota', 'valor_liquido_nota', 'vl_total_liquido',
-]);
-
-export function filterColumnsByNivel(
-  cols: DrillColumn[],
-  nivel: NivelVisualizacao,
-): DrillColumn[] {
-  return cols.filter((c) => {
-    if (nivel === 'ITEM' && (c.nivel === 'NOTA' || COLUNAS_NIVEL_NOTA.has(c.key))) return false;
-    if (nivel === 'NOTA' && c.nivel === 'ITEM') return false;
-    return true;
-  });
-}
+GET /api/estoque/analise
+  ?codemp&codfil&meses_consumo&criterio_abc(CONSUMO|VALOR_ESTOQUE)
+  &corte_a&corte_b
 ```
+Retorno esperado: `{ dados: EstoqueAnaliseItem[], resumo, observacoes, meta? }`. O front lê `item.curva_abc`, `item.abc_pct_acumulado`, `item.ultima_saida`, `item.dias_sem_saida`, `item.cobertura_meses`, `item.consumo_valor`, `item.valor_estoque`, `item.custo_medio`, `item.saldo`, `item.reservado`, `item.disponivel`, `item.a_receber`, `item.projetado`, `item.proxima_entrega`, `item.ops_reservando`. Nunca deriva ABC, giro, cobertura, aging, última saída, valor de estoque ou consumo. `E210EST.CURABC` e `E210EST.DATUSA` não são lidos.
 
-`enrichForDisplay` ganha assinatura opcional `enrichForDisplay(resp, nivel?)` e, quando `nivel` é passado, aplica `filterColumnsByNivel` no final. Compatibilidade: sem `nivel`, comportamento atual preservado.
+Sem consumo é categoria própria (`curva_abc == null` ou flag equivalente do backend) — nunca é tratado como C. Soma exibida: `A + B + C + Sem consumo = universo`; se não fechar, banner de aviso, sem correção local.
 
-### 3. Rodapé por nível
+## Aba Consulta
 
-Substituir a lógica atual de linha TOTAL (`withLiquidoAndTotals`) e o rodapé da grid para respeitarem o nível:
+Move o conteúdo atual de `EstoquePage.tsx` (saldo físico, reservas de OP, a receber, projetado, badges "Falta sem compra / Compra cobre a falta / Compra insuficiente") para `ConsultaTab.tsx`. Nenhuma alteração funcional.
 
-```ts
-export function calcularTotal(
-  col: DrillColumn,
-  rows: DrillRow[],
-  nivel: NivelVisualizacao,
-): number | null {
-  if (!isAgregavel(col)) return null;
-  if (nivel === 'ITEM' && col.nivel === 'NOTA') return null;
-  // NOTA: deduplica por chave fiscal antes de somar colunas de NOTA.
-  const base = nivel === 'NOTA' && col.nivel === 'NOTA' ? getNotasDistintas(rows) : rows;
-  return base.reduce((s, r) => s + toNumberSafe(r[col.key]), 0);
-}
+## Aba Curva ABC
 
-export function getNotasDistintas(rows: DrillRow[]): DrillRow[] {
-  const map = new Map<string, DrillRow>();
-  for (const r of rows) {
-    const k = getNotaKey(r);
-    if (!map.has(k)) map.set(k, r);
-  }
-  return Array.from(map.values());
-}
-```
+Header: Empresa (herda), Filial, **Período de consumo** (3/6/12/18/24, default 12), **Critério** (`Consumo no período` | `Valor atual em estoque`), avançado com **Cortes A/B** (validar `0 < corte_a < corte_b ≤ 100`).
 
-`withLiquidoAndTotals` passa a receber o `nivel` (default inferido) e usa `calcularTotal` — assim colunas não agregáveis ou de nível NOTA em visão ITEM saem vazias no XLSX/CSV, e colunas de nível NOTA em visão NOTA somam sobre notas distintas.
+Cards (de `response.resumo`): Valor total do estoque, Consumo no período, Itens A, Itens B, Itens C, Itens sem consumo, Valor em itens sem consumo.
 
-### 4. Grid — `ComercialDrillDrawer.tsx`
+Grid: Curva (badge A/B/C/Sem consumo), Produto, Descrição, Derivação, Depósito, Saldo, Custo médio, Valor em estoque, Consumo no período, % acumulado, Giro, Cobertura, Última saída, Dias sem saída, Reservado, A receber, Projetado. Ordenação padrão pelo `abc_pct_acumulado` (ou ordem do backend).
 
-- Calcular `const nivel = inferNivelVisualizacao(cur.drill_type, resp.columns, resp.rows);`
-- Passar `nivel` ao `enrichForDisplay` → `displayColumns` já vem sem colunas de NOTA no modo ITEM (some totalmente do header do screenshot).
-- Adicionar um bloco de rodapé próprio abaixo do `DataTableBI` apenas para `DETALHES_IMPOSTOS` (nível ITEM), usando `calcularTotal`:
-  - Itens: `rows.length`
-  - Notas: `countDistinctNotas(rows)`
-  - Valor dos Itens: soma de `vl_item`
-  - Total de Impostos: soma de `vl_total_impostos` (fallback ICMS+PIS+COFINS+IPI+ISS+outros)
-  - Líquido dos Itens: soma de `vl_item_liquido`
-- Para `NOTA_FISCAL`, rodapé exibe: Notas = `countDistinctNotas`, Total da Nota, Total Líquido, Total de Impostos — sempre via `calcularTotal(..., 'NOTA')`, deduplicando por `getNotaKey`.
+Resumo A/B/C/Sem consumo em mini-tabela usando números da API.
 
-### 5. Exportação (CSV/XLSX)
+## Aba Baixo Giro
 
-`downloadDrillCsv`/`downloadDrillXlsx` chamam `withLiquidoAndTotals(resp, nivel)` com o mesmo `nivel` calculado — garante que exportação e grid mostrem exatamente as mesmas colunas e o mesmo total. Nenhuma lista de colunas paralela é mantida.
+Mesmo endpoint com mesmos filtros globais. Cards: Valor total, Capital parado >12m, Capital parado >24m, Itens sem saída, Valor sem saída, Itens com compra chegando + baixo giro (todos vindos de `resumo`).
 
-### 6. Backward-compat
+Faixas de aging separadas: `0-6 / 6-12 / 12-24 / 24+ / Sem saída registrada` (nunca fundir 24+ com Sem saída).
 
-- `NOTA_FISCAL` continua funcionando como hoje (agora com dedupe formal no rodapé). Não altera `NEXT_DRILLS`.
-- Drills sem indício de item/nota (ACUMULADO, MENSAL, ESTADO, etc.) caem no default `NOTA` mas nada muda porque não têm colunas `nivel: 'ITEM'` nem `nivel: 'NOTA'`.
+Grid com colunas: Produto, Descrição, Derivação, Depósito, Saldo, Valor em estoque, Última saída, Dias sem saída, Faixa de aging, Consumo, Giro, Cobertura, Curva ABC, Reservado em OP, A receber, Próxima entrega, Projetado, Situação.
 
-## Critérios de aceite (NF 20997)
+Ordenações: Mais dias sem saída, Maior valor parado, Maior cobertura, Menor giro, Maior compra pendente. Filtros: Faixa de aging, Curva ABC, Somente sem consumo, Somente com saldo, Somente com reserva, Somente com compra pendente, Somente com compra chegando, Cobertura > N meses, Valor > R$ X. Filtros suportados pelo backend vão via query; os demais aplicados sobre o dataset completo (não sobre página).
 
-- Grid ITEM (`DETALHES_IMPOSTOS`): **não aparece** `Total da Nota` nem `Total Líquido da Nota`.
-- Duas linhas: Item 250000978 = R$ 559.000,00 · Item 250000101 = R$ 91.000,00.
-- Rodapé ITEM: Itens=2 · Notas=1 · Valor dos Itens=R$ 650.000,00 · Impostos=R$ 61.838,48 · Líquido dos Itens=R$ 588.161,52. Nada de R$ 1.300.000,00.
-- Grid NOTA (`NOTA_FISCAL`): uma única linha por NF; NF 20997 aparece uma vez, Total=R$ 650.000,00, Líquido=R$ 588.161,52.
-- CSV/XLSX seguem exatamente as colunas e totais da grid do mesmo nível.
-- Impostos por item (ICMS/PIS/COFINS/IPI/ISS) inalterados.
+Filtros rápidos cruzados: "Oportunidades de redução", "Compras de item sem giro", "Capital parado", "Itens críticos para produção" — combinam campos já retornados.
 
-## Detalhes técnicos
+Badges de criticidade reutilizam os já usados na Consulta (Falta sem compra / Compra cobre / Compra insuficiente) mais Sem saída com estoque, Baixo giro + compra pendente, C + alto valor, Cobertura elevada.
 
-- Novos exports em `comercialDrillApi.ts`: `NivelVisualizacao`, `inferNivelVisualizacao`, `filterColumnsByNivel`, `calcularTotal`, `getNotasDistintas`.
-- `enrichForDisplay(resp, nivel?)` e `withLiquidoAndTotals(resp, nivel?)` — parâmetro opcional para não quebrar chamadores existentes.
-- Rodapé da grid renderizado dentro do `ComercialDrillDrawer` (fora do `DataTableBI`) para evitar acoplar a lib genérica ao contrato de impostos.
-- Nenhuma alteração em `comercialDrillContract.ts`, `comercialDrillCatalog.ts`, hooks ou endpoints.
+## Drawer de detalhes
+
+Mostra todos os campos do item + notas explicativas fixas para Giro e Cobertura ("conforme regra do backend"). Cobertura formatada `1,2 meses / 24+ meses / Sem consumo` (nunca `Infinity`). Sem cálculos locais.
+
+## URL, estado e desempenho
+
+Query string persiste `aba, criterio_abc, meses_consumo, corte_a, corte_b, aging, curva`. Trocar empresa/filial limpa dados anteriores (`queryClient.removeQueries`). React Query com `keepPreviousData`, `cancelQueries` ao mudar filtros, skeleton, debounce nas buscas de texto, paginação/virtualização na grid (`@tanstack/react-virtual` já usado em outros pontos, senão paginação client-side sobre o dataset completo).
+
+## Exportações
+
+XLSX/CSV/PDF em cada aba com cabeçalho contextual (Critério ABC, Meses, Cortes, Empresa, Filial, Data) e todas as colunas da grid respectiva. Sem consumo permanece como categoria própria no export.
+
+## Fora de escopo
+
+Backend, cálculo de ABC/giro/cobertura/aging, alteração da aba Consulta, novas rotas, novos endpoints. `CURABC` e `DATUSA` continuam ignorados.
+
+## Validação (checklist)
+
+- Alternar Consumo ⇄ Valor em estoque refaz request e atualiza `curva_abc` + `abc_pct_acumulado`.
+- Ambas as medidas (`consumo_valor` e `valor_estoque`) visíveis simultaneamente.
+- Sem consumo separado de C; soma A+B+C+Sem consumo bate com universo.
+- Baixo Giro usa `ultima_saida` real; `DATUSA`/`CURABC` ausentes do código.
+- `9999999*` não reintroduzido; `response.observacoes` exibido.
+- Consulta segue mostrando reservas/compras.
+- Ambas as novas abas chamam o mesmo endpoint com a mesma query key.
+- Export respeita filtros ativos e categoria Sem consumo.
+- Cobertura nunca renderiza `Infinity`.
