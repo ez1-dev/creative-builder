@@ -17,7 +17,6 @@ export default function DrePadraoPage() {
   const { data: cfg, isLoading } = useContabilConfiguracao(CODEMP);
   const pendencia = resolverPendencia(cfg, "DRE");
   const modeloId = !pendencia ? cfg?.dre_modelo_padrao_id ?? null : null;
-  const modeloNome = cfg?.dre_modelo_padrao?.nome ?? null;
 
   return (
     <div className="p-6 max-w-[1600px] mx-auto">
@@ -29,15 +28,6 @@ export default function DrePadraoPage() {
           </h1>
           <p className="text-sm text-slate-500">
             Demonstração do Resultado do Exercício
-            {modeloNome && (
-              <>
-                {" "}·{" "}
-                <span className="text-slate-700">
-                  Modelo utilizado: <strong>{modeloNome}</strong>
-                </span>{" "}
-                <span className="text-slate-400">(Configuração oficial da empresa)</span>
-              </>
-            )}
           </p>
         </div>
         {isAdmin && (
