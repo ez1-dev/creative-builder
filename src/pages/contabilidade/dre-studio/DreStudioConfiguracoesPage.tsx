@@ -627,7 +627,8 @@ function VinculosTab() {
   const clonar = useClonarVinculosOficial(modeloId ?? "");
   const vincularDRE = useVincularContasDRESenior(modeloId ?? "");
   const vincularBal = useVincularContasBalancoSenior(modeloId ?? "");
-  const validar = useValidarVinculos(modeloId ?? "", false);
+  const validar = useValidarVinculos(modeloId ?? "", !!modeloId);
+  const endpointsIndisponiveis = validar.data?.unavailable === true;
 
   return (
     <div className="space-y-4">
