@@ -331,8 +331,19 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
   const exportXlsx = () => {
     if (!ctx || !rows.length) return;
     const header = columns.map((c) => c.label);
-    const linhas = rows.map((r) =>
+    const bodyRows = rows.map((r) =>
       columns.map((c) => {
+        // Na dimensão unidade_negocio, substitui a coluna textual da chave
+        // pelo rótulo amigável (Genius / Estrutural Zortea / Não classificado).
+        if (isUnidade && (c.format === 'text' || !c.format)) {
+          const isKeyCol =
+            c.key === 'unidade_negocio' ||
+            c.key === 'unidade' ||
+            c.key === 'codigo' ||
+            c.key === 'chave' ||
+            c.key === 'descricao';
+          if (isKeyCol) return unidadeLabel(r);
+        }
         const v = r[c.key];
         if (c.format === 'currency' || c.format === 'number' || c.format === 'percent') {
           const n = Number(v);
@@ -342,7 +353,20 @@ export function DrillResultadoPanel({ open, onOpenChange, ctx }: Props) {
         return v ?? '';
       }),
     );
-    const ws = XLSX.utils.aoa_to_sheet([header, ...linhas]);
+
+    const aoa: any[][] = [];
+    if (isUnidade) {
+      aoa.push(['DRE Padrão — Análise por Unidade de Negócio']);
+      aoa.push(['Modelo', ctx.modeloId ?? '']);
+      aoa.push(['Linha analisada', ctx.linhaDescricao]);
+      aoa.push(['Período', periodoLabel]);
+      aoa.push(['Empresa', ctx.filtros.codemp ?? '']);
+      aoa.push(['Filial', ctx.filtros.codfil ?? '']);
+      aoa.push([]);
+    }
+    aoa.push(header, ...bodyRows);
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Drill');
     XLSX.writeFile(
