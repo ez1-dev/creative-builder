@@ -688,9 +688,18 @@ export default function ComercialPage() {
     const variant = w.variant ?? 'number';
     const isCurrency = ['faturamento','fat_liquido','impostos','devolucao','meta','diferenca','ticket_medio','preco_medio'].includes(kpiKey);
     const format = isCurrency ? 'currency' : 'number';
-    const drillType = KPI_DRILL_MAP[kpiKey] ?? 'NOTA_FISCAL';
-    const tooltip = kpiKey === 'impostos' ? 'Clique para detalhar impostos' : 'Clique para detalhar';
-    const ctxExtra: DrillContexto = kpiKey === 'devolucao' ? { categoria_custom: 'devolucao' } : {};
+    // Cards "impostos" e "devolucao" abrem NOTA_FISCAL com recorte próprio,
+    // sem depender de categoria_custom (que é filtro frontend não suportado).
+    const nfContext: NotaFiscalDrillContext | undefined =
+      kpiKey === 'devolucao' ? 'DEVOLUCOES' :
+      kpiKey === 'impostos'  ? 'IMPOSTOS'  :
+      undefined;
+    const drillType: DrillType =
+      nfContext ? 'NOTA_FISCAL' : (KPI_DRILL_MAP[kpiKey] ?? 'NOTA_FISCAL');
+    const tooltip =
+      kpiKey === 'impostos'  ? 'Clique para detalhar (somente impostos)' :
+      kpiKey === 'devolucao' ? 'Clique para detalhar (somente devoluções)' :
+      'Clique para detalhar';
 
     let inner: ReactNode;
     if (variant === 'sparkline') {
@@ -703,10 +712,11 @@ export default function ComercialPage() {
       inner = <KpiCard title={title} value={value} format={format} />;
     }
     return (
-      <Clickable title={tooltip} onClick={() => openDrill(drillType, ctxExtra, { resetDrillFilters: true })}>
+      <Clickable title={tooltip} onClick={() => openDrill(drillType, {}, { resetDrillFilters: true, nfContext })}>
         {inner}
       </Clickable>
     );
+
 
   }
 
