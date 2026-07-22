@@ -2176,7 +2176,7 @@ function Visualizacao(props: VisualizacaoProps = {}) {
                   {vincular.isPending ? "Vinculando... (até 1 min)" : "Vincular contas"}
                 </Button>
               )}
-              {q.meta?.suporta_filtro_unidade === true && (
+              {mostrarFiltroUnidade && (
                 <Select value={unidade} onValueChange={setUnidade}>
                   <SelectTrigger
                     className="h-9 w-[200px]"
@@ -2187,7 +2187,7 @@ function Visualizacao(props: VisualizacaoProps = {}) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="TODOS">Todas (consolidado)</SelectItem>
-                    {(q.meta?.unidades_negocio ?? []).map((u) => (
+                    {unidadeCaps.unidades.map((u) => (
                       <SelectItem key={u.codigo} value={u.codigo}>
                         {u.nome ? `${u.codigo} — ${u.nome}` : u.codigo}
                       </SelectItem>
