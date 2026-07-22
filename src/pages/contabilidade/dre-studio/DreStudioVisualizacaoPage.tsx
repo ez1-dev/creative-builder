@@ -2511,6 +2511,11 @@ function Visualizacao(props: VisualizacaoProps = {}) {
         </div>
       )}
 
+      {unidadeCaps.filtroIgnorado && (
+        <div className="mb-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+          O filtro de Unidade de Negócio não foi aplicado pelo backend. Os valores exibidos são consolidados.
+        </div>
+      )}
 
       <div className="relative">
       <div ref={matrizScrollRef} className="relative rounded-lg border bg-white overflow-auto isolate [&::-webkit-scrollbar:horizontal]:hidden">
