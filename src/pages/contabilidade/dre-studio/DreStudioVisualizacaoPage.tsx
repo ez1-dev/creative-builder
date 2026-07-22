@@ -242,6 +242,8 @@ interface VisualizacaoProps {
   modoBloqueado?: boolean;
   permiteConfigurar?: boolean;
   onConfigurar?: () => void;
+  /** Notifica o pai (ex.: DRE Padrão) sobre o suporte a filtro por unidade. */
+  onSuporteUnidadeChange?: (suporta: boolean) => void;
 }
 
 function Visualizacao(props: VisualizacaoProps = {}) {
