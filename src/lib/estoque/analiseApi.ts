@@ -188,6 +188,7 @@ export const AGING_FAIXAS = [
 export type AgingKey = typeof AGING_FAIXAS[number]['key'];
 
 export function faixaAging(item: EstoqueAnaliseItem): AgingKey {
+  if ((item as any).sem_saida_registrada === true) return 'sem_saida';
   if (item.faixa_aging) {
     const norm = String(item.faixa_aging).toLowerCase();
     if (norm.includes('sem')) return 'sem_saida';
