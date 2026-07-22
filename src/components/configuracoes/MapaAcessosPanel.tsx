@@ -385,7 +385,7 @@ export function MapaAcessosPanel({ screens }: Props) {
               ) : visibleRowIndexes.length === 0 ? (
                 <div className="py-16 text-center text-sm text-muted-foreground">Nenhum usuário para exibir com os filtros atuais.</div>
               ) : (
-                <div className="relative border rounded-md overflow-auto max-h-[70vh]">
+                <div className={cn("relative border rounded-md overflow-auto", expanded ? "max-h-[calc(100dvh-260px)]" : "max-h-[70vh]")}>
                   <table className="text-xs border-collapse">
                     <thead>
                       <tr>
@@ -471,6 +471,7 @@ export function MapaAcessosPanel({ screens }: Props) {
           </Tabs>
         </CardContent>
       </Card>
+      </div>
     </TooltipProvider>
   );
 }
