@@ -2080,159 +2080,184 @@ function Visualizacao(props: VisualizacaoProps = {}) {
       {/* Aviso SEM_CACHE já é coberto pelo card "Como gerar o resultado" acima. */}
 
 
-      {/* === AÇÕES === Dados + Visualização */}
+      {/* === AÇÕES === Dados + Saída + Visualização */}
       <div className="rounded-xl border bg-white shadow-sm mb-3">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-3 p-3">
+        <div className="grid gap-4 p-4 md:grid-cols-[auto_auto_1fr] md:items-start">
           {/* Grupo: Dados */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mr-1">Dados</span>
-            <Button
-              size="sm"
-              onClick={handleCarregarAnoInteiro}
-              disabled={materializar.isPending || vincular.isPending || q.isFetching || cccc106SemData}
-            >
-              <CalendarRange className="h-4 w-4 mr-1.5" />
-              {materializar.isPending ? "Atualizando..." : "Carregar ano"}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleSincronizar}
-              disabled={materializar.isPending || vincular.isPending || q.isFetching || cccc106SemData}
-              title="Materializar novo snapshot da DRE/Balanço"
-            >
-              <Database className="h-4 w-4 mr-1.5" />
-              Atualizar Resultado
-            </Button>
-
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setConfirmRecalcular(true)}
-              disabled={materializar.isPending || vincular.isPending || cccc106SemData}
-            >
-              <Calculator className="h-4 w-4 mr-1.5" />
-              Recalcular
-            </Button>
-            {isBalanco && (
+          <section aria-label="Ações de dados" className="flex flex-col gap-1.5">
+            <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Dados</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                onClick={handleCarregarAnoInteiro}
+                disabled={materializar.isPending || vincular.isPending || q.isFetching || cccc106SemData}
+              >
+                <CalendarRange className="h-4 w-4 mr-1.5" />
+                {materializar.isPending ? "Atualizando..." : "Carregar ano"}
+              </Button>
               <Button
                 size="sm"
                 variant="outline"
-                onClick={handleAtualizarCacheSenior}
-                disabled={
-                  materializar.isPending ||
-                  vincular.isPending ||
-                  cccc106SemData
-                }
-                title="Sincroniza saldos do Senior e materializa novo snapshot (job assíncrono com barra de progresso)."
+                onClick={handleSincronizar}
+                disabled={materializar.isPending || vincular.isPending || q.isFetching || cccc106SemData}
+                title="Materializar novo snapshot da DRE/Balanço"
               >
                 <Database className="h-4 w-4 mr-1.5" />
-                Atualizar cache Senior
+                Atualizar Resultado
               </Button>
-            )}
-            {tipoModelo === "BALANCO" && !modoBloqueado && (
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => vincular.mutate()}
+                onClick={() => setConfirmRecalcular(true)}
                 disabled={materializar.isPending || vincular.isPending || cccc106SemData}
-                title="Vincula automaticamente as contas analíticas do plano Senior a este Balanço (pode levar até 1 min)"
               >
-                <Link2 className="h-4 w-4 mr-1.5" />
-                {vincular.isPending ? "Vinculando... (até 1 min)" : "Vincular contas"}
+                <Calculator className="h-4 w-4 mr-1.5" />
+                Recalcular
               </Button>
-            )}
-
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleRecarregar}
-              disabled={materializar.isPending || vincular.isPending || q.isFetching || cccc106SemData}
-              title="Recarregar visualização"
-            >
-              <RefreshCw className={cn("h-4 w-4", q.isFetching && "animate-spin")} />
-            </Button>
-          </div>
-
-          <div className="h-8 w-px bg-slate-200 hidden md:block" />
+              {isBalanco && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleAtualizarCacheSenior}
+                  disabled={materializar.isPending || vincular.isPending || cccc106SemData}
+                  title="Sincroniza saldos do Senior e materializa novo snapshot (job assíncrono com barra de progresso)."
+                >
+                  <Database className="h-4 w-4 mr-1.5" />
+                  Atualizar cache Senior
+                </Button>
+              )}
+              {tipoModelo === "BALANCO" && !modoBloqueado && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => vincular.mutate()}
+                  disabled={materializar.isPending || vincular.isPending || cccc106SemData}
+                  title="Vincula automaticamente as contas analíticas do plano Senior a este Balanço (pode levar até 1 min)"
+                >
+                  <Link2 className="h-4 w-4 mr-1.5" />
+                  {vincular.isPending ? "Vinculando... (até 1 min)" : "Vincular contas"}
+                </Button>
+              )}
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-9 w-9"
+                onClick={handleRecarregar}
+                disabled={materializar.isPending || vincular.isPending || q.isFetching || cccc106SemData}
+                title="Recarregar visualização"
+                aria-label="Recarregar visualização"
+              >
+                <RefreshCw className={cn("h-4 w-4", q.isFetching && "animate-spin")} />
+              </Button>
+            </div>
+          </section>
 
           {/* Grupo: Saída */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mr-1">Saída</span>
-            <Button size="sm" variant="outline" onClick={handleExportarExcel} disabled={q.isFetching || linhas.length === 0}>
-              <FileSpreadsheet className="h-4 w-4 mr-1.5" />
-              Exportar
-            </Button>
-            {!modoBloqueado && (
-              <Button size="sm" variant="outline" onClick={() => setOpenHistoricoCache(true)}>
-                <History className="h-4 w-4 mr-1.5" />
-                Histórico
+          <section
+            aria-label="Ações de saída"
+            className="flex flex-col gap-1.5 md:pl-6 md:border-l md:border-slate-200"
+          >
+            <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Saída</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button size="sm" variant="outline" onClick={handleExportarExcel} disabled={q.isFetching || linhas.length === 0}>
+                <FileSpreadsheet className="h-4 w-4 mr-1.5" />
+                Exportar
               </Button>
-            )}
-            {!modoBloqueado && (
-              <Button size="sm" variant="outline" onClick={() => setEditorEstruturaOpen(true)}>
-                <Pencil className="h-4 w-4 mr-1.5" />
-                Editar estrutura
-              </Button>
-            )}
-          </div>
+              {!modoBloqueado && (
+                <Button size="sm" variant="outline" onClick={() => setOpenHistoricoCache(true)}>
+                  <History className="h-4 w-4 mr-1.5" />
+                  Histórico
+                </Button>
+              )}
+              {!modoBloqueado && (
+                <Button size="sm" variant="outline" onClick={() => setEditorEstruturaOpen(true)}>
+                  <Pencil className="h-4 w-4 mr-1.5" />
+                  Editar estrutura
+                </Button>
+              )}
+            </div>
+          </section>
 
-          {/* Grupo: Visualização (à direita) */}
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mr-1">Visualização</span>
-            <Select value={modo} onValueChange={(v) => setModo(v as Modo)}>
-              <SelectTrigger className="h-8 w-[120px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="SINTETICO">Sintético</SelectItem>
-                <SelectItem value="ANALITICO">Analítico</SelectItem>
-                <SelectItem value="NIVEL3">Nível 3</SelectItem>
-              </SelectContent>
-            </Select>
-            {modo !== "NIVEL3" && (
-              <>
-                <Select
-                  value={String(nivelExibido)}
-                  onValueChange={(v) => aplicarNivel(v === "todos" ? "todos" : Number(v))}
-                >
-                  <SelectTrigger className="h-8 w-[110px]"><SelectValue placeholder="Nível" /></SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: maxDepth + 1 }, (_, i) => i + 1).map((n) => (
-                      <SelectItem key={n} value={String(n)}>Nível {n}</SelectItem>
-                    ))}
-                    <SelectItem value="todos">Todos níveis</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="inline-flex rounded-md border overflow-hidden">
-                  <Button size="sm" variant="ghost" className="h-8 rounded-none px-2" onClick={expandirTudo} disabled={linhas.length === 0} title="Expandir tudo">
-                    <ChevronsUpDown className="h-4 w-4" />
-                  </Button>
-                  <span className="w-px bg-slate-200" />
-                  <Button size="sm" variant="ghost" className="h-8 rounded-none px-2" onClick={recolherTudo} disabled={linhas.length === 0} title="Recolher tudo">
-                    <ChevronsDownUp className="h-4 w-4" />
-                  </Button>
-                </div>
-              </>
-            )}
-            {isBalanco && (
-              <label className="flex items-center gap-1.5 text-xs text-slate-600 pl-2 border-l">
-                <Switch
-                  checked={mostrarTecnicas}
-                  onCheckedChange={setMostrarTecnicas}
-                />
-                Linhas técnicas
-              </label>
-            )}
-            <Button
-              size="sm"
-              variant={semCasasDecimais ? "default" : "outline"}
-              onClick={() => setSemCasasDecimais((v) => !v)}
-              title="Alternar exibição com/sem centavos (apenas visual)"
-            >
-              {semCasasDecimais ? "Sem centavos" : "Com centavos"}
-            </Button>
-          </div>
+          {/* Grupo: Visualização */}
+          <section
+            aria-label="Opções de visualização"
+            className="flex flex-col gap-1.5 md:pl-6 md:border-l md:border-slate-200 lg:items-end"
+          >
+            <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Visualização</span>
+            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+              <Select value={modo} onValueChange={(v) => setModo(v as Modo)}>
+                <SelectTrigger className="h-9 w-[130px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="SINTETICO">Sintético</SelectItem>
+                  <SelectItem value="ANALITICO">Analítico</SelectItem>
+                  <SelectItem value="NIVEL3">Nível 3</SelectItem>
+                </SelectContent>
+              </Select>
+              {modo !== "NIVEL3" && (
+                <>
+                  <Select
+                    value={String(nivelExibido)}
+                    onValueChange={(v) => aplicarNivel(v === "todos" ? "todos" : Number(v))}
+                  >
+                    <SelectTrigger className="h-9 w-[120px]"><SelectValue placeholder="Nível" /></SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: maxDepth + 1 }, (_, i) => i + 1).map((n) => (
+                        <SelectItem key={n} value={String(n)}>Nível {n}</SelectItem>
+                      ))}
+                      <SelectItem value="todos">Todos níveis</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="inline-flex rounded-md border overflow-hidden">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-9 rounded-none px-2"
+                      onClick={expandirTudo}
+                      disabled={linhas.length === 0}
+                      title="Expandir todos os níveis"
+                      aria-label="Expandir todos os níveis"
+                    >
+                      <ChevronsUpDown className="h-4 w-4" />
+                    </Button>
+                    <span className="w-px bg-slate-200" />
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-9 rounded-none px-2"
+                      onClick={recolherTudo}
+                      disabled={linhas.length === 0}
+                      title="Recolher todos os níveis"
+                      aria-label="Recolher todos os níveis"
+                    >
+                      <ChevronsDownUp className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </>
+              )}
+              {isBalanco && (
+                <label className="flex items-center gap-1.5 text-xs text-slate-600 pl-2 border-l h-9">
+                  <Switch
+                    checked={mostrarTecnicas}
+                    onCheckedChange={setMostrarTecnicas}
+                  />
+                  Linhas técnicas
+                </label>
+              )}
+              <Button
+                size="sm"
+                variant={semCasasDecimais ? "default" : "outline"}
+                className="h-9"
+                onClick={() => setSemCasasDecimais((v) => !v)}
+                title="Alternar exibição com/sem centavos (apenas visual)"
+              >
+                <Coins className="h-4 w-4 mr-1.5" />
+                {semCasasDecimais ? "Sem centavos" : "Com centavos"}
+              </Button>
+            </div>
+          </section>
         </div>
       </div>
+
 
       {modo !== "NIVEL3" && (
       <div className="rounded-lg border bg-white p-3 mb-3 space-y-3">
