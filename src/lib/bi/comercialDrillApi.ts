@@ -569,9 +569,10 @@ export function downloadDrillCsv(resp: DrillResponse, filename?: string, nivel?:
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export async function downloadDrillXlsx(resp: DrillResponse, filename?: string) {
+export async function downloadDrillXlsx(resp: DrillResponse, filename?: string, nivel?: NivelVisualizacao) {
   const XLSX = await import('xlsx');
-  const { columns: cols, rows } = withLiquidoAndTotals(resp);
+  const { columns: cols, rows } = withLiquidoAndTotals(resp, nivel);
+
   const header = cols.map((c) => c.label);
   const data = rows.map((row) =>
     cols.map((c) => {
