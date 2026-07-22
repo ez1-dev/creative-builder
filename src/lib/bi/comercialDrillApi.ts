@@ -82,6 +82,56 @@ export function countDistinctNotas(rows: any[]): number {
   return set.size;
 }
 
+/** Retorna uma lista com um representante por NF (dedup por chave fiscal). */
+export function getNotasDistintas<T extends Record<string, any>>(rows: T[]): T[] {
+  const map = new Map<string, T>();
+  for (const r of rows || []) {
+    const k = getNotaKey(r);
+    if (!k.replace(/\|/g, '').trim()) continue;
+    if (!map.has(k)) map.set(k, r);
+  }
+  return Array.from(map.values());
+}
+
+export type NivelVisualizacao = 'ITEM' | 'NOTA';
+
+const COLUNAS_NIVEL_NOTA = new Set([
+  'vl_total_nota', 'total_nota', 'vl_nf', 'valor_total_nota',
+  'vl_liquido_nota', 'total_liquido_nota', 'valor_liquido_nota', 'vl_total_liquido',
+]);
+
+/** Filtra colunas conforme o nível da visualização (ITEM / NOTA). */
+export function filterColumnsByNivel(
+  cols: DrillColumn[],
+  nivel: NivelVisualizacao,
+): DrillColumn[] {
+  return (cols || []).filter((c) => {
+    if (!c) return false;
+    if (nivel === 'ITEM' && (c.nivel === 'NOTA' || COLUNAS_NIVEL_NOTA.has(c.key))) return false;
+    if (nivel === 'NOTA' && c.nivel === 'ITEM') return false;
+    return true;
+  });
+}
+
+/**
+ * Infere o nível da visualização a partir do drill_type / colunas / linhas.
+ * DETALHES_IMPOSTOS = sempre ITEM. NOTA_FISCAL = sempre NOTA.
+ * Demais drills: se houver produto/vl_item → ITEM, senão NOTA.
+ */
+export function inferNivelVisualizacao(
+  drillType: DrillType | string | undefined,
+  columns: DrillColumn[],
+  rows: any[],
+): NivelVisualizacao {
+  if (drillType === 'NOTA_FISCAL') return 'NOTA';
+  if (drillType === 'DETALHES_IMPOSTOS') return 'ITEM';
+  const hasItem =
+    (columns || []).some((c) => c.key === 'cd_produto' || c.key === 'vl_item') ||
+    (rows || []).some((r) => r?.cd_produto != null || r?.vl_item != null);
+  return hasItem ? 'ITEM' : 'NOTA';
+}
+
+
 export interface DrillBreadcrumbItem {
   label: string;
   filtro: Record<string, any>;
@@ -365,26 +415,58 @@ export function injectItemColumns(resp: Pick<DrillResponse, 'columns' | 'rows'>)
 
 /**
  * Pipeline único de enriquecimento para exibição (grid + exportação).
- * Ordem: dedup → total-por-nota → colunas de item.
+ * Ordem: dedup → total-por-nota → colunas de item → filtro por nível (opcional).
  */
-export function enrichForDisplay(resp: Pick<DrillResponse, 'columns' | 'rows'>): {
+export function enrichForDisplay(
+  resp: Pick<DrillResponse, 'columns' | 'rows'>,
+  nivel?: NivelVisualizacao,
+): {
   columns: DrillColumn[];
   rows: DrillRow[];
 } {
   const step0 = { columns: uniqueColumns(resp.columns ?? []), rows: resp.rows ?? [] };
   const step1 = enrichRowsWithNotaTotals(step0);
   const step2 = injectItemColumns(step1);
-  return { columns: uniqueColumns(step2.columns), rows: step2.rows };
+  let outCols = uniqueColumns(step2.columns);
+  if (nivel) outCols = filterColumnsByNivel(outCols, nivel);
+  return { columns: outCols, rows: step2.rows };
 }
 
+/**
+ * Calcula o valor total para uma coluna respeitando o nível de visualização.
+ * Retorna null quando a coluna não deve ser totalizada.
+ */
+export function calcularTotal(
+  col: DrillColumn,
+  rows: DrillRow[],
+  nivel: NivelVisualizacao,
+): number | null {
+  if (!isAgregavel(col) && !(nivel === 'NOTA' && col.nivel === 'NOTA')) return null;
+  if (nivel === 'ITEM' && col.nivel === 'NOTA') return null;
+  const base = nivel === 'NOTA' && col.nivel === 'NOTA' ? getNotasDistintas(rows) : rows;
+  let sum = 0;
+  let any = false;
+  for (const r of base) {
+    const n = toNumberOrNull(r[col.key]);
+    if (n !== null) { sum += n; any = true; }
+  }
+  return any ? sum : null;
+}
 
 /**
  * Enriquece a resposta de drill para exportação:
  *  - insere coluna "Valor Líquido" (calculada) logo após valor_total quando aplicável;
  *  - adiciona colunas Total da Nota / Total Líquido da Nota agrupadas por NF;
- *  - acrescenta linha "TOTAL" somando colunas numéricas/monetárias (exceto totais por NF).
+ *  - filtra colunas conforme o nível (ITEM x NOTA);
+ *  - acrescenta linha "TOTAL" via calcularTotal.
  */
-function withLiquidoAndTotals(resp: DrillResponse): { columns: DrillColumn[]; rows: DrillRow[] } {
+function withLiquidoAndTotals(
+  resp: DrillResponse,
+  nivel?: NivelVisualizacao,
+): { columns: DrillColumn[]; rows: DrillRow[] } {
+  const nivelUsado: NivelVisualizacao =
+    nivel ?? inferNivelVisualizacao(resp.drill_type, resp.columns ?? [], resp.rows ?? []);
+
   const cols = [...(resp.columns ?? [])];
   const rows = [...(resp.rows ?? [])];
 
@@ -409,38 +491,24 @@ function withLiquidoAndTotals(resp: DrillResponse): { columns: DrillColumn[]; ro
     });
     const idx = cols.findIndex((c) => c.key === 'valor_total');
     const liquidoCol: DrillColumn = {
-      key: 'valor_liquido',
-      label: 'Valor Líquido',
-      align: 'right',
-      format: 'currency',
+      key: 'valor_liquido', label: 'Valor Líquido', align: 'right', format: 'currency',
     };
     workingCols = [...cols.slice(0, idx + 1), liquidoCol, ...cols.slice(idx + 1)];
   }
 
-  // 2) Total da Nota / Total Líquido da Nota + colunas de item
-  const enriched = enrichForDisplay({ columns: workingCols, rows: workingRows });
+  // 2) Pipeline padrão + filtro por nível
+  const enriched = enrichForDisplay({ columns: workingCols, rows: workingRows }, nivelUsado);
   workingCols = enriched.columns;
   workingRows = enriched.rows;
 
-  // 3) Linha TOTAL — respeita agregavel/nivel
+  // 3) Linha TOTAL — via calcularTotal (respeita nível/agregável)
   const totalRow: DrillRow = {};
   let labelPlaced = false;
   workingCols.forEach((c) => {
     const numeric = c.format === 'currency' || c.format === 'number';
-    if (numeric && isAgregavel(c)) {
-      let sum = 0;
-      let any = false;
-      for (const r of workingRows) {
-        const n = toNumberOrNull(r[c.key]);
-        if (n !== null) {
-          sum += n;
-          any = true;
-        }
-      }
-      totalRow[c.key] = any ? sum : '';
-    } else if (numeric && !isAgregavel(c)) {
-      // Colunas nível NOTA — não somar por linha.
-      totalRow[c.key] = '';
+    if (numeric) {
+      const t = calcularTotal(c, workingRows, nivelUsado);
+      totalRow[c.key] = t == null ? '' : t;
     } else if (!labelPlaced) {
       totalRow[c.key] = 'TOTAL';
       labelPlaced = true;
@@ -455,6 +523,7 @@ function withLiquidoAndTotals(resp: DrillResponse): { columns: DrillColumn[]; ro
 
   return { columns: workingCols, rows: workingRows };
 }
+
 
 function fmtCsvValue(v: any, format?: DrillColumn['format']): string {
   if (v == null) return '';
@@ -481,8 +550,9 @@ function fmtCsvValue(v: any, format?: DrillColumn['format']): string {
   return s;
 }
 
-export function downloadDrillCsv(resp: DrillResponse, filename?: string) {
-  const { columns: cols, rows } = withLiquidoAndTotals(resp);
+export function downloadDrillCsv(resp: DrillResponse, filename?: string, nivel?: NivelVisualizacao) {
+  const { columns: cols, rows } = withLiquidoAndTotals(resp, nivel);
+
   const header = cols.map((c) => c.label).join(';');
   const lines = rows.map((row) =>
     cols.map((c) => fmtCsvValue(row[c.key], c.format)).join(';'),
@@ -499,9 +569,10 @@ export function downloadDrillCsv(resp: DrillResponse, filename?: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export async function downloadDrillXlsx(resp: DrillResponse, filename?: string) {
+export async function downloadDrillXlsx(resp: DrillResponse, filename?: string, nivel?: NivelVisualizacao) {
   const XLSX = await import('xlsx');
-  const { columns: cols, rows } = withLiquidoAndTotals(resp);
+  const { columns: cols, rows } = withLiquidoAndTotals(resp, nivel);
+
   const header = cols.map((c) => c.label);
   const data = rows.map((row) =>
     cols.map((c) => {

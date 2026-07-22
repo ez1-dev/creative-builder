@@ -19,9 +19,10 @@ import { cn } from '@/lib/utils';
 
 import {
   fetchComercialDrill, downloadDrillCsv, downloadDrillXlsx, enrichForDisplay,
-  countDistinctNotas,
-  type DrillColumn, type DrillContexto, type DrillResponse, type DrillType,
+  countDistinctNotas, inferNivelVisualizacao,
+  type DrillColumn, type DrillContexto, type DrillResponse, type DrillType, type NivelVisualizacao,
 } from '@/lib/bi/comercialDrillApi';
+
 import { DRILL_LABELS, NEXT_DRILLS, ROW_TO_CTX_KEY, CTX_LABELS } from '@/lib/bi/comercialDrillCatalog';
 import { cleanDrillValue, compactDrillContext } from '@/lib/bi/comercialDrillContract';
 import { useDemoMode } from '@/contexts/DemoModeContext';
@@ -224,10 +225,16 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
     stack.pushDrill(next, rowFilters);
   };
 
+  const nivel: NivelVisualizacao = useMemo(
+    () => inferNivelVisualizacao(cur?.drill_type, resp?.columns ?? [], resp?.rows ?? []),
+    [cur?.drill_type, resp],
+  );
+
   const enrichedBase = useMemo(() => {
     if (!resp) return { columns: [] as DrillColumn[], rows: [] as Record<string, any>[] };
-    return enrichForDisplay({ columns: resp.columns ?? [], rows: resp.rows ?? [] });
-  }, [resp]);
+    return enrichForDisplay({ columns: resp.columns ?? [], rows: resp.rows ?? [] }, nivel);
+  }, [resp, nivel]);
+
 
   const displayColumns = useMemo(() => {
     const cols = enrichedBase.columns;
@@ -443,7 +450,7 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
                 size="sm"
                 variant="outline"
                 className="h-7 gap-1 text-xs"
-                onClick={() => resp && downloadDrillCsv({ ...resp, columns: enrichedBase.columns })}
+                onClick={() => resp && downloadDrillCsv({ ...resp, columns: enrichedBase.columns }, undefined, nivel)}
                 disabled={!resp || resp.rows.length === 0}
               >
                 <Download className="h-3.5 w-3.5" /> CSV
@@ -452,11 +459,12 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
                 size="sm"
                 variant="outline"
                 className="h-7 gap-1 text-xs"
-                onClick={() => resp && downloadDrillXlsx({ ...resp, columns: enrichedBase.columns })}
+                onClick={() => resp && downloadDrillXlsx({ ...resp, columns: enrichedBase.columns }, undefined, nivel)}
                 disabled={!resp || resp.rows.length === 0}
               >
                 <Download className="h-3.5 w-3.5" /> Excel
               </Button>
+
               <Button
                 size="sm"
                 variant="ghost"
