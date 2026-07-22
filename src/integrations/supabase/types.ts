@@ -2929,6 +2929,41 @@ export type Database = {
         }
         Relationships: []
       }
+      profile_features: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          feature_key: string
+          id: string
+          profile_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          feature_key: string
+          id?: string
+          profile_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          feature_key?: string
+          id?: string
+          profile_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_features_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "access_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profile_screens: {
         Row: {
           can_delete: boolean
@@ -3741,6 +3776,41 @@ export type Database = {
         }
         Relationships: []
       }
+      user_feature_overrides: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          feature_key: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          enabled: boolean
+          feature_key: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          feature_key?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_feature_overrides_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_preferences: {
         Row: {
           ai_assistant_prefs: Json
@@ -3770,6 +3840,50 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_screen_overrides: {
+        Row: {
+          can_delete: boolean | null
+          can_edit: boolean | null
+          can_view: boolean | null
+          created_at: string
+          id: string
+          screen_name: string | null
+          screen_path: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          can_delete?: boolean | null
+          can_edit?: boolean | null
+          can_view?: boolean | null
+          created_at?: string
+          id?: string
+          screen_name?: string | null
+          screen_path: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          can_delete?: boolean | null
+          can_edit?: boolean | null
+          can_view?: boolean | null
+          created_at?: string
+          id?: string
+          screen_name?: string | null
+          screen_path?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_screen_overrides_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_search_history: {
         Row: {
@@ -4068,6 +4182,7 @@ export type Database = {
       can_edit_maquinas: { Args: { _uid: string }; Returns: boolean }
       can_edit_passagens: { Args: { _uid: string }; Returns: boolean }
       can_manage_frota_share: { Args: { _uid: string }; Returns: boolean }
+      can_manage_liberacoes: { Args: { _uid: string }; Returns: boolean }
       can_manage_maquinas_share: { Args: { _uid: string }; Returns: boolean }
       can_manage_passagens_share: { Args: { _uid: string }; Returns: boolean }
       cleanup_old_error_logs: { Args: never; Returns: undefined }
