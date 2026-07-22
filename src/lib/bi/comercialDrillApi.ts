@@ -82,6 +82,56 @@ export function countDistinctNotas(rows: any[]): number {
   return set.size;
 }
 
+/** Retorna uma lista com um representante por NF (dedup por chave fiscal). */
+export function getNotasDistintas<T extends Record<string, any>>(rows: T[]): T[] {
+  const map = new Map<string, T>();
+  for (const r of rows || []) {
+    const k = getNotaKey(r);
+    if (!k.replace(/\|/g, '').trim()) continue;
+    if (!map.has(k)) map.set(k, r);
+  }
+  return Array.from(map.values());
+}
+
+export type NivelVisualizacao = 'ITEM' | 'NOTA';
+
+const COLUNAS_NIVEL_NOTA = new Set([
+  'vl_total_nota', 'total_nota', 'vl_nf', 'valor_total_nota',
+  'vl_liquido_nota', 'total_liquido_nota', 'valor_liquido_nota', 'vl_total_liquido',
+]);
+
+/** Filtra colunas conforme o nível da visualização (ITEM / NOTA). */
+export function filterColumnsByNivel(
+  cols: DrillColumn[],
+  nivel: NivelVisualizacao,
+): DrillColumn[] {
+  return (cols || []).filter((c) => {
+    if (!c) return false;
+    if (nivel === 'ITEM' && (c.nivel === 'NOTA' || COLUNAS_NIVEL_NOTA.has(c.key))) return false;
+    if (nivel === 'NOTA' && c.nivel === 'ITEM') return false;
+    return true;
+  });
+}
+
+/**
+ * Infere o nível da visualização a partir do drill_type / colunas / linhas.
+ * DETALHES_IMPOSTOS = sempre ITEM. NOTA_FISCAL = sempre NOTA.
+ * Demais drills: se houver produto/vl_item → ITEM, senão NOTA.
+ */
+export function inferNivelVisualizacao(
+  drillType: DrillType | string | undefined,
+  columns: DrillColumn[],
+  rows: any[],
+): NivelVisualizacao {
+  if (drillType === 'NOTA_FISCAL') return 'NOTA';
+  if (drillType === 'DETALHES_IMPOSTOS') return 'ITEM';
+  const hasItem =
+    (columns || []).some((c) => c.key === 'cd_produto' || c.key === 'vl_item') ||
+    (rows || []).some((r) => r?.cd_produto != null || r?.vl_item != null);
+  return hasItem ? 'ITEM' : 'NOTA';
+}
+
+
 export interface DrillBreadcrumbItem {
   label: string;
   filtro: Record<string, any>;
