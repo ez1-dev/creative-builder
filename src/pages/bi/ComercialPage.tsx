@@ -1293,6 +1293,18 @@ export default function ComercialPage() {
                 style={{ backgroundColor: theme.chipBg, color: theme.chipText }}
               >{unidade}</span>
 
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 gap-1"
+                onClick={handleExportCompleto}
+                disabled={exportandoCompleto}
+                title="Gera XLSX com 10 abas (Detalhe, Mensal, Cliente, Produto, Revenda, Obra, Estado, Impostos, Acumulado, Parâmetros). Pode levar ~15 s."
+              >
+                {exportandoCompleto ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                <span className="hidden sm:inline">{exportandoCompleto ? 'Gerando Excel…' : 'Exportar Excel'}</span>
+              </Button>
+
               {/* Toggle Oficial / Minha versão */}
               <div className="inline-flex items-center rounded-md border bg-card p-0.5 text-xs">
                 <button
