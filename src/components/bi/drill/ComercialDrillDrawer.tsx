@@ -550,7 +550,20 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
               onRetry={() => query.refetch()}
             />
           ) : !resp || resp.rows.length === 0 ? (
-            <DrillEmptyDiagnostico stack={stack} response={resp} />
+            <div className="space-y-3">
+              {nfContext === 'DEVOLUCOES' && (
+                <div className="rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
+                  Nenhuma devolução foi encontrada no período e filtros selecionados. Confira o período informado e os demais filtros.
+                </div>
+              )}
+              {nfContext === 'IMPOSTOS' && (
+                <div className="rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
+                  Nenhum detalhe de impostos foi encontrado no período e filtros selecionados. Confira o período informado e os demais filtros.
+                </div>
+              )}
+              <DrillEmptyDiagnostico stack={stack} response={resp} />
+            </div>
+
           ) : (
             <>
               <DataTableBI columns={columns} data={enrichedBase.rows} />
