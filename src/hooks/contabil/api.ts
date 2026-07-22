@@ -576,6 +576,9 @@ export interface CacheFiltros {
   consolidado?: boolean;
   /** Fonte de saldo (E650SAL, E640LCT). Padrão: E650SAL. */
   fonte_saldo?: string;
+  /** Unidade de negócio. Ativo apenas quando o backend sinaliza
+   *  meta.suporta_filtro_unidade === true. "TODOS"/undefined = consolidado. */
+  unidade?: string | null;
 }
 
 
@@ -1043,6 +1046,10 @@ export interface ResultadoProntoMeta {
   referencia_senior_aplicada?: boolean | null;
   referencia_senior_origem?: string | null;
   qtd_referencias_aplicadas?: number | null;
+  /** Backend liberou a materialização/filtragem por unidade de negócio. */
+  suporta_filtro_unidade?: boolean;
+  /** Lista opcional de unidades para popular o Select. */
+  unidades_negocio?: Array<{ codigo: string; nome?: string | null }>;
 }
 
 
@@ -1088,8 +1095,13 @@ export function useResultadoPronto(
             ? undefined
             : filtros.expandir_resultado_exercicio,
         fonte_saldo: filtros.fonte_saldo ?? "E650SAL",
+        unidade:
+          filtros.unidade && filtros.unidade !== "TODOS"
+            ? filtros.unidade
+            : undefined,
       });
     },
+
 
     enabled: enabled && isValidId(modeloId),
     retry: 0,
@@ -1138,6 +1150,13 @@ export function useResultadoPronto(
         referencia_senior_origem: refOrigem,
         qtd_referencias_aplicadas:
           qtdRef == null ? null : Number(qtdRef) || 0,
+        suporta_filtro_unidade:
+          (r.suporta_filtro_unidade ?? p.suporta_filtro_unidade) === true,
+        unidades_negocio: Array.isArray(r.unidades_negocio)
+          ? r.unidades_negocio
+          : Array.isArray(p.unidades_negocio)
+            ? p.unidades_negocio
+            : [],
       };
       return { meta, payload: payloadNormalizado };
     },

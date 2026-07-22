@@ -242,6 +242,8 @@ interface VisualizacaoProps {
   modoBloqueado?: boolean;
   permiteConfigurar?: boolean;
   onConfigurar?: () => void;
+  /** Notifica o pai (ex.: DRE Padrão) sobre o suporte a filtro por unidade. */
+  onSuporteUnidadeChange?: (suporta: boolean) => void;
 }
 
 function Visualizacao(props: VisualizacaoProps = {}) {
@@ -259,6 +261,7 @@ function Visualizacao(props: VisualizacaoProps = {}) {
   const fim = anoSelecionado * 100 + 12;
   const [codccu, setCodccu] = useState<string>("todos");
   const [codfil, setCodfil] = useState<string>("todas");
+  const [unidade, setUnidade] = useState<string>("TODOS");
   const [visao, setVisao] = useState<Visao>("REAL");
   const [drill, setDrill] = useState<DrillArgs | null>(null);
   const [drillCtx, setDrillCtx] = useState<DrillResultadoContext | null>(null);
@@ -376,6 +379,7 @@ function Visualizacao(props: VisualizacaoProps = {}) {
     aplicar_referencia_senior: aplicarRefSeniorEfetivo,
     expandir_resultado_exercicio: expandirREEfetivo,
     fonte_saldo: "E650SAL",
+    unidade: unidade === "TODOS" ? undefined : unidade,
   };
 
 
@@ -387,6 +391,13 @@ function Visualizacao(props: VisualizacaoProps = {}) {
   const [materOpen, setMaterOpen] = useState(false);
   const vincular = useVincularContasBalancoSenior(id);
   const qc = useQueryClient();
+
+  const suportaFiltroUnidade = q.meta?.suporta_filtro_unidade === true;
+  const onSuporteUnidadeChange = props.onSuporteUnidadeChange;
+  useEffect(() => {
+    onSuporteUnidadeChange?.(suportaFiltroUnidade);
+  }, [suportaFiltroUnidade, onSuporteUnidadeChange]);
+
 
   // ===== Presets de filtros salvos =====
   const currentPresetFilters: DreVisFilterPreset = {
@@ -2138,6 +2149,25 @@ function Visualizacao(props: VisualizacaoProps = {}) {
                   {vincular.isPending ? "Vinculando... (até 1 min)" : "Vincular contas"}
                 </Button>
               )}
+              {q.meta?.suporta_filtro_unidade === true && (
+                <Select value={unidade} onValueChange={setUnidade}>
+                  <SelectTrigger
+                    className="h-9 w-[200px]"
+                    title="Filtrar matriz por Unidade de Negócio"
+                    aria-label="Unidade de negócio"
+                  >
+                    <SelectValue placeholder="Unidade de negócio" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="TODOS">Todas (consolidado)</SelectItem>
+                    {(q.meta?.unidades_negocio ?? []).map((u) => (
+                      <SelectItem key={u.codigo} value={u.codigo}>
+                        {u.nome ? `${u.codigo} — ${u.nome}` : u.codigo}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               <Button
                 size="icon"
                 variant="ghost"
@@ -2151,6 +2181,7 @@ function Visualizacao(props: VisualizacaoProps = {}) {
               </Button>
             </div>
           </section>
+
 
           {/* Grupo: Saída */}
           <section
@@ -2941,6 +2972,7 @@ function Visualizacao(props: VisualizacaoProps = {}) {
                                   anomes_fim: fim,
                                   centro_custo: codccu === "todos" ? null : codccu,
                                   modo_balanco: modoBalancoEfetivo ?? null,
+                                  unidade: unidade === "TODOS" ? null : unidade,
                                 },
                               })
                             }
