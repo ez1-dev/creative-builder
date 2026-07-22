@@ -183,6 +183,10 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
   const { maskUnidade } = useDemoMode();
   const [selectorOpenInline, setSelectorOpenInline] = useState(false);
 
+  const nfContext: NotaFiscalDrillContext =
+    cur?.drill_type === 'NOTA_FISCAL' ? (cur?.nfContext ?? 'TODAS') : 'TODAS';
+  const nfFlags = buildNotaFiscalDrillFlags(nfContext);
+
   const query = useQuery<DrillResponse>({
     queryKey: [
       'comercial-drill',
@@ -190,6 +194,7 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
       cur?.contexto,
       cur?.page,
       anomes_ini, anomes_fim, unidade_negocio,
+      nfFlags.somente_devolucao, nfFlags.somente_impostos,
     ],
     queryFn: () =>
       fetchComercialDrill({
@@ -198,12 +203,14 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
         contexto: cur!.contexto,
         page: cur!.page,
         page_size: 100,
+        nf_context: nfContext,
       }),
     enabled: stack.open && !!cur,
     placeholderData: keepPreviousData,
     refetchOnWindowFocus: false,
     retry: 1,
   });
+
 
   const resp = query.data;
 
