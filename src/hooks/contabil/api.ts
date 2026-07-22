@@ -1150,6 +1150,13 @@ export function useResultadoPronto(
         referencia_senior_origem: refOrigem,
         qtd_referencias_aplicadas:
           qtdRef == null ? null : Number(qtdRef) || 0,
+        suporta_filtro_unidade:
+          (r.suporta_filtro_unidade ?? p.suporta_filtro_unidade) === true,
+        unidades_negocio: Array.isArray(r.unidades_negocio)
+          ? r.unidades_negocio
+          : Array.isArray(p.unidades_negocio)
+            ? p.unidades_negocio
+            : [],
       };
       return { meta, payload: payloadNormalizado };
     },
