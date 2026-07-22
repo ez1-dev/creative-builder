@@ -417,16 +417,17 @@ function withLiquidoAndTotals(resp: DrillResponse): { columns: DrillColumn[]; ro
     workingCols = [...cols.slice(0, idx + 1), liquidoCol, ...cols.slice(idx + 1)];
   }
 
-  // 2) Total da Nota / Total Líquido da Nota
-  const enriched = enrichRowsWithNotaTotals({ columns: workingCols, rows: workingRows });
+  // 2) Total da Nota / Total Líquido da Nota + colunas de item
+  const enriched = enrichForDisplay({ columns: workingCols, rows: workingRows });
   workingCols = enriched.columns;
   workingRows = enriched.rows;
 
-  // 3) Linha TOTAL
+  // 3) Linha TOTAL — respeita agregavel/nivel
   const totalRow: DrillRow = {};
   let labelPlaced = false;
   workingCols.forEach((c) => {
-    if ((c.format === 'currency' || c.format === 'number') && !SKIP_TOTAL_SUM_KEYS.has(c.key)) {
+    const numeric = c.format === 'currency' || c.format === 'number';
+    if (numeric && isAgregavel(c)) {
       let sum = 0;
       let any = false;
       for (const r of workingRows) {
@@ -437,7 +438,8 @@ function withLiquidoAndTotals(resp: DrillResponse): { columns: DrillColumn[]; ro
         }
       }
       totalRow[c.key] = any ? sum : '';
-    } else if (SKIP_TOTAL_SUM_KEYS.has(c.key)) {
+    } else if (numeric && !isAgregavel(c)) {
+      // Colunas nível NOTA — não somar por linha.
       totalRow[c.key] = '';
     } else if (!labelPlaced) {
       totalRow[c.key] = 'TOTAL';
