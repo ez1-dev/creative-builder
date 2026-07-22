@@ -1,114 +1,131 @@
 ## Objetivo
 
-Corrigir totalização, colunas duplicadas e exportação do drill **Detalhes de Impostos** (BI Comercial), respeitando novos metadados do backend (`agregavel`, `nivel`) e novas colunas por item (`vl_item`, `vl_item_liquido`). Nada muda nos impostos ou no backend.
+No drill **Detalhes de Impostos** (BI Comercial), separar corretamente a visualização por **ITEM** e por **NOTA**. Hoje, quando a grid está no nível ITEM, as colunas `Total da Nota` e `Total Líquido da Nota` aparecem repetidas por item e ainda são somadas no rodapé (R$ 650.000 + R$ 650.000 = R$ 1.300.000). Impostos e cálculos por item permanecem inalterados.
 
 ## Diagnóstico (verificado)
 
-- `src/lib/bi/comercialDrillApi.ts` hoje **inventa** as colunas `total_nota` e `total_liquido_nota` via `enrichRowsWithNotaTotals()`, somando linha a linha — daí a duplicação (backend também envia essas colunas agora) e o rodapé dobrado (R$ 1.300.000,00 na NF 20997).
-- `withLiquidoAndTotals()` só ignora `SKIP_TOTAL_SUM_KEYS = {total_nota, total_liquido_nota}`; não lê `column.agregavel` nem `column.nivel`.
-- Grid usa `DataTableBI` em `ComercialDrillDrawer.tsx`; hoje não há rodapé visível dedicado ao drill de impostos (só CSV/XLSX totalizam).
+- `src/lib/bi/comercialDrillApi.ts` já marca `total_nota`/`total_liquido_nota` como `nivel: 'NOTA', agregavel: false` e `withLiquidoAndTotals` já respeita `isAgregavel` para a linha TOTAL do CSV/XLSX. Porém as colunas continuam sendo **exibidas** no nível ITEM.
+- `src/components/bi/drill/ComercialDrillDrawer.tsx` renderiza `displayColumns` sem filtrar por `nivel` e não injeta rodapé próprio; o `DataTableBI` mostra o totalizador padrão que hoje ignora `isAgregavel` (daí o R$ 1.300.000 visível no screenshot).
+- Drill `DETALHES_IMPOSTOS` é sempre nível ITEM. Não existe ainda um drill agregado por NF (o `NOTA_FISCAL` atual já lista por nota, mas é um drill separado — não é reagrupamento da mesma tela).
 
 ## Escopo
 
-Somente frontend. Arquivos:
+Somente frontend. Sem alteração no backend, no cálculo de impostos ou nas dimensões.
 
+Arquivos:
 1. `src/lib/bi/comercialDrillApi.ts`
 2. `src/components/bi/drill/ComercialDrillDrawer.tsx`
 
 ## Mudanças
 
-### 1. Contrato (`comercialDrillApi.ts`)
+### 1. Identificar o nível da visualização
 
-Estender `DrillColumn`:
+Em `comercialDrillApi.ts`, novo helper:
 
 ```ts
-export interface DrillColumn {
-  key: string;
-  label: string;
-  align?: 'left' | 'right' | 'center';
-  format?: 'currency' | 'number' | 'date' | 'text';
-  agregavel?: boolean;      // novo
-  nivel?: 'ITEM' | 'NOTA';  // novo
+export type NivelVisualizacao = 'ITEM' | 'NOTA';
+
+export function inferNivelVisualizacao(
+  drillType: DrillType,
+  columns: DrillColumn[],
+  rows: DrillRow[],
+): NivelVisualizacao {
+  if (drillType === 'NOTA_FISCAL') return 'NOTA';
+  if (drillType === 'DETALHES_IMPOSTOS') return 'ITEM';
+  // Fallback: se qualquer coluna/linha tiver produto → ITEM.
+  const hasItem =
+    columns.some((c) => c.key === 'cd_produto' || c.key === 'vl_item') ||
+    rows.some((r) => r?.cd_produto != null || r?.vl_item != null);
+  return hasItem ? 'ITEM' : 'NOTA';
 }
 ```
 
-Helper novo:
+### 2. Filtrar colunas conforme o nível (grid + export)
+
+Novo helper compartilhado:
 
 ```ts
-export function isAgregavel(c: DrillColumn) {
-  return c.agregavel !== false && c.nivel !== 'NOTA';
+const COLUNAS_NIVEL_NOTA = new Set([
+  'vl_total_nota', 'total_nota', 'vl_nf', 'valor_total_nota',
+  'vl_liquido_nota', 'total_liquido_nota', 'valor_liquido_nota', 'vl_total_liquido',
+]);
+
+export function filterColumnsByNivel(
+  cols: DrillColumn[],
+  nivel: NivelVisualizacao,
+): DrillColumn[] {
+  return cols.filter((c) => {
+    if (nivel === 'ITEM' && (c.nivel === 'NOTA' || COLUNAS_NIVEL_NOTA.has(c.key))) return false;
+    if (nivel === 'NOTA' && c.nivel === 'ITEM') return false;
+    return true;
+  });
 }
 ```
 
-Helper de chave fiscal e contagem distinta:
+`enrichForDisplay` ganha assinatura opcional `enrichForDisplay(resp, nivel?)` e, quando `nivel` é passado, aplica `filterColumnsByNivel` no final. Compatibilidade: sem `nivel`, comportamento atual preservado.
+
+### 3. Rodapé por nível
+
+Substituir a lógica atual de linha TOTAL (`withLiquidoAndTotals`) e o rodapé da grid para respeitarem o nível:
 
 ```ts
-function getNotaKey(row): string { /* codemp|codfil|numnfv|codsnf, com fallback p/ cd_empresa|cd_filial|cd_nf|cd_serie */ }
-export function countDistinctNotas(rows): number { /* Set(getNotaKey) */ }
-```
+export function calcularTotal(
+  col: DrillColumn,
+  rows: DrillRow[],
+  nivel: NivelVisualizacao,
+): number | null {
+  if (!isAgregavel(col)) return null;
+  if (nivel === 'ITEM' && col.nivel === 'NOTA') return null;
+  // NOTA: deduplica por chave fiscal antes de somar colunas de NOTA.
+  const base = nivel === 'NOTA' && col.nivel === 'NOTA' ? getNotasDistintas(rows) : rows;
+  return base.reduce((s, r) => s + toNumberSafe(r[col.key]), 0);
+}
 
-### 2. Deduplicar colunas por `key`
-
-Adicionar `uniqueColumns(cols)` (Map por `c.key`) e aplicar dentro de `fetchComercialDrill` antes de retornar. Isso elimina "Total da Nota / Total Líquido" duplicados quando o backend passar a enviá-los.
-
-### 3. Ajustar `enrichRowsWithNotaTotals`
-
-- Se backend já envia colunas `vl_total_nota`/`total_nota` ou `vl_total_liquido`/`total_liquido_nota` **não injetar**.
-- Ao injetar (fallback legado), marcar as colunas como `{ agregavel: false, nivel: 'NOTA' }`.
-- Manter o cálculo de valor apenas para exibição por linha (não por soma no rodapé).
-
-### 4. Colunas novas "Valor do Item" e "Líquido do Item"
-
-Nova função `injectItemColumns({columns, rows})`:
-
-- Se qualquer linha tem `vl_item`/`valor_item` e a coluna ainda não existe, injetar após `cd_produto`/`ds_produto`:
-  ```ts
-  { key: 'vl_item', label: 'Valor do Item', align: 'right', format: 'currency', agregavel: true, nivel: 'ITEM' }
-  ```
-- Idem para `vl_item_liquido` → `"Líquido do Item"`.
-- Leitura defensiva: `row.vl_item ?? row.valor_item ?? null`. Nunca usar `vl_total_nota` como fallback.
-- Se ausentes, não injetar (colunas somem — não mostrar `—` genérico como pediu o item 16).
-
-Chamar em sequência: `uniqueColumns → enrichRowsWithNotaTotals → injectItemColumns`. Exportar `enrichForDisplay()` unificada usada tanto pela grid quanto pelo XLSX/CSV.
-
-### 5. Rodapé/Totais (grid + exportação)
-
-Nova função `computeFooterRow(cols, rows)`:
-
-```ts
-for (const c of cols) {
-  if (!isAgregavel(c)) { footer[c.key] = null; continue; } // renderiza "—"
-  if (c.format === 'currency' || c.format === 'number') {
-    footer[c.key] = sum(rows, c.key);
+export function getNotasDistintas(rows: DrillRow[]): DrillRow[] {
+  const map = new Map<string, DrillRow>();
+  for (const r of rows) {
+    const k = getNotaKey(r);
+    if (!map.has(k)) map.set(k, r);
   }
+  return Array.from(map.values());
 }
 ```
 
-- **CSV/XLSX** (`withLiquidoAndTotals`): trocar `SKIP_TOTAL_SUM_KEYS` por `!isAgregavel(c)`; célula desses campos vira `""` (Excel) / `—` (visual). Manter cálculo de "Valor Líquido" só se backend não enviar; **não** somar `vl_total_nota` nem `vl_total_liquido`.
-- **Grid** (`ComercialDrillDrawer.tsx`): adicionar rodapé próprio para o drill `DETALHES_IMPOSTOS` (bloco abaixo do `DataTableBI`) com:
-  - Quantidade de itens: `rows.length`
-  - Quantidade de notas: `countDistinctNotas(rows)`
-  - Valor total dos itens: soma de `vl_item`
-  - Total de impostos: soma de `vl_total_impostos` (ou soma de ICMS+PIS+COFINS+IPI+ISS+outros se ausente)
-  - Valor líquido dos itens: soma de `vl_item_liquido`
-- Tooltip nas colunas `vl_total_nota` / `vl_total_liquido` (nivel NOTA) e `vl_item` / `vl_item_liquido` (nivel ITEM) conforme item 15.
+`withLiquidoAndTotals` passa a receber o `nivel` (default inferido) e usa `calcularTotal` — assim colunas não agregáveis ou de nível NOTA em visão ITEM saem vazias no XLSX/CSV, e colunas de nível NOTA em visão NOTA somam sobre notas distintas.
 
-### 6. Agrupamentos e sort/filtro
+### 4. Grid — `ComercialDrillDrawer.tsx`
 
-- `Valor do Item` e `Líquido do Item` entram nas colunas normais → `DataTableBI` já provê sort/filtro numérico (formato `currency`).
-- Regra de agrupamento (quando existir) reaproveita `isAgregavel`. Nenhum agrupador soma `vl_total_nota` por item.
+- Calcular `const nivel = inferNivelVisualizacao(cur.drill_type, resp.columns, resp.rows);`
+- Passar `nivel` ao `enrichForDisplay` → `displayColumns` já vem sem colunas de NOTA no modo ITEM (some totalmente do header do screenshot).
+- Adicionar um bloco de rodapé próprio abaixo do `DataTableBI` apenas para `DETALHES_IMPOSTOS` (nível ITEM), usando `calcularTotal`:
+  - Itens: `rows.length`
+  - Notas: `countDistinctNotas(rows)`
+  - Valor dos Itens: soma de `vl_item`
+  - Total de Impostos: soma de `vl_total_impostos` (fallback ICMS+PIS+COFINS+IPI+ISS+outros)
+  - Líquido dos Itens: soma de `vl_item_liquido`
+- Para `NOTA_FISCAL`, rodapé exibe: Notas = `countDistinctNotas`, Total da Nota, Total Líquido, Total de Impostos — sempre via `calcularTotal(..., 'NOTA')`, deduplicando por `getNotaKey`.
+
+### 5. Exportação (CSV/XLSX)
+
+`downloadDrillCsv`/`downloadDrillXlsx` chamam `withLiquidoAndTotals(resp, nivel)` com o mesmo `nivel` calculado — garante que exportação e grid mostrem exatamente as mesmas colunas e o mesmo total. Nenhuma lista de colunas paralela é mantida.
+
+### 6. Backward-compat
+
+- `NOTA_FISCAL` continua funcionando como hoje (agora com dedupe formal no rodapé). Não altera `NEXT_DRILLS`.
+- Drills sem indício de item/nota (ACUMULADO, MENSAL, ESTADO, etc.) caem no default `NOTA` mas nada muda porque não têm colunas `nivel: 'ITEM'` nem `nivel: 'NOTA'`.
 
 ## Critérios de aceite (NF 20997)
 
-- Grid mostra 2 linhas com `Valor do Item` = R$ 559.000 e R$ 91.000.
-- Rodapé: itens=2, notas=1, valor itens=R$ 650.000,00, impostos=R$ 61.838,48, líquido=R$ 588.161,52.
-- Colunas `Total da Nota` / `Total Líquido da Nota` aparecem uma única vez e mostram `—` no rodapé.
-- CSV/XLSX seguem exatamente as mesmas colunas e totais da grid; sem duplicatas.
-- Impostos (ICMS/PIS/COFINS/IPI/ISS) inalterados.
+- Grid ITEM (`DETALHES_IMPOSTOS`): **não aparece** `Total da Nota` nem `Total Líquido da Nota`.
+- Duas linhas: Item 250000978 = R$ 559.000,00 · Item 250000101 = R$ 91.000,00.
+- Rodapé ITEM: Itens=2 · Notas=1 · Valor dos Itens=R$ 650.000,00 · Impostos=R$ 61.838,48 · Líquido dos Itens=R$ 588.161,52. Nada de R$ 1.300.000,00.
+- Grid NOTA (`NOTA_FISCAL`): uma única linha por NF; NF 20997 aparece uma vez, Total=R$ 650.000,00, Líquido=R$ 588.161,52.
+- CSV/XLSX seguem exatamente as colunas e totais da grid do mesmo nível.
+- Impostos por item (ICMS/PIS/COFINS/IPI/ISS) inalterados.
 
 ## Detalhes técnicos
 
-- Tipagem: `DrillColumn.agregavel?: boolean; nivel?: 'ITEM'|'NOTA'`.
-- Backward-compat: colunas sem `agregavel` continuam agregando (default `true`), exceto se `nivel === 'NOTA'`.
-- Sem alterações em `comercialDrillContract.ts`, `comercialDrillCatalog.ts` ou hooks.
-- Reset de estado / restart do dev server não necessário; após deploy, o usuário reinicia a API na 8070 para os novos campos aparecerem.
+- Novos exports em `comercialDrillApi.ts`: `NivelVisualizacao`, `inferNivelVisualizacao`, `filterColumnsByNivel`, `calcularTotal`, `getNotasDistintas`.
+- `enrichForDisplay(resp, nivel?)` e `withLiquidoAndTotals(resp, nivel?)` — parâmetro opcional para não quebrar chamadores existentes.
+- Rodapé da grid renderizado dentro do `ComercialDrillDrawer` (fora do `DataTableBI`) para evitar acoplar a lib genérica ao contrato de impostos.
+- Nenhuma alteração em `comercialDrillContract.ts`, `comercialDrillCatalog.ts`, hooks ou endpoints.
