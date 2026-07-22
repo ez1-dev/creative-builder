@@ -82,10 +82,17 @@ export function useComercialDrillStack() {
         const cur = prev.levels[prev.levels.length - 1];
         const newCtx = mergeCtx(cur?.contexto || {}, rowFilters, next, { keepAll });
         const added = diffAddedFilter(cur?.contexto || {}, newCtx);
+        const inheritedNfContext = cur?.nfContext ?? 'TODAS';
         return {
           ...prev,
           selectorOpen: false,
-          levels: [...prev.levels, { drill_type: next, contexto: newCtx, page: 1, addedFilter: added }],
+          levels: [...prev.levels, {
+            drill_type: next,
+            contexto: newCtx,
+            page: 1,
+            addedFilter: added,
+            nfContext: inheritedNfContext,
+          }],
         };
       });
     },
