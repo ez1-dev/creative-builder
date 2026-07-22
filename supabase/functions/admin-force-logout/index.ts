@@ -39,6 +39,64 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
+    const scope: string | undefined = body?.scope;
+    const currentUserId = userData.user.id;
+
+    // ============ MODO EM MASSA ============
+    if (scope === 'all') {
+      const onlyOnline: boolean = body?.onlyOnline !== false; // default true
+      let targetIds: string[] = [];
+
+      if (onlyOnline) {
+        const since = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+        const { data: sessions, error: sErr } = await admin
+          .from('user_sessions')
+          .select('user_id')
+          .gte('last_seen_at', since);
+        if (sErr) throw sErr;
+        targetIds = Array.from(new Set((sessions ?? []).map((s: any) => s.user_id).filter(Boolean)));
+      } else {
+        // todos os usuários da base
+        const { data: users, error: uErr } = await admin.auth.admin.listUsers({ perPage: 1000 });
+        if (uErr) throw uErr;
+        targetIds = (users?.users ?? []).map((u) => u.id);
+      }
+
+      // não derrubar o próprio admin
+      targetIds = targetIds.filter((id) => id !== currentUserId);
+
+      let ok = 0;
+      let falhas = 0;
+      const nowIso = new Date().toISOString();
+
+      for (const id of targetIds) {
+        try {
+          // @ts-ignore
+          await admin.auth.admin.signOut(id, 'global');
+          ok++;
+        } catch (e) {
+          console.warn('signOut falhou para', id, e);
+          falhas++;
+        }
+      }
+
+      if (targetIds.length > 0) {
+        try {
+          await admin
+            .from('user_sessions')
+            .update({ force_logout_at: nowIso })
+            .in('user_id', targetIds);
+        } catch (e) {
+          console.warn('update user_sessions em massa falhou:', e);
+        }
+      }
+
+      return new Response(JSON.stringify({ ok: true, total: targetIds.length, sucesso: ok, falhas }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ============ MODO INDIVIDUAL ============
     const targetUserId: string | undefined = body?.userId;
     if (!targetUserId || typeof targetUserId !== 'string') {
       return new Response(JSON.stringify({ error: 'userId obrigatório' }), {
@@ -46,21 +104,19 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (targetUserId === userData.user.id) {
+    if (targetUserId === currentUserId) {
       return new Response(JSON.stringify({ error: 'Não é possível derrubar a própria sessão' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Revoga refresh tokens (logout global)
     try {
-      // @ts-ignore — método disponível em supabase-js admin
+      // @ts-ignore
       await admin.auth.admin.signOut(targetUserId, 'global');
     } catch (e) {
       console.warn('signOut admin falhou (seguindo com flag):', e);
     }
 
-    // Marca flag em user_sessions para o cliente cair imediatamente no próximo heartbeat
     await admin
       .from('user_sessions')
       .update({ force_logout_at: new Date().toISOString() })
