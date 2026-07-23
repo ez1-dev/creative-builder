@@ -21,6 +21,7 @@ import { formatCurrency, formatNumberBR } from '@/lib/format';
 import { CODEMP } from '@/lib/contabilConfig';
 import { useIndicadores } from '@/hooks/contabil/useIndicadores';
 import { streamIndicadoresAnalise, downloadIndicadoresExcel } from '@/lib/contabil/indicadoresApi';
+import { normalizarNarrativa, narrativaTruncada } from '@/lib/contabil/indicadoresNarrativa';
 import { gerarPdfIndicadores } from '@/lib/contabil/indicadoresRelatorio';
 import type { Indicador, IndicadorUnidade, IndicadorStatus } from '@/lib/contabil/indicadoresApi';
 
@@ -209,6 +210,7 @@ export default function IndicadoresContabeisPage() {
   const [streamStatus, setStreamStatus] = useState<StreamStatus>('idle');
   const [streamErro, setStreamErro] = useState<string | undefined>();
   const [modeloIA, setModeloIA] = useState<string | undefined>();
+  const [finishReason, setFinishReason] = useState<string | undefined>();
   const streamAbortRef = useRef<AbortController | null>(null);
 
   // Abortar stream ativo ao trocar filtros/desmontar
@@ -225,6 +227,7 @@ export default function IndicadoresContabeisPage() {
     setStreamStatus('idle');
     setStreamErro(undefined);
     setModeloIA(undefined);
+    setFinishReason(undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anomesIni, anomesFim, codemp, codfil]);
 
@@ -252,12 +255,16 @@ export default function IndicadoresContabeisPage() {
     setNarrativaStream('');
     setStreamErro(undefined);
     setModeloIA(undefined);
+    setFinishReason(undefined);
     setStreamStatus('streaming');
     await streamIndicadoresAnalise(params, {
       signal: ctrl.signal,
       onMeta: (m) => { if (m?.modelo) setModeloIA(m.modelo); },
       onDelta: (t) => setNarrativaStream((prev) => prev + t),
-      onDone: () => setStreamStatus('done'),
+      onDone: (info) => {
+        if (info?.finish_reason) setFinishReason(String(info.finish_reason));
+        setStreamStatus('done');
+      },
       onErro: (msg) => {
         setStreamErro(msg);
         setStreamStatus('erro');
@@ -305,8 +312,13 @@ export default function IndicadoresContabeisPage() {
   };
 
   const narrativa = narrativaStream;
+  const narrativaFmt = useMemo(() => normalizarNarrativa(narrativa), [narrativa]);
   const analiseErro = streamErro;
   const analiseCarregando = streamStatus === 'streaming';
+  const truncada = useMemo(
+    () => streamStatus === 'done' && narrativaTruncada(narrativa, finishReason),
+    [streamStatus, narrativa, finishReason],
+  );
 
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-[1600px] mx-auto">
@@ -490,15 +502,44 @@ export default function IndicadoresContabeisPage() {
                   <AlertDescription className="text-xs">{analiseErro}</AlertDescription>
                 </Alert>
               )}
+              {truncada && narrativa && (
+                <Alert className="border-[hsl(var(--warning))]/50 bg-[hsl(var(--warning))]/5">
+                  <AlertTriangle className="h-4 w-4 text-[hsl(var(--warning))]" />
+                  <AlertTitle className="text-xs">Resposta cortada pelo limite do modelo</AlertTitle>
+                  <AlertDescription className="text-xs flex flex-wrap items-center gap-2">
+                    <span>
+                      A IA atingiu o limite de tokens antes de terminar a análise. Clique em
+                      <strong> Gerar novamente </strong> para tentar uma nova redação.
+                    </span>
+                    <Button size="sm" variant="outline" onClick={gerarAnalise} disabled={analiseCarregando}>
+                      <Sparkles className="h-3 w-3 mr-1" /> Gerar novamente
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
               {narrativa && (
-                <div className="prose prose-sm max-w-3xl text-sm dark:prose-invert">
-                  <ReactMarkdown>{narrativa}</ReactMarkdown>
-                  {modeloIA && (
-                    <p className="text-[10px] text-muted-foreground mt-2">
-                      Modelo: {modeloIA}
-                    </p>
+                <article
+                  className={cn(
+                    'rounded-lg border bg-card px-5 py-4 max-w-[900px]',
+                    'text-[13.5px] leading-relaxed text-foreground',
+                    'prose prose-sm dark:prose-invert',
+                    'prose-headings:font-semibold prose-headings:tracking-tight',
+                    'prose-h2:text-primary prose-h2:text-[13px] prose-h2:uppercase prose-h2:tracking-wider',
+                    'prose-h2:mt-5 prose-h2:mb-2 prose-h2:pb-1 prose-h2:border-b prose-h2:border-border',
+                    'prose-p:my-2 prose-p:text-foreground/90',
+                    'prose-strong:text-foreground prose-strong:font-semibold',
+                    'prose-ul:my-2 prose-li:my-0.5 marker:text-primary',
+                    'prose-code:text-primary prose-code:bg-primary/5 prose-code:px-1 prose-code:rounded',
                   )}
-                </div>
+                >
+                  <ReactMarkdown>{narrativaFmt}</ReactMarkdown>
+                  <div className="mt-3 pt-3 border-t border-border/60 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-muted-foreground">
+                    {modeloIA && <span>Modelo: <strong className="text-foreground/80">{modeloIA}</strong></span>}
+                    <span>Período: {anomesIni} – {anomesFim}</span>
+                    <span>{narrativa.length.toLocaleString('pt-BR')} caracteres</span>
+                    {finishReason && <span>finish_reason: {finishReason}</span>}
+                  </div>
+                </article>
               )}
             </CardContent>
           </Card>

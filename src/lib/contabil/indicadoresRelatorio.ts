@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Indicador, IndicadorUnidade } from './indicadoresApi';
+import { normalizarNarrativa } from './indicadoresNarrativa';
 import { formatCurrency, formatNumberBR } from '@/lib/format';
 
 function fmtValor(v: number | null, unidade: IndicadorUnidade): string {
@@ -128,7 +129,7 @@ export function gerarPdfIndicadores(p: GerarPdfIndicadoresParams): void {
   doc.setTextColor(40);
 
   const texto = p.narrativa?.trim()
-    ? stripMarkdown(p.narrativa)
+    ? stripMarkdown(normalizarNarrativa(p.narrativa))
     : 'Análise da IA não gerada nesta sessão.';
   const linhas = doc.splitTextToSize(texto, pageW - marginX * 2);
   const pageH = doc.internal.pageSize.getHeight();

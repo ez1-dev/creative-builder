@@ -1,48 +1,60 @@
-## Objetivo
+## Diagnóstico
 
-Corrigir três defeitos do **Dashboard Geral** apontados na revisão de 23/07/2026, todos no frontend:
+**1. Texto truncado ("...frente ao E")**
+O corte no meio da palavra é característico de limite de tokens do modelo no backend (a rota `/api/contabil/indicadores/analise/stream` fecha o SSE quando o LLM atinge `max_tokens`). O frontend consome o stream corretamente (buffer + `split('\n\n')` + flush do resto no `finally`), então a causa não é parser client-side. **Confirmação pendente** — só a resposta real do backend pode fechar o diagnóstico; por isso o plano inclui checagem e um caminho de mitigação no cliente.
 
-1. **Headcount** mostra 1.000 (cap de paginação) — deve ser 404 (KPI do endpoint de dashboard de RH).
-2. **% de crescimento do Faturamento** compara bases diferentes (mês corrente vs YTD anterior) → 443,8%.
-3. **Gráficos "Compras — 12 meses" e "Turnover — 12 meses"** vazios/zerados quando o período selecionado é curto (mês atual/anterior).
+**2. Layout pobre da narrativa**
+Hoje é `prose prose-sm max-w-3xl` num container `max-w-[1600px]`. Como o backend devolve o texto sem `##`/`**` em alguns pontos (títulos "Resumo", "Rentabilidade" saem como linha simples), o `ReactMarkdown` não estiliza seções e o bloco fica um paredão único, estreito e cinza.
 
-Itens 2/5 do prompt (Resultado DRE, Ativo Total, cards corretos) já estão OK após restart do backend — nenhuma mudança no front nesse turno.
+## Alterações
 
-## Escopo
+### A. Backend (arquivo de spec para o time da API)
+Criar `docs/backend-contabil-indicadores-analise-truncamento.md` pedindo:
+- Aumentar `max_tokens` da análise (hoje aparentemente ~1500) para no mínimo `4096`.
+- Emitir `event: done` com `finish_reason` (`stop` | `length`) para o front detectar corte.
+- Opcional: aceitar `?continuar=1&depois_de=<hash>` para gerar continuação.
 
-### 1. Headcount pelo KPI oficial
-Arquivo: `src/hooks/dashboardGeral/useRh.ts`
-- Remover a leitura via `fetchQuadroColaboradores()` (lista paginada em 1000).
-- Adicionar `fetchQuadroDashboard(dataRef)` (já existe em `src/lib/rh/quadroDashboardApi.ts`) com `data_ref = último dia do mês final do range` (YYYY-MM-DD).
-- `kpis.headcount` passa a vir de `dash.kpis.total` (fallback: `colaboradores` / `total_colaboradores` já cobertos pelo normalizador).
-- Manter `fetchQuadroColaboradores()` **apenas** para o breakdown por `setor` (a lista bruta é a única fonte disso hoje); se `quadro.length >= 1000` (cap), exibir um aviso silencioso no console — sem afetar KPIs.
-- Series (`headcount`, `turnover_mes`) e demais KPIs continuam vindo do endpoint de turnover, sem alteração.
+### B. Frontend — `src/pages/contabilidade/IndicadoresContabeisPage.tsx`
+Melhorar o painel "Análise (IA)":
+- Container mais largo e legível: trocar `max-w-3xl` por `max-w-[900px]` com `columns` desabilitado, `leading-relaxed`, `text-[13.5px]`.
+- Pré-processar a narrativa antes de passar ao `ReactMarkdown`:
+  - Detectar linhas curtas em negrito ou títulos conhecidos ("Resumo", "Rentabilidade", "Liquidez", "Endividamento", "Capital de giro", "Riscos", "Recomendações") e prefixar `## ` para virarem headings visuais.
+  - Quebrar parágrafos longos em `\n\n` quando encontrar sentenças coladas com `. `.
+- Estilo shadcn (via classes utilitárias, sem cor hardcoded):
+  - `h2` (### seção): borda inferior sutil, cor `text-primary`, `text-sm uppercase tracking-wider`.
+  - `strong`: `text-foreground font-semibold`.
+  - Realces monetários (regex `R\$\s*-?[\d\.,]+`) envoltos em `<span class="tabular-nums font-medium">` via `components.p` custom do ReactMarkdown.
+  - Listas com marcadores azuis (`marker:text-primary`).
+- Cabeçalho do card ganha metadados: período analisado, modelo, contagem de caracteres recebidos.
 
-### 2. % de crescimento do Faturamento com bases equivalentes
-Arquivo: `src/hooks/dashboardGeral/useComercial.ts` + helper novo em `src/lib/dashboardGeral/aggregator.ts`
-- Adicionar helper `rangeAnteriorEquivalente(range, periodo)`:
-  - `mes_atual` → mês anterior (mesmo tamanho: 1 mês)
-  - `mes_anterior` → 2 meses atrás
-  - `ytd` → **YTD do ano anterior** (Jan/anoAnterior → mesmo mês do ano anterior)
-  - `ult_12m` → 12 meses anteriores aos 12 exibidos
-- Substituir a segunda query (`rangeAnt = rangeFor('mes_anterior')` fixo) por `rangeAnteriorEquivalente(range, periodo)` — assim `delta_pct` sempre compara janelas do mesmo tamanho.
-- Sem mudança visual no card além do valor do %.
+### C. Frontend — detector de truncamento
+Em `src/lib/contabil/indicadoresApi.ts`:
+- Propagar `finish_reason` no `onDone` (`AnaliseStreamHandlers`).
+- Considerar truncado quando: `finish_reason === 'length'` **ou** heurística — texto não termina com `.`, `!`, `?`, `)`, `"` e o último token não é palavra completa (última "palavra" com <3 chars após espaço ou sem pontuação final).
 
-### 3. Séries "Compras 12m" e "Turnover 12m" sempre com 12 pontos
-Os endpoints devolvem `por_mes` apenas dentro do range solicitado. Quando o card está em "mês atual", `por_mes` traz 1 ponto.
+Na página, quando truncado:
+- Banner `Alert` amarelo "Resposta cortada pelo limite do modelo".
+- Botão "Continuar análise" que reabre o stream (chama backend com flag; enquanto o backend não suporta, apenas re-gera).
 
-- `src/hooks/dashboardGeral/useCompras.ts`: adicionar **segunda query** com range fixo de últimos 12 meses (`rangeFor('ult_12m')`) só para popular `series.compras_mes`. KPIs continuam usando o range do card.
-- `src/hooks/dashboardGeral/useRh.ts`: adicionar **query extra** de turnover com `rangeFor('ult_12m')` para alimentar `series.headcount` e `series.turnover_mes`. KPIs seguem o range do card.
-- Ajustar rótulos dos gráficos correspondentes na tela (`src/pages/DashboardGeralPage.tsx` — só o texto do subtítulo se necessário; título "12 meses" fica coerente).
+### D. PDF
+`src/lib/contabil/indicadoresRelatorio.ts` já recebe `narrativa` — aplicar o mesmo pré-processamento de títulos antes do `splitTextToSize` para o PDF acompanhar o novo layout.
 
 ## Fora de escopo
-- Contabilidade (item 2 do prompt): backend já corrigido; frontend hoje usa `getBalancoPatrimonial` + `fetchDreRealizadoResumo` (não `resultado-pronto`), portanto sem mudança.
-- Turnover mensal vs acumulado (item 5): valor está correto.
-- Novos filtros, novo layout, novos endpoints.
+- Alterar cálculo/agrupamento dos indicadores.
+- Trocar o modelo de IA usado no backend.
+- Persistir análise (continua por sessão).
 
 ## Detalhes técnicos
 
-- `dataRef` = último dia do mês `range.fim` (converter via `anomesToDate(range.fim, true)` já disponível em `shared.ts`).
-- `rangeAnteriorEquivalente('ytd', ref)` = `{ ini: (anoRef-1)01, fim: (anoRef-1)mesRef }`.
-- Todas as queries novas herdam o mesmo `staleTime`/`gcTime`/`retry: 0`/`keepPreviousData` das demais.
-- Chaves de cache incluem o range para não colidir com a query dos KPIs.
+```text
+Fluxo do stream (após mudanças)
+ backend SSE ──► streamIndicadoresAnalise
+     event: meta   → { modelo, periodo }
+     event: delta  → { text }
+     event: done   → { chars, finish_reason }   ◄─ NOVO campo
+     event: erro   → { erro }
+ UI:
+   narrativaStream (append)
+   finishReason  ─► trunc? → Alert + botão Continuar
+   narrativa pré-processada → ReactMarkdown estilizado
+```
