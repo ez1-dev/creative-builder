@@ -78,7 +78,6 @@ export const TOP_MENUS: TopMenu[] = [
           { title: 'Contas a Receber', url: '/contas-receber', icon: Landmark },
           { title: 'DRE Padrão', url: '/contabilidade/dre-padrao', icon: Landmark },
           { title: 'Indicadores Contábeis', url: '/contabilidade/indicadores', icon: BarChart3 },
-          { title: 'Indicadores Contábeis', url: '/contabilidade/indicadores', icon: BarChart3 },
           // { title: 'Balanço Padrão', url: '/contabilidade/balanco-padrao', icon: Landmark }, // TODO: reativar na próxima entrega
           { title: 'Balanço Patrimonial (avançado)', url: '/contabilidade/balanco', icon: Landmark },
           { title: 'DRE Studio — Visão Geral', url: '/contabilidade/dre-studio', icon: Landmark },
