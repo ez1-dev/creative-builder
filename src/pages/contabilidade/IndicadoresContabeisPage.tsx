@@ -547,7 +547,14 @@ export default function IndicadoresContabeisPage() {
         </div>
       )}
 
-      <DetalheDrawer ind={detalhe} onClose={() => setDetalhe(null)} />
+      <DrillIndicadorDrawer
+        indicador={detalhe}
+        anomesIni={anomesIni}
+        anomesFim={anomesFim}
+        codemp={codemp}
+        codfil={codfil}
+        onClose={() => setDetalhe(null)}
+      />
     </div>
   );
 }
