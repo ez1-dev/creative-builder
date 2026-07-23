@@ -180,6 +180,37 @@ export default function FluxoCaixaPage() {
 
   const anyLoading = projecao.isFetching || direto.isFetching || indireto.isFetching;
 
+  // ---- Drill drawer state ----
+  const [drillCtx, setDrillCtx] = useState<FCDrillContext | null>(null);
+  const abrirDrillProjecao = (params: Record<string, any>, titulo: string, subTitulo?: string) => {
+    setDrillCtx({
+      modo: 'projecao', titulo, subTitulo,
+      params: { codemp, codfil, ...params } as any,
+    });
+  };
+  const abrirDrillDireto = (cat: DiretoCategoria) => {
+    if (!cat.drill?.origem) return;
+    setDrillCtx({
+      modo: 'direto',
+      titulo: `Lançamentos — ${cat.categoria}`,
+      params: {
+        origem: cat.drill.origem,
+        anomes_ini: anomesIni, anomes_fim: anomesFim,
+        codemp, codfil,
+        ...(cat.drill.params || {}),
+      },
+    });
+  };
+  const abrirDrillIndireto = (it: IndiretoItem) => {
+    if (!it.drill) return;
+    setDrillCtx({
+      modo: 'indireto',
+      titulo: it.descricao,
+      ptr: it.drill,
+      anomesIni, anomesFim, codemp, codfil,
+    });
+  };
+
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-[1600px] mx-auto">
       {/* Header */}
