@@ -303,12 +303,12 @@ export default function KardexPage() {
                 <p className="text-[10px] uppercase text-muted-foreground">Total de movimentos</p>
                 <p className="text-sm tabular-nums">{formatNumberBR(data.total_movimentos, 0)}</p>
               </div>
-              {(data.resumo.transferencias_qtd || 0) > 0 && (
+              {((data.resumo.transferencias_qtd || 0) !== 0 || (data.resumo.transferencias_valor || 0) !== 0) && (
                 <div>
                   <p className="text-[10px] uppercase text-muted-foreground">Transferências</p>
                   <p className="text-sm tabular-nums text-sky-600 dark:text-sky-400">
                     {formatNumberBR(data.resumo.transferencias_qtd || 0, 3)}
-                    {(data.resumo.transferencias_valor || 0) > 0 && (
+                    {(data.resumo.transferencias_valor || 0) !== 0 && (
                       <> · {formatCurrency(data.resumo.transferencias_valor || 0)}</>
                     )}
                   </p>
