@@ -27,11 +27,14 @@ import { cn } from '@/lib/utils';
 import { formatCurrency, formatCompactCurrency } from '@/lib/format';
 import { CODEMP } from '@/lib/contabilConfig';
 import {
-  fetchProjecao, fetchDireto, fetchIndireto,
+  fetchProjecao, fetchDireto, fetchIndireto, fetchDiretoPorPeriodo,
   streamFluxoCaixaAnalise, downloadFluxoCaixaExcel,
   type ProjecaoResponse, type DiretoResponse, type IndiretoResponse, type IndiretoAtividade,
   type CurvaPonto, type DiretoCategoria, type IndiretoItem,
+  type DiretoPorPeriodoResponse, type DiretoPorPeriodoLinha, type DiretoPorPeriodoCelula,
 } from '@/lib/contabil/fluxoCaixaApi';
+import { anomesToLabel } from '@/lib/contabil/anomes';
+
 import { normalizarNarrativa, narrativaTruncada } from '@/lib/contabil/indicadoresNarrativa';
 import {
   FluxoCaixaDrillDrawer, periodoParaDatas, type FCDrillContext,
@@ -201,6 +204,25 @@ export default function FluxoCaixaPage() {
       },
     });
   };
+  const abrirDrillDiretoCustom = (
+    origem: string,
+    ini: number,
+    fim: number,
+    titulo: string,
+    extraParams?: Record<string, any>,
+  ) => {
+    setDrillCtx({
+      modo: 'direto',
+      titulo,
+      params: {
+        origem,
+        anomes_ini: ini, anomes_fim: fim,
+        codemp, codfil,
+        ...(extraParams || {}),
+      },
+    });
+  };
+
   const abrirDrillIndireto = (it: IndiretoItem) => {
     if (!it.drill) return;
     setDrillCtx({
@@ -285,7 +307,14 @@ export default function FluxoCaixaPage() {
         <TabsContent value="direto" className="space-y-4">
           {direto.isLoading && <Skeleton className="h-64" />}
           {direto.error && <ErroBox err={direto.error as Error} />}
-          {direto.data && <DiretoBloco data={direto.data} onOpenDrill={abrirDrillDireto} />}
+          {direto.data && (
+            <DiretoBloco
+              data={direto.data}
+              onOpenDrill={abrirDrillDireto}
+              onOpenDrillCustom={abrirDrillDiretoCustom}
+              paramsBase={paramsBase}
+            />
+          )}
         </TabsContent>
 
         {/* ============ INDIRETO ============ */}
@@ -677,8 +706,13 @@ function ConciliadoBadge({ conciliado, residual }: { conciliado: boolean; residu
 }
 
 function DiretoBloco({
-  data, onOpenDrill,
-}: { data: DiretoResponse; onOpenDrill: (c: DiretoCategoria) => void }) {
+  data, onOpenDrill, onOpenDrillCustom, paramsBase,
+}: {
+  data: DiretoResponse;
+  onOpenDrill: (c: DiretoCategoria) => void;
+  onOpenDrillCustom: (origem: string, ini: number, fim: number, titulo: string, extraParams?: Record<string, any>) => void;
+  paramsBase: { anomes_ini: number; anomes_fim: number; codemp: number; codfil?: number };
+}) {
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -756,9 +790,171 @@ function DiretoBloco({
           </div>
         </CardContent>
       </Card>
+
+      <DiretoPorPeriodoBloco
+        paramsBase={paramsBase}
+        variacaoAgregada={data.variacao_liquida}
+        onOpenDrillCustom={onOpenDrillCustom}
+      />
     </>
   );
 }
+
+function DiretoPorPeriodoBloco({
+  paramsBase, variacaoAgregada, onOpenDrillCustom,
+}: {
+  paramsBase: { anomes_ini: number; anomes_fim: number; codemp: number; codfil?: number };
+  variacaoAgregada: number;
+  onOpenDrillCustom: (origem: string, ini: number, fim: number, titulo: string, extraParams?: Record<string, any>) => void;
+}) {
+  const q = useQuery({
+    queryKey: ['fc-direto-periodo', paramsBase],
+    queryFn: () => fetchDiretoPorPeriodo(paramsBase),
+  });
+
+  if (q.isLoading) {
+    return (
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">Detalhe por período (mês a mês)</CardTitle></CardHeader>
+        <CardContent><Skeleton className="h-40" /></CardContent>
+      </Card>
+    );
+  }
+  if (q.error) {
+    return (
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">Detalhe por período (mês a mês)</CardTitle></CardHeader>
+        <CardContent><ErroBox err={q.error as Error} /></CardContent>
+      </Card>
+    );
+  }
+  if (!q.data) return null;
+
+  const data = q.data;
+  const meses = data.meses || [];
+  const totaisMes: Record<number, DiretoPorPeriodoResponse['totais_por_mes'][number]> = {};
+  (data.totais_por_mes || []).forEach((t) => { totaisMes[t.anomes] = t; });
+
+  const difReconc = Math.abs((data.variacao_liquida_total ?? 0) - (variacaoAgregada ?? 0));
+  const reconcila = difReconc <= 0.01;
+
+  const openCell = (linha: DiretoPorPeriodoLinha, celula: DiretoPorPeriodoCelula) => {
+    const origem = linha.drill?.origem;
+    if (!origem) return;
+    const extras = { ...(linha.drill?.params || {}), ...(celula.drill?.params || {}) };
+    onOpenDrillCustom(
+      origem, celula.anomes, celula.anomes,
+      `${linha.categoria} — ${anomesToLabel(celula.anomes)}`,
+      extras,
+    );
+  };
+
+  const openTotalLinha = (linha: DiretoPorPeriodoLinha) => {
+    const origem = linha.drill?.origem;
+    if (!origem) return;
+    onOpenDrillCustom(
+      origem, paramsBase.anomes_ini, paramsBase.anomes_fim,
+      `${linha.categoria} — período completo`,
+      linha.drill?.params,
+    );
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center justify-between gap-2">
+          <span>Detalhe por período (mês a mês)</span>
+          {!reconcila && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="outline" className="border-[hsl(var(--warning))]/50 text-[hsl(var(--warning))] cursor-help">
+                    <AlertTriangle className="h-3 w-3 mr-1" /> dif.
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent className="text-xs max-w-xs">
+                  Matriz: {fmt(data.variacao_liquida_total)} · Agregado: {fmt(variacaoAgregada)} ·
+                  Diferença: {fmt(data.variacao_liquida_total - variacaoAgregada)}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <th className="text-left px-4 py-2 sticky left-0 bg-muted/60 z-10">Categoria</th>
+                {meses.map((m) => (
+                  <th key={m} className="text-right px-3 py-2">{anomesToLabel(m)}</th>
+                ))}
+                <th className="text-right px-4 py-2 border-l border-border">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(data.linhas || []).map((linha, i) => {
+                const podeLinhaDrill = !!linha.drill?.origem;
+                return (
+                  <tr key={`${linha.categoria}-${i}`} className="border-t border-border/60 hover:bg-muted/20">
+                    <td className="px-4 py-2 font-medium sticky left-0 bg-card z-10">
+                      <div className="flex items-center gap-2">
+                        <span>{linha.categoria}</span>
+                        <AtividadeBadge atv={linha.atividade} />
+                      </div>
+                    </td>
+                    {meses.map((m) => {
+                      const cel = linha.celulas.find((c) => c.anomes === m);
+                      const val = cel?.liquido ?? 0;
+                      const podeDrill = !!(cel && linha.drill?.origem);
+                      return (
+                        <td key={m} className="px-3 py-2 text-right tabular-nums">
+                          {podeDrill && cel ? (
+                            <button
+                              className="hover:underline decoration-dotted underline-offset-2 tabular-nums"
+                              onClick={() => openCell(linha, cel)}
+                            >
+                              <ValorPN v={val} />
+                            </button>
+                          ) : <ValorPN v={val} />}
+                        </td>
+                      );
+                    })}
+                    <td className="px-4 py-2 text-right font-semibold border-l border-border">
+                      {podeLinhaDrill ? (
+                        <button
+                          className="hover:underline decoration-dotted underline-offset-2"
+                          onClick={() => openTotalLinha(linha)}
+                        >
+                          <ValorPN v={linha.total_liquido} />
+                        </button>
+                      ) : <ValorPN v={linha.total_liquido} />}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot className="bg-muted/30 font-semibold">
+              <tr className="border-t border-border">
+                <td className="px-4 py-2 sticky left-0 bg-muted/50 z-10">Var. do caixa</td>
+                {meses.map((m) => (
+                  <td key={m} className="px-3 py-2 text-right">
+                    <ValorPN v={totaisMes[m]?.liquido ?? 0} />
+                  </td>
+                ))}
+                <td className="px-4 py-2 text-right border-l border-border">
+                  <ValorPN v={data.variacao_liquida_total} />
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 
 function AtividadeBadge({ atv }: { atv: string }) {
   const cls =

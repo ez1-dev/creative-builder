@@ -1,44 +1,72 @@
-# Drill-down na tela Fluxo de Caixa
+# DFC Direto — visão "por período" (matriz mês × categoria) com drill em cada célula
 
-O restante do prompt (Projeção com gráfico + saldo editável, cards de Vencidos, Direto conciliado, Indireto em 3 blocos, IA via SSE e exportação Excel) já está implementado em `src/pages/contabilidade/FluxoCaixaPage.tsx` e `src/lib/contabil/fluxoCaixaApi.ts`. Esta iteração cobre apenas o que é novo no prompt de 23/07: **drill-down** a partir de cada visão.
+Adiciona a terceira dimensão do fluxo de caixa realizado: além do agregado do intervalo, a evolução mês a mês, navegável célula a célula até o lançamento. Total da matriz reconcilia com o DFC Direto agregado.
 
-## O que muda
+## 1. `src/lib/contabil/fluxoCaixaApi.ts` — novo endpoint
 
-### 1. `src/lib/contabil/fluxoCaixaApi.ts` — novos endpoints
-- `fetchDiretoDrill({ origem, anomes_ini, anomes_fim, codemp, codfil?, limite? })` → `GET /api/contabil/fluxo-caixa/direto/drill`. Tipos: `lancamentos[]` (lancamento, data, conta_caixa, tipo, valor, historico, usuario), `total_lancamentos`, `truncado`.
-- `fetchProjecaoDrill({ tipo:'receber'|'pagar', venc_ini, venc_fim, vencidos?, codemp, codfil? })` → `GET /api/contabil/fluxo-caixa/projecao/drill`. Tipos: `titulos[]` (titulo, parceiro_codigo, parceiro, vencimento, valor_aberto), `total`, `total_titulos`.
-- Ampliar tipos existentes para incluir campos opcionais `drill` vindos do backend:
-  - `DiretoCategoria.drill?: { origem: string; params?: Record<string, unknown> }`
-  - `CurvaPonto.drill?: { receber?: {...}; pagar?: {...} }`
-  - `ProjecaoResponse.vencidos.drill?: { receber?: {...}; pagar?: {...} }`
-  - `IndiretoItem.drill?: { tipo:'aglutinador'|'razao'; codagl?: number; contas?: string[]; params?: Record<string, unknown> }`
+Adicionar tipos e função para `GET /api/contabil/fluxo-caixa/direto/por-periodo`.
 
-### 2. Novo componente `src/components/contabil/FluxoCaixaDrillDrawer.tsx`
-Drawer único que renderiza três modos conforme o tipo do drill acionado:
-- **Modo `direto`**: tabela de lançamentos (data, conta caixa, tipo E/S com badge, valor, histórico truncado com tooltip, usuário). Badge "truncado" + botão "Aumentar limite" (dobra `limite`, refaz fetch) quando `truncado:true`. Rodapé com `total_lancamentos` e soma.
-- **Modo `projecao`**: tabela de títulos (título, parceiro, vencimento, valor_aberto), agrupável por parceiro (toggle). Cabeçalho mostra período/balde e se é `vencidos=true` (badge âmbar "Vencidos").
-- **Modo `indireto→aglutinador`**: reaproveita `DrillAglutinadorTree` já existente (via `DrillIndicadorDrawer` ou renderizando a árvore direto passando `codagl`).
-- **Modo `indireto→razao`**: reaproveita `DrillDrawer` (razão) já existente por conta.
+```ts
+export interface DiretoPorPeriodoCelula {
+  anomes: number;               // 202601 ...
+  entradas: number;
+  saidas: number;
+  liquido: number;
+  drill?: DiretoDrillPtr;       // origem + params já com anomes_ini=anomes_fim=anomes
+}
+export interface DiretoPorPeriodoLinha {
+  categoria: string;
+  atividade: AtividadeFC | string;
+  celulas: DiretoPorPeriodoCelula[];    // uma por mês, na ordem de meses[]
+  total_entradas: number;
+  total_saidas: number;
+  total_liquido: number;
+  drill?: DiretoDrillPtr;               // drill agregado (opcional)
+}
+export interface DiretoPorPeriodoResponse {
+  meses: number[];                              // ex.: [202601..202606]
+  linhas: DiretoPorPeriodoLinha[];
+  totais_por_mes: { anomes: number; liquido: number; entradas: number; saidas: number }[];
+  variacao_liquida_total: number;               // deve bater com DiretoResponse.variacao_liquida
+  [k: string]: any;
+}
 
-Estado (`loading`, `erro`, `dados`) e cancelamento via `AbortController`.
+export function fetchDiretoPorPeriodo(params: RealizadoParams):
+  Promise<DiretoPorPeriodoResponse> {
+  return contabilApi.get('/api/contabil/fluxo-caixa/direto/por-periodo',
+    { codemp: 1, ...params }, { timeoutMs: 60000 });
+}
+```
 
-### 3. `src/pages/contabilidade/FluxoCaixaPage.tsx` — tornar números clicáveis
-- **Aba Projeção**:
-  - Cards `Vencidos.receber` e `Vencidos.pagar` viram botões → abrem drawer modo `projecao` com `vencidos=true`.
-  - Gráfico: onClick num ponto/mês da curva → menu com "Ver a receber" / "Ver a pagar" para o período correspondente (calcular `venc_ini`/`venc_fim` a partir do `periodo` — mês `AAAA-MM` ou semana `AAAA-Www`).
-  - Tabela auxiliar da curva: colunas Entradas/Saídas viram links.
-- **Aba Direto**: cada linha da tabela de categorias com `drill` → clique abre drawer modo `direto` usando `drill.origem` e o período já selecionado.
-- **Aba Indireto**: cada `IndiretoItem` com `drill` vira link → abre drawer no modo apropriado (aglutinador ou razão), passando pelos componentes já existentes.
+`fetchDiretoDrill` já aceita `anomes_ini`/`anomes_fim` iguais para recortar um único mês — nenhuma alteração ali.
 
-### 4. UX geral
-- Cursor pointer + hover destacado apenas em números com `drill` presente (não forçar clique quando o backend não expõe ponteiro).
-- Drawer largura ~880px, com header "Detalhe — <contexto>" e botão "Exportar" só quando o backend disponibilizar (fora do escopo desta iteração se não houver endpoint dedicado).
-- Todos os valores usam `formatCurrency`; datas via `formatDate` já existente.
+## 2. `FluxoCaixaPage.tsx` — nova subseção na aba **Direto**
+
+Dentro de `DiretoBloco`, abaixo da tabela de categorias agregadas já existente, adicionar seção **"Detalhe por período (mês a mês)"**:
+
+- Nova `useQuery(['fc','direto-periodo', anomes_ini, anomes_fim, codemp, codfil], fetchDiretoPorPeriodo)`.
+- Tabela: primeira coluna `CATEGORIA` (sticky-left), uma coluna por `anomes` (label via `anomesToLabel`) e coluna final `TOTAL`. Última linha `Var. do caixa` com `totais_por_mes[].liquido`.
+- Cada célula (categoria × mês) mostra `liquido` (via `ValorPN`); coluna TOTAL mostra `total_liquido` da linha.
+- **Drill por célula**: se `celula.drill` existir (ou construído a partir de `linha.drill.origem` + `anomes_ini=anomes_fim=celula.anomes`), clique abre `FluxoCaixaDrillDrawer` no modo `direto` com título "Categoria — mês/AA".
+- **Drill por linha (TOTAL)**: reaproveita o `onOpenDrill(linha)` já existente com o intervalo completo.
+- **Drill por mês (rodapé Var. do caixa)**: dropdown "Ver entradas / Ver saídas" que abre drawer com origem agregada (se backend expuser via `totais_por_mes[].drill`; caso contrário, desabilitar).
+- Envolver a matriz em `FloatingHScrollbar` (já usado no DRE) para meses > 6.
+- Banner de reconciliação: se `Math.abs(variacao_liquida_total - direto.variacao_liquida) > 0,01`, badge âmbar "dif." com tooltip mostrando os dois valores.
+
+## 3. UX
+
+- Cursor pointer + underline dotted apenas em células com `drill`.
+- Formatação numérica compacta (`fmtShort`) opcional via toggle "Compacto" no cabeçalho da seção, mantendo tooltip com valor cheio.
+- Linhas negativas em `text-destructive` via `ValorPN` (padrão da página).
+- Estados: `Skeleton` no loading, `Alert` no erro (com `Tentar novamente`).
 
 ## Fora de escopo
-- Alterações no fluxo de IA, no gráfico base, na exportação Excel ou nos endpoints principais — permanecem como estão.
-- Não mexer em `DrillAglutinadorTree`, `DrillIndicadorDrawer` nem `DrillDrawer` (razão) além de importá-los.
+
+- Aba Projeção e Indireto — sem mudanças.
+- Exportação Excel da matriz (backend ainda não expõe).
+- Alterações no `FluxoCaixaDrillDrawer` — ele já aceita drill de mês único.
 
 ## Verificação
+
 - `tsgo` limpo.
-- Smoke manual: abrir /contabilidade/fluxo-caixa → clicar em card Vencidos, em uma categoria do Direto e em um item do Indireto, confirmando que cada drawer carrega os dados corretos.
+- Smoke: /contabilidade/fluxo-caixa → aba **Direto** → matriz renderiza, `Var. do caixa` reconcilia com o card do agregado, clicar numa célula abre o drawer com lançamentos do mês.
