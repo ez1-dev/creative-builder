@@ -121,6 +121,7 @@ const initialFilters = {
   data_pagamento_fim: '',
   valor_min: '',
   valor_max: '',
+  base_valor: 'original' as 'original' | 'aberto',
   incluir_pagos: false,
   agrupar_por_fornecedor: false,
   modo_arvore: false,
@@ -148,6 +149,9 @@ export default function ContasPagarPage() {
         else delete params.valor_min;
         if (params.valor_max) params.valor_max = parseFloat(params.valor_max);
         else delete params.valor_max;
+        // base_valor só faz sentido quando há filtro de valor mín/máx
+        if (params.valor_min === undefined && params.valor_max === undefined) delete params.base_valor;
+        else if (params.base_valor === 'original') delete params.base_valor; // default do backend
         if (!params.status_titulo) delete params.status_titulo;
         if (!params.tipo_titulo) delete params.tipo_titulo;
         if (!params.filial) delete params.filial;
@@ -314,6 +318,9 @@ export default function ContasPagarPage() {
   if (exportParams.data_pagamento_fim) exportParams.data_movimento_fim = exportParams.data_pagamento_fim;
   delete exportParams.data_pagamento_ini;
   delete exportParams.data_pagamento_fim;
+  // base_valor só é enviado no export quando há filtro de valor e o modo não é o default
+  if (!exportParams.valor_min && !exportParams.valor_max) delete exportParams.base_valor;
+  else if (exportParams.base_valor === 'original') delete exportParams.base_valor;
   const exportEndpoint = modoArvoreAtivo
     ? '/api/export/contas-pagar-arvore'
     : '/api/export/contas-pagar';
@@ -411,6 +418,16 @@ export default function ContasPagarPage() {
         <div>
           <Label className="text-xs">Valor Máx.</Label>
           <Input type="number" value={filters.valor_max} onChange={(e) => set('valor_max', e.target.value)} placeholder="0,00" className="h-8 text-xs" />
+        </div>
+        <div>
+          <Label className="text-xs" title="Define se o filtro Valor mín./máx. aplica sobre o valor original do título ou sobre o saldo em aberto">Base do filtro de valor</Label>
+          <Select value={filters.base_valor} onValueChange={(v) => set('base_valor', v as 'original' | 'aberto')}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="original">Valor original</SelectItem>
+              <SelectItem value="aberto">Saldo em aberto</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Checkboxes */}
