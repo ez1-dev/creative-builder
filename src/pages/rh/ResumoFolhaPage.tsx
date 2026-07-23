@@ -477,7 +477,7 @@ export default function ResumoFolhaPage() {
 
         </Card>
         
-        <KpiOrMissing title="Salário Bruto" value={kpis?.salario_bruto} missing={isMissing("salario_bruto")} field="salario_bruto" loading={isLoading} {...kpiDrill("salario_bruto")} />
+        <KpiOrMissing title="Salário Bruto" value={kpis?.salario_bruto} missing={isMissing("salario_bruto")} field="salario_bruto" loading={isLoading} tooltip="Salário nominal mensal por colaborador. Horistas = taxa/h × horas contratuais (R016/jornada); mensalistas = salemp. Não usa o campo salemp cru dos horistas." {...kpiDrill("salario_bruto")} />
         <KpiOrMissing title="Outras Gratificações" value={kpis?.outras_gratificacoes} missing={isMissing("outras_gratificacoes")} field="outras_gratificacoes" loading={isLoading} {...kpiDrill("outras_gratificacoes")} />
         <KpiOrMissing title="Benefícios" value={kpis?.beneficios} missing={isMissing("beneficios")} field="beneficios" loading={isLoading} tooltip="Benefícios oficiais do período (inclui V.A.)." {...kpiDrill("beneficios")} />
         <KpiOrMissing title="INSS (empregado)" value={kpis?.inss_total} missing={isMissing("inss_total")} field="inss_total" loading={isLoading} tooltip="Descontos de INSS dos colaboradores. Não representa GPS patronal." {...kpiDrill("inss_total")} />
