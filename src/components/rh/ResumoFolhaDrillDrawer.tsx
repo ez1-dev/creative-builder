@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatNumber } from "@/lib/format";
 import {
   fetchResumoFolhaDrill,
   ResumoFolhaDrillError,
@@ -42,6 +42,19 @@ function isNumber(v: unknown): v is number {
   return typeof v === "number" && Number.isFinite(v);
 }
 
+const AGRUPAMENTO_LABELS: Record<string, string> = {
+  evento: "Por Evento",
+  filial: "Por Filial",
+  mes: "Por Mês",
+  colaborador: "Por Colaborador",
+  evento_colaborador: "Evento × Colaborador",
+  colaborador_evento: "Colaborador × Evento",
+  analitico: "Analítico (linha a linha)",
+};
+
+const DEEP_LEVELS = new Set(["evento_colaborador", "colaborador_evento", "analitico"]);
+const DEEP_LIMITE = 5000;
+
 export function ResumoFolhaDrillDrawer({
   open,
   onOpenChange,
@@ -59,13 +72,15 @@ export function ResumoFolhaDrillDrawer({
   const competencia = extras?.competencia;
   const contextLabel = extras?.contextLabel;
 
-  // Ao abrir/trocar de card, garantir que o primeiro agrupamento é o ativo.
   useEffect(() => {
     if (open && drillItem) {
       const first = agrupamentos[0]?.key ?? "";
       setTab(first);
     }
   }, [open, drillItem, agrupamentos]);
+
+  const isDeep = DEEP_LEVELS.has(tab);
+  const limite = isDeep ? DEEP_LIMITE : undefined;
 
   const query = useQuery({
     queryKey: [
@@ -79,6 +94,7 @@ export function ResumoFolhaDrillDrawer({
       cd_evento ?? null,
       cd_tp_evento ?? null,
       competencia ?? null,
+      limite ?? null,
     ],
     queryFn: () =>
       fetchResumoFolhaDrill({
@@ -90,6 +106,7 @@ export function ResumoFolhaDrillDrawer({
         cd_evento,
         cd_tp_evento,
         competencia,
+        limite,
       }),
     enabled: open && !!drillItem && !!tab,
     retry: (count, err) => (err instanceof ResumoFolhaDrillError ? false : count < 1),
@@ -99,15 +116,31 @@ export function ResumoFolhaDrillDrawer({
     refetchOnWindowFocus: true,
   });
 
-
   const data = query.data;
   const err = query.error as any;
   const is422 = err instanceof ResumoFolhaDrillError && err.status === 422;
 
+  const itens = data?.itens ?? [];
   const hasAnyQtd = useMemo(
-    () => (data?.itens ?? []).some((i) => isNumber(i.qtd as any) && (i.qtd as any) !== null),
-    [data?.itens],
+    () => itens.some((i) => isNumber(i.qtd as any) && (i.qtd as any) !== null),
+    [itens],
   );
+
+  // Detecta se o backend enviou campos ricos para escolher o layout de colunas.
+  const richMode: "analitico" | "cruz" | "raso" = useMemo(() => {
+    if (!itens.length) {
+      if (tab === "analitico") return "analitico";
+      if (tab === "evento_colaborador" || tab === "colaborador_evento") return "cruz";
+      return "raso";
+    }
+    const sample = itens.find(
+      (i) => (i as any).colaborador != null || (i as any).ds_evento != null || (i as any).qtd_referencia != null,
+    ) as any;
+    if (!sample) return "raso";
+    if (tab === "analitico" || sample.qtd_referencia != null) return "analitico";
+    if (sample.colaborador != null || sample.ds_evento != null) return "cruz";
+    return "raso";
+  }, [itens, tab]);
 
   const total = data?.total ?? null;
   const delta =
@@ -119,10 +152,11 @@ export function ResumoFolhaDrillDrawer({
   const meta = data?.meta ?? null;
   const pecasPendentes = meta?.pecas_pendentes;
   const mesesSemPlanilha = meta?.meses_sem_planilha;
+  const truncado = isDeep && limite != null && itens.length >= limite;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+      <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             {drillItem?.label ?? "Drill"}
@@ -140,7 +174,6 @@ export function ResumoFolhaDrillDrawer({
               <> · valor do card: <span className="font-medium">{formatCurrency(cardValue)}</span></>
             ) : null}
           </SheetDescription>
-
         </SheetHeader>
 
         {agrupamentos.length === 0 ? (
@@ -152,7 +185,7 @@ export function ResumoFolhaDrillDrawer({
             <TabsList className="flex flex-wrap h-auto">
               {agrupamentos.map((a) => (
                 <TabsTrigger key={a.key} value={a.key} className="text-xs">
-                  {a.label}
+                  {a.label || AGRUPAMENTO_LABELS[a.key] || a.key}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -190,6 +223,15 @@ export function ResumoFolhaDrillDrawer({
                       {meta.aviso}
                     </div>
                   )}
+                  {truncado && (
+                    <div className="rounded-md border border-warning/40 bg-warning/5 p-2 text-[11px] text-warning-foreground flex items-start gap-1.5">
+                      <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                      <span>
+                        Lista limitada a <span className="font-semibold">{formatNumber(limite!, 0)}</span> linhas.
+                        O total abaixo já considera todos os registros do período.
+                      </span>
+                    </div>
+                  )}
                   {pecasPendentes && (
                     <div className="text-[11px] text-muted-foreground">
                       Peças pendentes:{" "}
@@ -213,41 +255,107 @@ export function ResumoFolhaDrillDrawer({
                     </div>
                   )}
 
-                  <div className="rounded-md border">
+                  <div className="rounded-md border max-h-[65vh] overflow-y-auto">
                     <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Label</TableHead>
-                          <TableHead className="text-right">Valor</TableHead>
-                          {hasAnyQtd && <TableHead className="text-right w-24">Qtd</TableHead>}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {(data.itens ?? []).length === 0 ? (
+                      <TableHeader className="sticky top-0 bg-background z-10">
+                        {richMode === "analitico" ? (
                           <TableRow>
-                            <TableCell colSpan={hasAnyQtd ? 3 : 2} className="text-center text-xs text-muted-foreground py-6">
-                              {(total ?? 0) === 0 ? "Sem lançamentos no período." : "Sem itens neste agrupamento."}
-                            </TableCell>
-
+                            <TableHead>Colaborador</TableHead>
+                            <TableHead>Evento</TableHead>
+                            <TableHead className="text-right w-28">Qtd. ref.</TableHead>
+                            <TableHead className="text-right w-32">Valor</TableHead>
+                          </TableRow>
+                        ) : richMode === "cruz" ? (
+                          <TableRow>
+                            <TableHead>Colaborador</TableHead>
+                            <TableHead>Evento</TableHead>
+                            <TableHead className="text-right w-32">Valor</TableHead>
+                            {hasAnyQtd && <TableHead className="text-right w-24">Qtd</TableHead>}
                           </TableRow>
                         ) : (
-                          (data.itens ?? []).map((it, i) => (
-                            <TableRow key={`${it.label}-${i}`}>
-                              <TableCell className="text-xs">{it.label || "—"}</TableCell>
-                              <TableCell className="text-right tabular-nums">
-                                {it.valor == null ? (
-                                  <span className="text-muted-foreground">—</span>
-                                ) : (
-                                  formatCurrency(Number(it.valor))
-                                )}
-                              </TableCell>
-                              {hasAnyQtd && (
-                                <TableCell className="text-right tabular-nums text-xs">
-                                  {it.qtd == null ? "—" : it.qtd}
+                          <TableRow>
+                            <TableHead>Label</TableHead>
+                            <TableHead className="text-right">Valor</TableHead>
+                            {hasAnyQtd && <TableHead className="text-right w-24">Qtd</TableHead>}
+                          </TableRow>
+                        )}
+                      </TableHeader>
+                      <TableBody>
+                        {itens.length === 0 ? (
+                          <TableRow>
+                            <TableCell
+                              colSpan={richMode === "analitico" ? 4 : richMode === "cruz" ? (hasAnyQtd ? 4 : 3) : (hasAnyQtd ? 3 : 2)}
+                              className="text-center text-xs text-muted-foreground py-6"
+                            >
+                              {(total ?? 0) === 0 ? "Sem lançamentos no período." : "Sem itens neste agrupamento."}
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          itens.map((it: any, i) => {
+                            const colaborador = it.colaborador
+                              ? `${it.colaborador}${it.matricula ? ` (${it.matricula})` : ""}`
+                              : it.matricula || "";
+                            const evento = it.ds_evento
+                              ? `${it.cd_evento != null ? `${it.cd_evento} - ` : ""}${it.ds_evento}`
+                              : it.cd_evento != null
+                              ? String(it.cd_evento)
+                              : "";
+                            if (richMode === "analitico") {
+                              return (
+                                <TableRow key={`${it.chave ?? it.label}-${i}`}>
+                                  <TableCell className="text-xs">{colaborador || "—"}</TableCell>
+                                  <TableCell className="text-xs">{evento || it.label || "—"}</TableCell>
+                                  <TableCell className="text-right tabular-nums text-xs">
+                                    {it.qtd_referencia == null ? "—" : formatNumber(Number(it.qtd_referencia), 2)}
+                                  </TableCell>
+                                  <TableCell className="text-right tabular-nums">
+                                    {it.valor == null ? (
+                                      <span className="text-muted-foreground">—</span>
+                                    ) : (
+                                      formatCurrency(Number(it.valor))
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            }
+                            if (richMode === "cruz") {
+                              return (
+                                <TableRow key={`${it.chave ?? it.label}-${i}`}>
+                                  <TableCell className="text-xs">{colaborador || (it.label && !evento ? it.label : "—")}</TableCell>
+                                  <TableCell className="text-xs">{evento || (colaborador ? "—" : it.label) || "—"}</TableCell>
+                                  <TableCell className="text-right tabular-nums">
+                                    {it.valor == null ? (
+                                      <span className="text-muted-foreground">—</span>
+                                    ) : (
+                                      formatCurrency(Number(it.valor))
+                                    )}
+                                  </TableCell>
+                                  {hasAnyQtd && (
+                                    <TableCell className="text-right tabular-nums text-xs">
+                                      {it.qtd == null ? "—" : it.qtd}
+                                    </TableCell>
+                                  )}
+                                </TableRow>
+                              );
+                            }
+                            return (
+                              <TableRow key={`${it.label}-${i}`}>
+                                <TableCell className="text-xs">{it.label || "—"}</TableCell>
+                                <TableCell className="text-right tabular-nums">
+                                  {it.valor == null ? (
+                                    <span className="text-muted-foreground">—</span>
+                                  ) : (
+                                    formatCurrency(Number(it.valor))
+                                  )}
                                 </TableCell>
-                              )}
-                            </TableRow>
-                          ))
+                                {hasAnyQtd && (
+                                  <TableCell className="text-right tabular-nums text-xs">
+                                    {it.qtd == null ? "—" : it.qtd}
+                                  </TableCell>
+                                )}
+                              </TableRow>
+                            );
+                          })
                         )}
                       </TableBody>
                     </Table>
@@ -255,10 +363,16 @@ export function ResumoFolhaDrillDrawer({
 
                   <div className="flex items-center justify-between border-t pt-2 text-sm">
                     <div className="text-xs text-muted-foreground">
+                      {itens.length > 0 && (
+                        <>
+                          {formatNumber(itens.length, 0)} {itens.length === 1 ? "linha" : "linhas"}
+                          {data.fonte ? " · " : ""}
+                        </>
+                      )}
                       {data.fonte ? (
                         <>Fonte: <span className="font-mono">{data.fonte}</span></>
                       ) : (
-                        "Fonte não informada"
+                        itens.length === 0 ? "Fonte não informada" : ""
                       )}
                     </div>
                     <div className="text-right">
