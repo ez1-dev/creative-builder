@@ -1053,6 +1053,8 @@ export interface ResultadoProntoMeta {
   unidade_regra?: string | null;
   unidade_indisponivel_motivo?: string | null;
   unidade_filtro_ignorado?: boolean;
+  /** Ressalva de parâmetros quando status = CACHE_APROXIMADO. */
+  aviso_parametros?: import("@/types/contabil").ResultadoProntoAvisoParametros | null;
 }
 
 
