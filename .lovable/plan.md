@@ -1,29 +1,50 @@
-## Status: já implementado
+# Drills novos — Salário Base (nominal) e INSS Patronal
 
-Verifiquei o código atual do módulo RH · Resumo da Folha (`src/pages/rh/ResumoFolhaPage.tsx`, `src/components/rh/ResumoFolhaDrillDrawer.tsx`, `src/lib/rh/api.ts`, `src/lib/rh/types.ts`). Os três itens do prompt já foram entregues em turnos anteriores desta conversa:
+Backend já publicou o contrato. Cards `salario_base` e `inss_patronal` retornam campos extras no `agrupar_por=colaborador` e devem ganhar colunas dedicadas no drawer. Nos agrupamentos `filial` e `mes` o item vem enxuto (chave/label/valor/qtd) e cai no render "raso" atual.
 
-### 1. Card "Vale Alimentação" — REMOVIDO
-- Cards são renderizados a partir de `dashboard.drills_menu` (linhas 120-173 de `ResumoFolhaPage.tsx`). Sem entrada `va` no menu, o card some sozinho.
-- `kpis.va` continua no tipo (`types.ts:285`) e no normalizador (`api.ts:195`), sem virar card.
-- Tooltip de **Benefícios** já traz "inclui V.A." (linha 482).
-- Observação: `va` ainda aparece como **coluna do grid por filial** (linha 400 do `FILIAL_COLS`), o que é correto — o prompt fala apenas em remover o *card*.
+## O que muda
 
-### 2. Card "INSS Patronal" — ADICIONADO
-- Linha 484: `<KpiOrMissing title="INSS Patronal" value={kpis?.inss_patronal} ...>` ao lado de **INSS (empregado)** (linha 483), lado a lado como sugerido.
-- `kpis.inss_patronal` mapeado em `api.ts:228` e tipado em `types.ts:276`.
-- Tooltip: "Encargo patronal do INSS (~20% da base). Custo da empresa, não desconto do empregado."
+### 1. `src/lib/rh/types.ts` — `ResumoFolhaDrillItem`
+Adicionar campos opcionais (todos `?`), documentados como "apenas quando `card ∈ {salario_base, inss_patronal}` e `agrupar_por=colaborador`":
+- `tipo_salario?: string` (`"Mensalista" | "Horista"`)
+- `salario_cadastral?: number` (mensalista = salário mensal; horista = taxa/hora)
+- `horas_mes?: number`
+- `base_inss?: number`
+- `aliquota?: string` (ex.: `"20%"`)
 
-### 3. Drills até o último nível
-- **Fonte dos agrupamentos**: `drillsMenu` vem do dashboard e é passado para o drawer via `openDrill` — não há lista hardcoded; Salário Base recebe automaticamente só `colaborador/filial/mes`.
-- **7 níveis**: `DEEP_LEVELS = {evento_colaborador, colaborador_evento, analitico}` em `ResumoFolhaDrillDrawer.tsx:56`; rótulos amigáveis no dicionário da linha 53.
-- **Analítico**: colunas **Colaborador · Evento · Qtd. referência · Valor** (branch `richMode === "analitico"`, linhas 282+ e 324+).
-- **`limite=5000`** enviado nos níveis profundos (`drawer` monta `params` com limite alto quando `DEEP_LEVELS.has(tab)`).
-- **Timeout de 30s** no drill: `api.get(..., { timeoutMs: 30_000 })` em `api.ts:400`.
-- **Erro/timeout**: bloco de erro com botão **"Tentar novamente"** no drawer (não fica em skeleton infinito).
-- **Badge "Validado FPRF001"** no header (linha 872) + nota metodológica no rodapé do analítico (linha 415+).
+### 2. `src/components/rh/ResumoFolhaDrillDrawer.tsx`
+Detectar um novo modo de render por card + agrupamento (não mexer nos modos existentes `raso/cruz/analitico`):
 
-## Fora de escopo (nada a mudar)
-- Sem alterações de cálculo/endpoint.
-- Sem tocar em backend FastAPI.
+```
+richMode = "salario_base_colab"  se card === "salario_base"  && tab === "colaborador"
+richMode = "inss_patronal_colab" se card === "inss_patronal" && tab === "colaborador"
+```
 
-Se você viu comportamento diferente na tela (ex.: card VA ainda aparecendo, INSS Patronal ausente, drill em skeleton), me diga qual card/nível/período e eu investigo — pode ser cache do navegador ou API antiga antes do restart.
+Colunas:
+
+- **Salário Base · colaborador**  
+  `Colaborador (matricula) · Tipo · Salário cadastral · Horas/mês · Nominal (valor)`  
+  Formatar `salario_cadastral`: se `tipo_salario==="Horista"` mostrar `R$ x,xx /h`; senão moeda normal. `horas_mes` com 1 casa.
+
+- **INSS Patronal · colaborador**  
+  `Colaborador (matricula) · Base INSS · Alíquota · Patronal (valor)`  
+  `aliquota` renderizada como texto (já vem `"20%"`).
+
+Comportamento comum:
+- Reusar o header "confere/diverge" já existente (compara soma de `valor` com `total`).
+- Manter aviso de truncamento (`limite=5000`) e o botão "Tentar novamente" em erro/timeout.
+- Nos agrupamentos `filial` e `mes` desses cards, não alterar nada — o render raso atual já cobre `{chave,label,valor,qtd}`.
+
+### 3. `drills_menu` — travar agrupamentos inválidos
+O backend não expõe `agrupar_por=evento` para esses cards (retorna 422). O drawer já é dirigido pelo `drills_menu` do dashboard, então não precisa lista hardcoded — apenas garantir que **não** oferecemos fallback para `evento` quando o menu não trouxer. Adicionar guarda: se o backend responder 422, mostrar mensagem "Agrupamento não suportado para este card" em vez do erro genérico de rede.
+
+## Fora de escopo
+- Cards que já funcionam (Proventos, Descontos, Líquido, Benefícios, INSS empregado etc.) permanecem inalterados.
+- Nenhuma mudança em `api.ts` além de tipagem (payload já é passado adiante como `any`).
+- Sem mudanças no backend.
+
+## Verificação
+- Type-check.
+- Abrir card **Salário Base** → agrupamento **colaborador** → conferir colunas Tipo/Cadastral/Horas/Nominal e total batendo com o KPI.
+- Abrir card **INSS Patronal** → agrupamento **colaborador** → conferir Base × 20% = Patronal e total batendo.
+- Trocar para `filial`/`mes` nos dois cards → render raso, total confere.
