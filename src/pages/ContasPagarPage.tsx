@@ -349,7 +349,12 @@ export default function ContasPagarPage() {
         {/* Linha 1 */}
         <div>
           <Label className="text-xs">Fornecedor</Label>
-          <Input value={filters.fornecedor} onChange={(e) => set('fornecedor', e.target.value)} placeholder="Nome ou código" className="h-8 text-xs" />
+          <AutocompleteAsync
+            value={filters.fornecedor}
+            onChange={(codigo) => set('fornecedor', codigo)}
+            fetcher={fetchFornecedoresCadastro}
+            placeholder="Buscar fornecedor..."
+          />
         </div>
         <div>
           <Label className="text-xs">Nº Título</Label>
