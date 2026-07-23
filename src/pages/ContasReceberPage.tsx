@@ -25,6 +25,8 @@ import {
   TrendingUp, Calendar, Receipt, CreditCard, Landmark,
 } from 'lucide-react';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
+import { AutocompleteAsync } from '@/components/erp/AutocompleteAsync';
+import { fetchClientesCadastro, fetchCentrosCusto, fetchProjetos } from '@/hooks/useCadastrosErp';
 import { BiAutoSlots } from '@/components/bi';
 
 /* ─── Status helpers ─── */
