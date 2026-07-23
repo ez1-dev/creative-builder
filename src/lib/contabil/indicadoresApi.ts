@@ -51,5 +51,5 @@ export function fetchIndicadoresComAnalise(params: IndicadoresParams): Promise<I
     codemp: 1,
     com_ia: true,
     ...params,
-  });
+  }, { timeoutMs: 90000 });
 }
