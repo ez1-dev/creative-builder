@@ -27,11 +27,14 @@ import { cn } from '@/lib/utils';
 import { formatCurrency, formatCompactCurrency } from '@/lib/format';
 import { CODEMP } from '@/lib/contabilConfig';
 import {
-  fetchProjecao, fetchDireto, fetchIndireto,
+  fetchProjecao, fetchDireto, fetchIndireto, fetchDiretoPorPeriodo,
   streamFluxoCaixaAnalise, downloadFluxoCaixaExcel,
   type ProjecaoResponse, type DiretoResponse, type IndiretoResponse, type IndiretoAtividade,
   type CurvaPonto, type DiretoCategoria, type IndiretoItem,
+  type DiretoPorPeriodoResponse, type DiretoPorPeriodoLinha, type DiretoPorPeriodoCelula,
 } from '@/lib/contabil/fluxoCaixaApi';
+import { anomesToLabel } from '@/lib/contabil/anomes';
+
 import { normalizarNarrativa, narrativaTruncada } from '@/lib/contabil/indicadoresNarrativa';
 import {
   FluxoCaixaDrillDrawer, periodoParaDatas, type FCDrillContext,
