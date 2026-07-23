@@ -1,60 +1,67 @@
-## Diagnóstico
+## Nova página: Fluxo de Caixa (Tesouraria)
 
-**1. Texto truncado ("...frente ao E")**
-O corte no meio da palavra é característico de limite de tokens do modelo no backend (a rota `/api/contabil/indicadores/analise/stream` fecha o SSE quando o LLM atinge `max_tokens`). O frontend consome o stream corretamente (buffer + `split('\n\n')` + flush do resto no `finally`), então a causa não é parser client-side. **Confirmação pendente** — só a resposta real do backend pode fechar o diagnóstico; por isso o plano inclui checagem e um caminho de mitigação no cliente.
+Criar `/contabilidade/fluxo-caixa` com 3 abas + Análise IA (streaming) + Export Excel, seguindo o mesmo padrão da tela de Indicadores Contábeis.
 
-**2. Layout pobre da narrativa**
-Hoje é `prose prose-sm max-w-3xl` num container `max-w-[1600px]`. Como o backend devolve o texto sem `##`/`**` em alguns pontos (títulos "Resumo", "Rentabilidade" saem como linha simples), o `ReactMarkdown` não estiliza seções e o bloco fica um paredão único, estreito e cinza.
+### Arquivos novos
 
-## Alterações
+**API layer** — `src/lib/contabil/fluxoCaixaApi.ts`
+- Tipos: `ProjecaoResponse`, `DiretoResponse`, `IndiretoResponse` conforme JSON do backend
+- `fetchProjecao({ codemp, codfil?, horizonte_dias, granularidade, data_base?, saldo_inicial? })`
+- `fetchDireto({ codemp, codfil?, anomes_ini, anomes_fim })`
+- `fetchIndireto({ codemp, codfil?, anomes_ini, anomes_fim })`
+- `streamFluxoCaixaAnalise(params, { onMeta, onDelta, onDone, onErro, signal })` — reusar padrão de `indicadoresApi.streamIndicadoresAnalise` (fetch + ReadableStream SSE, header Authorization)
+- `exportFluxoCaixaXlsx(params)` — fetch blob autenticado, download com `URL.createObjectURL`
+- Base URL `VITE_API_BASE_URL` + timeout 60s (projeção/direto/indireto), 90s (análise stream sem timeout duro)
 
-### A. Backend (arquivo de spec para o time da API)
-Criar `docs/backend-contabil-indicadores-analise-truncamento.md` pedindo:
-- Aumentar `max_tokens` da análise (hoje aparentemente ~1500) para no mínimo `4096`.
-- Emitir `event: done` com `finish_reason` (`stop` | `length`) para o front detectar corte.
-- Opcional: aceitar `?continuar=1&depois_de=<hash>` para gerar continuação.
+**Narrativa** — reutilizar `indicadoresNarrativa.ts` (`normalizarNarrativa`, `narrativaTruncada`).
 
-### B. Frontend — `src/pages/contabilidade/IndicadoresContabeisPage.tsx`
-Melhorar o painel "Análise (IA)":
-- Container mais largo e legível: trocar `max-w-3xl` por `max-w-[900px]` com `columns` desabilitado, `leading-relaxed`, `text-[13.5px]`.
-- Pré-processar a narrativa antes de passar ao `ReactMarkdown`:
-  - Detectar linhas curtas em negrito ou títulos conhecidos ("Resumo", "Rentabilidade", "Liquidez", "Endividamento", "Capital de giro", "Riscos", "Recomendações") e prefixar `## ` para virarem headings visuais.
-  - Quebrar parágrafos longos em `\n\n` quando encontrar sentenças coladas com `. `.
-- Estilo shadcn (via classes utilitárias, sem cor hardcoded):
-  - `h2` (### seção): borda inferior sutil, cor `text-primary`, `text-sm uppercase tracking-wider`.
-  - `strong`: `text-foreground font-semibold`.
-  - Realces monetários (regex `R\$\s*-?[\d\.,]+`) envoltos em `<span class="tabular-nums font-medium">` via `components.p` custom do ReactMarkdown.
-  - Listas com marcadores azuis (`marker:text-primary`).
-- Cabeçalho do card ganha metadados: período analisado, modelo, contagem de caracteres recebidos.
+**Página** — `src/pages/contabilidade/FluxoCaixaPage.tsx`
+- Header: título "Fluxo de Caixa", período (anomes_ini/fim), filial, botões "Atualizar" e "Exportar Excel"
+- Tabs: **Projeção** (padrão) · **Realizado — Direto** · **Realizado — Indireto**
+- Card "Análise (IA)" full-width no rodapé com botão "Gerar análise" (streaming)
 
-### C. Frontend — detector de truncamento
-Em `src/lib/contabil/indicadoresApi.ts`:
-- Propagar `finish_reason` no `onDone` (`AnaliseStreamHandlers`).
-- Considerar truncado quando: `finish_reason === 'length'` **ou** heurística — texto não termina com `.`, `!`, `?`, `)`, `"` e o último token não é palavra completa (última "palavra" com <3 chars após espaço ou sem pontuação final).
+#### Aba Projeção (destaque)
+- Controles: `horizonte_dias` (30/60/90/120/180), `granularidade` (mês/semana), `data_base` (date input), `saldo_inicial` (input editável — placeholder = valor contábil retornado)
+- Card "Saldo inicial": mostra `saldo_inicial` + fonte (`saldo_inicial_fonte`); input para override → refetch
+- Card "Vencidos" destacado: `vencidos.receber` (verde/atenção) e `vencidos.pagar` (vermelho), com nota "não entram na curva"
+- Card "Menor saldo do horizonte": valor + período
+- Alertas: banners amarelos com `alertas[]`
+- **Gráfico principal** (recharts ComposedChart):
+  - Linha `saldo_projetado` por `periodo` — marcar ponto do menor saldo com dot destacado
+  - Barras `entradas` (verde) e `saidas` (vermelho) empilhadas/paralelas
+  - Área vermelha nos períodos com `saldo_projetado < 0` (via ReferenceArea ou segment coloring)
+- Tabela abaixo: periodo · entradas · saidas · fluxo_liquido · saldo_projetado
 
-Na página, quando truncado:
-- Banner `Alert` amarelo "Resposta cortada pelo limite do modelo".
-- Botão "Continuar análise" que reabre o stream (chama backend com flag; enquanto o backend não suporta, apenas re-gera).
+#### Aba Realizado — Direto
+- Cards: caixa_inicial · caixa_final · variação · selo "Conciliado" (verde se `conciliado: true`, com residual)
+- Tabela por categoria: categoria · atividade (badge) · entradas · saídas · líquido
+- Tesouraria: badge/tooltip com `obs`, destaque visual no líquido
 
-### D. PDF
-`src/lib/contabil/indicadoresRelatorio.ts` já recebe `narrativa` — aplicar o mesmo pré-processamento de títulos antes do `splitTextToSize` para o PDF acompanhar o novo layout.
+#### Aba Realizado — Indireto
+- Cards: caixa_inicial · caixa_final · variação calculada vs real · selo conciliado
+- 3 seções colapsáveis (Operacional / Investimento / Financiamento):
+  - Lista de itens (descricao · valor) com formatação positivo/negativo
+  - Subtotal destacado
+- Rodapé: `observacoes[]` em texto pequeno
 
-## Fora de escopo
-- Alterar cálculo/agrupamento dos indicadores.
-- Trocar o modelo de IA usado no backend.
-- Persistir análise (continua por sessão).
+#### Análise IA (rodapé, full-width, mesmo padrão de Indicadores)
+- Botão "Gerar análise" → abre stream SSE
+- Renderização markdown progressiva via `normalizarNarrativa`
+- Botão "Cancelar" durante geração (AbortController)
+- Alerta amarelo "Gerar novamente" se `narrativaTruncada` detectar corte
+- Metadata footer (modelo, chars, tempo)
 
-## Detalhes técnicos
+#### Exportar Excel
+- Botão no header → `exportFluxoCaixaXlsx` (fetch blob + Authorization), nome `fluxo-caixa-{anomes_ini}-{anomes_fim}.xlsx`
 
-```text
-Fluxo do stream (após mudanças)
- backend SSE ──► streamIndicadoresAnalise
-     event: meta   → { modelo, periodo }
-     event: delta  → { text }
-     event: done   → { chars, finish_reason }   ◄─ NOVO campo
-     event: erro   → { erro }
- UI:
-   narrativaStream (append)
-   finishReason  ─► trunc? → Alert + botão Continuar
-   narrativa pré-processada → ReactMarkdown estilizado
-```
+### Registro
+
+- `src/App.tsx`: adicionar `<Route path="/contabilidade/fluxo-caixa" element={<FluxoCaixaPage />} />`
+- `src/config/menuCatalog.ts`: adicionar item **Fluxo de Caixa** logo abaixo de **Indicadores Contábeis** em "Financeiro e Contábil", ícone `Waves` ou `TrendingUp`
+- Central de Liberações: adicionar rota ao catálogo de permissões
+
+### Padrões respeitados
+- Tokens semânticos do design system (sem cores hardcoded — usar `text-success`, `text-destructive`, etc.)
+- Header `ngrok-skip-browser-warning: true` + `Authorization: Bearer`
+- Formatação BR (`Intl.NumberFormat`)
+- Loading skeletons + error states com botão retry

@@ -1,7 +1,7 @@
 import {
   Home, Package, Users, Settings, Factory, ShoppingCart, Warehouse, Landmark,
   Receipt, BarChart3, Boxes, ShieldAlert, FileText, Cog, LayoutDashboard, Database,
-  Search as SearchIcon,
+  Search as SearchIcon, Waves,
 } from 'lucide-react';
 
 export type Leaf = { title: string; url: string; icon: any };
@@ -74,6 +74,7 @@ export const TOP_MENUS: TopMenu[] = [
         id: 'erp-financeiro', label: 'Financeiro e Contábil', icon: Landmark,
         items: [
           { title: 'Indicadores Contábeis', url: '/contabilidade/indicadores', icon: BarChart3 },
+          { title: 'Fluxo de Caixa', url: '/contabilidade/fluxo-caixa', icon: Waves },
           { title: 'Conciliação EDocs', url: '/conciliacao-edocs', icon: Landmark },
           { title: 'Contas a Pagar', url: '/contas-pagar', icon: Landmark },
           { title: 'Contas a Receber', url: '/contas-receber', icon: Landmark },
