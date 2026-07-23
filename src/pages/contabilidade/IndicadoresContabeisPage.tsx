@@ -319,6 +319,8 @@ export default function IndicadoresContabeisPage() {
     () => streamStatus === 'done' && narrativaTruncada(narrativa, finishReason),
     [streamStatus, narrativa, finishReason],
   );
+
+  return (
     <div className="p-4 md:p-6 space-y-4 max-w-[1600px] mx-auto">
       <header className="flex items-center gap-3">
         <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary grid place-items-center">
