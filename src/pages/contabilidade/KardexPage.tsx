@@ -374,13 +374,16 @@ export default function KardexPage() {
                 ? <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 : <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />}
               <AlertTitle className="text-xs">
-                Conferência: Saldo inicial + Entradas − Saídas = Saldo final
+                Conferência: Saldo inicial + Entradas − Saídas {conferencia.transfQtd !== 0 ? '± Transferências ' : ''}= Saldo final
               </AlertTitle>
               <AlertDescription className="text-xs tabular-nums">
                 {formatNumberBR(data.saldo_inicial.quantidade, 3)} +{' '}
                 {formatNumberBR(data.resumo.entradas_qtd, 3)} −{' '}
-                {formatNumberBR(data.resumo.saidas_qtd, 3)} ={' '}
-                <strong>{formatNumberBR(conferencia.esperadoQtd, 3)}</strong>{' '}
+                {formatNumberBR(data.resumo.saidas_qtd, 3)}
+                {conferencia.transfQtd !== 0 && (
+                  <> {conferencia.transfQtd >= 0 ? '+' : '−'} {formatNumberBR(Math.abs(conferencia.transfQtd), 3)} (transf.)</>
+                )}{' '}
+                = <strong>{formatNumberBR(conferencia.esperadoQtd, 3)}</strong>{' '}
                 vs. saldo final <strong>{formatNumberBR(data.saldo_final.quantidade, 3)}</strong>
                 {!conferencia.bate && (
                   <> · diferença {formatNumberBR(conferencia.diffQtd, 3)}</>
