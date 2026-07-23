@@ -225,6 +225,7 @@ const KPI_ALIASES: Record<string, string[]> = {
   custo_total: ["custo_total"],
   beneficios: ["beneficios"],
   inss_total: ["inss_total", "inss"],
+  inss_patronal: ["inss_patronal"],
   hora_extra: ["hora_extra"],
   provisoes: ["provisoes"],
   custo_ferias: ["custo_ferias"],
