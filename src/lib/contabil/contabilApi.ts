@@ -175,17 +175,17 @@ async function requestJson<T>(endpoint: string, options: RequestInit = {}, param
 }
 
 export const contabilApi = {
-  async get<T>(endpoint: string, params?: Record<string, any>): Promise<T> {
-    return requestJson<T>(endpoint, { method: 'GET' }, params);
+  async get<T>(endpoint: string, params?: Record<string, any>, opts?: { timeoutMs?: number }): Promise<T> {
+    return requestJson<T>(endpoint, { method: 'GET' }, params, opts?.timeoutMs);
   },
-  async post<T>(endpoint: string, body?: any): Promise<T> {
-    return requestJson<T>(endpoint, { method: 'POST', body: body ? JSON.stringify(body) : undefined });
+  async post<T>(endpoint: string, body?: any, opts?: { timeoutMs?: number }): Promise<T> {
+    return requestJson<T>(endpoint, { method: 'POST', body: body ? JSON.stringify(body) : undefined }, undefined, opts?.timeoutMs);
   },
-  async put<T>(endpoint: string, body?: any): Promise<T> {
-    return requestJson<T>(endpoint, { method: 'PUT', body: body ? JSON.stringify(body) : undefined });
+  async put<T>(endpoint: string, body?: any, opts?: { timeoutMs?: number }): Promise<T> {
+    return requestJson<T>(endpoint, { method: 'PUT', body: body ? JSON.stringify(body) : undefined }, undefined, opts?.timeoutMs);
   },
-  async delete<T>(endpoint: string): Promise<T> {
-    return requestJson<T>(endpoint, { method: 'DELETE' });
+  async delete<T>(endpoint: string, opts?: { timeoutMs?: number }): Promise<T> {
+    return requestJson<T>(endpoint, { method: 'DELETE' }, undefined, opts?.timeoutMs);
   },
 };
 
