@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.monitor-telas-ia]
 verify_jwt = false
+
+[functions.fluxo-caixa-analise-ia]
+verify_jwt = false
