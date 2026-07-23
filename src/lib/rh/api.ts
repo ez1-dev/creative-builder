@@ -368,6 +368,7 @@ export interface ResumoFolhaDrillParams {
   cd_evento?: string;
   cd_tp_evento?: string;
   competencia?: string; // YYYYMM (override quando drill parte de barra/célula mensal)
+  limite?: number;
 }
 
 export class ResumoFolhaDrillError extends Error {
@@ -392,6 +393,7 @@ export async function fetchResumoFolhaDrill(
     cd_filial: p.cd_filial,
     cd_evento: p.cd_evento,
     cd_tp_evento: p.cd_tp_evento,
+    limite: p.limite,
   });
 
   try {
