@@ -272,6 +272,8 @@ export interface ResumoFolhaKpis {
   custo_total?: number | null;
   beneficios?: number | null;
   inss_total?: number | null;
+  /** Encargo patronal do INSS (20% da base). Custo da empresa. */
+  inss_patronal?: number | null;
   hora_extra?: number | null;
   provisoes?: number | null;
   custo_ferias?: number | null;
