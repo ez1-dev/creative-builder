@@ -417,6 +417,12 @@ export default function ResumoFolhaPage() {
           <CardContent className="space-y-3">
             {(["provento", "desconto", "total_liquido"] as const).map((key) => {
               const label = key === "provento" ? "Provento" : key === "desconto" ? "Desconto" : "Total Líquido";
+              const tip =
+                key === "provento"
+                  ? "Soma dos eventos com tipeve ∈ {1,2} — proventos base + benefícios. Bate exato com o relatório oficial FPRF001 (Senior)."
+                  : key === "desconto"
+                  ? "Soma dos eventos com tipeve = 3 — INSS, IRRF, consignados, adiantamentos etc. Inclui o evento 264 “Líquido Rescisão”, que é pago à parte (a rescisão sai da folha do mês)."
+                  : "Proventos − Descontos (com tipeve=3 inteiro). Considera o evento 264 “Líquido Rescisão” como saída, já que a rescisão é paga separadamente. Metodologia validada contra o FPRF001.";
               const colorCls =
                 key === "desconto" ? "text-destructive" :
                 key === "total_liquido" ? "text-primary" : "";
@@ -425,7 +431,26 @@ export default function ResumoFolhaPage() {
               const drillable = drillsMap.has(key);
               const inner = (
                 <>
-                  <div className="text-[11px] text-muted-foreground">{label}</div>
+                  <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+                    <span>{label}</span>
+                    <TooltipProvider delayDuration={150}>
+                      <UITooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            className="inline-flex text-muted-foreground/70 hover:text-foreground focus:outline-none"
+                            onClick={(e) => e.stopPropagation()}
+                            aria-label={`Metodologia do card ${label}`}
+                          >
+                            <Info className="h-3 w-3" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-xs text-xs">
+                          {tip}
+                        </TooltipContent>
+                      </UITooltip>
+                    </TooltipProvider>
+                  </div>
                   <div className={`${sizeCls} font-bold tabular-nums ${colorCls}`}>
                     <ValueOrMissing value={kpis?.[key]} missing={isMissing(key)} field={key} />
                   </div>
