@@ -30,8 +30,15 @@ import {
   fetchProjecao, fetchDireto, fetchIndireto,
   streamFluxoCaixaAnalise, downloadFluxoCaixaExcel,
   type ProjecaoResponse, type DiretoResponse, type IndiretoResponse, type IndiretoAtividade,
+  type CurvaPonto, type DiretoCategoria, type IndiretoItem,
 } from '@/lib/contabil/fluxoCaixaApi';
 import { normalizarNarrativa, narrativaTruncada } from '@/lib/contabil/indicadoresNarrativa';
+import {
+  FluxoCaixaDrillDrawer, periodoParaDatas, type FCDrillContext,
+} from '@/components/contabil/FluxoCaixaDrillDrawer';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 // ============================================================
 // Helpers
@@ -173,6 +180,37 @@ export default function FluxoCaixaPage() {
 
   const anyLoading = projecao.isFetching || direto.isFetching || indireto.isFetching;
 
+  // ---- Drill drawer state ----
+  const [drillCtx, setDrillCtx] = useState<FCDrillContext | null>(null);
+  const abrirDrillProjecao = (params: Record<string, any>, titulo: string, subTitulo?: string) => {
+    setDrillCtx({
+      modo: 'projecao', titulo, subTitulo,
+      params: { codemp, codfil, ...params } as any,
+    });
+  };
+  const abrirDrillDireto = (cat: DiretoCategoria) => {
+    if (!cat.drill?.origem) return;
+    setDrillCtx({
+      modo: 'direto',
+      titulo: `Lançamentos — ${cat.categoria}`,
+      params: {
+        origem: cat.drill.origem,
+        anomes_ini: anomesIni, anomes_fim: anomesFim,
+        codemp, codfil,
+        ...(cat.drill.params || {}),
+      },
+    });
+  };
+  const abrirDrillIndireto = (it: IndiretoItem) => {
+    if (!it.drill) return;
+    setDrillCtx({
+      modo: 'indireto',
+      titulo: it.descricao,
+      ptr: it.drill,
+      anomesIni, anomesFim, codemp, codfil,
+    });
+  };
+
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-[1600px] mx-auto">
       {/* Header */}
@@ -235,21 +273,26 @@ export default function FluxoCaixaPage() {
           />
           {projecao.isLoading && <div className="grid grid-cols-1 md:grid-cols-3 gap-3"><Skeleton className="h-28" /><Skeleton className="h-28" /><Skeleton className="h-28" /></div>}
           {projecao.error && <ErroBox err={projecao.error as Error} />}
-          {projecao.data && <ProjecaoBloco data={projecao.data} />}
+          {projecao.data && (
+            <ProjecaoBloco
+              data={projecao.data}
+              onOpenDrill={abrirDrillProjecao}
+            />
+          )}
         </TabsContent>
 
         {/* ============ DIRETO ============ */}
         <TabsContent value="direto" className="space-y-4">
           {direto.isLoading && <Skeleton className="h-64" />}
           {direto.error && <ErroBox err={direto.error as Error} />}
-          {direto.data && <DiretoBloco data={direto.data} />}
+          {direto.data && <DiretoBloco data={direto.data} onOpenDrill={abrirDrillDireto} />}
         </TabsContent>
 
         {/* ============ INDIRETO ============ */}
         <TabsContent value="indireto" className="space-y-4">
           {indireto.isLoading && <Skeleton className="h-64" />}
           {indireto.error && <ErroBox err={indireto.error as Error} />}
-          {indireto.data && <IndiretoBloco data={indireto.data} />}
+          {indireto.data && <IndiretoBloco data={indireto.data} onOpenDrill={abrirDrillIndireto} />}
         </TabsContent>
       </Tabs>
 
@@ -323,6 +366,8 @@ export default function FluxoCaixaPage() {
           )}
         </CardContent>
       </Card>
+
+      <FluxoCaixaDrillDrawer context={drillCtx} onClose={() => setDrillCtx(null)} />
     </div>
   );
 }
@@ -397,7 +442,12 @@ function ProjecaoControles(props: {
   );
 }
 
-function ProjecaoBloco({ data }: { data: ProjecaoResponse }) {
+function ProjecaoBloco({
+  data, onOpenDrill,
+}: {
+  data: ProjecaoResponse;
+  onOpenDrill: (params: Record<string, any>, titulo: string, subTitulo?: string) => void;
+}) {
   const menorSaldoEm = data.resumo_horizonte?.menor_saldo_em;
   const menorSaldo = data.resumo_horizonte?.menor_saldo;
   const temAperto = (data.curva || []).some((p) => p.saldo_projetado < 0);
@@ -408,6 +458,29 @@ function ProjecaoBloco({ data }: { data: ProjecaoResponse }) {
     saidas_neg: -Math.abs(p.saidas),
     isMenor: p.periodo === menorSaldoEm,
   }));
+
+  const abrirVencidos = (tipo: 'receber' | 'pagar') => {
+    const backend = (data.vencidos as any)?.drill?.[tipo]?.params;
+    onOpenDrill(
+      backend ?? { tipo, vencidos: true },
+      `Títulos vencidos — ${tipo === 'receber' ? 'a receber' : 'a pagar'}`,
+      'Em atraso · não entram na curva de projeção',
+    );
+  };
+
+  const abrirPeriodo = (p: CurvaPonto, tipo: 'receber' | 'pagar') => {
+    const backend = p.drill?.[tipo]?.params;
+    const datas = backend ? null : periodoParaDatas(p.periodo);
+    const params = backend ?? {
+      tipo,
+      venc_ini: datas?.venc_ini,
+      venc_fim: datas?.venc_fim,
+    };
+    onOpenDrill(
+      params,
+      `Títulos ${tipo === 'receber' ? 'a receber' : 'a pagar'} — ${p.periodo}`,
+    );
+  };
 
   return (
     <>
@@ -434,20 +507,28 @@ function ProjecaoBloco({ data }: { data: ProjecaoResponse }) {
             </p>
           </CardContent>
         </Card>
-        <Card className="border-[hsl(var(--warning))]/40">
-          <CardContent className="p-4 space-y-1">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Vencidos — a receber</p>
-            <p className="text-lg font-bold tabular-nums text-[hsl(var(--warning))]">{fmt(data.vencidos?.receber)}</p>
-            <p className="text-[10px] text-muted-foreground">Dinheiro parado em atraso · não entra na curva</p>
-          </CardContent>
-        </Card>
-        <Card className="border-destructive/40">
-          <CardContent className="p-4 space-y-1">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Vencidos — a pagar</p>
-            <p className="text-lg font-bold tabular-nums text-destructive">{fmt(data.vencidos?.pagar)}</p>
-            <p className="text-[10px] text-muted-foreground">Compromissos em atraso · não entra na curva</p>
-          </CardContent>
-        </Card>
+        <button type="button" onClick={() => abrirVencidos('receber')} className="text-left">
+          <Card className="border-[hsl(var(--warning))]/40 hover:bg-muted/30 transition-colors cursor-pointer h-full">
+            <CardContent className="p-4 space-y-1">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Vencidos — a receber</p>
+              <p className="text-lg font-bold tabular-nums text-[hsl(var(--warning))] underline decoration-dotted underline-offset-2">
+                {fmt(data.vencidos?.receber)}
+              </p>
+              <p className="text-[10px] text-muted-foreground">Clique para ver os títulos em atraso</p>
+            </CardContent>
+          </Card>
+        </button>
+        <button type="button" onClick={() => abrirVencidos('pagar')} className="text-left">
+          <Card className="border-destructive/40 hover:bg-muted/30 transition-colors cursor-pointer h-full">
+            <CardContent className="p-4 space-y-1">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Vencidos — a pagar</p>
+              <p className="text-lg font-bold tabular-nums text-destructive underline decoration-dotted underline-offset-2">
+                {fmt(data.vencidos?.pagar)}
+              </p>
+              <p className="text-[10px] text-muted-foreground">Clique para ver os compromissos em atraso</p>
+            </CardContent>
+          </Card>
+        </button>
         <Card className={cn(typeof menorSaldo === 'number' && menorSaldo < 0 && 'border-destructive/50')}>
           <CardContent className="p-4 space-y-1">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
@@ -528,16 +609,48 @@ function ProjecaoBloco({ data }: { data: ProjecaoResponse }) {
                 </tr>
               </thead>
               <tbody>
-                {(data.curva || []).map((p) => (
-                  <tr key={p.periodo} className={cn('border-t border-border/60',
-                    p.periodo === menorSaldoEm && 'bg-destructive/5')}>
-                    <td className="px-4 py-2 font-medium">{p.periodo}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">{fmt(p.entradas)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">{fmt(p.saidas)}</td>
-                    <td className="px-4 py-2 text-right"><ValorPN v={p.fluxo_liquido} /></td>
-                    <td className="px-4 py-2 text-right"><ValorPN v={p.saldo_projetado} className="font-semibold" /></td>
-                  </tr>
-                ))}
+                {(data.curva || []).map((p) => {
+                  const podeDrill = !!(p.drill?.receber || p.drill?.pagar) ||
+                    !!periodoParaDatas(p.periodo);
+                  return (
+                    <tr key={p.periodo} className={cn('border-t border-border/60',
+                      p.periodo === menorSaldoEm && 'bg-destructive/5')}>
+                      <td className="px-4 py-2 font-medium">
+                        {podeDrill ? (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="hover:underline decoration-dotted underline-offset-2">
+                                {p.periodo}
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                              <DropdownMenuItem onClick={() => abrirPeriodo(p, 'receber')}>
+                                Ver a receber
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => abrirPeriodo(p, 'pagar')}>
+                                Ver a pagar
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        ) : p.periodo}
+                      </td>
+                      <td className="px-4 py-2 text-right tabular-nums">
+                        {podeDrill ? (
+                          <button className="hover:underline decoration-dotted underline-offset-2 tabular-nums"
+                            onClick={() => abrirPeriodo(p, 'receber')}>{fmt(p.entradas)}</button>
+                        ) : fmt(p.entradas)}
+                      </td>
+                      <td className="px-4 py-2 text-right tabular-nums">
+                        {podeDrill ? (
+                          <button className="hover:underline decoration-dotted underline-offset-2 tabular-nums"
+                            onClick={() => abrirPeriodo(p, 'pagar')}>{fmt(p.saidas)}</button>
+                        ) : fmt(p.saidas)}
+                      </td>
+                      <td className="px-4 py-2 text-right"><ValorPN v={p.fluxo_liquido} /></td>
+                      <td className="px-4 py-2 text-right"><ValorPN v={p.saldo_projetado} className="font-semibold" /></td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -563,7 +676,9 @@ function ConciliadoBadge({ conciliado, residual }: { conciliado: boolean; residu
   );
 }
 
-function DiretoBloco({ data }: { data: DiretoResponse }) {
+function DiretoBloco({
+  data, onOpenDrill,
+}: { data: DiretoResponse; onOpenDrill: (c: DiretoCategoria) => void }) {
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -596,27 +711,38 @@ function DiretoBloco({ data }: { data: DiretoResponse }) {
                 </tr>
               </thead>
               <tbody>
-                {data.categorias.map((c, i) => (
-                  <tr key={`${c.categoria}-${i}`} className="border-t border-border/60">
-                    <td className="px-4 py-2 font-medium flex items-center gap-2">
-                      {c.categoria}
-                      {c.obs && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <AlertTriangle className="h-3.5 w-3.5 text-[hsl(var(--warning))] cursor-help" />
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-sm text-xs">{c.obs}</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
-                    </td>
-                    <td className="px-4 py-2"><AtividadeBadge atv={c.atividade} /></td>
-                    <td className="px-4 py-2 text-right tabular-nums">{fmt(c.entradas)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">{fmt(c.saidas)}</td>
-                    <td className="px-4 py-2 text-right font-semibold"><ValorPN v={c.liquido} /></td>
-                  </tr>
-                ))}
+                {data.categorias.map((c, i) => {
+                  const podeDrill = !!c.drill?.origem;
+                  return (
+                    <tr key={`${c.categoria}-${i}`}
+                      className={cn('border-t border-border/60',
+                        podeDrill && 'hover:bg-muted/30 cursor-pointer')}
+                      onClick={() => podeDrill && onOpenDrill(c)}
+                    >
+                      <td className="px-4 py-2 font-medium">
+                        <div className="flex items-center gap-2">
+                          <span className={cn(podeDrill && 'underline decoration-dotted underline-offset-2')}>
+                            {c.categoria}
+                          </span>
+                          {c.obs && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <AlertTriangle className="h-3.5 w-3.5 text-[hsl(var(--warning))] cursor-help" />
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-sm text-xs">{c.obs}</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-2"><AtividadeBadge atv={c.atividade} /></td>
+                      <td className="px-4 py-2 text-right tabular-nums">{fmt(c.entradas)}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{fmt(c.saidas)}</td>
+                      <td className="px-4 py-2 text-right font-semibold"><ValorPN v={c.liquido} /></td>
+                    </tr>
+                  );
+                })}
               </tbody>
               <tfoot className="bg-muted/30 font-semibold">
                 <tr className="border-t border-border">
@@ -657,7 +783,9 @@ function StatCard({ label, value, colorful }: { label: string; value: number; co
   );
 }
 
-function IndiretoBloco({ data }: { data: IndiretoResponse }) {
+function IndiretoBloco({
+  data, onOpenDrill,
+}: { data: IndiretoResponse; onOpenDrill: (it: IndiretoItem) => void }) {
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -673,9 +801,9 @@ function IndiretoBloco({ data }: { data: IndiretoResponse }) {
         </Card>
       </div>
 
-      <AtividadeSecao titulo="Operacional" atv={data.atividades.operacional} />
-      <AtividadeSecao titulo="Investimento" atv={data.atividades.investimento} />
-      <AtividadeSecao titulo="Financiamento" atv={data.atividades.financiamento} />
+      <AtividadeSecao titulo="Operacional" atv={data.atividades.operacional} onOpenDrill={onOpenDrill} />
+      <AtividadeSecao titulo="Investimento" atv={data.atividades.investimento} onOpenDrill={onOpenDrill} />
+      <AtividadeSecao titulo="Financiamento" atv={data.atividades.financiamento} onOpenDrill={onOpenDrill} />
 
       {data.observacoes?.length ? (
         <Card>
@@ -691,7 +819,9 @@ function IndiretoBloco({ data }: { data: IndiretoResponse }) {
   );
 }
 
-function AtividadeSecao({ titulo, atv }: { titulo: string; atv: IndiretoAtividade }) {
+function AtividadeSecao({
+  titulo, atv, onOpenDrill,
+}: { titulo: string; atv: IndiretoAtividade; onOpenDrill: (it: IndiretoItem) => void }) {
   const [aberto, setAberto] = useState(true);
   return (
     <Card>
@@ -709,12 +839,23 @@ function AtividadeSecao({ titulo, atv }: { titulo: string; atv: IndiretoAtividad
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <tbody>
-                {atv.itens.map((it, i) => (
-                  <tr key={i} className="border-t border-border/60">
-                    <td className="px-4 py-2">{it.descricao}</td>
-                    <td className="px-4 py-2 text-right"><ValorPN v={it.valor} /></td>
-                  </tr>
-                ))}
+                {atv.itens.map((it, i) => {
+                  const podeDrill = !!it.drill;
+                  return (
+                    <tr key={i}
+                      className={cn('border-t border-border/60',
+                        podeDrill && 'hover:bg-muted/30 cursor-pointer')}
+                      onClick={() => podeDrill && onOpenDrill(it)}
+                    >
+                      <td className="px-4 py-2">
+                        <span className={cn(podeDrill && 'underline decoration-dotted underline-offset-2')}>
+                          {it.descricao}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-right"><ValorPN v={it.valor} /></td>
+                    </tr>
+                  );
+                })}
               </tbody>
               <tfoot className="bg-muted/30 font-semibold">
                 <tr className="border-t border-border">
