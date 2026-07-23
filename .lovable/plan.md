@@ -1,24 +1,44 @@
-## Diagnóstico
+## Diagnóstico (confirmado com o payload)
 
-O drawer do card **Líquido** abre com o cabeçalho certo (`total_liquido`, valor R$ 1.277.658,43) mas o corpo fica só uma barra cinza:
+O backend está devolvendo `drills_menu[].agrupamentos` como **array de strings**:
 
-- Não há requisição para `GET /api/rh/resumo-folha/drill` (rede vazia).
-- No `ResumoFolhaDrillDrawer.tsx`, o `useQuery` está com `enabled: open && !!drillItem && !!tab`. Se `tab` fica `""` a consulta nunca dispara.
-- O `tab` inicial vem de `agrupamentos[0]?.key ?? ""`, onde `agrupamentos = drillItem?.agrupamentos ?? []`.
-- Conclusão mais provável: o item `total_liquido` chega no `drills_menu` **sem `agrupamentos`** (ou com array vazio). Nesse caso o ramo `agrupamentos.length === 0` deveria mostrar "Este card não expõe agrupamentos de drill…", mas a barra cinza observada indica que a mensagem some porque o `SheetContent` está com `overflow-y-auto` e o layout do header empurra a área de conteúdo (não há `mt-*` no ramo do else; o texto renderiza fora do viewport visível do usuário).
+```json
+{ "card": "total_liquido", "agrupamentos": ["evento", "filial", "mes"] }
+```
 
-Como não há endpoint de referência para conferir o payload atual sem tocar no backend, o plano é robustecer o front para: (a) sempre mostrar um estado explícito, (b) tentar um fallback de agrupamentos padrão para o card `total_liquido` (mesmos aceitos pelos outros cards de valor), (c) logar o `drillItem` no console para o próximo diagnóstico.
+Mas o parser em `src/lib/rh/api.ts` (linhas 300-308) assume que cada agrupamento é um **objeto** com `key`/`label`:
 
-## Escopo (somente front)
+```ts
+a.agrupamentos.map((a: any) => ({
+  key: String(a?.key ?? a?.agrupar_por ?? a?.id ?? "").trim(),
+  ...
+})).filter((a: any) => a.key)
+```
 
-`src/components/rh/ResumoFolhaDrillDrawer.tsx`
+Quando `a` é a string `"evento"`, `a?.key` é `undefined` → `key` vira `""` → o `.filter(a.key)` **descarta todos**. Resultado: `drillItem.agrupamentos = []` para TODOS os cards que o backend enviou como string (é justamente o formato atual: `total_liquido`, `provento`, `desconto`, `hora_extra`, etc.).
 
-1. **Fallback de agrupamentos** — quando `drillItem.agrupamentos` estiver vazio, usar `DEFAULT_AGRUPAMENTOS = [{key:"evento"},{key:"filial"},{key:"mes"}]` (labels já vêm de `AGRUPAMENTO_LABELS`). Só aplicar se `drillItem.card` estiver na lista de cards de valor conhecidos (`provento`, `desconto`, `total_liquido`, `custo_total`, `beneficios`, `inss_total`, `inss_patronal`, `hora_extra`, `provisoes`, `custo_ferias`, `rescisoes`, `fgts`). Assim o drawer dispara a chamada real e, se o backend responder 422, a mensagem 422 já existente aparece.
-2. **Empty-state visível** — trocar o `<div className="mt-6 …">` do ramo "sem agrupamentos" por um bloco com borda/ícone dentro da área com padding do `SheetContent`, para nunca ficar em branco.
-3. **Log de diagnóstico** — `console.debug("[ResumoFolha drill]", drillItem)` no `useEffect` quando `agrupamentos.length === 0`, para o usuário conseguir mandar o payload real caso o fallback também falhe.
-4. **Nada de mudança de lógica de negócio, backend, cálculo ou schemas.**
+Por isso o drawer do Líquido abre sem abas — cai no ramo "sem agrupamentos" (invisível pelo layout do skeleton) e a query nunca dispara. O fallback que adicionei antes só cobria alguns cards de valor, então cards como `total_liquido` ainda ficam vazios se não estiverem na whitelist e mesmo cards com fallback perdem os agrupamentos extras (colaborador, evento_colaborador, analitico) que o backend explicitamente enviou.
+
+## Escopo (somente front, 1 arquivo)
+
+`src/lib/rh/api.ts` — normalização de `drills_menu`:
+
+1. Aceitar `agrupamentos` em duas formas:
+   - **String** (formato atual do backend): `"evento"` → `{ key: "evento", label: AGRUPAMENTO_LABELS["evento"] ?? "evento" }`.
+   - **Objeto** (retrocompat): mantém o mapeamento atual `key/agrupar_por/id` + `label/nome`.
+2. Continuar filtrando entradas cujo `key` final seja vazio.
+3. Manter o restante do parser inalterado.
+
+## Efeito
+
+- `total_liquido` passa a expor 3 abas (evento/filial/mês) e a query dispara.
+- `provento`, `desconto`, `hora_extra`, `custo_ferias`, `beneficios`, `rescisoes`, `fgts`, `inss_total`, `outras_gratificacoes` ganham os 7 níveis (evento, filial, mes, colaborador, evento_colaborador, colaborador_evento, analitico).
+- `salario_base` e `inss_patronal` expõem colaborador/filial/mes (usando `richMode` já existente).
+- `provisoes` e `custo_total` expõem componente/filial/mes.
+- O fallback local em `ResumoFolhaDrillDrawer.tsx` deixa de ser acionado (agrupamentos reais chegam), mas fica como salvaguarda — não precisa remover.
 
 ## Fora de escopo
 
-- Alterações em `src/lib/rh/api.ts`, endpoints, ou contrato do backend.
-- Mudanças nos outros cards/drills que já funcionam.
+- Backend, endpoints, tabelas, contratos.
+- Layout do drawer, cálculos, labels adicionais.
+- Reverter o log de diagnóstico e empty-state adicionados anteriormente.
