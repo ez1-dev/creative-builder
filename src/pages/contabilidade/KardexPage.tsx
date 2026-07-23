@@ -165,13 +165,18 @@ export default function KardexPage() {
       render: (v) => <span className="text-xs tabular-nums">{v != null ? formatCurrency(Number(v)) : '—'}</span> },
   ], []);
 
-  // Conferência de saldo
+  // Conferência de saldo (inclui transferências)
   const conferencia = useMemo(() => {
     if (!data) return null;
-    const esperadoQtd = data.saldo_inicial.quantidade + data.resumo.entradas_qtd - data.resumo.saidas_qtd;
+    const transfQtd = data.resumo.transferencias_qtd || 0;
+    const esperadoQtd =
+      data.saldo_inicial.quantidade +
+      data.resumo.entradas_qtd -
+      data.resumo.saidas_qtd +
+      transfQtd;
     const diffQtd = esperadoQtd - data.saldo_final.quantidade;
     const bate = Math.abs(diffQtd) < 0.001;
-    return { esperadoQtd, diffQtd, bate };
+    return { esperadoQtd, diffQtd, bate, transfQtd };
   }, [data]);
 
   return (
@@ -273,6 +278,18 @@ export default function KardexPage() {
                   <p className="text-sm">{data.produto.unidade}</p>
                 </div>
               )}
+              {data.produto.origem && (
+                <div>
+                  <p className="text-[10px] uppercase text-muted-foreground">Origem</p>
+                  <p className="text-sm tabular-nums">{data.produto.origem}</p>
+                </div>
+              )}
+              {data.produto.familia && (
+                <div>
+                  <p className="text-[10px] uppercase text-muted-foreground">Família</p>
+                  <p className="text-sm">{data.produto.familia}</p>
+                </div>
+              )}
               {data.produto.conta_contabil && (
                 <div className="min-w-[200px]">
                   <p className="text-[10px] uppercase text-muted-foreground">Conta contábil</p>
@@ -286,12 +303,12 @@ export default function KardexPage() {
                 <p className="text-[10px] uppercase text-muted-foreground">Total de movimentos</p>
                 <p className="text-sm tabular-nums">{formatNumberBR(data.total_movimentos, 0)}</p>
               </div>
-              {(data.resumo.transferencias_qtd || 0) > 0 && (
+              {((data.resumo.transferencias_qtd || 0) !== 0 || (data.resumo.transferencias_valor || 0) !== 0) && (
                 <div>
                   <p className="text-[10px] uppercase text-muted-foreground">Transferências</p>
                   <p className="text-sm tabular-nums text-sky-600 dark:text-sky-400">
                     {formatNumberBR(data.resumo.transferencias_qtd || 0, 3)}
-                    {(data.resumo.transferencias_valor || 0) > 0 && (
+                    {(data.resumo.transferencias_valor || 0) !== 0 && (
                       <> · {formatCurrency(data.resumo.transferencias_valor || 0)}</>
                     )}
                   </p>
@@ -357,13 +374,16 @@ export default function KardexPage() {
                 ? <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 : <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />}
               <AlertTitle className="text-xs">
-                Conferência: Saldo inicial + Entradas − Saídas = Saldo final
+                Conferência: Saldo inicial + Entradas − Saídas {conferencia.transfQtd !== 0 ? '± Transferências ' : ''}= Saldo final
               </AlertTitle>
               <AlertDescription className="text-xs tabular-nums">
                 {formatNumberBR(data.saldo_inicial.quantidade, 3)} +{' '}
                 {formatNumberBR(data.resumo.entradas_qtd, 3)} −{' '}
-                {formatNumberBR(data.resumo.saidas_qtd, 3)} ={' '}
-                <strong>{formatNumberBR(conferencia.esperadoQtd, 3)}</strong>{' '}
+                {formatNumberBR(data.resumo.saidas_qtd, 3)}
+                {conferencia.transfQtd !== 0 && (
+                  <> {conferencia.transfQtd >= 0 ? '+' : '−'} {formatNumberBR(Math.abs(conferencia.transfQtd), 3)} (transf.)</>
+                )}{' '}
+                = <strong>{formatNumberBR(conferencia.esperadoQtd, 3)}</strong>{' '}
                 vs. saldo final <strong>{formatNumberBR(data.saldo_final.quantidade, 3)}</strong>
                 {!conferencia.bate && (
                   <> · diferença {formatNumberBR(conferencia.diffQtd, 3)}</>
