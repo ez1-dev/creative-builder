@@ -186,7 +186,49 @@ export function fetchProjecaoDrill(params: ProjecaoDrillParams): Promise<Projeca
   );
 }
 
-// -------------------- REST --------------------
+// -------------------- Direto por período (matriz mês×categoria) --------------------
+
+export interface DiretoPorPeriodoCelula {
+  anomes: number;
+  entradas: number;
+  saidas: number;
+  liquido: number;
+  drill?: DiretoDrillPtr;
+  [k: string]: any;
+}
+export interface DiretoPorPeriodoLinha {
+  categoria: string;
+  atividade: AtividadeFC | string;
+  celulas: DiretoPorPeriodoCelula[];
+  total_entradas: number;
+  total_saidas: number;
+  total_liquido: number;
+  drill?: DiretoDrillPtr;
+  [k: string]: any;
+}
+export interface DiretoPorPeriodoTotalMes {
+  anomes: number;
+  entradas: number;
+  saidas: number;
+  liquido: number;
+  [k: string]: any;
+}
+export interface DiretoPorPeriodoResponse {
+  meses: number[];
+  linhas: DiretoPorPeriodoLinha[];
+  totais_por_mes: DiretoPorPeriodoTotalMes[];
+  variacao_liquida_total: number;
+  [k: string]: any;
+}
+
+export function fetchDiretoPorPeriodo(params: RealizadoParams): Promise<DiretoPorPeriodoResponse> {
+  return contabilApi.get<DiretoPorPeriodoResponse>(
+    '/api/contabil/fluxo-caixa/direto/por-periodo',
+    { codemp: 1, ...params },
+    { timeoutMs: 60000 },
+  );
+}
+
 
 export function fetchProjecao(params: ProjecaoParams): Promise<ProjecaoResponse> {
   return contabilApi.get<ProjecaoResponse>('/api/contabil/fluxo-caixa/projecao', {
