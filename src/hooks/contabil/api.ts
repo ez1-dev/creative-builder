@@ -1053,6 +1053,8 @@ export interface ResultadoProntoMeta {
   unidade_regra?: string | null;
   unidade_indisponivel_motivo?: string | null;
   unidade_filtro_ignorado?: boolean;
+  /** Ressalva de parâmetros quando status = CACHE_APROXIMADO. */
+  aviso_parametros?: import("@/types/contabil").ResultadoProntoAvisoParametros | null;
 }
 
 
@@ -1118,10 +1120,13 @@ export function useResultadoPronto(
       const r = (raw && typeof raw === "object" && "dados" in raw ? raw.dados : raw) ?? {};
       const status = String(r.status ?? "SEM_CACHE").toUpperCase();
       const p = r.payload ?? {};
-      const payloadNormalizado =
-        status === "CONCLUIDO" && r.payload
-          ? normalizeComparativo(r.payload, modeloId)
-          : undefined;
+      // Normaliza payload também em CACHE_APROXIMADO — o valor é válido como
+      // referência (com ressalva) e NUNCA deve ser jogado fora / zerado.
+      const temPayloadUtil =
+        (status === "CONCLUIDO" || status === "CACHE_APROXIMADO") && !!r.payload;
+      const payloadNormalizado = temPayloadUtil
+        ? normalizeComparativo(r.payload, modeloId)
+        : undefined;
       const aplicarRefSenior =
         r.aplicar_referencia_senior ?? p.aplicar_referencia_senior ?? payloadNormalizado?.aplicar_referencia_senior ?? null;
       const refAplicada =
@@ -1136,6 +1141,10 @@ export function useResultadoPronto(
         payloadNormalizado?.qtd_referencias_aplicadas ??
         null;
       const atualizado_em = r.atualizado_em ?? r.atualizadoEm ?? r.updated_at ?? r.ultima_atualizacao ?? null;
+      const avisoParametros =
+        (r.aviso_parametros ?? r.avisoParametros ?? p.aviso_parametros ?? p.avisoParametros ?? null) as
+          | import("@/types/contabil").ResultadoProntoAvisoParametros
+          | null;
       const meta: ResultadoProntoMeta = {
         status,
         atualizado_em,
@@ -1165,6 +1174,7 @@ export function useResultadoPronto(
           r.unidade_indisponivel_motivo ?? p.unidade_indisponivel_motivo ?? null,
         unidade_filtro_ignorado:
           (r.unidade_filtro_ignorado ?? p.unidade_filtro_ignorado) === true,
+        aviso_parametros: avisoParametros,
       };
       return { meta, payload: payloadNormalizado };
     },

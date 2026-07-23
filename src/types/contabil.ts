@@ -202,9 +202,21 @@ export interface ComparativoLinhaV2 {
 // ---- Resultado pronto / materialização assíncrona ----
 export type ResultadoProntoStatus =
   | "CONCLUIDO"
+  | "CACHE_APROXIMADO"
   | "SEM_CACHE"
   | "EM_PROCESSAMENTO"
   | string;
+
+export interface ResultadoProntoAvisoParametros {
+  mensagem?: string | null;
+  solicitado?: Record<string, unknown>;
+  snapshot?: Record<string, unknown>;
+  diferencas?: Array<{
+    parametro?: string;
+    solicitado?: unknown;
+    snapshot?: unknown;
+  }>;
+}
 
 export interface ResultadoProntoResponse {
   status: ResultadoProntoStatus;
@@ -221,6 +233,7 @@ export interface ResultadoProntoResponse {
   qtd_referencias_aplicadas?: number | null;
   job_id?: string | null;
   payload?: ComparativoResponseV2 | null;
+  aviso_parametros?: ResultadoProntoAvisoParametros | null;
 }
 
 export interface JobStatusResponse {

@@ -46,6 +46,8 @@ import { formatAnomes, isTotalAnoCol, isAcumuladoAnoCol } from "@/lib/anomes";
 import { CODFIL } from "@/lib/contabilConfig";
 import { useContabilConfiguracao } from "@/hooks/contabil/useContabilConfiguracao";
 import { ConciliacaoDREBalancoPanel } from "@/components/contabil/ConciliacaoDREBalancoPanel";
+import { SnapshotAproximadoBadge } from "@/components/dre-studio/SnapshotAproximadoBadge";
+import { resolveResultadoProntoState } from "@/lib/contabil/resultadoProntoState";
 
 import { cn } from "@/lib/utils";
 import { getUnidadeCapabilities } from "@/lib/contabil/unidadeCapabilities";
@@ -2077,10 +2079,9 @@ function Visualizacao(props: VisualizacaoProps = {}) {
       {/* === STATUS DO SNAPSHOT (resultado-pronto) === */}
       {q.meta && (() => {
         const isBalancoOficial = isBalanco && modoBalancoEfetivo === "MENSAL_E650SAL";
-        const refAplicada = q.meta.referencia_senior_aplicada;
-        const refOrigem = q.meta.referencia_senior_origem;
         const qtdRef = q.meta.qtd_referencias_aplicadas;
         const semReferencia = deveAvisarRefSeniorNaoAplicada;
+        const snapshotState = resolveResultadoProntoState(q.meta);
         return (
           <>
             <div className="mb-3 flex flex-wrap items-center gap-3 text-xs text-slate-600">
@@ -2101,6 +2102,14 @@ function Visualizacao(props: VisualizacaoProps = {}) {
               )}
 
             </div>
+            {snapshotState.aproximado && (
+              <SnapshotAproximadoBadge
+                className="mb-3"
+                aviso={q.meta.aviso_parametros ?? null}
+                regenerando={materializar.isPending || autoRunning}
+                onRegerar={() => dispararMaterializacao()}
+              />
+            )}
             {semReferencia && (
               <div className="mb-3 flex items-start gap-3 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-900">
                 <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
