@@ -213,10 +213,24 @@ export function ResumoFolhaDrillDrawer({
         </SheetHeader>
 
         {agrupamentos.length === 0 ? (
-          <div className="mt-6 text-sm text-muted-foreground">
-            Este card não expõe agrupamentos de drill no backend.
+          <div className="mt-6 rounded-md border border-warning/40 bg-warning/5 p-4 text-sm text-foreground/80 flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-warning" />
+            <div>
+              <p className="font-medium">Este card não expõe agrupamentos de drill no backend.</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Card: <span className="font-mono">{drillItem?.card ?? "—"}</span>. Verifique se o
+                <span className="font-mono"> drills_menu</span> retorna <span className="font-mono">agrupamentos</span> para este card.
+              </p>
+            </div>
           </div>
         ) : (
+          <>
+          {usingFallback && (
+            <div className="mt-3 rounded-md border border-primary/30 bg-primary/5 p-2 text-[11px] text-muted-foreground">
+              Agrupamentos padrão aplicados no front (evento/filial/mês) — o backend não enviou
+              <span className="font-mono"> agrupamentos</span> para <span className="font-mono">{drillItem?.card}</span>.
+            </div>
+          )}
           <Tabs value={tab} onValueChange={setTab} className="mt-4">
             <TabsList className="flex flex-wrap h-auto">
               {agrupamentos.map((a) => (
