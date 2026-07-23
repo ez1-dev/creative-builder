@@ -1,47 +1,100 @@
-## Objetivo
-Parar de gerar XLSX no navegador (que só contém a página visível/linhas carregadas) e passar a baixar o arquivo completo produzido pelo backend, tanto no cabeçalho de `/bi/comercial` (export completo, 10 abas) quanto no drawer de drill (export do drill atual, 1 aba com tudo).
 
-## Endpoints (confirmados pelo usuário)
-- **Completo** — `POST /api/bi/comercial/exportar`  
-  Body = mesmo `DrillPayload` usado no drill (`drill_type` e paginação são ignorados). Query opcional `?dimensoes=MENSAL,CLIENTE` (vazio = todas 10 abas). Timeout ~14s → usar **60s**.
-- **Drill atual** — `POST /api/bi/comercial/drill/export?formato=xlsx`  
-  Body = `DrillPayload` completo (inclui `nf_context`/`somente_devolucao`/`somente_impostos`/`busca`/`contexto`). Retorna 1 aba com o conjunto inteiro.
+# Tela "Indicadores Contábeis" — Analytics Gestão Contábil
 
-Resposta: binário XLSX. Nome do arquivo em `Content-Disposition` (já exposto via CORS).
+Nova página em `/contabilidade/indicadores` que consome os endpoints determinísticos do backend e, sob demanda, a narrativa da IA. A tela apenas exibe/formata o que o backend devolve — nenhum cálculo no front.
 
-## Mudanças no frontend
+## 1. Cliente da API
 
-### 1. `src/lib/bi/comercialDrillApi.ts`
-- Nova função `downloadComercialExportCompleto(payload: DrillRequest, opts?: { dimensoes?: string[] })`:
-  - Monta URL `${getApiUrl()}/api/bi/comercial/exportar` + `?dimensoes=...` se informado.
-  - `fetch` `POST` com `Authorization: Bearer …` (via `api.getToken()`), `ngrok-skip-browser-warning: true`, `Content-Type: application/json`, corpo = payload serializado (mesmo shape do drill; `page`/`page_size` podem ser omitidos).
-  - `AbortController` com **60 000 ms**.
-  - Se `!response.ok`: tentar `await response.text()` e parsear JSON para pegar `detail`/`message`; lançar `Error(msg)` — **sem fallback local**.
-  - Ler blob, extrair filename via helper `parseContentDisposition(headers)` (fallback `bi-comercial-faturamento-${ini}-${fim}.xlsx`), disparar download via `<a download>` + `URL.revokeObjectURL`.
-- Nova função `downloadComercialDrillExport(payload: DrillRequest, formato: 'xlsx' | 'csv' = 'xlsx')` seguindo o mesmo padrão contra `/api/bi/comercial/drill/export?formato=…`. Fallback de filename: `drill-${drill_type.toLowerCase()}${suffix devoluções/impostos}.xlsx`.
-- Marcar `downloadDrillCsv` e `downloadDrillXlsx` (geração local) como `@deprecated` e deixar de usá-las (podem ser removidas no futuro; mantidas por segurança).
+Novo módulo `src/lib/contabil/indicadoresApi.ts`:
 
-### 2. `src/components/bi/drill/ComercialDrillDrawer.tsx`
-- Trocar o `onClick` dos botões **CSV** e **Excel** para chamar `downloadComercialDrillExport(payloadAtual, 'csv' | 'xlsx')`, onde `payloadAtual` é exatamente o `DrillRequest` usado no `useQuery` (inclui `contexto`, `nf_context`, `busca`, `unidade_negocio`, período).
-- Adicionar estado `exportando` (bool) — botão fica `disabled` e mostra `Loader2` + label "Gerando Excel…" / "Gerando CSV…" enquanto roda.
-- `toast.info("Exportando todos os resultados dos filtros selecionados. Pode levar alguns segundos.")` ao iniciar; `toast.success("Excel gerado com sucesso.")` no fim; `toast.error(msg)` com a mensagem do backend em caso de falha — sem fallback local.
-- Nome do arquivo: preferir header, senão manter sufixo `nfFilenameSlug`.
+- Tipos `Indicador`, `IndicadoresPayload`, `AnaliseIA` refletindo o shape do prompt (indicador, valor, unidade, formula, numerador, denominador, dias, tipo_saldo, status, avisos + `duplicidade_612_ativa` no topo + `analise` opcional).
+- `fetchIndicadores(params)` → GET `/api/contabil/indicadores`.
+- `fetchIndicadoresComAnalise(params)` → GET `/api/contabil/indicadores/analise?com_ia=true`.
+- Usa o `ApiClient` existente (mesmo padrão de `contabilApi.ts`), com header ngrok e Bearer.
 
-### 3. `src/pages/bi/ComercialPage.tsx`
-- Adicionar botão **"Exportar Excel completo"** na toolbar principal (ao lado do seletor de período/unidade), habilitado quando houver período válido.
-- Handler chama `downloadComercialExportCompleto(payload)` onde `payload` reflete os filtros base atuais da página: `anomes_ini`, `anomes_fim`, `unidade_negocio`, `contexto` vazio (ou com o que já estiver aplicado como drill global), `drill_type: 'NOTA_FISCAL'` (placeholder — backend ignora).
-- Mesmo estado `exportando`, mesma UX de toasts, botão `disabled` enquanto roda. Tooltip: "Gera XLSX com 10 abas (Detalhe, Mensal, Cliente, Produto, Revenda, Obra, Estado, Impostos, Acumulado, Parâmetros). Pode levar ~15 s."
+## 2. Hook
 
-### 4. Helper compartilhado
-- Extrair `parseContentDisposition(headers: Headers): string | null` em `src/lib/bi/comercialDrillApi.ts` (ou reutilizar o já existente em `ExportButton.tsx` movendo para `src/lib/download.ts` se ficar limpo — decisão: manter local no arquivo do BI para não mexer em outros módulos).
+`src/hooks/contabil/useIndicadores.ts`:
 
-## O que NÃO muda
-- Nenhuma alteração em cálculo, RPCs, ETL, filtros, cards, KPIs, drills lógicos ou preservação de `nfContext`.
-- `ExportButton.tsx` genérico e outras páginas continuam como estão.
-- Geração local via `XLSX` (`downloadDrillXlsx`/`downloadDrillCsv`) deixa de ser chamada mas permanece no arquivo por ora (fácil rollback).
+- `useIndicadores({ anomes_ini, anomes_fim, codemp, codfil })` via TanStack Query — cache por chave completa dos filtros.
+- `useIndicadoresAnalise(...)` desabilitado por padrão; disparado só quando o usuário clicar em "Gerar análise" (`enabled: false` + `refetch()`), para não custar IA em toda carga.
 
-## Validação
-1. Preview `GENIUS`, `202601 → 202601`: clicar **Exportar Excel completo** → download com 10 abas; total da aba Detalhe ≈ R$ 35.513.699,84 (referência).
-2. Abrir drill **Devolução** (`somente_devolucao: true`), clicar **Excel** → arquivo com o recorte de devoluções, sem cair na lista completa.
-3. Simular erro (unidade/período inválidos) → toast com `detail` do backend, nenhum arquivo baixado.
-4. Confirmar via Network que o request usa `POST` com body JSON completo e nenhuma chamada paralela de paginação sai do front.
+## 3. Página `src/pages/contabilidade/IndicadoresContabeisPage.tsx`
+
+Estrutura:
+
+```text
+[PageHeader: Indicadores Contábeis]
+[Filtros: Período (anomes_ini/fim) · Empresa (codemp) · Filial (codfil?)]
+[Banner âmbar fixo se duplicidade_612_ativa]
+[Grid de seções (7 cards agrupadores)]
+[Rodapé técnico: Liquidez Corrente (conferência AC−PC = CDG)]
+[Aba/painel lateral "Análise (IA)" — vazio até clicar em "Gerar análise"]
+```
+
+### Agrupamento (ordem já vem do backend)
+
+Mapeamento fixo `SECOES` no arquivo da página, agrupando por nome do indicador:
+
+| Seção | Indicadores |
+|---|---|
+| Resultado (R$) | Receita Bruta, Receita Líquida, Custo, Resultado Bruto, Lucro Líquido |
+| EBITDA | EBITDA Operacional Senior, EBITDA sem resultado financeiro, EBITDA oficial (c/ dup), Margens EBITDA (2) |
+| Rentabilidade (%) | Margem Bruta, ROE, ROA |
+| Prazos (dias) | PME documental/gerencial, PMP documental/gerencial/clássico simulado |
+| Liquidez (índice) | Corrente, Seca, Imediata |
+| Endividamento (%) | Geral, Financeiro, Composição |
+| Capital de giro (R$) | CDG (conferência AC−PC vai pro rodapé) |
+
+Regra: as duas variantes de EBITDA e as variantes de PME/PMP são exibidas **lado a lado** — nunca uma esconde a outra.
+
+### Componentes internos (mesmo arquivo ou `src/components/contabil/indicadores/`)
+
+- `IndicadorCard` — mostra nome, valor formatado (por `unidade`), badge de `status` (oficial=neutro, gerencial=cinza, simulado=âmbar), botão "detalhes" que abre `IndicadorDetalheDrawer`.
+- `IndicadorDetalheDrawer` — usa `Sheet` do shadcn com: fórmula, numerador, denominador, dias, tipo_saldo, status, avisos.
+- `AnaliseIAPainel` — renderiza `analise.narrativa` como markdown (usar `react-markdown` já presente se disponível; caso contrário adicionar); botão "Gerar análise"; estados: idle / loading / erro (mostrar `analise.erro`) / ok.
+- `DuplicidadeBanner` — Alert âmbar com o texto do prompt.
+
+### Formatação (usa helpers de `src/lib/format.ts` / `bi/utils/formatters.ts`)
+
+- `R$` → `formatCurrency` (negativos em vermelho).
+- `%` → 1–2 casas + "%".
+- `dias` → `n dias`.
+- `índice` → 2 casas decimais.
+- `valor === null` ou `denominador === 0` → renderiza "—".
+
+### Badges
+
+- `oficial` → `Badge variant="secondary"` (azul).
+- `gerencial` → `Badge` cinza.
+- `simulado` → `Badge` âmbar + tooltip com lista de `avisos`.
+
+## 4. Roteamento e menu
+
+- Registrar rota em `src/App.tsx`: `/contabilidade/indicadores` → `IndicadoresContabeisPage` (lazy).
+- Adicionar item em `src/config/menuCatalog.ts` na seção Contabilidade: `{ title: 'Indicadores Contábeis', url: '/contabilidade/indicadores', icon: BarChart3 }`.
+- Adicionar entrada em `ALL_SCREENS` de `src/pages/ConfiguracoesPage.tsx` para liberação via Central de Liberações.
+
+## 5. Estado e persistência
+
+- Filtros mantidos em URL search params (padrão já usado em outras telas contábeis: `useSearchParams`).
+- Defaults: ano corrente completo (`AAAA01` até `AAAA12`), `codemp=1`, `codfil` vazio.
+
+## 6. Erros
+
+- Erros HTTP → toast (sonner) + estado de erro no card.
+- Sem `analise.narrativa` → painel mostra "Análise indisponível" (não bloqueia números).
+- Se endpoint retornar 404/504 (API 8070 ainda não reiniciada) → banner "Indicadores indisponíveis: aguardando restart da API".
+
+## Detalhes técnicos
+
+- Não recalcular nada no front — todos os números vêm prontos.
+- Sem dependência nova; se `react-markdown` não existir no projeto, adicionar (uso apenas nesta tela).
+- Todos os tokens de cor via design system (âmbar = `hsl(var(--warning))`, vermelho = `text-destructive`).
+- Sem alterações em `src/integrations/supabase/*`, `.env`, backend, ou outras telas de Contabilidade.
+
+## Fora do escopo
+
+- Cálculos, edição de fórmulas, escolha da variante "oficial" de EBITDA (é decisão da contabilidade, não do app).
+- Ajustes no ERP para a duplicidade 612.
+- Endpoint `/aglutinadores` (não pedido na tela).
