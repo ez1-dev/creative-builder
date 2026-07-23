@@ -101,10 +101,11 @@ function buildUrl(endpoint: string, params?: Record<string, any>): string {
   return url;
 }
 
-async function requestJson<T>(endpoint: string, options: RequestInit = {}, params?: Record<string, any>): Promise<T> {
+async function requestJson<T>(endpoint: string, options: RequestInit = {}, params?: Record<string, any>, timeoutMs?: number): Promise<T> {
   const url = buildUrl(endpoint, params);
+  const effectiveTimeout = timeoutMs ?? CONTABIL_TIMEOUT_MS;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), CONTABIL_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), effectiveTimeout);
 
   const token = erpApi.getToken();
   const headers: Record<string, string> = {
@@ -123,7 +124,7 @@ async function requestJson<T>(endpoint: string, options: RequestInit = {}, param
     const err: ContabilError = Object.assign(
       new Error(
         isTimeout
-          ? `API contábil não respondeu em ${CONTABIL_TIMEOUT_MS / 1000}s (${url}).`
+          ? `API contábil não respondeu em ${Math.round(effectiveTimeout / 1000)}s (${url}).`
           : `Não foi possível conectar à API contábil (${url}).`,
       ),
       {
@@ -137,6 +138,7 @@ async function requestJson<T>(endpoint: string, options: RequestInit = {}, param
     throw err;
   }
   clearTimeout(timeout);
+
 
   const rawText = await response.text().catch(() => '');
   let parsed: any = null;
