@@ -189,6 +189,25 @@ export const contabilApi = {
   },
 };
 
+/**
+ * Monta URL absoluta + headers autenticados (Bearer + ngrok-skip) para
+ * consumidores que precisam de fetch bruto — streaming SSE ou download binário.
+ */
+export function buildContabilRequest(
+  endpoint: string,
+  params?: Record<string, any>,
+  extraHeaders?: Record<string, string>,
+): { url: string; headers: Record<string, string> } {
+  const url = buildUrl(endpoint, params);
+  const token = erpApi.getToken();
+  const headers: Record<string, string> = {
+    'ngrok-skip-browser-warning': 'true',
+    ...(extraHeaders || {}),
+  };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return { url, headers };
+}
+
 export async function contabilApiFetch<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
   return requestJson<T>(endpoint, options);
 }
