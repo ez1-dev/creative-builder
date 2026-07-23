@@ -41,7 +41,7 @@ const EMPTY: ComercialData = {
 
 export function useComercial(periodo: Periodo, enabled: boolean) {
   const range = useMemo(() => rangeFor(periodo), [periodo]);
-  const rangeAnt = useMemo(() => rangeFor('mes_anterior'), []);
+  const rangeAnt = useMemo(() => rangeAnteriorEquivalente(periodo), [periodo]);
 
   const queries = useQueries({
     queries: [
