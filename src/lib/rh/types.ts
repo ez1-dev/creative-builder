@@ -355,6 +355,16 @@ export interface ResumoFolhaDrillItem {
   label: string;
   valor: number | null;
   qtd?: number | null;
+  /** Campos ricos dos níveis profundos (evento_colaborador / colaborador_evento / analitico). */
+  matricula?: string;
+  colaborador?: string;
+  cd_evento?: number | string;
+  ds_evento?: string;
+  qtd_referencia?: number | null;
+  cd_cargo?: number | string;
+  cd_centro_custo?: number | string;
+  cd_filial?: string;
+  anomes?: string;
   [k: string]: any;
 }
 
