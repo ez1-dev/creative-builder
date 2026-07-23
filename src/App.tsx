@@ -91,6 +91,7 @@ import IndicadoresContabeisPage from "@/pages/contabilidade/IndicadoresContabeis
 import FluxoCaixaPage from "@/pages/contabilidade/FluxoCaixaPage";
 import AgingPage from "@/pages/contabilidade/AgingPage";
 import KardexPage from "@/pages/contabilidade/KardexPage";
+import ConciliacaoEstoquePage from "@/pages/contabilidade/ConciliacaoEstoquePage";
 // import BalancoPadraoPage from "@/pages/contabilidade/balanco-padrao/BalancoPadraoPage"; // TODO: reativar quando o Balanço Padrão for entregue
 import DreStudioConciliacaoPage from "@/pages/contabilidade/dre-studio/DreStudioConciliacaoPage";
 import RegrasSeniorDashboardPage from "@/pages/regras-senior/RegrasSeniorDashboardPage";
@@ -207,6 +208,7 @@ const App = () => (
               <Route path="/contabilidade/fluxo-caixa" element={<ProtectedRoute path="/contabilidade/fluxo-caixa"><FluxoCaixaPage /></ProtectedRoute>} />
               <Route path="/contabilidade/aging" element={<ProtectedRoute path="/contabilidade/aging"><AgingPage /></ProtectedRoute>} />
               <Route path="/contabilidade/kardex" element={<ProtectedRoute path="/contabilidade/kardex"><KardexPage /></ProtectedRoute>} />
+              <Route path="/contabilidade/conciliacao-estoque" element={<ProtectedRoute path="/contabilidade/conciliacao-estoque"><ConciliacaoEstoquePage /></ProtectedRoute>} />
               {/* <Route path="/contabilidade/balanco-padrao" element={<ProtectedRoute path="/contabilidade/balanco-padrao"><BalancoPadraoPage /></ProtectedRoute>} /> */}
               <Route path="/contabilidade/configuracoes" element={<ProtectedRoute path="/contabilidade/dre-studio"><DreStudioConfiguracoesPage /></ProtectedRoute>} />
               <Route path="/bi/contabilidade/dre" element={<ProtectedRoute path="/bi/contabilidade/dre"><DrePage /></ProtectedRoute>} />

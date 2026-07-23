@@ -41,14 +41,15 @@ async function fetchComponentesOptions(q: string): Promise<CadastroOption[]> {
 
 function tipoBadge(t: string) {
   const isEntrada = t === 'entrada';
+  const isTransf = t === 'transferencia';
   return (
     <Badge
       variant="outline"
       className={cn(
         'text-[10px] uppercase',
-        isEntrada
-          ? 'border-emerald-500/50 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
-          : 'border-destructive/50 text-destructive bg-destructive/10',
+        isEntrada && 'border-emerald-500/50 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10',
+        isTransf && 'border-sky-500/50 text-sky-600 dark:text-sky-400 bg-sky-500/10',
+        !isEntrada && !isTransf && 'border-destructive/50 text-destructive bg-destructive/10',
       )}
     >
       {t}
@@ -58,6 +59,7 @@ function tipoBadge(t: string) {
 
 function rowClassKardex(row: KardexMovimento): string {
   if (row.tipo === 'entrada') return 'bg-emerald-500/5';
+  if (row.tipo === 'transferencia') return 'bg-sky-500/5';
   if (row.tipo === 'saida') return 'bg-destructive/5';
   return '';
 }
@@ -271,10 +273,43 @@ export default function KardexPage() {
                   <p className="text-sm">{data.produto.unidade}</p>
                 </div>
               )}
+              {data.produto.conta_contabil && (
+                <div className="min-w-[200px]">
+                  <p className="text-[10px] uppercase text-muted-foreground">Conta contábil</p>
+                  <p className="text-sm tabular-nums">
+                    <span className="font-medium">{data.produto.conta_contabil.clacta}</span>
+                    <span className="text-muted-foreground"> — {data.produto.conta_contabil.descricao}</span>
+                  </p>
+                </div>
+              )}
               <div>
                 <p className="text-[10px] uppercase text-muted-foreground">Total de movimentos</p>
                 <p className="text-sm tabular-nums">{formatNumberBR(data.total_movimentos, 0)}</p>
               </div>
+              {(data.resumo.transferencias_qtd || 0) > 0 && (
+                <div>
+                  <p className="text-[10px] uppercase text-muted-foreground">Transferências</p>
+                  <p className="text-sm tabular-nums text-sky-600 dark:text-sky-400">
+                    {formatNumberBR(data.resumo.transferencias_qtd || 0, 3)}
+                    {(data.resumo.transferencias_valor || 0) > 0 && (
+                      <> · {formatCurrency(data.resumo.transferencias_valor || 0)}</>
+                    )}
+                  </p>
+                </div>
+              )}
+              {data.resumo.giro != null && (
+                <div title="Giro = saídas ÷ estoque médio ((inicial + final) / 2)">
+                  <p className="text-[10px] uppercase text-muted-foreground">Giro (período)</p>
+                  <p className="text-sm font-semibold tabular-nums">
+                    {formatNumberBR(Number(data.resumo.giro), 2)}
+                  </p>
+                  {data.resumo.estoque_medio != null && (
+                    <p className="text-[10px] text-muted-foreground tabular-nums">
+                      est. médio {formatNumberBR(Number(data.resumo.estoque_medio), 3)}
+                    </p>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
 
