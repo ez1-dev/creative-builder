@@ -294,6 +294,21 @@ export default function IndicadoresContabeisPage() {
             Analytics de gestão contábil — valores auditáveis, calculados no backend.
           </p>
         </div>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="sm" variant="outline" onClick={exportarExcel} disabled={exporting || isLoading}>
+                {exporting
+                  ? <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  : <FileSpreadsheet className="h-4 w-4 mr-1" />}
+                {exporting ? 'Gerando Excel…' : 'Exportar Excel'}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs text-xs">
+              Baixa a planilha com os números auditáveis conta a conta, para a contabilidade validar.
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching}>
           <RefreshCw className={cn('h-4 w-4 mr-1', isFetching && 'animate-spin')} /> Atualizar
         </Button>
