@@ -295,6 +295,7 @@ function normalizeDashboard(raw: any): ResumoFolhaDashboard {
     drills_menu: Array.isArray(raw?.drills_menu)
       ? raw.drills_menu
           .map((d: any) => ({
+            ...d,
             card: String(d?.card ?? "").trim(),
             label: String(d?.label ?? d?.card ?? "").trim(),
             agrupamentos: Array.isArray(d?.agrupamentos)
@@ -313,7 +314,6 @@ function normalizeDashboard(raw: any): ResumoFolhaDashboard {
                   })
                   .filter((a: any) => a.key)
               : [],
-            ...d,
           }))
           .filter((d: any) => d.card)
       : [],
