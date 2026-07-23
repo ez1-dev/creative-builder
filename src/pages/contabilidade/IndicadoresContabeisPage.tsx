@@ -372,7 +372,7 @@ export default function IndicadoresContabeisPage() {
                   disabled={analise.isFetching}
                 >
                   <Sparkles className="h-4 w-4 mr-1" />
-                  {analise.isFetching ? 'Gerando…' : narrativa ? 'Gerar novamente' : 'Gerar análise'}
+                  {analise.isFetching ? 'Gerando… (pode levar até 90s)' : narrativa ? 'Gerar novamente' : 'Gerar análise'}
                 </Button>
                 {analiseErro && !narrativa && (
                   <Alert variant="destructive">
