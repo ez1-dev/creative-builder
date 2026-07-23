@@ -201,7 +201,34 @@ export default function IndicadoresContabeisPage() {
 
   const params = { anomes_ini: anomesIni, anomes_fim: anomesFim, codemp, codfil };
   const { data, isLoading, error, refetch, isFetching } = useIndicadores(params);
-  const analise = useIndicadoresAnalise(params);
+
+  // ---- Streaming da análise IA ----
+  type StreamStatus = 'idle' | 'streaming' | 'done' | 'erro';
+  const [narrativaStream, setNarrativaStream] = useState('');
+  const [streamStatus, setStreamStatus] = useState<StreamStatus>('idle');
+  const [streamErro, setStreamErro] = useState<string | undefined>();
+  const [modeloIA, setModeloIA] = useState<string | undefined>();
+  const streamAbortRef = useRef<AbortController | null>(null);
+
+  // Abortar stream ativo ao trocar filtros/desmontar
+  useEffect(() => {
+    return () => {
+      streamAbortRef.current?.abort();
+    };
+  }, []);
+  useEffect(() => {
+    // Se filtros mudaram, cancela stream em curso e limpa análise antiga.
+    streamAbortRef.current?.abort();
+    streamAbortRef.current = null;
+    setNarrativaStream('');
+    setStreamStatus('idle');
+    setStreamErro(undefined);
+    setModeloIA(undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anomesIni, anomesFim, codemp, codfil]);
+
+  // ---- Exportar Excel ----
+  const [exporting, setExporting] = useState(false);
 
   const aplicarFiltros = () => {
     const sp = new URLSearchParams();
@@ -218,18 +245,42 @@ export default function IndicadoresContabeisPage() {
   );
 
   const gerarAnalise = async () => {
+    streamAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    streamAbortRef.current = ctrl;
+    setNarrativaStream('');
+    setStreamErro(undefined);
+    setModeloIA(undefined);
+    setStreamStatus('streaming');
+    await streamIndicadoresAnalise(params, {
+      signal: ctrl.signal,
+      onMeta: (m) => { if (m?.modelo) setModeloIA(m.modelo); },
+      onDelta: (t) => setNarrativaStream((prev) => prev + t),
+      onDone: () => setStreamStatus('done'),
+      onErro: (msg) => {
+        setStreamErro(msg);
+        setStreamStatus('erro');
+        toast.error(msg);
+      },
+    });
+    // Se o stream fechou sem `done` nem `erro`, considera concluído.
+    setStreamStatus((s) => (s === 'streaming' ? 'done' : s));
+  };
+
+  const exportarExcel = async () => {
+    setExporting(true);
     try {
-      const r = await analise.refetch();
-      if (r.data?.analise?.erro) toast.error(r.data.analise.erro);
-      else if (r.data?.analise?.narrativa) toast.success('Análise gerada.');
-      else if (r.error) toast.error(r.error.message || 'Falha ao gerar análise.');
+      await downloadIndicadoresExcel(params);
     } catch (e: any) {
-      toast.error(e?.message || 'Falha ao gerar análise.');
+      toast.error(e?.message || 'Falha ao exportar planilha.');
+    } finally {
+      setExporting(false);
     }
   };
 
-  const narrativa = analise.data?.analise?.narrativa;
-  const analiseErro = analise.data?.analise?.erro || (analise.error?.message);
+  const narrativa = narrativaStream;
+  const analiseErro = streamErro;
+  const analiseCarregando = streamStatus === 'streaming';
 
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-[1600px] mx-auto">
