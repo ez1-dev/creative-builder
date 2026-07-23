@@ -1,67 +1,33 @@
-## Nova página: Fluxo de Caixa (Tesouraria)
+# Análise (IA) do Fluxo de Caixa via Lovable AI
 
-Criar `/contabilidade/fluxo-caixa` com 3 abas + Análise IA (streaming) + Export Excel, seguindo o mesmo padrão da tela de Indicadores Contábeis.
+Hoje a narrativa é gerada pelo backend FastAPI (`/api/contabil/fluxo-caixa/analise/stream`) e está batendo no limite de tokens do modelo do servidor — daí o alerta "Resposta cortada pelo limite do modelo". Vamos passar a gerar essa análise com a IA do Lovable (Lovable AI Gateway), com uma janela de saída maior, mantendo o mesmo contrato SSE (`event: meta | delta | done | erro`) para não mexer no restante da tela.
 
-### Arquivos novos
+## O que muda
 
-**API layer** — `src/lib/contabil/fluxoCaixaApi.ts`
-- Tipos: `ProjecaoResponse`, `DiretoResponse`, `IndiretoResponse` conforme JSON do backend
-- `fetchProjecao({ codemp, codfil?, horizonte_dias, granularidade, data_base?, saldo_inicial? })`
-- `fetchDireto({ codemp, codfil?, anomes_ini, anomes_fim })`
-- `fetchIndireto({ codemp, codfil?, anomes_ini, anomes_fim })`
-- `streamFluxoCaixaAnalise(params, { onMeta, onDelta, onDone, onErro, signal })` — reusar padrão de `indicadoresApi.streamIndicadoresAnalise` (fetch + ReadableStream SSE, header Authorization)
-- `exportFluxoCaixaXlsx(params)` — fetch blob autenticado, download com `URL.createObjectURL`
-- Base URL `VITE_API_BASE_URL` + timeout 60s (projeção/direto/indireto), 90s (análise stream sem timeout duro)
+1. **Nova edge function `fluxo-caixa-analise-ia`** (`supabase/functions/fluxo-caixa-analise-ia/index.ts`)
+   - Recebe os mesmos parâmetros da UI (`anomes_ini`, `anomes_fim`, `codemp`, `codfil`, `horizonte_dias`, `granularidade`, `data_base`, `saldo_inicial`).
+   - Busca no backend FastAPI, em paralelo, os três payloads que a página já usa: `projecao`, `direto`, `indireto` (repassando `Authorization` e `ngrok-skip-browser-warning`). Assim a IA analisa exatamente o que o usuário está vendo.
+   - Monta um prompt em PT-BR de "analista de tesouraria" pedindo seções fixas em markdown (Resumo, Projeção & saldo mínimo, Vencidos, DFC Direto, DFC Indireto, Riscos, Recomendações) e chama o Lovable AI Gateway com `streamText` (modelo `google/gemini-2.5-pro`, `providerOptions.lovable` para folga de saída).
+   - Adapta o stream do AI SDK para o mesmo formato SSE já consumido pela UI: emite `event: meta` (com `modelo` e período), vários `event: delta` (`{ text }`) e um `event: done` (`{ chars, finish_reason }`); em falha, `event: erro`.
+   - CORS liberado e `verify_jwt = false` (só usa o Bearer do usuário para autenticar contra o FastAPI); `LOVABLE_API_KEY` fica só no servidor.
 
-**Narrativa** — reutilizar `indicadoresNarrativa.ts` (`normalizarNarrativa`, `narrativaTruncada`).
+2. **`src/lib/contabil/fluxoCaixaApi.ts`**
+   - `streamFluxoCaixaAnalise` passa a fazer `fetch` na URL da edge function (`${VITE_SUPABASE_URL}/functions/v1/fluxo-caixa-analise-ia`) com `Authorization: Bearer <VITE_SUPABASE_PUBLISHABLE_KEY>` + `x-user-authorization: Bearer <token do FastAPI>` (o que já é injetado por `buildContabilRequest`), body JSON com os parâmetros. O parser SSE existente é reaproveitado sem mudanças.
+   - `downloadFluxoCaixaExcel` continua no FastAPI (sem alteração).
 
-**Página** — `src/pages/contabilidade/FluxoCaixaPage.tsx`
-- Header: título "Fluxo de Caixa", período (anomes_ini/fim), filial, botões "Atualizar" e "Exportar Excel"
-- Tabs: **Projeção** (padrão) · **Realizado — Direto** · **Realizado — Indireto**
-- Card "Análise (IA)" full-width no rodapé com botão "Gerar análise" (streaming)
+3. **`FluxoCaixaPage.tsx`** — nenhuma mudança de UI. O card "Análise (IA)", o botão "Gerar novamente", a detecção de truncamento (`narrativaTruncada` + `finish_reason`) e o markdown formatado continuam funcionando exatamente como estão; apenas a origem do stream muda.
 
-#### Aba Projeção (destaque)
-- Controles: `horizonte_dias` (30/60/90/120/180), `granularidade` (mês/semana), `data_base` (date input), `saldo_inicial` (input editável — placeholder = valor contábil retornado)
-- Card "Saldo inicial": mostra `saldo_inicial` + fonte (`saldo_inicial_fonte`); input para override → refetch
-- Card "Vencidos" destacado: `vencidos.receber` (verde/atenção) e `vencidos.pagar` (vermelho), com nota "não entram na curva"
-- Card "Menor saldo do horizonte": valor + período
-- Alertas: banners amarelos com `alertas[]`
-- **Gráfico principal** (recharts ComposedChart):
-  - Linha `saldo_projetado` por `periodo` — marcar ponto do menor saldo com dot destacado
-  - Barras `entradas` (verde) e `saidas` (vermelho) empilhadas/paralelas
-  - Área vermelha nos períodos com `saldo_projetado < 0` (via ReferenceArea ou segment coloring)
-- Tabela abaixo: periodo · entradas · saidas · fluxo_liquido · saldo_projetado
+4. **`supabase/config.toml`** — adiciona `[functions.fluxo-caixa-analise-ia] verify_jwt = false`.
 
-#### Aba Realizado — Direto
-- Cards: caixa_inicial · caixa_final · variação · selo "Conciliado" (verde se `conciliado: true`, com residual)
-- Tabela por categoria: categoria · atividade (badge) · entradas · saídas · líquido
-- Tesouraria: badge/tooltip com `obs`, destaque visual no líquido
+## Detalhes técnicos
 
-#### Aba Realizado — Indireto
-- Cards: caixa_inicial · caixa_final · variação calculada vs real · selo conciliado
-- 3 seções colapsáveis (Operacional / Investimento / Financiamento):
-  - Lista de itens (descricao · valor) com formatação positivo/negativo
-  - Subtotal destacado
-- Rodapé: `observacoes[]` em texto pequeno
+- Provider Lovable AI seguindo o padrão da knowledge `ai-sdk-lovable-gateway` (`createOpenAICompatible`, header `Lovable-API-Key`, `X-Lovable-AIG-SDK`).
+- Modelo padrão: `google/gemini-2.5-pro` (contexto grande, ideal para juntar Projeção + DFC Direto + Indireto). Saída ampla para evitar corte.
+- Se a chave `LOVABLE_API_KEY` não estiver provisionada, provisiono via ferramenta antes de deploy.
+- O `finish_reason` emitido pelo `event: done` mantém a heurística de truncamento; com Gemini 2.5 Pro + saída grande a expectativa é sempre `stop`.
+- Erros do gateway (429 crédito/limite, 402 sem crédito, 5xx) são convertidos em `event: erro` com mensagem amigável e mostrados no alerta vermelho existente.
 
-#### Análise IA (rodapé, full-width, mesmo padrão de Indicadores)
-- Botão "Gerar análise" → abre stream SSE
-- Renderização markdown progressiva via `normalizarNarrativa`
-- Botão "Cancelar" durante geração (AbortController)
-- Alerta amarelo "Gerar novamente" se `narrativaTruncada` detectar corte
-- Metadata footer (modelo, chars, tempo)
+## Fora de escopo
 
-#### Exportar Excel
-- Botão no header → `exportFluxoCaixaXlsx` (fetch blob + Authorization), nome `fluxo-caixa-{anomes_ini}-{anomes_fim}.xlsx`
-
-### Registro
-
-- `src/App.tsx`: adicionar `<Route path="/contabilidade/fluxo-caixa" element={<FluxoCaixaPage />} />`
-- `src/config/menuCatalog.ts`: adicionar item **Fluxo de Caixa** logo abaixo de **Indicadores Contábeis** em "Financeiro e Contábil", ícone `Waves` ou `TrendingUp`
-- Central de Liberações: adicionar rota ao catálogo de permissões
-
-### Padrões respeitados
-- Tokens semânticos do design system (sem cores hardcoded — usar `text-success`, `text-destructive`, etc.)
-- Header `ngrok-skip-browser-warning: true` + `Authorization: Bearer`
-- Formatação BR (`Intl.NumberFormat`)
-- Loading skeletons + error states com botão retry
+- Migrar Indicadores Contábeis para a IA do Lovable (posso fazer em seguida se quiser).
+- Alterar o endpoint de Excel — segue no FastAPI.
