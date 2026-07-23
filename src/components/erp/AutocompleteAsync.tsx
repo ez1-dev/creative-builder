@@ -100,17 +100,28 @@ export function AutocompleteAsync({ value, onChange, fetcher, placeholder = 'Bus
             className="text-xs"
           />
           <CommandList>
+            {unavailable && displayed.length === 0 && (
+              <div className="flex items-start gap-2 px-3 py-2 text-[11px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border-b">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                <span>Cadastro indisponível no backend. Verifique o endpoint ou selecione a partir dos resultados da grid.</span>
+              </div>
+            )}
+            {unavailable && displayed.length > 0 && (
+              <div className="px-3 py-1.5 text-[10px] text-muted-foreground bg-muted/40 border-b">
+                Cadastro indisponível — mostrando itens da grid atual.
+              </div>
+            )}
             {loading ? (
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               </div>
-            ) : results.length === 0 ? (
+            ) : displayed.length === 0 ? (
               <CommandEmpty className="py-3 text-center text-xs text-muted-foreground">
-                {query ? 'Nenhum resultado' : 'Digite para buscar'}
+                {unavailable ? 'Cadastro indisponível' : query ? 'Nenhum resultado' : 'Digite para buscar'}
               </CommandEmpty>
             ) : (
               <CommandGroup>
-                {results.slice(0, 100).map((opt) => (
+                {displayed.map((opt) => (
                   <CommandItem
                     key={opt.codigo}
                     value={opt.codigo}
