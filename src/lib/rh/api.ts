@@ -299,11 +299,18 @@ function normalizeDashboard(raw: any): ResumoFolhaDashboard {
             label: String(d?.label ?? d?.card ?? "").trim(),
             agrupamentos: Array.isArray(d?.agrupamentos)
               ? d.agrupamentos
-                  .map((a: any) => ({
-                    key: String(a?.key ?? a?.agrupar_por ?? a?.id ?? "").trim(),
-                    label: String(a?.label ?? a?.nome ?? a?.key ?? "").trim(),
-                    ...a,
-                  }))
+                  .map((a: any) => {
+                    // Backend pode enviar como string ("evento") ou objeto ({key,label,...})
+                    if (typeof a === "string") {
+                      const key = a.trim();
+                      return { key, label: key };
+                    }
+                    return {
+                      ...a,
+                      key: String(a?.key ?? a?.agrupar_por ?? a?.id ?? "").trim(),
+                      label: String(a?.label ?? a?.nome ?? a?.key ?? "").trim(),
+                    };
+                  })
                   .filter((a: any) => a.key)
               : [],
             ...d,
