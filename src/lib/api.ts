@@ -196,7 +196,7 @@ class ApiClient {
     return data;
   }
 
-  async get<T>(endpoint: string, params?: Record<string, any>, options?: { keepEmpty?: string[] }): Promise<T> {
+  async get<T>(endpoint: string, params?: Record<string, any>, options?: { keepEmpty?: string[]; timeoutMs?: number }): Promise<T> {
     const searchParams = new URLSearchParams();
     const keepEmpty = new Set(options?.keepEmpty ?? []);
     if (params) {
@@ -211,7 +211,7 @@ class ApiClient {
     }
     const queryString = searchParams.toString();
     const url = queryString ? `${endpoint}?${queryString}` : endpoint;
-    return this.request<T>(url);
+    return this.request<T>(url, {}, options?.timeoutMs ? { timeoutMs: options.timeoutMs } : {});
   }
 
   async post<T>(

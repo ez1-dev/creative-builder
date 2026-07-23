@@ -397,7 +397,7 @@ export async function fetchResumoFolhaDrill(
   });
 
   try {
-    const resp = await api.get<any>("/api/rh/resumo-folha/drill", params);
+    const resp = await api.get<any>("/api/rh/resumo-folha/drill", params, { timeoutMs: 30_000 });
     const itens = Array.isArray(resp?.itens)
       ? resp.itens.map((it: any) => ({
           label: String(it?.label ?? it?.nome ?? it?.descricao ?? ""),
