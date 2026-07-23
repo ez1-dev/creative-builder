@@ -706,8 +706,13 @@ function ConciliadoBadge({ conciliado, residual }: { conciliado: boolean; residu
 }
 
 function DiretoBloco({
-  data, onOpenDrill,
-}: { data: DiretoResponse; onOpenDrill: (c: DiretoCategoria) => void }) {
+  data, onOpenDrill, onOpenDrillCustom, paramsBase,
+}: {
+  data: DiretoResponse;
+  onOpenDrill: (c: DiretoCategoria) => void;
+  onOpenDrillCustom: (origem: string, ini: number, fim: number, titulo: string, extraParams?: Record<string, any>) => void;
+  paramsBase: { anomes_ini: number; anomes_fim: number; codemp: number; codfil?: number };
+}) {
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
