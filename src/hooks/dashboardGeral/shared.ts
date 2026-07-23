@@ -21,7 +21,7 @@ export function statusFrom(
   return 'ok';
 }
 
-export { rangeFor, num, delta, labelAnomes };
+export { rangeFor, rangeAnteriorEquivalente, num, delta, labelAnomes };
 export type { Periodo };
 
 export function anomesToDate(a: string, end = false): string {
