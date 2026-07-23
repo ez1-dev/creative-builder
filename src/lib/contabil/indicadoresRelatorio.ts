@@ -129,7 +129,7 @@ export function gerarPdfIndicadores(p: GerarPdfIndicadoresParams): void {
   doc.setTextColor(40);
 
   const texto = p.narrativa?.trim()
-    ? stripMarkdown(p.narrativa)
+    ? stripMarkdown(normalizarNarrativa(p.narrativa))
     : 'Análise da IA não gerada nesta sessão.';
   const linhas = doc.splitTextToSize(texto, pageW - marginX * 2);
   const pageH = doc.internal.pageSize.getHeight();
