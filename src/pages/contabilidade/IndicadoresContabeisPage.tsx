@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
-import { AlertTriangle, Info, Sparkles, RefreshCw, Landmark, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { AlertTriangle, Info, Sparkles, RefreshCw, Landmark, FileSpreadsheet, FileText, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +21,7 @@ import { formatCurrency, formatNumberBR } from '@/lib/format';
 import { CODEMP } from '@/lib/contabilConfig';
 import { useIndicadores } from '@/hooks/contabil/useIndicadores';
 import { streamIndicadoresAnalise, downloadIndicadoresExcel } from '@/lib/contabil/indicadoresApi';
+import { gerarPdfIndicadores } from '@/lib/contabil/indicadoresRelatorio';
 import type { Indicador, IndicadorUnidade, IndicadorStatus } from '@/lib/contabil/indicadoresApi';
 
 // ---- Seções (agrupamento por nome) ----
@@ -278,6 +279,31 @@ export default function IndicadoresContabeisPage() {
     }
   };
 
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const baixarRelatorio = async () => {
+    if (!data) return;
+    setExportingPdf(true);
+    try {
+      gerarPdfIndicadores({
+        periodoIni: anomesIni,
+        periodoFim: anomesFim,
+        codemp,
+        codfil,
+        grupos,
+        ordemSecoes: SECOES.map((s) => s.titulo),
+        outros,
+        tecnicos,
+        duplicidade612: data.duplicidade_612_ativa,
+        narrativa: narrativaStream,
+        modeloIA,
+      });
+    } catch (e: any) {
+      toast.error(e?.message || 'Falha ao gerar PDF.');
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
   const narrativa = narrativaStream;
   const analiseErro = streamErro;
   const analiseCarregando = streamStatus === 'streaming';
@@ -295,6 +321,19 @@ export default function IndicadoresContabeisPage() {
           </p>
         </div>
         <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="sm" variant="outline" onClick={baixarRelatorio} disabled={exportingPdf || isLoading || !data}>
+                {exportingPdf
+                  ? <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  : <FileText className="h-4 w-4 mr-1" />}
+                {exportingPdf ? 'Gerando PDF…' : 'Baixar relatório'}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs text-xs">
+              PDF com os indicadores do período + a última análise da IA gerada nesta tela.
+            </TooltipContent>
+          </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button size="sm" variant="outline" onClick={exportarExcel} disabled={exporting || isLoading}>
@@ -376,67 +415,64 @@ export default function IndicadoresContabeisPage() {
 
       {/* Seções */}
       {!isLoading && data && (
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
-          <div className="space-y-4">
-            {SECOES.map(({ titulo }) => {
-              const itens = grupos[titulo];
-              if (!itens?.length) return null;
-              return (
-                <section key={titulo}>
-                  <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                    {titulo}
-                  </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                    {itens.map((ind, i) => (
-                      <IndicadorCard key={`${ind.indicador}-${i}`} ind={ind} onClick={() => setDetalhe(ind)} />
-                    ))}
-                  </div>
-                </section>
-              );
-            })}
-            {outros.length > 0 && (
-              <section>
-                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">Outros</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                  {outros.map((ind, i) => (
-                    <IndicadorCard key={`outros-${i}`} ind={ind} onClick={() => setDetalhe(ind)} />
-                  ))}
-                </div>
-              </section>
-            )}
-            {tecnicos.length > 0 && (
-              <section className="pt-4 border-t">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                  Conferências técnicas
+        <div className="space-y-4">
+          {SECOES.map(({ titulo }) => {
+            const itens = grupos[titulo];
+            if (!itens?.length) return null;
+            return (
+              <section key={titulo}>
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                  {titulo}
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {tecnicos.map((ind, i) => (
-                    <IndicadorCard key={`tec-${i}`} ind={ind} onClick={() => setDetalhe(ind)} />
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                  {itens.map((ind, i) => (
+                    <IndicadorCard key={`${ind.indicador}-${i}`} ind={ind} onClick={() => setDetalhe(ind)} />
                   ))}
                 </div>
               </section>
-            )}
-          </div>
+            );
+          })}
+          {outros.length > 0 && (
+            <section>
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">Outros</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                {outros.map((ind, i) => (
+                  <IndicadorCard key={`outros-${i}`} ind={ind} onClick={() => setDetalhe(ind)} />
+                ))}
+              </div>
+            </section>
+          )}
+          {tecnicos.length > 0 && (
+            <section className="pt-4 border-t">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Conferências técnicas
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                {tecnicos.map((ind, i) => (
+                  <IndicadorCard key={`tec-${i}`} ind={ind} onClick={() => setDetalhe(ind)} />
+                ))}
+              </div>
+            </section>
+          )}
 
-          {/* Painel IA */}
-          <aside>
-            <Card className="sticky top-4">
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-sm">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  Análise (IA)
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  A IA <strong>interpreta</strong> os números acima — não recalcula
-                  nada. Gere sob demanda para evitar custo desnecessário.
+          {/* Painel IA — no final da página */}
+          <Card className="mt-6">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Sparkles className="h-4 w-4 text-primary" />
+                Análise (IA)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <p className="text-[11px] text-muted-foreground leading-relaxed max-w-2xl">
+                  A IA <strong>interpreta</strong> os números acima — não recalcula nada.
                 </p>
                 <Button
                   size="sm"
-                  className="w-full"
                   onClick={gerarAnalise}
                   disabled={analiseCarregando}
+                  className="sm:w-auto"
                 >
                   {analiseCarregando
                     ? <Loader2 className="h-4 w-4 mr-1 animate-spin" />
@@ -447,25 +483,25 @@ export default function IndicadoresContabeisPage() {
                       ? 'Gerar novamente'
                       : 'Gerar análise'}
                 </Button>
-                {analiseErro && !narrativa && (
-                  <Alert variant="destructive">
-                    <AlertTitle className="text-xs">Análise indisponível</AlertTitle>
-                    <AlertDescription className="text-xs">{analiseErro}</AlertDescription>
-                  </Alert>
-                )}
-                {narrativa && (
-                  <div className="prose prose-sm max-w-none text-sm dark:prose-invert">
-                    <ReactMarkdown>{narrativa}</ReactMarkdown>
-                    {modeloIA && (
-                      <p className="text-[10px] text-muted-foreground mt-2">
-                        Modelo: {modeloIA}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </aside>
+              </div>
+              {analiseErro && !narrativa && (
+                <Alert variant="destructive">
+                  <AlertTitle className="text-xs">Análise indisponível</AlertTitle>
+                  <AlertDescription className="text-xs">{analiseErro}</AlertDescription>
+                </Alert>
+              )}
+              {narrativa && (
+                <div className="prose prose-sm max-w-3xl text-sm dark:prose-invert">
+                  <ReactMarkdown>{narrativa}</ReactMarkdown>
+                  {modeloIA && (
+                    <p className="text-[10px] text-muted-foreground mt-2">
+                      Modelo: {modeloIA}
+                    </p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       )}
 
