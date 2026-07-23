@@ -14,8 +14,10 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 
-import { ChevronDown, Info, RefreshCw, Loader2, AlertTriangle, FileSpreadsheet } from "lucide-react";
+import { ChevronDown, Info, RefreshCw, Loader2, AlertTriangle, FileSpreadsheet, ShieldCheck } from "lucide-react";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { BotaoRelatorioModuloPdf } from "@/components/rh/BotaoRelatorioModuloPdf";
 import { RhDashboardWithBiLibrary } from "@/components/rh/RhDashboardWithBiLibrary";
