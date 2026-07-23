@@ -2,7 +2,7 @@
  * Utilitários compartilhados pelos hooks das abas do Dashboard Geral.
  * Cada aba usa `useQueries` com `enabled` para lazy-fetch e retry: 0.
  */
-import { rangeFor, num, delta, labelAnomes, type Periodo } from '@/lib/dashboardGeral/aggregator';
+import { rangeFor, rangeAnteriorEquivalente, num, delta, labelAnomes, type Periodo } from '@/lib/dashboardGeral/aggregator';
 
 export type ModStatus = 'ok' | 'erro' | 'carregando' | 'idle' | 'parcial';
 
