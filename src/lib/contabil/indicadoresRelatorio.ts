@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Indicador, IndicadorUnidade } from './indicadoresApi';
+import { normalizarNarrativa } from './indicadoresNarrativa';
 import { formatCurrency, formatNumberBR } from '@/lib/format';
 
 function fmtValor(v: number | null, unidade: IndicadorUnidade): string {
