@@ -128,7 +128,14 @@ export function ResumoFolhaDrillDrawer({
   );
 
   // Detecta se o backend enviou campos ricos para escolher o layout de colunas.
-  const richMode: "analitico" | "cruz" | "raso" = useMemo(() => {
+  const richMode:
+    | "analitico"
+    | "cruz"
+    | "raso"
+    | "salario_base_colab"
+    | "inss_patronal_colab" = useMemo(() => {
+    if (drillItem?.card === "salario_base" && tab === "colaborador") return "salario_base_colab";
+    if (drillItem?.card === "inss_patronal" && tab === "colaborador") return "inss_patronal_colab";
     if (!itens.length) {
       if (tab === "analitico") return "analitico";
       if (tab === "evento_colaborador" || tab === "colaborador_evento") return "cruz";
@@ -141,7 +148,8 @@ export function ResumoFolhaDrillDrawer({
     if (tab === "analitico" || sample.qtd_referencia != null) return "analitico";
     if (sample.colaborador != null || sample.ds_evento != null) return "cruz";
     return "raso";
-  }, [itens, tab]);
+  }, [itens, tab, drillItem?.card]);
+
 
   const total = data?.total ?? null;
   const delta =
