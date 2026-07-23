@@ -56,6 +56,19 @@ const AGRUPAMENTO_LABELS: Record<string, string> = {
 const DEEP_LEVELS = new Set(["evento_colaborador", "colaborador_evento", "analitico"]);
 const DEEP_LIMITE = 5000;
 
+// Cards de valor que aceitam agrupamentos padrão (evento/filial/mês) quando o
+// backend omite `agrupamentos` no drills_menu.
+const VALUE_CARDS_FALLBACK = new Set([
+  "provento", "desconto", "total_liquido", "custo_total", "beneficios",
+  "inss_total", "inss_patronal", "hora_extra", "provisoes", "custo_ferias",
+  "rescisoes", "fgts",
+]);
+const DEFAULT_AGRUPAMENTOS = [
+  { key: "evento", label: AGRUPAMENTO_LABELS.evento },
+  { key: "filial", label: AGRUPAMENTO_LABELS.filial },
+  { key: "mes", label: AGRUPAMENTO_LABELS.mes },
+];
+
 export function ResumoFolhaDrillDrawer({
   open,
   onOpenChange,
@@ -65,7 +78,12 @@ export function ResumoFolhaDrillDrawer({
   anomes_fim,
   extras,
 }: Props) {
-  const agrupamentos = drillItem?.agrupamentos ?? [];
+  const rawAgrupamentos = drillItem?.agrupamentos ?? [];
+  const usingFallback =
+    rawAgrupamentos.length === 0 &&
+    !!drillItem?.card &&
+    VALUE_CARDS_FALLBACK.has(drillItem.card);
+  const agrupamentos = usingFallback ? DEFAULT_AGRUPAMENTOS : rawAgrupamentos;
   const [tab, setTab] = useState<string>("");
   const cd_filial = extras?.cd_filial;
   const cd_evento = extras?.cd_evento;
@@ -77,8 +95,17 @@ export function ResumoFolhaDrillDrawer({
     if (open && drillItem) {
       const first = agrupamentos[0]?.key ?? "";
       setTab(first);
+      if (rawAgrupamentos.length === 0) {
+        // eslint-disable-next-line no-console
+        console.debug("[ResumoFolha drill] drills_menu sem agrupamentos", {
+          card: drillItem.card,
+          drillItem,
+          fallbackAplicado: usingFallback,
+        });
+      }
     }
-  }, [open, drillItem, agrupamentos]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, drillItem]);
 
   const isDeep = DEEP_LEVELS.has(tab);
   const limite = isDeep ? DEEP_LIMITE : undefined;

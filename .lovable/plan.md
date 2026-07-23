@@ -1,50 +1,24 @@
-# Drills novos — Salário Base (nominal) e INSS Patronal
+## Diagnóstico
 
-Backend já publicou o contrato. Cards `salario_base` e `inss_patronal` retornam campos extras no `agrupar_por=colaborador` e devem ganhar colunas dedicadas no drawer. Nos agrupamentos `filial` e `mes` o item vem enxuto (chave/label/valor/qtd) e cai no render "raso" atual.
+O drawer do card **Líquido** abre com o cabeçalho certo (`total_liquido`, valor R$ 1.277.658,43) mas o corpo fica só uma barra cinza:
 
-## O que muda
+- Não há requisição para `GET /api/rh/resumo-folha/drill` (rede vazia).
+- No `ResumoFolhaDrillDrawer.tsx`, o `useQuery` está com `enabled: open && !!drillItem && !!tab`. Se `tab` fica `""` a consulta nunca dispara.
+- O `tab` inicial vem de `agrupamentos[0]?.key ?? ""`, onde `agrupamentos = drillItem?.agrupamentos ?? []`.
+- Conclusão mais provável: o item `total_liquido` chega no `drills_menu` **sem `agrupamentos`** (ou com array vazio). Nesse caso o ramo `agrupamentos.length === 0` deveria mostrar "Este card não expõe agrupamentos de drill…", mas a barra cinza observada indica que a mensagem some porque o `SheetContent` está com `overflow-y-auto` e o layout do header empurra a área de conteúdo (não há `mt-*` no ramo do else; o texto renderiza fora do viewport visível do usuário).
 
-### 1. `src/lib/rh/types.ts` — `ResumoFolhaDrillItem`
-Adicionar campos opcionais (todos `?`), documentados como "apenas quando `card ∈ {salario_base, inss_patronal}` e `agrupar_por=colaborador`":
-- `tipo_salario?: string` (`"Mensalista" | "Horista"`)
-- `salario_cadastral?: number` (mensalista = salário mensal; horista = taxa/hora)
-- `horas_mes?: number`
-- `base_inss?: number`
-- `aliquota?: string` (ex.: `"20%"`)
+Como não há endpoint de referência para conferir o payload atual sem tocar no backend, o plano é robustecer o front para: (a) sempre mostrar um estado explícito, (b) tentar um fallback de agrupamentos padrão para o card `total_liquido` (mesmos aceitos pelos outros cards de valor), (c) logar o `drillItem` no console para o próximo diagnóstico.
 
-### 2. `src/components/rh/ResumoFolhaDrillDrawer.tsx`
-Detectar um novo modo de render por card + agrupamento (não mexer nos modos existentes `raso/cruz/analitico`):
+## Escopo (somente front)
 
-```
-richMode = "salario_base_colab"  se card === "salario_base"  && tab === "colaborador"
-richMode = "inss_patronal_colab" se card === "inss_patronal" && tab === "colaborador"
-```
+`src/components/rh/ResumoFolhaDrillDrawer.tsx`
 
-Colunas:
-
-- **Salário Base · colaborador**  
-  `Colaborador (matricula) · Tipo · Salário cadastral · Horas/mês · Nominal (valor)`  
-  Formatar `salario_cadastral`: se `tipo_salario==="Horista"` mostrar `R$ x,xx /h`; senão moeda normal. `horas_mes` com 1 casa.
-
-- **INSS Patronal · colaborador**  
-  `Colaborador (matricula) · Base INSS · Alíquota · Patronal (valor)`  
-  `aliquota` renderizada como texto (já vem `"20%"`).
-
-Comportamento comum:
-- Reusar o header "confere/diverge" já existente (compara soma de `valor` com `total`).
-- Manter aviso de truncamento (`limite=5000`) e o botão "Tentar novamente" em erro/timeout.
-- Nos agrupamentos `filial` e `mes` desses cards, não alterar nada — o render raso atual já cobre `{chave,label,valor,qtd}`.
-
-### 3. `drills_menu` — travar agrupamentos inválidos
-O backend não expõe `agrupar_por=evento` para esses cards (retorna 422). O drawer já é dirigido pelo `drills_menu` do dashboard, então não precisa lista hardcoded — apenas garantir que **não** oferecemos fallback para `evento` quando o menu não trouxer. Adicionar guarda: se o backend responder 422, mostrar mensagem "Agrupamento não suportado para este card" em vez do erro genérico de rede.
+1. **Fallback de agrupamentos** — quando `drillItem.agrupamentos` estiver vazio, usar `DEFAULT_AGRUPAMENTOS = [{key:"evento"},{key:"filial"},{key:"mes"}]` (labels já vêm de `AGRUPAMENTO_LABELS`). Só aplicar se `drillItem.card` estiver na lista de cards de valor conhecidos (`provento`, `desconto`, `total_liquido`, `custo_total`, `beneficios`, `inss_total`, `inss_patronal`, `hora_extra`, `provisoes`, `custo_ferias`, `rescisoes`, `fgts`). Assim o drawer dispara a chamada real e, se o backend responder 422, a mensagem 422 já existente aparece.
+2. **Empty-state visível** — trocar o `<div className="mt-6 …">` do ramo "sem agrupamentos" por um bloco com borda/ícone dentro da área com padding do `SheetContent`, para nunca ficar em branco.
+3. **Log de diagnóstico** — `console.debug("[ResumoFolha drill]", drillItem)` no `useEffect` quando `agrupamentos.length === 0`, para o usuário conseguir mandar o payload real caso o fallback também falhe.
+4. **Nada de mudança de lógica de negócio, backend, cálculo ou schemas.**
 
 ## Fora de escopo
-- Cards que já funcionam (Proventos, Descontos, Líquido, Benefícios, INSS empregado etc.) permanecem inalterados.
-- Nenhuma mudança em `api.ts` além de tipagem (payload já é passado adiante como `any`).
-- Sem mudanças no backend.
 
-## Verificação
-- Type-check.
-- Abrir card **Salário Base** → agrupamento **colaborador** → conferir colunas Tipo/Cadastral/Horas/Nominal e total batendo com o KPI.
-- Abrir card **INSS Patronal** → agrupamento **colaborador** → conferir Base × 20% = Patronal e total batendo.
-- Trocar para `filial`/`mes` nos dois cards → render raso, total confere.
+- Alterações em `src/lib/rh/api.ts`, endpoints, ou contrato do backend.
+- Mudanças nos outros cards/drills que já funcionam.
