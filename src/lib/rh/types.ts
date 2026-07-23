@@ -363,8 +363,15 @@ export interface ResumoFolhaDrillItem {
   qtd_referencia?: number | null;
   cd_cargo?: number | string;
   cd_centro_custo?: number | string;
-  cd_filial?: string;
+  cd_filial?: string | number;
   anomes?: string;
+  /** Campos ricos exclusivos de card=salario_base e agrupar_por=colaborador. */
+  tipo_salario?: string; // "Mensalista" | "Horista"
+  salario_cadastral?: number; // mensalista: salário mensal; horista: taxa/hora
+  horas_mes?: number;
+  /** Campos ricos exclusivos de card=inss_patronal e agrupar_por=colaborador. */
+  base_inss?: number;
+  aliquota?: string; // ex.: "20%"
   [k: string]: any;
 }
 

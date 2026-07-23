@@ -128,7 +128,14 @@ export function ResumoFolhaDrillDrawer({
   );
 
   // Detecta se o backend enviou campos ricos para escolher o layout de colunas.
-  const richMode: "analitico" | "cruz" | "raso" = useMemo(() => {
+  const richMode:
+    | "analitico"
+    | "cruz"
+    | "raso"
+    | "salario_base_colab"
+    | "inss_patronal_colab" = useMemo(() => {
+    if (drillItem?.card === "salario_base" && tab === "colaborador") return "salario_base_colab";
+    if (drillItem?.card === "inss_patronal" && tab === "colaborador") return "inss_patronal_colab";
     if (!itens.length) {
       if (tab === "analitico") return "analitico";
       if (tab === "evento_colaborador" || tab === "colaborador_evento") return "cruz";
@@ -141,7 +148,8 @@ export function ResumoFolhaDrillDrawer({
     if (tab === "analitico" || sample.qtd_referencia != null) return "analitico";
     if (sample.colaborador != null || sample.ds_evento != null) return "cruz";
     return "raso";
-  }, [itens, tab]);
+  }, [itens, tab, drillItem?.card]);
+
 
   const total = data?.total ?? null;
   const delta =
@@ -293,6 +301,21 @@ export function ResumoFolhaDrillDrawer({
                             <TableHead className="text-right w-32">Valor</TableHead>
                             {hasAnyQtd && <TableHead className="text-right w-24">Qtd</TableHead>}
                           </TableRow>
+                        ) : richMode === "salario_base_colab" ? (
+                          <TableRow>
+                            <TableHead>Colaborador</TableHead>
+                            <TableHead className="w-28">Tipo</TableHead>
+                            <TableHead className="text-right w-36">Salário cadastral</TableHead>
+                            <TableHead className="text-right w-24">Horas/mês</TableHead>
+                            <TableHead className="text-right w-32">Nominal</TableHead>
+                          </TableRow>
+                        ) : richMode === "inss_patronal_colab" ? (
+                          <TableRow>
+                            <TableHead>Colaborador</TableHead>
+                            <TableHead className="text-right w-32">Base INSS</TableHead>
+                            <TableHead className="text-right w-20">Alíquota</TableHead>
+                            <TableHead className="text-right w-32">Patronal</TableHead>
+                          </TableRow>
                         ) : (
                           <TableRow>
                             <TableHead>Label</TableHead>
@@ -305,7 +328,17 @@ export function ResumoFolhaDrillDrawer({
                         {itens.length === 0 ? (
                           <TableRow>
                             <TableCell
-                              colSpan={richMode === "analitico" ? 4 : richMode === "cruz" ? (hasAnyQtd ? 4 : 3) : (hasAnyQtd ? 3 : 2)}
+                              colSpan={
+                                richMode === "analitico"
+                                  ? 4
+                                  : richMode === "cruz"
+                                  ? (hasAnyQtd ? 4 : 3)
+                                  : richMode === "salario_base_colab"
+                                  ? 5
+                                  : richMode === "inss_patronal_colab"
+                                  ? 4
+                                  : (hasAnyQtd ? 3 : 2)
+                              }
                               className="text-center text-xs text-muted-foreground py-6"
                             >
                               {(total ?? 0) === 0 ? "Sem lançamentos no período." : "Sem itens neste agrupamento."}
@@ -321,6 +354,52 @@ export function ResumoFolhaDrillDrawer({
                               : it.cd_evento != null
                               ? String(it.cd_evento)
                               : "";
+                            if (richMode === "salario_base_colab") {
+                              const isHorista = String(it.tipo_salario || "").toLowerCase() === "horista";
+                              return (
+                                <TableRow key={`${it.chave ?? it.label}-${i}`}>
+                                  <TableCell className="text-xs">{colaborador || it.label || "—"}</TableCell>
+                                  <TableCell className="text-xs">{it.tipo_salario || "—"}</TableCell>
+                                  <TableCell className="text-right tabular-nums text-xs">
+                                    {it.salario_cadastral == null
+                                      ? "—"
+                                      : isHorista
+                                      ? `${formatCurrency(Number(it.salario_cadastral))} /h`
+                                      : formatCurrency(Number(it.salario_cadastral))}
+                                  </TableCell>
+                                  <TableCell className="text-right tabular-nums text-xs">
+                                    {it.horas_mes == null ? "—" : formatNumber(Number(it.horas_mes), 1)}
+                                  </TableCell>
+                                  <TableCell className="text-right tabular-nums">
+                                    {it.valor == null ? (
+                                      <span className="text-muted-foreground">—</span>
+                                    ) : (
+                                      formatCurrency(Number(it.valor))
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            }
+                            if (richMode === "inss_patronal_colab") {
+                              return (
+                                <TableRow key={`${it.chave ?? it.label}-${i}`}>
+                                  <TableCell className="text-xs">{colaborador || it.label || "—"}</TableCell>
+                                  <TableCell className="text-right tabular-nums text-xs">
+                                    {it.base_inss == null ? "—" : formatCurrency(Number(it.base_inss))}
+                                  </TableCell>
+                                  <TableCell className="text-right tabular-nums text-xs">
+                                    {it.aliquota || "20%"}
+                                  </TableCell>
+                                  <TableCell className="text-right tabular-nums">
+                                    {it.valor == null ? (
+                                      <span className="text-muted-foreground">—</span>
+                                    ) : (
+                                      formatCurrency(Number(it.valor))
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            }
                             if (richMode === "analitico") {
                               return (
                                 <TableRow key={`${it.chave ?? it.label}-${i}`}>
