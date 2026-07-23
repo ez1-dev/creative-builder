@@ -370,11 +370,21 @@ export default function ContasPagarPage() {
         </div>
         <div>
           <Label className="text-xs" htmlFor="centroCustoContasPag">Centro de Custo</Label>
-          <Input id="centroCustoContasPag" value={filters.centro_custo} onChange={(e) => set('centro_custo', e.target.value)} placeholder="Código ou nome" className="h-8 text-xs" />
+          <AutocompleteAsync
+            value={filters.centro_custo}
+            onChange={(codigo) => set('centro_custo', codigo)}
+            fetcher={fetchCentrosCusto}
+            placeholder="Buscar centro de custo..."
+          />
         </div>
         <div>
           <Label className="text-xs" htmlFor="numeroProjetoContasPag">Projeto</Label>
-          <Input id="numeroProjetoContasPag" value={filters.numero_projeto || filters.projeto} onChange={(e) => { set('numero_projeto', e.target.value); set('projeto', e.target.value); }} placeholder="Código ou nome" className="h-8 text-xs" />
+          <AutocompleteAsync
+            value={filters.numero_projeto || filters.projeto}
+            onChange={(codigo) => { set('numero_projeto', codigo); set('projeto', codigo); }}
+            fetcher={fetchProjetos}
+            placeholder="Buscar projeto..."
+          />
         </div>
         <div>
           <Label className="text-xs">Status</Label>
