@@ -300,7 +300,19 @@ export default function ContasReceberPage() {
 
 
   const columns = filters.agrupar_por_cliente ? columnsAgrupada : columnsDetalhada;
-  const exportParams = { ...filters };
+  const exportParams: any = { ...filters };
+  const statusPagoLiquidadoExpR = exportParams.status_titulo === 'PAGO' || exportParams.status_titulo === 'LIQUIDADO';
+  if (statusPagoLiquidadoExpR) exportParams.incluir_pagos = true;
+  if (exportParams.data_recebimento_ini) exportParams.data_movimento_ini = exportParams.data_recebimento_ini;
+  if (exportParams.data_recebimento_fim) exportParams.data_movimento_fim = exportParams.data_recebimento_fim;
+  delete exportParams.data_recebimento_ini;
+  delete exportParams.data_recebimento_fim;
+  const exportEndpointRec = modoArvoreAtivo
+    ? '/api/export/contas-receber-arvore'
+    : '/api/export/contas-receber';
+  const exportLabelRec = modoArvoreAtivo
+    ? 'Exportar Excel (Árvore)'
+    : 'Exportar Excel';
 
   return (
     <div className="space-y-4 p-4">
@@ -308,8 +320,9 @@ export default function ContasReceberPage() {
       <PageHeader
         title="Contas a Receber"
         description="Consulta analítica de títulos financeiros a receber"
-        actions={<ExportButton endpoint="/api/export/contas-receber" params={exportParams} />}
+        actions={<ExportButton endpoint={exportEndpointRec} params={exportParams} label={exportLabelRec} />}
       />
+
 
       <FilterPanel onSearch={() => search(1)} onClear={clearFilters}>
         {/* Linha 1 */}
