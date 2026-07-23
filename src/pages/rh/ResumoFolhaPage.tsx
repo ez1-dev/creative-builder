@@ -864,6 +864,19 @@ export default function ResumoFolhaPage() {
         hideSync
         actions={
           <>
+            <TooltipProvider delayDuration={150}>
+              <UITooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="outline" className="gap-1 border-success/40 text-success bg-success/5 cursor-help">
+                    <ShieldCheck className="h-3 w-3" />
+                    Validado FPRF001
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs text-xs">
+                  Metodologia conferida contra o relatório oficial Senior FPRF001 — Relação de Cálculo (competência 202606, empresa 1). Proventos batem exato; Líquido segue a regra tipeve=3 inteiro (inclui evento 264).
+                </TooltipContent>
+              </UITooltip>
+            </TooltipProvider>
             <RhLayoutToolbar
               editing={layout.editing}
               onToggle={layout.setEditing}
