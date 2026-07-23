@@ -1,13 +1,35 @@
-## Estado atual
+# Refino da tela Kardex (ficha de estoque)
 
-Os itens 1 e 2 e a maior parte do 3 já estão implementados (V.A. removido, card **INSS Patronal** com tooltip, 7 agrupamentos com `limite=5000` nos níveis profundos, layout analítico com Colaborador · Evento · Qtd. referência · Valor, aviso de truncamento).
+A tela `/contabilidade/kardex` já implementa a maior parte do contrato descrito no prompt (autocomplete de componente, período, filtros opcionais, cabeçalho com conta contábil, cards de saldos/entradas/saídas, giro, tabela com sinal e cores por tipo, conferência e exportação Excel via fetch+blob). Os ajustes abaixo alinham o restante do payload validado em 23/07/2026.
 
-Faltam **dois ajustes finos** do item 3 (parte "TIMEOUT do drill"):
+## Alterações
 
-## Mudanças
+### 1. Tipos (`src/lib/contabil/kardexApi.ts`)
+- Estender `KardexProduto` com `origem?: string` e `familia?: string` (backend passou a devolver esses campos junto do produto).
 
-1. **`src/lib/rh/api.ts` — `fetchResumoFolhaDrill`**: passar `timeoutMs: 30_000` no `api.get(...)` para cobrir o ~4s da 1ª chamada de períodos longos sem cortar a request no timeout padrão.
+### 2. Cabeçalho do produto (`KardexPage.tsx`)
+- Após "Descrição" e "Unidade", exibir dois novos mini-campos quando presentes:
+  - **Origem** (`produto.origem`)
+  - **Família** (`produto.familia`)
+- Manter conta contábil, total de movimentos, transferências e giro como já estão.
 
-2. **`src/components/rh/ResumoFolhaDrillDrawer.tsx` — estado de erro**: substituir a linha de texto vermelho por um bloco com ícone + mensagem "Não foi possível carregar o drill" + botão **"Tentar novamente"** que dispara `query.refetch()`. Tratar `isTimeout`/`CLIENT_TIMEOUT` com mensagem específica ("A consulta demorou mais que 30s — tente de novo; o backend faz cache de 90s, então a segunda chamada é instantânea."). Skeleton continua durante `isLoading`; nunca skeleton infinito.
+### 3. Card de Transferências
+- Hoje o bloco de transferências só aparece quando `transferencias_qtd > 0`. Alterar para exibir quando **qtd ou valor** forem diferentes de zero (transferência pode ter apenas valor, sem quantidade — mesmo padrão da regra de sinal do `ESTEOS`).
 
-Sem mudanças em outros consumidores, tipos ou endpoints.
+### 4. Conferência (selo)
+- Incluir transferências no cálculo, conforme fórmula oficial:
+  - `esperadoQtd = saldo_inicial + entradas − saídas + transferencias_qtd`
+  - Renderizar o texto com `± transferências` quando `transferencias_qtd !== 0`.
+- Manter tolerância de 0,001; o selo continua verde/âmbar.
+
+### 5. Nada mais muda
+- Autocomplete via `/api/requisicoes/lookup/componentes`: já ok.
+- Exportação Excel via `fetch` + blob com `Authorization`: já ok.
+- Tabela: colunas, sinal, cores (entrada verde / saída vermelha / transferência azul) e ordenação por data: já ok.
+- Rota, permissões (`CONT_KARDEX`) e integração com Conciliação Estoque × Contábil: já registradas em turnos anteriores.
+
+## Detalhes técnicos
+
+- Único arquivo de lógica alterado: `src/lib/contabil/kardexApi.ts` (2 campos opcionais em `KardexProduto`).
+- Único arquivo de UI alterado: `src/pages/contabilidade/KardexPage.tsx` (cabeçalho + `conferencia` no `useMemo` + condição do card de transferências).
+- Sem mudanças em rotas, menu, tipos globais ou backend.

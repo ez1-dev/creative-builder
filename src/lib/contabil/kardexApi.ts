@@ -28,6 +28,8 @@ export interface KardexProduto {
   codpro: string;
   descricao: string;
   unidade?: string;
+  origem?: string;
+  familia?: string;
   conta_contabil?: KardexContaContabil | null;
 }
 
