@@ -307,7 +307,14 @@ export default function FluxoCaixaPage() {
         <TabsContent value="direto" className="space-y-4">
           {direto.isLoading && <Skeleton className="h-64" />}
           {direto.error && <ErroBox err={direto.error as Error} />}
-          {direto.data && <DiretoBloco data={direto.data} onOpenDrill={abrirDrillDireto} />}
+          {direto.data && (
+            <DiretoBloco
+              data={direto.data}
+              onOpenDrill={abrirDrillDireto}
+              onOpenDrillCustom={abrirDrillDiretoCustom}
+              paramsBase={paramsBase}
+            />
+          )}
         </TabsContent>
 
         {/* ============ INDIRETO ============ */}
