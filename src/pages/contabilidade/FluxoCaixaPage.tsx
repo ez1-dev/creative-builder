@@ -30,8 +30,15 @@ import {
   fetchProjecao, fetchDireto, fetchIndireto,
   streamFluxoCaixaAnalise, downloadFluxoCaixaExcel,
   type ProjecaoResponse, type DiretoResponse, type IndiretoResponse, type IndiretoAtividade,
+  type CurvaPonto, type DiretoCategoria, type IndiretoItem,
 } from '@/lib/contabil/fluxoCaixaApi';
 import { normalizarNarrativa, narrativaTruncada } from '@/lib/contabil/indicadoresNarrativa';
+import {
+  FluxoCaixaDrillDrawer, periodoParaDatas, type FCDrillContext,
+} from '@/components/contabil/FluxoCaixaDrillDrawer';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 // ============================================================
 // Helpers
