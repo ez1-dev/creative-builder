@@ -21,6 +21,7 @@ import { formatCurrency, formatNumberBR } from '@/lib/format';
 import { CODEMP } from '@/lib/contabilConfig';
 import { useIndicadores } from '@/hooks/contabil/useIndicadores';
 import { streamIndicadoresAnalise, downloadIndicadoresExcel } from '@/lib/contabil/indicadoresApi';
+import { normalizarNarrativa, narrativaTruncada } from '@/lib/contabil/indicadoresNarrativa';
 import { gerarPdfIndicadores } from '@/lib/contabil/indicadoresRelatorio';
 import type { Indicador, IndicadorUnidade, IndicadorStatus } from '@/lib/contabil/indicadoresApi';
 
