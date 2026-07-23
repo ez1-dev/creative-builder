@@ -342,6 +342,7 @@ export default function ContasReceberPage() {
             onChange={(codigo) => set('cliente', codigo)}
             fetcher={fetchClientesCadastro}
             placeholder="Buscar cliente..."
+            fallbackOptions={clientesFallback}
           />
         </div>
         <div>
