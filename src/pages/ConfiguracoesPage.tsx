@@ -58,6 +58,8 @@ const ALL_SCREENS = [
   { path: '/contabilidade/dre-padrao', name: 'Contabilidade — DRE Padrão' },
   { path: '/contabilidade/indicadores', name: 'Contabilidade — Indicadores Contábeis' },
   { path: '/contabilidade/fluxo-caixa', name: 'Contabilidade — Fluxo de Caixa' },
+  { path: '/contabilidade/aging', name: 'Contabilidade — Aging (Receber/Pagar)' },
+  { path: '/contabilidade/kardex', name: 'Contabilidade — Kardex de Estoque' },
   
   
   { path: '/numero-serie', name: 'Reserva Nº Série' },

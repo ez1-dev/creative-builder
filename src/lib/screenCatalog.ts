@@ -33,6 +33,8 @@ const EXACT: Record<string, ScreenInfo> = {
   '/contabilidade/dre-studio/modelos/novo':  { codigo: 'DRE_STUDIO_NOVO',  nome: 'DRE Studio — Novo Modelo' },
   '/contabilidade/dre-studio/orcamento':     { codigo: 'DRE_STUDIO_ORC',   nome: 'DRE Studio — Orçamento' },
   '/contabilidade/dre-studio/resultado':     { codigo: 'DRE_STUDIO_RES',   nome: 'DRE Studio — Resultado' },
+  '/contabilidade/aging':                    { codigo: 'CONT_AGING',       nome: 'Contabilidade — Aging (Receber/Pagar)' },
+  '/contabilidade/kardex':                   { codigo: 'CONT_KARDEX',      nome: 'Contabilidade — Kardex de Estoque' },
   
   '/producao/impressao-op':     { codigo: 'PROD_IMP_OP',  nome: 'Impressão de Ordem de Produção' },
   '/producao/carga':            { codigo: 'PROD_CARGA',   nome: 'Carga de Produção' },
