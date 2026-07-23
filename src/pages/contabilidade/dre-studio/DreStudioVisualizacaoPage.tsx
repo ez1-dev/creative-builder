@@ -2106,8 +2106,8 @@ function Visualizacao(props: VisualizacaoProps = {}) {
               <SnapshotAproximadoBadge
                 className="mb-3"
                 aviso={q.meta.aviso_parametros ?? null}
-                regenerando={autoRunning}
-                onRegerar={() => executarTudoAutomatico({ silent: false })}
+                regenerando={materializar.isPending || autoRunning}
+                onRegerar={() => dispararMaterializacao()}
               />
             )}
             {semReferencia && (
