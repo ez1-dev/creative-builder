@@ -33,6 +33,41 @@ export function rangeFor(periodo: Periodo, ref: Date = new Date()): RangeAnomes 
   }
 }
 
+/**
+ * Retorna o período anterior EQUIVALENTE (mesmo tamanho de janela) ao `periodo`
+ * passado, para que comparações YoY/MoM comparem bases do mesmo tipo.
+ * - mes_atual  → mês anterior
+ * - mes_anterior → 2 meses atrás
+ * - ytd        → YTD do ano anterior (Jan..mesRef do anoRef-1)
+ * - ult_12m    → 12 meses anteriores aos últimos 12
+ */
+export function rangeAnteriorEquivalente(periodo: Periodo, ref: Date = new Date()): RangeAnomes {
+  const y = ref.getFullYear();
+  const m = ref.getMonth();
+  switch (periodo) {
+    case 'mes_atual': {
+      const a = toAno(new Date(y, m - 1, 1));
+      return { ini: a, fim: a, label: 'Mês anterior' };
+    }
+    case 'mes_anterior': {
+      const a = toAno(new Date(y, m - 2, 1));
+      return { ini: a, fim: a, label: '2 meses atrás' };
+    }
+    case 'ytd':
+      return {
+        ini: toAno(new Date(y - 1, 0, 1)),
+        fim: toAno(new Date(y - 1, m, 1)),
+        label: 'YTD ano anterior',
+      };
+    case 'ult_12m':
+      return {
+        ini: toAno(new Date(y, m - 23, 1)),
+        fim: toAno(new Date(y, m - 12, 1)),
+        label: '12 meses anteriores',
+      };
+  }
+}
+
 export const num = (v: any): number => {
   if (v == null || v === '') return 0;
   const n = typeof v === 'number' ? v : Number(String(v).replace(/\./g, '').replace(',', '.'));
