@@ -5,6 +5,24 @@ import { contabilApi, buildContabilRequest } from './contabilApi';
 export type IndicadorUnidade = 'R$' | '%' | 'dias' | 'índice';
 export type IndicadorStatus = 'oficial' | 'gerencial' | 'simulado';
 
+export interface IndicadorDrillAglutinador {
+  codagl: number;
+  descricao: string;
+  endpoint?: string;
+  params?: Record<string, any>;
+}
+
+export interface IndicadorDrillConta {
+  ctared: number;
+  endpoint?: string;
+  params?: Record<string, any>;
+}
+
+export interface IndicadorDrill {
+  aglutinadores?: IndicadorDrillAglutinador[];
+  contas?: IndicadorDrillConta[];
+}
+
 export interface Indicador {
   indicador: string;
   valor: number | null;
@@ -16,6 +34,7 @@ export interface Indicador {
   tipo_saldo: 'final' | 'medio' | null;
   status: IndicadorStatus;
   avisos: string[];
+  drill?: IndicadorDrill;
 }
 
 export interface AnaliseIA {
