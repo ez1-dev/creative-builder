@@ -278,6 +278,18 @@ export default function KardexPage() {
                   <p className="text-sm">{data.produto.unidade}</p>
                 </div>
               )}
+              {data.produto.origem && (
+                <div>
+                  <p className="text-[10px] uppercase text-muted-foreground">Origem</p>
+                  <p className="text-sm tabular-nums">{data.produto.origem}</p>
+                </div>
+              )}
+              {data.produto.familia && (
+                <div>
+                  <p className="text-[10px] uppercase text-muted-foreground">Família</p>
+                  <p className="text-sm">{data.produto.familia}</p>
+                </div>
+              )}
               {data.produto.conta_contabil && (
                 <div className="min-w-[200px]">
                   <p className="text-[10px] uppercase text-muted-foreground">Conta contábil</p>
