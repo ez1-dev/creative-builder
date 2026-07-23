@@ -426,14 +426,14 @@ export default function ContasPagarPage() {
           <Checkbox id="somente_cheques" checked={filters.somente_cheques} onCheckedChange={(v) => set('somente_cheques', !!v)} />
           <Label htmlFor="somente_cheques" className="text-xs">Somente cheques</Label>
         </div>
-        <div className="flex items-end gap-2 pb-1">
+        <div className="flex items-end gap-2 pb-1" title={filters.status_titulo === 'PAGO' || filters.status_titulo === 'LIQUIDADO' ? 'Ignorado quando o status é Pago/Liquidado' : undefined}>
           <Checkbox
             id="incluir_pagos"
-            checked={filters.incluir_pagos}
-            disabled={!!filters.status_titulo}
+            checked={filters.incluir_pagos || filters.status_titulo === 'PAGO' || filters.status_titulo === 'LIQUIDADO'}
+            disabled={filters.status_titulo === 'PAGO' || filters.status_titulo === 'LIQUIDADO'}
             onCheckedChange={(v) => set('incluir_pagos', !!v)}
           />
-          <Label htmlFor="incluir_pagos" className="text-xs">Incluir títulos pagos</Label>
+          <Label htmlFor="incluir_pagos" className="text-xs">Incluir títulos pagos/liquidados</Label>
         </div>
         <div className="flex items-end gap-2 pb-1">
           <Checkbox id="agrupar_por_fornecedor" checked={filters.agrupar_por_fornecedor} disabled={filters.modo_arvore} onCheckedChange={(v) => set('agrupar_por_fornecedor', !!v)} />
