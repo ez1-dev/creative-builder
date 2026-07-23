@@ -41,14 +41,15 @@ async function fetchComponentesOptions(q: string): Promise<CadastroOption[]> {
 
 function tipoBadge(t: string) {
   const isEntrada = t === 'entrada';
+  const isTransf = t === 'transferencia';
   return (
     <Badge
       variant="outline"
       className={cn(
         'text-[10px] uppercase',
-        isEntrada
-          ? 'border-emerald-500/50 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
-          : 'border-destructive/50 text-destructive bg-destructive/10',
+        isEntrada && 'border-emerald-500/50 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10',
+        isTransf && 'border-sky-500/50 text-sky-600 dark:text-sky-400 bg-sky-500/10',
+        !isEntrada && !isTransf && 'border-destructive/50 text-destructive bg-destructive/10',
       )}
     >
       {t}
@@ -58,6 +59,7 @@ function tipoBadge(t: string) {
 
 function rowClassKardex(row: KardexMovimento): string {
   if (row.tipo === 'entrada') return 'bg-emerald-500/5';
+  if (row.tipo === 'transferencia') return 'bg-sky-500/5';
   if (row.tipo === 'saida') return 'bg-destructive/5';
   return '';
 }
