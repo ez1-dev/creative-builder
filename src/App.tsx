@@ -91,6 +91,7 @@ import IndicadoresContabeisPage from "@/pages/contabilidade/IndicadoresContabeis
 import FluxoCaixaPage from "@/pages/contabilidade/FluxoCaixaPage";
 import AgingPage from "@/pages/contabilidade/AgingPage";
 import KardexPage from "@/pages/contabilidade/KardexPage";
+import ConciliacaoEstoquePage from "@/pages/contabilidade/ConciliacaoEstoquePage";
 // import BalancoPadraoPage from "@/pages/contabilidade/balanco-padrao/BalancoPadraoPage"; // TODO: reativar quando o Balanço Padrão for entregue
 import DreStudioConciliacaoPage from "@/pages/contabilidade/dre-studio/DreStudioConciliacaoPage";
 import RegrasSeniorDashboardPage from "@/pages/regras-senior/RegrasSeniorDashboardPage";
