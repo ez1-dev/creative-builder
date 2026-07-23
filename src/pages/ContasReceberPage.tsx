@@ -157,6 +157,16 @@ export default function ContasReceberPage() {
         if (!params.somente_saldo_aberto) delete params.somente_saldo_aberto;
         if (!params.agrupar_por_cliente) delete params.agrupar_por_cliente;
         delete params.modo_arvore;
+        // Inclusão de títulos pagos: backend default = false (só em aberto).
+        const statusPagoLiquidadoR = params.status_titulo === 'PAGO' || params.status_titulo === 'LIQUIDADO';
+        const incluirPagosR = !!params.incluir_pagos || statusPagoLiquidadoR;
+        delete params.incluir_pagos;
+        if (incluirPagosR) params.incluir_pagos = true;
+        // Mapear filtros de "Data do último movimento" (UI) para parâmetros do backend (data_movimento_*)
+        if (params.data_recebimento_ini) params.data_movimento_ini = params.data_recebimento_ini;
+        if (params.data_recebimento_fim) params.data_movimento_fim = params.data_recebimento_fim;
+        delete params.data_recebimento_ini;
+        delete params.data_recebimento_fim;
         Object.keys(params).forEach((k) => {
           if (params[k] === '' || params[k] === null || params[k] === undefined) delete params[k];
         });
