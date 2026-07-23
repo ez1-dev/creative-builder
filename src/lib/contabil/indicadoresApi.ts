@@ -69,11 +69,18 @@ export interface AnaliseStreamMeta {
   [k: string]: any;
 }
 
+export interface AnaliseStreamDoneInfo {
+  chars?: number;
+  /** 'stop' = concluído normalmente; 'length' = cortado pelo limite de tokens. */
+  finish_reason?: 'stop' | 'length' | string;
+  [k: string]: any;
+}
+
 export interface AnaliseStreamHandlers {
   onMeta?: (meta: AnaliseStreamMeta) => void;
   /** Recebe cada pedaço de texto novo; concatene em ordem. */
   onDelta?: (text: string) => void;
-  onDone?: (info: { chars?: number; [k: string]: any }) => void;
+  onDone?: (info: AnaliseStreamDoneInfo) => void;
   onErro?: (mensagem: string) => void;
   signal?: AbortSignal;
 }
