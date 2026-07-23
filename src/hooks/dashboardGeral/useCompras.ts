@@ -58,11 +58,12 @@ export function useCompras(periodo: Periodo, enabled: boolean) {
 
   const data: ComprasData = useMemo(() => {
     const parsed = parseOrEmpty(PainelComprasResponseSchema, q.data, EMPTY_COMPRAS, 'compras');
+    const parsed12m = parseOrEmpty(PainelComprasResponseSchema, q12m.data, EMPTY_COMPRAS, 'compras/12m');
     const d = parsed.data;
     const k = d.kpis;
     const g = d.graficos;
 
-    const compras_mes = g.por_mes.slice(-12).map((r) => ({
+    const compras_mes = parsed12m.data.graficos.por_mes.slice(-12).map((r) => ({
       label: labelAnomes(String(r.mes || r.anomes).replace(/\D/g, '').slice(0, 6)),
       valor: r.valor,
     }));
