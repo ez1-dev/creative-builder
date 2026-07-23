@@ -225,6 +225,7 @@ const KPI_ALIASES: Record<string, string[]> = {
   custo_total: ["custo_total"],
   beneficios: ["beneficios"],
   inss_total: ["inss_total", "inss"],
+  inss_patronal: ["inss_patronal"],
   hora_extra: ["hora_extra"],
   provisoes: ["provisoes"],
   custo_ferias: ["custo_ferias"],
@@ -367,6 +368,7 @@ export interface ResumoFolhaDrillParams {
   cd_evento?: string;
   cd_tp_evento?: string;
   competencia?: string; // YYYYMM (override quando drill parte de barra/célula mensal)
+  limite?: number;
 }
 
 export class ResumoFolhaDrillError extends Error {
@@ -391,6 +393,7 @@ export async function fetchResumoFolhaDrill(
     cd_filial: p.cd_filial,
     cd_evento: p.cd_evento,
     cd_tp_evento: p.cd_tp_evento,
+    limite: p.limite,
   });
 
   try {

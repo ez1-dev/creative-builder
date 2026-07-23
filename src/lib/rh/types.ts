@@ -272,6 +272,8 @@ export interface ResumoFolhaKpis {
   custo_total?: number | null;
   beneficios?: number | null;
   inss_total?: number | null;
+  /** Encargo patronal do INSS (20% da base). Custo da empresa. */
+  inss_patronal?: number | null;
   hora_extra?: number | null;
   provisoes?: number | null;
   custo_ferias?: number | null;
@@ -353,6 +355,16 @@ export interface ResumoFolhaDrillItem {
   label: string;
   valor: number | null;
   qtd?: number | null;
+  /** Campos ricos dos níveis profundos (evento_colaborador / colaborador_evento / analitico). */
+  matricula?: string;
+  colaborador?: string;
+  cd_evento?: number | string;
+  ds_evento?: string;
+  qtd_referencia?: number | null;
+  cd_cargo?: number | string;
+  cd_centro_custo?: number | string;
+  cd_filial?: string;
+  anomes?: string;
   [k: string]: any;
 }
 
