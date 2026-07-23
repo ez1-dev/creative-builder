@@ -152,7 +152,7 @@ export default function PainelComprasPage() {
     numero_projeto: '', centro_custo: '', transacao: '', codigo_produto: '',
     valor_min: '', valor_max: '', tipo_item: 'TODOS', tipo_oc: 'TODOS',
     data_emissao_ini: '', data_emissao_fim: '', data_entrega_ini: '', data_entrega_fim: '',
-    origem_material: '', familia: '', coddep: '', somente_pendentes: true,
+    origem_material: '', familia: '', coddep: '', somente_pendentes: false,
     agrupar_por_fornecedor: false, situacao_oc: [], codigo_motivo_oc: 'TODOS', observacao_oc: '',
     mostrar_valor_total_oc: false,
     projeto_macro: 'TODOS', tipo_despesa: 'TODOS', mes_competencia: '', condicao_pagamento: '',
@@ -355,7 +355,7 @@ export default function PainelComprasPage() {
     numero_projeto: '', centro_custo: '', transacao: '', codigo_produto: '',
     valor_min: '', valor_max: '', tipo_item: 'TODOS', tipo_oc: 'TODOS',
     data_emissao_ini: '', data_emissao_fim: '', data_entrega_ini: '', data_entrega_fim: '',
-    origem_material: '', familia: '', coddep: '', somente_pendentes: true,
+    origem_material: '', familia: '', coddep: '', somente_pendentes: false,
     agrupar_por_fornecedor: false, situacao_oc: [], codigo_motivo_oc: 'TODOS', observacao_oc: '',
     mostrar_valor_total_oc: false,
     projeto_macro: 'TODOS', tipo_despesa: 'TODOS', mes_competencia: '', condicao_pagamento: '',
@@ -568,14 +568,14 @@ export default function PainelComprasPage() {
     // gerencial client-side ativo (que o backend não conhece), retornamos null.
     if (!dashboard || gerencialActive) return null;
     const k = { ...(dashboard.kpis ?? {}), ...(dashboard.kpis_dashboard ?? {}) };
-    const topBackend = k.maior_fornecedor
-      ? { nome: k.maior_fornecedor.nome || k.maior_fornecedor.codigo || '—', valor: k.maior_fornecedor.valor || 0 }
-      : null;
-    const topForn = topBackend ?? (() => {
+    const topFromChart = (() => {
       const t = [...(dashboard.graficos?.por_fornecedor ?? [])]
         .sort((a, b) => (b.valor || 0) - (a.valor || 0))[0];
       return t ? { nome: t.fornecedor || '—', valor: t.valor || 0 } : null;
     })();
+    const topForn = topFromChart ?? (k.maior_fornecedor
+      ? { nome: k.maior_fornecedor.nome || k.maior_fornecedor.codigo || '—', valor: k.maior_fornecedor.valor || 0 }
+      : null);
     return {
       comprado: k.valor_comprado || 0,
       pendente: k.valor_pendente || 0,

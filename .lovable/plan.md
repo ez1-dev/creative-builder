@@ -1,100 +1,24 @@
+## Painel de Compras — ajustes 22/07/2026
 
-# Tela "Indicadores Contábeis" — Analytics Gestão Contábil
+Dois ajustes pequenos em `src/pages/PainelComprasPage.tsx`. Item 3 (toggle "Incluir canceladas") fica de fora — foi marcado como opcional pelo backend e não faz parte deste escopo.
 
-Nova página em `/contabilidade/indicadores` que consome os endpoints determinísticos do backend e, sob demanda, a narrativa da IA. A tela apenas exibe/formata o que o backend devolve — nenhum cálculo no front.
+### 1. "Somente pendentes" começa desmarcado
 
-## 1. Cliente da API
+Hoje o filtro inicia como `somente_pendentes: true` (linhas 155 e 358 do estado inicial e do reset), o que faz o front enviar o parâmetro explicitamente na carga inicial e reduz o painel a ~10% das compras.
 
-Novo módulo `src/lib/contabil/indicadoresApi.ts`:
+- Trocar o default de `somente_pendentes` de `true` para `false` no estado inicial e no reset (`limparFiltros`).
+- Nenhuma outra mudança na montagem de params: quando `false`, o código já não envia (só envia quando marcado ou quando a lógica de "Liquidado" força string `'false'`).
+- Efeito colateral esperado (correto): o chip "FILTROS ATIVOS: Somente pendentes" some da carga inicial; o gráfico "Recebimento vs Pendência" e os KPIs passam a refletir toda a base.
 
-- Tipos `Indicador`, `IndicadoresPayload`, `AnaliseIA` refletindo o shape do prompt (indicador, valor, unidade, formula, numerador, denominador, dias, tipo_saldo, status, avisos + `duplicidade_612_ativa` no topo + `analise` opcional).
-- `fetchIndicadores(params)` → GET `/api/contabil/indicadores`.
-- `fetchIndicadoresComAnalise(params)` → GET `/api/contabil/indicadores/analise?com_ia=true`.
-- Usa o `ApiClient` existente (mesmo padrão de `contabilApi.ts`), com header ngrok e Bearer.
+### 2. Card "Maior Fornecedor" — usar top de `top_fornecedores`
 
-## 2. Hook
+O card lê `dashboard.kpis.maior_fornecedor`, que hoje volta zerado, e por isso mostra R$ 0,00 enquanto o gráfico "Top Fornecedores" (que consome `dashboard.graficos.por_fornecedor`) mostra o valor certo.
 
-`src/hooks/contabil/useIndicadores.ts`:
+- Inverter a prioridade em `kpisGerencial` (linhas 571-578): primeiro pegar o maior de `dashboard.graficos.por_fornecedor` (mesma fonte do gráfico); só cair em `k.maior_fornecedor` se aquela lista vier vazia.
+- Manter o formato `{ nome, valor }` já consumido pelo `KpiCard` "Maior Fornecedor".
 
-- `useIndicadores({ anomes_ini, anomes_fim, codemp, codfil })` via TanStack Query — cache por chave completa dos filtros.
-- `useIndicadoresAnalise(...)` desabilitado por padrão; disparado só quando o usuário clicar em "Gerar análise" (`enabled: false` + `refetch()`), para não custar IA em toda carga.
+### Fora do escopo (confirmação)
 
-## 3. Página `src/pages/contabilidade/IndicadoresContabeisPage.tsx`
-
-Estrutura:
-
-```text
-[PageHeader: Indicadores Contábeis]
-[Filtros: Período (anomes_ini/fim) · Empresa (codemp) · Filial (codfil?)]
-[Banner âmbar fixo se duplicidade_612_ativa]
-[Grid de seções (7 cards agrupadores)]
-[Rodapé técnico: Liquidez Corrente (conferência AC−PC = CDG)]
-[Aba/painel lateral "Análise (IA)" — vazio até clicar em "Gerar análise"]
-```
-
-### Agrupamento (ordem já vem do backend)
-
-Mapeamento fixo `SECOES` no arquivo da página, agrupando por nome do indicador:
-
-| Seção | Indicadores |
-|---|---|
-| Resultado (R$) | Receita Bruta, Receita Líquida, Custo, Resultado Bruto, Lucro Líquido |
-| EBITDA | EBITDA Operacional Senior, EBITDA sem resultado financeiro, EBITDA oficial (c/ dup), Margens EBITDA (2) |
-| Rentabilidade (%) | Margem Bruta, ROE, ROA |
-| Prazos (dias) | PME documental/gerencial, PMP documental/gerencial/clássico simulado |
-| Liquidez (índice) | Corrente, Seca, Imediata |
-| Endividamento (%) | Geral, Financeiro, Composição |
-| Capital de giro (R$) | CDG (conferência AC−PC vai pro rodapé) |
-
-Regra: as duas variantes de EBITDA e as variantes de PME/PMP são exibidas **lado a lado** — nunca uma esconde a outra.
-
-### Componentes internos (mesmo arquivo ou `src/components/contabil/indicadores/`)
-
-- `IndicadorCard` — mostra nome, valor formatado (por `unidade`), badge de `status` (oficial=neutro, gerencial=cinza, simulado=âmbar), botão "detalhes" que abre `IndicadorDetalheDrawer`.
-- `IndicadorDetalheDrawer` — usa `Sheet` do shadcn com: fórmula, numerador, denominador, dias, tipo_saldo, status, avisos.
-- `AnaliseIAPainel` — renderiza `analise.narrativa` como markdown (usar `react-markdown` já presente se disponível; caso contrário adicionar); botão "Gerar análise"; estados: idle / loading / erro (mostrar `analise.erro`) / ok.
-- `DuplicidadeBanner` — Alert âmbar com o texto do prompt.
-
-### Formatação (usa helpers de `src/lib/format.ts` / `bi/utils/formatters.ts`)
-
-- `R$` → `formatCurrency` (negativos em vermelho).
-- `%` → 1–2 casas + "%".
-- `dias` → `n dias`.
-- `índice` → 2 casas decimais.
-- `valor === null` ou `denominador === 0` → renderiza "—".
-
-### Badges
-
-- `oficial` → `Badge variant="secondary"` (azul).
-- `gerencial` → `Badge` cinza.
-- `simulado` → `Badge` âmbar + tooltip com lista de `avisos`.
-
-## 4. Roteamento e menu
-
-- Registrar rota em `src/App.tsx`: `/contabilidade/indicadores` → `IndicadoresContabeisPage` (lazy).
-- Adicionar item em `src/config/menuCatalog.ts` na seção Contabilidade: `{ title: 'Indicadores Contábeis', url: '/contabilidade/indicadores', icon: BarChart3 }`.
-- Adicionar entrada em `ALL_SCREENS` de `src/pages/ConfiguracoesPage.tsx` para liberação via Central de Liberações.
-
-## 5. Estado e persistência
-
-- Filtros mantidos em URL search params (padrão já usado em outras telas contábeis: `useSearchParams`).
-- Defaults: ano corrente completo (`AAAA01` até `AAAA12`), `codemp=1`, `codfil` vazio.
-
-## 6. Erros
-
-- Erros HTTP → toast (sonner) + estado de erro no card.
-- Sem `analise.narrativa` → painel mostra "Análise indisponível" (não bloqueia números).
-- Se endpoint retornar 404/504 (API 8070 ainda não reiniciada) → banner "Indicadores indisponíveis: aguardando restart da API".
-
-## Detalhes técnicos
-
-- Não recalcular nada no front — todos os números vêm prontos.
-- Sem dependência nova; se `react-markdown` não existir no projeto, adicionar (uso apenas nesta tela).
-- Todos os tokens de cor via design system (âmbar = `hsl(var(--warning))`, vermelho = `text-destructive`).
-- Sem alterações em `src/integrations/supabase/*`, `.env`, backend, ou outras telas de Contabilidade.
-
-## Fora do escopo
-
-- Cálculos, edição de fórmulas, escolha da variante "oficial" de EBITDA (é decisão da contabilidade, não do app).
-- Ajustes no ERP para a duplicidade 612.
-- Endpoint `/aglutinadores` (não pedido na tela).
+- Toggle "Incluir canceladas" (`incluir_canceladas=true`) — opcional, não implementar agora.
+- Exclusão de canceladas nos totais, paridade dashboard×lista e reclassificação de "Tipo de despesa" — entram sozinhos no restart do backend.
+- OCs antigas com atraso de 7250 dias e cadastro de projeto — questões cadastrais no ERP, não são código.
