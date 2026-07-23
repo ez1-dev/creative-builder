@@ -51,8 +51,14 @@ async function fetchList(endpoint: string, q: string, defaults?: { descKey?: str
     setCached(key, opts);
     return opts;
   } catch {
-    return [];
+    const empty: CadastroOption[] = [];
+    (empty as any).__unavailable = true;
+    return empty;
   }
+}
+
+export function isCadastroUnavailable(list: CadastroOption[]): boolean {
+  return !!(list as any).__unavailable;
 }
 
 export const fetchFornecedoresCadastro = (q: string) =>
