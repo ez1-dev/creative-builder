@@ -134,6 +134,26 @@ export default function ContasReceberPage() {
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
 
+  // Fallback: monta lista de clientes a partir das linhas já carregadas
+  // para destravar o filtro quando /api/cadastros/clientes estiver indisponível.
+  const clientesFallback = useMemo(() => {
+    const rows = data?.dados || [];
+    const map = new Map<string, { codigo: string; descricao: string; label: string; fantasia?: string }>();
+    for (const r of rows as any[]) {
+      const codigo = r?.codigo_cliente != null ? String(r.codigo_cliente).trim() : '';
+      if (!codigo || map.has(codigo)) continue;
+      const descricao = String(r?.nome_cliente ?? '').trim();
+      const fantasia = r?.fantasia_cliente ? String(r.fantasia_cliente).trim() : undefined;
+      map.set(codigo, {
+        codigo,
+        descricao,
+        fantasia,
+        label: descricao ? `${codigo} - ${descricao}` : codigo,
+      });
+    }
+    return Array.from(map.values()).sort((a, b) => a.descricao.localeCompare(b.descricao));
+  }, [data?.dados]);
+
   const erpReady = useErpReady();
 
   const modoArvoreAtivo = filters.modo_arvore && !filters.agrupar_por_cliente;
