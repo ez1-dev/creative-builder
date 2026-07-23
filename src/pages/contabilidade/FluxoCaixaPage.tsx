@@ -366,6 +366,8 @@ export default function FluxoCaixaPage() {
           )}
         </CardContent>
       </Card>
+
+      <FluxoCaixaDrillDrawer context={drillCtx} onClose={() => setDrillCtx(null)} />
     </div>
   );
 }
