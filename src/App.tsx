@@ -87,6 +87,7 @@ import DreStudioEstruturaPage from "@/pages/contabilidade/dre-studio/DreStudioEs
 import DreStudioOrcamentoPage from "@/pages/contabilidade/dre-studio/DreStudioOrcamentoPage";
 import DreStudioVisualizacaoPage from "@/pages/contabilidade/dre-studio/DreStudioVisualizacaoPage";
 import DrePadraoPage from "@/pages/contabilidade/dre-padrao/DrePadraoPage";
+import IndicadoresContabeisPage from "@/pages/contabilidade/IndicadoresContabeisPage";
 // import BalancoPadraoPage from "@/pages/contabilidade/balanco-padrao/BalancoPadraoPage"; // TODO: reativar quando o Balanço Padrão for entregue
 import DreStudioConciliacaoPage from "@/pages/contabilidade/dre-studio/DreStudioConciliacaoPage";
 import RegrasSeniorDashboardPage from "@/pages/regras-senior/RegrasSeniorDashboardPage";
