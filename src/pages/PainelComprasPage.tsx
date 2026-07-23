@@ -568,14 +568,14 @@ export default function PainelComprasPage() {
     // gerencial client-side ativo (que o backend não conhece), retornamos null.
     if (!dashboard || gerencialActive) return null;
     const k = { ...(dashboard.kpis ?? {}), ...(dashboard.kpis_dashboard ?? {}) };
-    const topBackend = k.maior_fornecedor
-      ? { nome: k.maior_fornecedor.nome || k.maior_fornecedor.codigo || '—', valor: k.maior_fornecedor.valor || 0 }
-      : null;
-    const topForn = topBackend ?? (() => {
+    const topFromChart = (() => {
       const t = [...(dashboard.graficos?.por_fornecedor ?? [])]
         .sort((a, b) => (b.valor || 0) - (a.valor || 0))[0];
       return t ? { nome: t.fornecedor || '—', valor: t.valor || 0 } : null;
     })();
+    const topForn = topFromChart ?? (k.maior_fornecedor
+      ? { nome: k.maior_fornecedor.nome || k.maior_fornecedor.codigo || '—', valor: k.maior_fornecedor.valor || 0 }
+      : null);
     return {
       comprado: k.valor_comprado || 0,
       pendente: k.valor_pendente || 0,
