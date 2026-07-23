@@ -323,6 +323,19 @@ export default function IndicadoresContabeisPage() {
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
+              <Button size="sm" variant="outline" onClick={baixarRelatorio} disabled={exportingPdf || isLoading || !data}>
+                {exportingPdf
+                  ? <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  : <FileText className="h-4 w-4 mr-1" />}
+                {exportingPdf ? 'Gerando PDF…' : 'Baixar relatório'}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs text-xs">
+              PDF com os indicadores do período + a última análise da IA gerada nesta tela.
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
               <Button size="sm" variant="outline" onClick={exportarExcel} disabled={exporting || isLoading}>
                 {exporting
                   ? <Loader2 className="h-4 w-4 mr-1 animate-spin" />
