@@ -165,13 +165,18 @@ export default function KardexPage() {
       render: (v) => <span className="text-xs tabular-nums">{v != null ? formatCurrency(Number(v)) : '—'}</span> },
   ], []);
 
-  // Conferência de saldo
+  // Conferência de saldo (inclui transferências)
   const conferencia = useMemo(() => {
     if (!data) return null;
-    const esperadoQtd = data.saldo_inicial.quantidade + data.resumo.entradas_qtd - data.resumo.saidas_qtd;
+    const transfQtd = data.resumo.transferencias_qtd || 0;
+    const esperadoQtd =
+      data.saldo_inicial.quantidade +
+      data.resumo.entradas_qtd -
+      data.resumo.saidas_qtd +
+      transfQtd;
     const diffQtd = esperadoQtd - data.saldo_final.quantidade;
     const bate = Math.abs(diffQtd) < 0.001;
-    return { esperadoQtd, diffQtd, bate };
+    return { esperadoQtd, diffQtd, bate, transfQtd };
   }, [data]);
 
   return (
