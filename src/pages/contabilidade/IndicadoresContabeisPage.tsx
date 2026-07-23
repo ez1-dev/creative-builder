@@ -19,7 +19,8 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { formatCurrency, formatNumberBR } from '@/lib/format';
 import { CODEMP } from '@/lib/contabilConfig';
-import { useIndicadores, useIndicadoresAnalise } from '@/hooks/contabil/useIndicadores';
+import { useIndicadores } from '@/hooks/contabil/useIndicadores';
+import { streamIndicadoresAnalise, downloadIndicadoresExcel } from '@/lib/contabil/indicadoresApi';
 import type { Indicador, IndicadorUnidade, IndicadorStatus } from '@/lib/contabil/indicadoresApi';
 
 // ---- Seções (agrupamento por nome) ----
