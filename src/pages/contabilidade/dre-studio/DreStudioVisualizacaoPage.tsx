@@ -46,6 +46,8 @@ import { formatAnomes, isTotalAnoCol, isAcumuladoAnoCol } from "@/lib/anomes";
 import { CODFIL } from "@/lib/contabilConfig";
 import { useContabilConfiguracao } from "@/hooks/contabil/useContabilConfiguracao";
 import { ConciliacaoDREBalancoPanel } from "@/components/contabil/ConciliacaoDREBalancoPanel";
+import { SnapshotAproximadoBadge } from "@/components/dre-studio/SnapshotAproximadoBadge";
+import { resolveResultadoProntoState } from "@/lib/contabil/resultadoProntoState";
 
 import { cn } from "@/lib/utils";
 import { getUnidadeCapabilities } from "@/lib/contabil/unidadeCapabilities";
