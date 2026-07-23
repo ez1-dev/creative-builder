@@ -4,7 +4,8 @@ import { keepPreviousData } from '@tanstack/react-query';
 import {
   fetchResumoFolhaDashboard, fetchTurnoverDashboard, fetchAbsenteismoDashboard, fetchQuadroColaboradores,
 } from '@/lib/rh/api';
-import { rangeFor, num, labelAnomes, statusFrom, type Periodo, type ModStatus } from './shared';
+import { fetchQuadroDashboard } from '@/lib/rh/quadroDashboardApi';
+import { rangeFor, num, anomesToDate, labelAnomes, statusFrom, type Periodo, type ModStatus } from './shared';
 import {
   TurnoverResponseSchema, EMPTY_TURNOVER,
   AbsenteismoResponseSchema, EMPTY_ABS,
