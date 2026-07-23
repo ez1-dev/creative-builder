@@ -1,32 +1,37 @@
-## Contexto
+## Objetivo
 
-O pacote A+B+E do backend (checkbox "Incluir títulos pagos", filtro "Parcial" em Receber, export árvore de Receber, rótulo "Data do último movimento") já está implementado nas duas telas — confirmado por leitura de `ContasPagarPage.tsx` e `ContasReceberPage.tsx`. Falta apenas o **item 5** deste prompt consolidado: o parâmetro `base_valor` (base do filtro Valor mín/máx).
+Nos filtros de **Contas a Pagar** e **Contas a Receber**, substituir os campos de texto livre por componentes com lista suspensa (autocomplete assíncrono) para:
 
-## Escopo
+- **Fornecedor** (Pagar) / **Cliente/Fornecedor** (Receber)
+- **Centro de Custo**
+- **Projeto**
 
-Adicionar o seletor **"Base: Valor original ▾ / Saldo em aberto"** ao lado dos campos Valor mínimo/máximo em Contas a Pagar e Contas a Receber, e propagar `base_valor` para todas as requisições (listas, árvores, dashboards e exports).
+Assim o usuário passa a ver as opções já disponíveis no ERP conforme digita, sem precisar decorar código/nome.
 
-## Alterações
+## Componentes e endpoints já disponíveis
 
-### 1. `src/pages/ContasPagarPage.tsx` e `src/pages/ContasReceberPage.tsx`
+Reutilizar o padrão já usado em Painel de Compras:
 
-- Adicionar `base_valor: 'original'` ao `initialFilters`.
-- Adicionar um `<Select>` compacto (h-8) ao lado dos inputs `valor_min`/`valor_max`, com opções:
-  - `original` → "Valor original" (default)
-  - `aberto` → "Saldo em aberto"
-- Só enviar `base_valor` no params quando `valor_min` ou `valor_max` estiver preenchido (evita ruído em requisições sem filtro de valor).
-- Propagar `base_valor` nas chamadas de:
-  - Lista (`/api/contas-pagar` / `/api/contas-receber`)
-  - Árvore (`/api/contas-*-arvore`)
-  - Dashboard (`/api/contas-*-dashboard`) — para reconciliar números quando o filtro é aplicado
-  - Exports (detalhe, agrupado e árvore)
-- Incluir `base_valor` no `exportParams` dos botões Exportar Excel.
+- `AutocompleteAsync` (`src/components/erp/AutocompleteAsync.tsx`) — combobox com busca assíncrona + cache.
+- Hooks em `src/hooks/useCadastrosErp.ts`:
+  - `fetchFornecedoresCadastro` → `GET /api/cadastros/fornecedores?q=`
+  - `fetchCentrosCusto` → `GET /api/cadastros/centros-custo?q=`
 
-### 2. Sem alteração em contratos/serviços
+Para **Projeto** ainda não existe `/api/cadastros/projetos`. Adicionar um novo fetcher `fetchProjetos` em `useCadastrosErp.ts` apontando para `/api/cadastros/projetos?q=` (mesmo contrato dos demais: `codigo`, `descricao`, `label`). Documentar o endpoint faltante em `docs/backend-cadastros-autocomplete.md` (seção 5) — o `AutocompleteAsync` já degrada silenciosamente para "Nenhum resultado" enquanto o backend não sobe.
 
-Os endpoints já aceitam parâmetros arbitrários via query string — não é necessário mudar `src/lib`.
+## Alterações no frontend
+
+### `src/pages/ContasPagarPage.tsx` e `src/pages/ContasReceberPage.tsx`
+
+- Substituir os três `<Input>` dos filtros **Fornecedor**, **Centro de Custo** e **Projeto** por `AutocompleteAsync` correspondentes.
+- Manter os mesmos nomes de parâmetros já enviados ao backend (`fornecedor`, `centro_custo`, `projeto` / `numero_projeto`) — o valor passado ao filtro continua sendo o `codigo` selecionado.
+- Preservar o comportamento atual dos demais filtros e do checkbox "Incluir títulos pagos/liquidados", "Base do filtro de valor", agrupamentos e árvore.
+- Botão "X" do `AutocompleteAsync` limpa o filtro (equivalente ao campo vazio de hoje).
+
+Nada muda em serviços, exports, contratos ou lógica de negócio — apenas a apresentação dos três filtros.
 
 ## Fora de escopo
 
-- Nenhuma alteração nos itens 1–4 e 6 do prompt (já implementados ou transparentes ao front).
-- Nenhum ajuste em telemetria, permissões ou menus.
+- Não alterar colunas da grid nem endpoints de lista/árvore/dashboard/export.
+- Não mexer nos demais filtros (datas, situação, moeda, valor, portador, natureza).
+- Não criar cache global novo — o já existente em `useCadastrosErp.ts` é suficiente.
