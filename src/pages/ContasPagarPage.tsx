@@ -161,14 +161,14 @@ export default function ContasPagarPage() {
         if (!params.somente_cheques) delete params.somente_cheques;
         if (!params.agrupar_por_fornecedor) delete params.agrupar_por_fornecedor;
         delete params.modo_arvore;
-        // Inclusão de títulos pagos: só se aplica quando não há Status específico selecionado.
-        const incluirPagos = !!params.incluir_pagos;
+        // Inclusão de títulos pagos: backend default = false (só em aberto).
+        // Enviar `incluir_pagos=true` apenas quando marcado; para status PAGO/LIQUIDADO,
+        // o backend ignora `incluir_pagos` — enviamos true por coerência.
+        const statusPagoLiquidado = params.status_titulo === 'PAGO' || params.status_titulo === 'LIQUIDADO';
+        const incluirPagos = !!params.incluir_pagos || statusPagoLiquidado;
         delete params.incluir_pagos;
-        if (!params.status_titulo) {
-          if (incluirPagos) params.incluir_pagos = true;
-          else params.excluir_pagos = true;
-        }
-        // Mapear filtros de "Data de Pagamento" (UI) para parâmetros do backend (data_movimento_*)
+        if (incluirPagos) params.incluir_pagos = true;
+        // Mapear filtros de "Data do último movimento" (UI) para parâmetros do backend (data_movimento_*)
         if (params.data_pagamento_ini) params.data_movimento_ini = params.data_pagamento_ini;
         if (params.data_pagamento_fim) params.data_movimento_fim = params.data_pagamento_fim;
         delete params.data_pagamento_ini;
