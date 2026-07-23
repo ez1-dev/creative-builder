@@ -337,7 +337,12 @@ export default function ContasReceberPage() {
         {/* Linha 1 */}
         <div>
           <Label className="text-xs">Cliente</Label>
-          <Input value={filters.cliente} onChange={(e) => set('cliente', e.target.value)} placeholder="Nome ou código" className="h-8 text-xs" />
+          <AutocompleteAsync
+            value={filters.cliente}
+            onChange={(codigo) => set('cliente', codigo)}
+            fetcher={fetchClientesCadastro}
+            placeholder="Buscar cliente..."
+          />
         </div>
         <div>
           <Label className="text-xs">Nº Título</Label>
