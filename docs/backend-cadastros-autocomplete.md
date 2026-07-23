@@ -97,3 +97,33 @@ O filtro Fornecedor agora envia **`CodFor`** (string numérica), não o nome. Ga
 - `transacao` = `CodTns`
 
 Caso o endpoint ainda esteja filtrando `fornecedor` por substring em `NomFor`, atualizar para comparar contra `CodFor`.
+
+### 5. `GET /api/cadastros/projetos?q=` (novo)
+Usado pelos filtros de **Projeto** em Contas a Pagar/Receber e Requisições.
+Tabela `E085PRJ`.
+
+```sql
+SELECT TOP 50 CodPrj AS codigo, DesPrj AS descricao,
+       CONCAT(CodPrj, ' - ', DesPrj) AS label
+FROM E085PRJ
+WHERE (:q IS NULL
+       OR CAST(CodPrj AS VARCHAR(20)) LIKE :q + '%'
+       OR DesPrj LIKE '%' + :q + '%')
+ORDER BY CodPrj;
+```
+
+### 6. `GET /api/cadastros/clientes?q=` (novo)
+Usado pelo filtro **Cliente** em Contas a Receber.
+Tabela `E085CLI` (preferir `SitCli = 'A'`).
+
+```sql
+SELECT TOP 50 CodCli AS codigo, NomCli AS descricao, ApeCli AS fantasia,
+       CONCAT(CodCli, ' - ', NomCli) AS label
+FROM E085CLI
+WHERE (:q IS NULL
+       OR CAST(CodCli AS VARCHAR(20)) LIKE :q + '%'
+       OR NomCli LIKE '%' + :q + '%'
+       OR ApeCli LIKE '%' + :q + '%')
+  AND (SitCli = 'A' OR SitCli IS NULL)
+ORDER BY NomCli;
+```
