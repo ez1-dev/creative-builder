@@ -583,6 +583,7 @@ export function DrillDrawer({
   };
 
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
@@ -1380,8 +1381,18 @@ export function DrillDrawer({
         </Dialog>
       </SheetContent>
     </Sheet>
+    <RollupContaPanel
+      open={rollupOpen}
+      onOpenChange={setRollupOpen}
+      ctared={ctaredNum ?? null}
+      codemp={args?.codemp ?? 1}
+      anomesIni={args?.anomes_ini ?? args?.anomes}
+      anomesFim={args?.anomes_fim ?? args?.anomes}
+    />
+    </>
   );
 }
+
 
 function ResumoCard({
   label,
