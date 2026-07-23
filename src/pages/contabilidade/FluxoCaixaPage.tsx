@@ -155,6 +155,11 @@ export default function FluxoCaixaPage() {
         onDone: (info) => { if (info?.finish_reason) setFinishReason(String(info.finish_reason)); setStreamStatus('done'); },
         onErro: (msg) => { setStreamErro(msg); setStreamStatus('erro'); toast.error(msg); },
       },
+      {
+        projecao: projecao.data,
+        direto: direto.data,
+        indireto: indireto.data,
+      },
     );
     setStreamStatus((s) => (s === 'streaming' ? 'done' : s));
   };
