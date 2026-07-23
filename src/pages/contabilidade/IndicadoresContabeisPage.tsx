@@ -24,6 +24,7 @@ import { streamIndicadoresAnalise, downloadIndicadoresExcel } from '@/lib/contab
 import { normalizarNarrativa, narrativaTruncada } from '@/lib/contabil/indicadoresNarrativa';
 import { gerarPdfIndicadores } from '@/lib/contabil/indicadoresRelatorio';
 import type { Indicador, IndicadorUnidade, IndicadorStatus } from '@/lib/contabil/indicadoresApi';
+import { DrillIndicadorDrawer } from '@/components/contabil/DrillIndicadorDrawer';
 
 // ---- Seções (agrupamento por nome) ----
 const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
