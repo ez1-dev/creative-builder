@@ -554,6 +554,7 @@ export function ResumoFolhaDrillDrawer({
               )}
             </div>
           </Tabs>
+          </>
         )}
       </SheetContent>
     </Sheet>
