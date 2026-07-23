@@ -279,6 +279,31 @@ export default function IndicadoresContabeisPage() {
     }
   };
 
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const baixarRelatorio = async () => {
+    if (!data) return;
+    setExportingPdf(true);
+    try {
+      gerarPdfIndicadores({
+        periodoIni: anomesIni,
+        periodoFim: anomesFim,
+        codemp,
+        codfil,
+        grupos,
+        ordemSecoes: SECOES.map((s) => s.titulo),
+        outros,
+        tecnicos,
+        duplicidade612: data.duplicidade_612_ativa,
+        narrativa: narrativaStream,
+        modeloIA,
+      });
+    } catch (e: any) {
+      toast.error(e?.message || 'Falha ao gerar PDF.');
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
   const narrativa = narrativaStream;
   const analiseErro = streamErro;
   const analiseCarregando = streamStatus === 'streaming';
