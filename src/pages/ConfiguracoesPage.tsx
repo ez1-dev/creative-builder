@@ -60,6 +60,7 @@ const ALL_SCREENS = [
   { path: '/contabilidade/fluxo-caixa', name: 'Contabilidade — Fluxo de Caixa' },
   { path: '/contabilidade/aging', name: 'Contabilidade — Aging (Receber/Pagar)' },
   { path: '/contabilidade/kardex', name: 'Contabilidade — Kardex de Estoque' },
+  { path: '/contabilidade/conciliacao-estoque', name: 'Contabilidade — Conciliação Estoque × Contábil' },
   
   
   { path: '/numero-serie', name: 'Reserva Nº Série' },
