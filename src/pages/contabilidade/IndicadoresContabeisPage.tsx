@@ -436,10 +436,16 @@ export default function IndicadoresContabeisPage() {
                   size="sm"
                   className="w-full"
                   onClick={gerarAnalise}
-                  disabled={analise.isFetching}
+                  disabled={analiseCarregando}
                 >
-                  <Sparkles className="h-4 w-4 mr-1" />
-                  {analise.isFetching ? 'Gerando… (pode levar até 90s)' : narrativa ? 'Gerar novamente' : 'Gerar análise'}
+                  {analiseCarregando
+                    ? <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    : <Sparkles className="h-4 w-4 mr-1" />}
+                  {analiseCarregando
+                    ? 'Gerando…'
+                    : narrativa
+                      ? 'Gerar novamente'
+                      : 'Gerar análise'}
                 </Button>
                 {analiseErro && !narrativa && (
                   <Alert variant="destructive">
@@ -450,9 +456,9 @@ export default function IndicadoresContabeisPage() {
                 {narrativa && (
                   <div className="prose prose-sm max-w-none text-sm dark:prose-invert">
                     <ReactMarkdown>{narrativa}</ReactMarkdown>
-                    {analise.data?.analise?.modelo && (
+                    {modeloIA && (
                       <p className="text-[10px] text-muted-foreground mt-2">
-                        Modelo: {analise.data.analise.modelo}
+                        Modelo: {modeloIA}
                       </p>
                     )}
                   </div>
