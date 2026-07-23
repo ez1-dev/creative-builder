@@ -75,6 +75,8 @@ export const TOP_MENUS: TopMenu[] = [
         items: [
           { title: 'Indicadores Contábeis', url: '/contabilidade/indicadores', icon: BarChart3 },
           { title: 'Fluxo de Caixa', url: '/contabilidade/fluxo-caixa', icon: Waves },
+          { title: 'Aging (Receber/Pagar)', url: '/contabilidade/aging', icon: BarChart3 },
+          { title: 'Kardex de Estoque', url: '/contabilidade/kardex', icon: Boxes },
           { title: 'Conciliação EDocs', url: '/conciliacao-edocs', icon: Landmark },
           { title: 'Contas a Pagar', url: '/contas-pagar', icon: Landmark },
           { title: 'Contas a Receber', url: '/contas-receber', icon: Landmark },
