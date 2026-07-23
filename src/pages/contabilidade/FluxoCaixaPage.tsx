@@ -204,6 +204,25 @@ export default function FluxoCaixaPage() {
       },
     });
   };
+  const abrirDrillDiretoCustom = (
+    origem: string,
+    ini: number,
+    fim: number,
+    titulo: string,
+    extraParams?: Record<string, any>,
+  ) => {
+    setDrillCtx({
+      modo: 'direto',
+      titulo,
+      params: {
+        origem,
+        anomes_ini: ini, anomes_fim: fim,
+        codemp, codfil,
+        ...(extraParams || {}),
+      },
+    });
+  };
+
   const abrirDrillIndireto = (it: IndiretoItem) => {
     if (!it.drill) return;
     setDrillCtx({
