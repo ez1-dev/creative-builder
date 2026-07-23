@@ -210,6 +210,7 @@ export default function IndicadoresContabeisPage() {
   const [streamStatus, setStreamStatus] = useState<StreamStatus>('idle');
   const [streamErro, setStreamErro] = useState<string | undefined>();
   const [modeloIA, setModeloIA] = useState<string | undefined>();
+  const [finishReason, setFinishReason] = useState<string | undefined>();
   const streamAbortRef = useRef<AbortController | null>(null);
 
   // Abortar stream ativo ao trocar filtros/desmontar
@@ -226,6 +227,7 @@ export default function IndicadoresContabeisPage() {
     setStreamStatus('idle');
     setStreamErro(undefined);
     setModeloIA(undefined);
+    setFinishReason(undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anomesIni, anomesFim, codemp, codfil]);
 
