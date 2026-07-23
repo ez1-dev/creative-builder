@@ -200,6 +200,7 @@ const App = () => (
 
               <Route path="/contabilidade/balanco" element={<ProtectedRoute path="/contabilidade/balanco"><BalancoPatrimonialPage /></ProtectedRoute>} />
               <Route path="/contabilidade/dre-padrao" element={<ProtectedRoute path="/contabilidade/dre-padrao"><DrePadraoPage /></ProtectedRoute>} />
+              <Route path="/contabilidade/indicadores" element={<ProtectedRoute path="/contabilidade/indicadores"><IndicadoresContabeisPage /></ProtectedRoute>} />
               {/* <Route path="/contabilidade/balanco-padrao" element={<ProtectedRoute path="/contabilidade/balanco-padrao"><BalancoPadraoPage /></ProtectedRoute>} /> */}
               <Route path="/contabilidade/configuracoes" element={<ProtectedRoute path="/contabilidade/dre-studio"><DreStudioConfiguracoesPage /></ProtectedRoute>} />
               <Route path="/bi/contabilidade/dre" element={<ProtectedRoute path="/bi/contabilidade/dre"><DrePage /></ProtectedRoute>} />
