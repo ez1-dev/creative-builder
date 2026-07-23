@@ -66,3 +66,9 @@ export const fetchDepositos = (q: string) =>
 
 export const fetchTransacoesCompras = (q: string) =>
   fetchList('/api/cadastros/transacoes-compras', q, { codeKey: 'CodTns', descKey: 'DesTns' });
+
+export const fetchProjetos = (q: string) =>
+  fetchList('/api/cadastros/projetos', q, { codeKey: 'CodPrj', descKey: 'DesPrj' });
+
+export const fetchClientesCadastro = (q: string) =>
+  fetchList('/api/cadastros/clientes', q, { codeKey: 'CodCli', descKey: 'NomCli' });
