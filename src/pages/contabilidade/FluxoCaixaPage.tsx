@@ -609,16 +609,48 @@ function ProjecaoBloco({
                 </tr>
               </thead>
               <tbody>
-                {(data.curva || []).map((p) => (
-                  <tr key={p.periodo} className={cn('border-t border-border/60',
-                    p.periodo === menorSaldoEm && 'bg-destructive/5')}>
-                    <td className="px-4 py-2 font-medium">{p.periodo}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">{fmt(p.entradas)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">{fmt(p.saidas)}</td>
-                    <td className="px-4 py-2 text-right"><ValorPN v={p.fluxo_liquido} /></td>
-                    <td className="px-4 py-2 text-right"><ValorPN v={p.saldo_projetado} className="font-semibold" /></td>
-                  </tr>
-                ))}
+                {(data.curva || []).map((p) => {
+                  const podeDrill = !!(p.drill?.receber || p.drill?.pagar) ||
+                    !!periodoParaDatas(p.periodo);
+                  return (
+                    <tr key={p.periodo} className={cn('border-t border-border/60',
+                      p.periodo === menorSaldoEm && 'bg-destructive/5')}>
+                      <td className="px-4 py-2 font-medium">
+                        {podeDrill ? (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="hover:underline decoration-dotted underline-offset-2">
+                                {p.periodo}
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                              <DropdownMenuItem onClick={() => abrirPeriodo(p, 'receber')}>
+                                Ver a receber
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => abrirPeriodo(p, 'pagar')}>
+                                Ver a pagar
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        ) : p.periodo}
+                      </td>
+                      <td className="px-4 py-2 text-right tabular-nums">
+                        {podeDrill ? (
+                          <button className="hover:underline decoration-dotted underline-offset-2 tabular-nums"
+                            onClick={() => abrirPeriodo(p, 'receber')}>{fmt(p.entradas)}</button>
+                        ) : fmt(p.entradas)}
+                      </td>
+                      <td className="px-4 py-2 text-right tabular-nums">
+                        {podeDrill ? (
+                          <button className="hover:underline decoration-dotted underline-offset-2 tabular-nums"
+                            onClick={() => abrirPeriodo(p, 'pagar')}>{fmt(p.saidas)}</button>
+                        ) : fmt(p.saidas)}
+                      </td>
+                      <td className="px-4 py-2 text-right"><ValorPN v={p.fluxo_liquido} /></td>
+                      <td className="px-4 py-2 text-right"><ValorPN v={p.saldo_projetado} className="font-semibold" /></td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
