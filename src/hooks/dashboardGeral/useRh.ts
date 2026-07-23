@@ -43,34 +43,44 @@ const EMPTY: RhData = {
 
 export function useRh(periodo: Periodo, enabled: boolean, codemp = 1) {
   const range = useMemo(() => rangeFor(periodo), [periodo]);
+  const range12m = useMemo(() => rangeFor('ult_12m'), []);
+  const dataRef = useMemo(() => anomesToDate(range.fim, true), [range.fim]);
 
   const queries = useQueries({
     queries: [
       { queryKey: ['dg-rh', 'folha', range.ini, range.fim, codemp], queryFn: () => fetchResumoFolhaDashboard({ anomes_ini: range.ini, anomes_fim: range.fim, codemp }), enabled, retry: 0, staleTime: 10 * 60 * 1000, gcTime: 30 * 60 * 1000, placeholderData: keepPreviousData, refetchOnWindowFocus: false },
       { queryKey: ['dg-rh', 'turn', range.ini, range.fim, codemp], queryFn: () => fetchTurnoverDashboard({ anomes_ini: range.ini, anomes_fim: range.fim, codemp }), enabled, retry: 0, staleTime: 10 * 60 * 1000, gcTime: 30 * 60 * 1000, placeholderData: keepPreviousData, refetchOnWindowFocus: false },
+      { queryKey: ['dg-rh', 'turn12m', range12m.ini, range12m.fim, codemp], queryFn: () => fetchTurnoverDashboard({ anomes_ini: range12m.ini, anomes_fim: range12m.fim, codemp }), enabled, retry: 0, staleTime: 10 * 60 * 1000, gcTime: 30 * 60 * 1000, placeholderData: keepPreviousData, refetchOnWindowFocus: false },
       { queryKey: ['dg-rh', 'abs', range.ini, range.fim, codemp], queryFn: () => fetchAbsenteismoDashboard({ anomes_ini: range.ini, anomes_fim: range.fim, codemp }), enabled, retry: 0, staleTime: 10 * 60 * 1000, gcTime: 30 * 60 * 1000, placeholderData: keepPreviousData, refetchOnWindowFocus: false },
+      { queryKey: ['dg-rh', 'quadroDash', dataRef], queryFn: () => fetchQuadroDashboard(dataRef), enabled, retry: 0, staleTime: 10 * 60 * 1000, gcTime: 30 * 60 * 1000, placeholderData: keepPreviousData, refetchOnWindowFocus: false },
       { queryKey: ['dg-rh', 'quadro'], queryFn: () => fetchQuadroColaboradores(), enabled, retry: 0, staleTime: 10 * 60 * 1000, gcTime: 30 * 60 * 1000, placeholderData: keepPreviousData, refetchOnWindowFocus: false },
     ],
   });
-  const [qFolha, qTurn, qAbs, qQuadro] = queries;
+  const [qFolha, qTurn, qTurn12m, qAbs, qQuadroDash, qQuadro] = queries;
 
   const data: RhData = useMemo(() => {
     const folhaP = parseOrEmpty(FolhaResponseSchema, qFolha.data, EMPTY_FOLHA, 'rh/folha');
     const turnP = parseOrEmpty(TurnoverResponseSchema, qTurn.data, EMPTY_TURNOVER, 'rh/turnover');
+    const turn12mP = parseOrEmpty(TurnoverResponseSchema, qTurn12m.data, EMPTY_TURNOVER, 'rh/turnover12m');
     const absP = parseOrEmpty(AbsenteismoResponseSchema, qAbs.data, EMPTY_ABS, 'rh/absenteismo');
     const quadroP = parseOrEmpty(QuadroColaboradoresSchema, qQuadro.data, EMPTY_QUADRO, 'rh/quadro');
     const quadro = quadroP.data;
 
-    const ativos = quadro.filter((c) => {
-      const sit = c.situacao.toLowerCase();
-      return sit.includes('ativ') || sit === '' || sit === 't' || sit === 'a';
-    }).length || quadro.length;
+    // Headcount: usar KPI oficial do endpoint de dashboard (evita cap 1000 da lista).
+    const dashKpis: any = (qQuadroDash.data as any)?.kpis ?? {};
+    const headcountKpi = Number(
+      dashKpis.total ?? dashKpis.colaboradores ?? dashKpis.total_colaboradores ?? 0,
+    ) || 0;
+    if (quadro.length >= 1000) {
+      // eslint-disable-next-line no-console
+      console.warn('[DashboardGeral/RH] Lista quadro-colaboradores truncada em 1000 — breakdown por setor pode estar incompleto.');
+    }
 
-    const headcount = turnP.data.por_mes.slice(-12).map((r) => ({
+    const headcount = turn12mP.data.por_mes.slice(-12).map((r) => ({
       label: labelAnomes(String(r.anomes).replace(/\D/g, '').slice(0, 6)),
       valor: r.headcount_fim,
     }));
-    const turnover_mes = turnP.data.por_mes.slice(-12).map((r) => ({
+    const turnover_mes = turn12mP.data.por_mes.slice(-12).map((r) => ({
       label: labelAnomes(String(r.anomes).replace(/\D/g, '').slice(0, 6)),
       valor: r.taxa_rotatividade_pct,
     }));
@@ -90,7 +100,7 @@ export function useRh(periodo: Periodo, enabled: boolean, codemp = 1) {
 
     return {
       kpis: {
-        headcount: ativos,
+        headcount: headcountKpi,
         admissoes: turnP.data.kpis.admitidos,
         demissoes: turnP.data.kpis.demitidos,
         turnover_pct: turnP.data.kpis.taxa_rotatividade_pct,
@@ -101,7 +111,7 @@ export function useRh(periodo: Periodo, enabled: boolean, codemp = 1) {
       breakdowns: { absenteismo_motivo, setor },
       status: statusFrom(qFolha, enabled, anyPartial),
     };
-  }, [qFolha.data, qTurn.data, qAbs.data, qQuadro.data, qFolha.isLoading, qFolha.isFetching, qFolha.isError, enabled]);
+  }, [qFolha.data, qTurn.data, qTurn12m.data, qAbs.data, qQuadroDash.data, qQuadro.data, qFolha.isLoading, qFolha.isFetching, qFolha.isError, enabled]);
 
   return { data: enabled ? data : EMPTY, loading: enabled && queries.some((q) => q.isLoading), refetch: () => Promise.all(queries.map((q) => q.refetch())), range };
 }
