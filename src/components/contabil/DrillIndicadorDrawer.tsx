@@ -83,6 +83,17 @@ export function DrillIndicadorDrawer({
               </SheetHeader>
 
               <div className="mt-6 space-y-6 text-sm">
+                <div className="grid grid-cols-2 gap-3 rounded border bg-muted/30 p-3 text-xs">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Numerador</p>
+                    <p className="tabular-nums">{indicador.numerador == null ? '—' : formatCurrency(indicador.numerador)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Denominador</p>
+                    <p className="tabular-nums">{indicador.denominador == null ? '—' : formatCurrency(indicador.denominador)}</p>
+                  </div>
+                </div>
+
                 {!temDrill && (
                   <p className="rounded border bg-muted/40 p-4 text-xs text-muted-foreground">
                     Este indicador não expõe drill-down (backend não retornou aglutinadores nem contas).
