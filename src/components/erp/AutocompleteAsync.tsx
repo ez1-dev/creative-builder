@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
-import { ChevronsUpDown, Check, Loader2, X } from 'lucide-react';
-import type { CadastroOption } from '@/hooks/useCadastrosErp';
+import { ChevronsUpDown, Check, Loader2, X, AlertTriangle } from 'lucide-react';
+import { isCadastroUnavailable, type CadastroOption } from '@/hooks/useCadastrosErp';
 
 interface AutocompleteAsyncProps {
   value: string;
@@ -11,16 +11,19 @@ interface AutocompleteAsyncProps {
   fetcher: (q: string) => Promise<CadastroOption[]>;
   placeholder?: string;
   className?: string;
+  /** Opções de fallback (ex.: extraídas da grid atual) quando o endpoint estiver indisponível. */
+  fallbackOptions?: CadastroOption[];
 }
 
 // Cache global de labels já vistos (para mostrar nome do item selecionado sem refetch).
 const labelCache = new Map<string, CadastroOption>();
 
-export function AutocompleteAsync({ value, onChange, fetcher, placeholder = 'Buscar...', className }: AutocompleteAsyncProps) {
+export function AutocompleteAsync({ value, onChange, fetcher, placeholder = 'Buscar...', className, fallbackOptions }: AutocompleteAsyncProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<CadastroOption[]>([]);
   const [loading, setLoading] = useState(false);
+  const [unavailable, setUnavailable] = useState(false);
   const debounceRef = useRef<number | null>(null);
   const reqIdRef = useRef(0);
 
@@ -34,6 +37,7 @@ export function AutocompleteAsync({ value, onChange, fetcher, placeholder = 'Bus
         if (id !== reqIdRef.current) return;
         data.forEach((o) => labelCache.set(o.codigo, o));
         setResults(data);
+        setUnavailable(isCadastroUnavailable(data));
       } finally {
         if (id === reqIdRef.current) setLoading(false);
       }
@@ -44,6 +48,20 @@ export function AutocompleteAsync({ value, onChange, fetcher, placeholder = 'Bus
     if (open) runSearch(query);
     return () => { if (debounceRef.current) window.clearTimeout(debounceRef.current); };
   }, [open, query, runSearch]);
+
+  // Merge: quando endpoint estiver indisponível ou trouxer vazio sem query, usar fallback.
+  const displayed = useMemo(() => {
+    const useFallback = (unavailable || (results.length === 0 && !query)) && fallbackOptions && fallbackOptions.length > 0;
+    const base = useFallback ? [...results, ...fallbackOptions!] : results;
+    if (!query) return base.slice(0, 100);
+    const qLower = query.trim().toLowerCase();
+    return base.filter((o) =>
+      o.codigo.toLowerCase().includes(qLower) ||
+      o.descricao.toLowerCase().includes(qLower) ||
+      o.label.toLowerCase().includes(qLower)
+    ).slice(0, 100);
+  }, [results, unavailable, fallbackOptions, query]);
+
 
   const selected = value ? labelCache.get(value) : undefined;
   const displayLabel = value ? (selected?.label || value) : '';
