@@ -7,7 +7,7 @@ import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { keepPreviousData } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { rangeFor, num, delta, labelAnomes, safeDiv, statusFrom, type Periodo, type ModStatus } from './shared';
+import { rangeFor, rangeAnteriorEquivalente, num, delta, labelAnomes, safeDiv, statusFrom, type Periodo, type ModStatus } from './shared';
 import { FaturamentoGeniusResponseSchema, EMPTY_FATURAMENTO } from '@/lib/dashboardGeral/schemas/comercial';
 import { parseOrEmpty } from '@/lib/dashboardGeral/schemas/_utils';
 
