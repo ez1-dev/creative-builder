@@ -103,7 +103,7 @@ export function useCompras(periodo: Periodo, enabled: boolean) {
       breakdowns: { por_tipo, top_fornecedores, situacao },
       status: statusFrom(q, enabled, parsed.partial),
     };
-  }, [q.data, q.isLoading, q.isFetching, q.isError, enabled]);
+  }, [q.data, q12m.data, q.isLoading, q.isFetching, q.isError, enabled]);
 
-  return { data: enabled ? data : EMPTY, loading: enabled && q.isLoading, refetch: () => q.refetch(), range };
+  return { data: enabled ? data : EMPTY, loading: enabled && q.isLoading, refetch: () => Promise.all([q.refetch(), q12m.refetch()]), range };
 }
