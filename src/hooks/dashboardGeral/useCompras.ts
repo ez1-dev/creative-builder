@@ -34,26 +34,36 @@ const EMPTY: ComprasData = {
 
 export function useCompras(periodo: Periodo, enabled: boolean) {
   const range = useMemo(() => rangeFor(periodo), [periodo]);
+  const range12m = useMemo(() => rangeFor('ult_12m'), []);
   const params = useMemo(() => ({
     data_ini: anomesToDate(range.ini),
     data_fim: anomesToDate(range.fim, true),
   }), [range]);
+  const params12m = useMemo(() => ({
+    data_ini: anomesToDate(range12m.ini),
+    data_fim: anomesToDate(range12m.fim, true),
+  }), [range12m]);
 
-  const [q] = useQueries({
+  const [q, q12m] = useQueries({
     queries: [{
       queryKey: ['dg-compras', params.data_ini, params.data_fim],
       queryFn: () => api.get<PainelComprasDashboardResponse>('/api/painel-compras-dashboard', params),
+      enabled, retry: 0, staleTime: 10 * 60 * 1000, gcTime: 30 * 60 * 1000, placeholderData: keepPreviousData, refetchOnWindowFocus: false,
+    }, {
+      queryKey: ['dg-compras', '12m', params12m.data_ini, params12m.data_fim],
+      queryFn: () => api.get<PainelComprasDashboardResponse>('/api/painel-compras-dashboard', params12m),
       enabled, retry: 0, staleTime: 10 * 60 * 1000, gcTime: 30 * 60 * 1000, placeholderData: keepPreviousData, refetchOnWindowFocus: false,
     }],
   });
 
   const data: ComprasData = useMemo(() => {
     const parsed = parseOrEmpty(PainelComprasResponseSchema, q.data, EMPTY_COMPRAS, 'compras');
+    const parsed12m = parseOrEmpty(PainelComprasResponseSchema, q12m.data, EMPTY_COMPRAS, 'compras/12m');
     const d = parsed.data;
     const k = d.kpis;
     const g = d.graficos;
 
-    const compras_mes = g.por_mes.slice(-12).map((r) => ({
+    const compras_mes = parsed12m.data.graficos.por_mes.slice(-12).map((r) => ({
       label: labelAnomes(String(r.mes || r.anomes).replace(/\D/g, '').slice(0, 6)),
       valor: r.valor,
     }));
@@ -93,7 +103,7 @@ export function useCompras(periodo: Periodo, enabled: boolean) {
       breakdowns: { por_tipo, top_fornecedores, situacao },
       status: statusFrom(q, enabled, parsed.partial),
     };
-  }, [q.data, q.isLoading, q.isFetching, q.isError, enabled]);
+  }, [q.data, q12m.data, q.isLoading, q.isFetching, q.isError, enabled]);
 
-  return { data: enabled ? data : EMPTY, loading: enabled && q.isLoading, refetch: () => q.refetch(), range };
+  return { data: enabled ? data : EMPTY, loading: enabled && q.isLoading, refetch: () => Promise.all([q.refetch(), q12m.refetch()]), range };
 }
