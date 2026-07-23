@@ -12,15 +12,26 @@ export interface KardexResumo {
   saidas_qtd: number;
   entradas_valor: number;
   saidas_valor: number;
+  transferencias_qtd?: number;
+  transferencias_valor?: number;
+  giro?: number;
+  estoque_medio?: number;
+}
+
+export interface KardexContaContabil {
+  ctared: number | string;
+  clacta: string;
+  descricao: string;
 }
 
 export interface KardexProduto {
   codpro: string;
   descricao: string;
   unidade?: string;
+  conta_contabil?: KardexContaContabil | null;
 }
 
-export type KardexTipo = 'entrada' | 'saida' | string;
+export type KardexTipo = 'entrada' | 'saida' | 'transferencia' | string;
 
 export interface KardexMovimento {
   data: string;
