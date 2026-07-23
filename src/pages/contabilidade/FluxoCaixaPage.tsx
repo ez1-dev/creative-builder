@@ -676,7 +676,9 @@ function ConciliadoBadge({ conciliado, residual }: { conciliado: boolean; residu
   );
 }
 
-function DiretoBloco({ data }: { data: DiretoResponse }) {
+function DiretoBloco({
+  data, onOpenDrill,
+}: { data: DiretoResponse; onOpenDrill: (c: DiretoCategoria) => void }) {
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -709,27 +711,38 @@ function DiretoBloco({ data }: { data: DiretoResponse }) {
                 </tr>
               </thead>
               <tbody>
-                {data.categorias.map((c, i) => (
-                  <tr key={`${c.categoria}-${i}`} className="border-t border-border/60">
-                    <td className="px-4 py-2 font-medium flex items-center gap-2">
-                      {c.categoria}
-                      {c.obs && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <AlertTriangle className="h-3.5 w-3.5 text-[hsl(var(--warning))] cursor-help" />
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-sm text-xs">{c.obs}</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
-                    </td>
-                    <td className="px-4 py-2"><AtividadeBadge atv={c.atividade} /></td>
-                    <td className="px-4 py-2 text-right tabular-nums">{fmt(c.entradas)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">{fmt(c.saidas)}</td>
-                    <td className="px-4 py-2 text-right font-semibold"><ValorPN v={c.liquido} /></td>
-                  </tr>
-                ))}
+                {data.categorias.map((c, i) => {
+                  const podeDrill = !!c.drill?.origem;
+                  return (
+                    <tr key={`${c.categoria}-${i}`}
+                      className={cn('border-t border-border/60',
+                        podeDrill && 'hover:bg-muted/30 cursor-pointer')}
+                      onClick={() => podeDrill && onOpenDrill(c)}
+                    >
+                      <td className="px-4 py-2 font-medium">
+                        <div className="flex items-center gap-2">
+                          <span className={cn(podeDrill && 'underline decoration-dotted underline-offset-2')}>
+                            {c.categoria}
+                          </span>
+                          {c.obs && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <AlertTriangle className="h-3.5 w-3.5 text-[hsl(var(--warning))] cursor-help" />
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-sm text-xs">{c.obs}</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-2"><AtividadeBadge atv={c.atividade} /></td>
+                      <td className="px-4 py-2 text-right tabular-nums">{fmt(c.entradas)}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{fmt(c.saidas)}</td>
+                      <td className="px-4 py-2 text-right font-semibold"><ValorPN v={c.liquido} /></td>
+                    </tr>
+                  );
+                })}
               </tbody>
               <tfoot className="bg-muted/30 font-semibold">
                 <tr className="border-t border-border">
