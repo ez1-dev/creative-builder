@@ -11,19 +11,30 @@ export interface ProjecaoParams {
   saldo_inicial?: number;
 }
 
+export interface ProjecaoDrillPtr {
+  /** Parâmetros específicos que o backend já quer receber (venc_ini/venc_fim, etc.). */
+  params?: Record<string, any>;
+  [k: string]: any;
+}
 export interface CurvaPonto {
   periodo: string;            // AAAA-MM ou AAAA-Www
   entradas: number;
   saidas: number;
   fluxo_liquido: number;
   saldo_projetado: number;
+  drill?: { receber?: ProjecaoDrillPtr; pagar?: ProjecaoDrillPtr };
 }
 
 export interface ProjecaoResponse {
   data_base: string;
   saldo_inicial: number;
   saldo_inicial_fonte?: string;
-  vencidos: { receber: number; pagar: number; liquido: number };
+  vencidos: {
+    receber: number;
+    pagar: number;
+    liquido: number;
+    drill?: { receber?: ProjecaoDrillPtr; pagar?: ProjecaoDrillPtr };
+  };
   curva: CurvaPonto[];
   resumo_horizonte?: {
     menor_saldo?: number;
@@ -43,6 +54,11 @@ export interface RealizadoParams {
 
 export type AtividadeFC = 'operacional' | 'investimento' | 'financiamento' | 'tesouraria';
 
+export interface DiretoDrillPtr {
+  origem: string;
+  params?: Record<string, any>;
+  [k: string]: any;
+}
 export interface DiretoCategoria {
   categoria: string;
   atividade: AtividadeFC | string;
@@ -50,6 +66,7 @@ export interface DiretoCategoria {
   saidas: number;
   liquido: number;
   obs?: string | null;
+  drill?: DiretoDrillPtr;
 }
 
 export interface DiretoResponse {
@@ -65,9 +82,18 @@ export interface DiretoResponse {
   [k: string]: any;
 }
 
+export interface IndiretoDrillPtr {
+  tipo: 'aglutinador' | 'razao';
+  codagl?: number;
+  descricao?: string;
+  contas?: Array<{ ctared: number; clacta?: string | null; descricao?: string | null }>;
+  params?: Record<string, any>;
+  [k: string]: any;
+}
 export interface IndiretoItem {
   descricao: string;
   valor: number;
+  drill?: IndiretoDrillPtr;
 }
 export interface IndiretoAtividade {
   itens: IndiretoItem[];
@@ -88,6 +114,76 @@ export interface IndiretoResponse {
   conciliado: boolean;
   observacoes?: string[];
   [k: string]: any;
+}
+
+// -------------------- Drill --------------------
+
+export interface DiretoDrillLancamento {
+  lancamento: number | string;
+  data: string;
+  conta_caixa?: string | null;
+  tipo?: 'E' | 'S' | string;
+  valor: number;
+  historico?: string | null;
+  usuario?: string | null;
+  [k: string]: any;
+}
+export interface DiretoDrillResponse {
+  lancamentos: DiretoDrillLancamento[];
+  total_lancamentos: number;
+  truncado?: boolean;
+  [k: string]: any;
+}
+
+export interface DiretoDrillParams {
+  origem: string;                    // ex.: 'PAG', 'REC', 'TES'
+  anomes_ini: number | string;
+  anomes_fim: number | string;
+  codemp?: number | string;
+  codfil?: number | string;
+  limite?: number;
+  [k: string]: any;
+}
+
+export function fetchDiretoDrill(params: DiretoDrillParams): Promise<DiretoDrillResponse> {
+  return contabilApi.get<DiretoDrillResponse>(
+    '/api/contabil/fluxo-caixa/direto/drill',
+    { codemp: 1, limite: 500, ...params },
+    { timeoutMs: 60000 },
+  );
+}
+
+export interface ProjecaoDrillTitulo {
+  titulo: number | string;
+  parceiro_codigo?: number | string | null;
+  parceiro?: string | null;
+  vencimento: string;
+  valor_aberto: number;
+  [k: string]: any;
+}
+export interface ProjecaoDrillResponse {
+  titulos: ProjecaoDrillTitulo[];
+  total: number;
+  total_titulos: number;
+  [k: string]: any;
+}
+
+export interface ProjecaoDrillParams {
+  tipo: 'receber' | 'pagar';
+  venc_ini?: string;      // AAAA-MM-DD
+  venc_fim?: string;      // AAAA-MM-DD
+  vencidos?: boolean;
+  codemp?: number | string;
+  codfil?: number | string;
+  [k: string]: any;
+}
+
+export function fetchProjecaoDrill(params: ProjecaoDrillParams): Promise<ProjecaoDrillResponse> {
+  return contabilApi.get<ProjecaoDrillResponse>(
+    '/api/contabil/fluxo-caixa/projecao/drill',
+    { codemp: 1, ...params },
+    { timeoutMs: 60000 },
+  );
 }
 
 // -------------------- REST --------------------
