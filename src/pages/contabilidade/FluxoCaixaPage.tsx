@@ -273,21 +273,26 @@ export default function FluxoCaixaPage() {
           />
           {projecao.isLoading && <div className="grid grid-cols-1 md:grid-cols-3 gap-3"><Skeleton className="h-28" /><Skeleton className="h-28" /><Skeleton className="h-28" /></div>}
           {projecao.error && <ErroBox err={projecao.error as Error} />}
-          {projecao.data && <ProjecaoBloco data={projecao.data} />}
+          {projecao.data && (
+            <ProjecaoBloco
+              data={projecao.data}
+              onOpenDrill={abrirDrillProjecao}
+            />
+          )}
         </TabsContent>
 
         {/* ============ DIRETO ============ */}
         <TabsContent value="direto" className="space-y-4">
           {direto.isLoading && <Skeleton className="h-64" />}
           {direto.error && <ErroBox err={direto.error as Error} />}
-          {direto.data && <DiretoBloco data={direto.data} />}
+          {direto.data && <DiretoBloco data={direto.data} onOpenDrill={abrirDrillDireto} />}
         </TabsContent>
 
         {/* ============ INDIRETO ============ */}
         <TabsContent value="indireto" className="space-y-4">
           {indireto.isLoading && <Skeleton className="h-64" />}
           {indireto.error && <ErroBox err={indireto.error as Error} />}
-          {indireto.data && <IndiretoBloco data={indireto.data} />}
+          {indireto.data && <IndiretoBloco data={indireto.data} onOpenDrill={abrirDrillIndireto} />}
         </TabsContent>
       </Tabs>
 
