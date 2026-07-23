@@ -255,12 +255,16 @@ export default function IndicadoresContabeisPage() {
     setNarrativaStream('');
     setStreamErro(undefined);
     setModeloIA(undefined);
+    setFinishReason(undefined);
     setStreamStatus('streaming');
     await streamIndicadoresAnalise(params, {
       signal: ctrl.signal,
       onMeta: (m) => { if (m?.modelo) setModeloIA(m.modelo); },
       onDelta: (t) => setNarrativaStream((prev) => prev + t),
-      onDone: () => setStreamStatus('done'),
+      onDone: (info) => {
+        if (info?.finish_reason) setFinishReason(String(info.finish_reason));
+        setStreamStatus('done');
+      },
       onErro: (msg) => {
         setStreamErro(msg);
         setStreamStatus('erro');
