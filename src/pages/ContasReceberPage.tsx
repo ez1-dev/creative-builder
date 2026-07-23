@@ -383,13 +383,13 @@ export default function ContasReceberPage() {
           <Input type="date" value={filters.data_vencimento_fim} onChange={(e) => set('data_vencimento_fim', e.target.value)} className="h-8 text-xs" />
         </div>
         <div>
-          <Label className="text-xs">Recebimento de</Label>
+          <Label className="text-xs">Data do último movimento (início)</Label>
           <Input type="date" value={filters.data_recebimento_ini} onChange={(e) => set('data_recebimento_ini', e.target.value)} className="h-8 text-xs" />
         </div>
 
         {/* Linha 3 */}
         <div>
-          <Label className="text-xs">Recebimento até</Label>
+          <Label className="text-xs">Data do último movimento (fim)</Label>
           <Input type="date" value={filters.data_recebimento_fim} onChange={(e) => set('data_recebimento_fim', e.target.value)} className="h-8 text-xs" />
         </div>
         <div>
