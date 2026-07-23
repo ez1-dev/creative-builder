@@ -26,7 +26,8 @@ import {
 import { useDrillLancamentos } from "@/hooks/contabil/api";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
-import { Download, AlertTriangle } from "lucide-react";
+import { Download, AlertTriangle, Network } from "lucide-react";
+import { RollupContaPanel } from "@/components/contabil/RollupContaPanel";
 import {
   Tooltip,
   TooltipContent,
@@ -358,6 +359,7 @@ export function DrillDrawer({
   const [detalhe, setDetalhe] = useState<RazaoItem | null>(null);
   const [expandido, setExpandido] = useState(false);
   const [contaEscolhida, setContaEscolhida] = useState<ContaOpcao | null>(null);
+  const [rollupOpen, setRollupOpen] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -581,6 +583,7 @@ export function DrillDrawer({
   };
 
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
@@ -596,6 +599,19 @@ export function DrillDrawer({
           <div className="flex items-start justify-between gap-2">
             <SheetTitle className="text-primary-foreground">Lançamentos</SheetTitle>
             <div className="flex items-center gap-2">
+              {ctaredNum != null && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setRollupOpen(true)}
+                  className="h-7 px-2 text-xs gap-1"
+                  title="Ver aglutinadores e indicadores impactados por esta conta"
+                >
+                  <Network className="h-3.5 w-3.5" />
+                  Onde entra?
+                </Button>
+              )}
               {contaEscolhida && (
                 <Button
                   type="button"
@@ -1365,8 +1381,18 @@ export function DrillDrawer({
         </Dialog>
       </SheetContent>
     </Sheet>
+    <RollupContaPanel
+      open={rollupOpen}
+      onOpenChange={setRollupOpen}
+      ctared={ctaredNum ?? null}
+      codemp={args?.codemp ?? 1}
+      anomesIni={args?.anomes_ini ?? args?.anomes}
+      anomesFim={args?.anomes_fim ?? args?.anomes}
+    />
+    </>
   );
 }
+
 
 function ResumoCard({
   label,
