@@ -1,100 +1,91 @@
 
-# Drill-down contábil (indicadores → razão + rollup reverso)
+## Objetivo
 
-Implementar a cadeia de navegação **Indicador → Aglutinador(es) → sub-aglutinadores/contas → Razão (lançamento) → Documento**, e o caminho reverso ("Onde este número entra?") a partir de qualquer conta.
+Adicionar duas telas novas consumindo a API contábil (`api-erp-renato.ngrok.app`):
 
-## 1. Camada de API (novo arquivo `src/lib/contabil/drillAglutinadorApi.ts`)
+1. **Aging** (títulos em aberto por faixa de atraso) — receber e pagar.
+2. **Kardex** (ficha de estoque por produto com saldo corrido).
 
-Cliente do backend com dois endpoints:
+Ambas seguem os padrões já usados em Fluxo de Caixa / Indicadores Contábeis (Bearer via `contabilApi`, exports Excel via `fetch` + blob).
 
-- `GET /api/contabil/aglutinadores/{codagl}/drill` → `{ codagl, descricao, base, total, componentes[] }`
-  - Cada `componente`: `{ tipo: 'aglutinador' | 'conta', operador: '+'|'-', codagl?, ctared?, clacta?, descricao, valor, drill: { tipo: 'aglutinador'|'razao', endpoint, params } }`
-- `GET /api/contabil/contas/{ctared}/rollup?codemp` → `{ ctared, conta, aglutinadores[{codagl,descricao,direto}], indicadores_afetados[] }`
+---
 
-Tipos exportados: `AglutinadorDrillNode`, `AglutinadorComponente`, `ContaRollup`.
+## 1. API client
 
-## 2. Atualizar tipos de indicadores
+Criar `src/lib/contabil/agingApi.ts`:
+- `fetchAging({ tipo, codemp, codfil?, data_base?, top? })` → GET `/api/contabil/financeiro/aging`
+- `buildAgingExportUrl(...)` + `downloadAgingExcel(...)` (fetch + blob autenticado)
+- Tipos: `AgingResponse`, `AgingFaixa`, `AgingParceiro`, `AgingTotais`.
 
-`src/lib/contabil/indicadoresApi.ts` — adicionar ao tipo `Indicador`:
+Criar `src/lib/contabil/kardexApi.ts`:
+- `fetchKardex({ codpro, data_ini, data_fim, codemp, codfil?, codder?, coddep?, limite? })` → GET `/api/contabil/estoque/kardex`
+- `downloadKardexExcel(...)` (fetch + blob autenticado)
+- Tipos: `KardexResponse`, `KardexMovimento`, `KardexSaldo`.
 
-```ts
-drill?: {
-  aglutinadores?: { codagl: number; descricao: string; endpoint: string; params: Record<string, any> }[];
-  contas?: { ctared: number; endpoint: string; params: Record<string, any> }[];
-}
-```
+---
 
-## 3. Hooks (React Query)
+## 2. Página Aging — `src/pages/contabilidade/AgingPage.tsx`
 
-`src/hooks/contabil/useAglutinadorDrill.ts` — `useAglutinadorDrill(codagl, params)` com `staleTime: 60_000`, lazy (habilita quando o nó é expandido).
+Rota `/contabilidade/aging`.
 
-`src/hooks/contabil/useContaRollup.ts` — `useContaRollup(ctared, codemp)`.
+Layout:
+- **Toolbar**: seletor de empresa/filial (reusar padrão existente das telas contábeis), DatePicker "Data-base" (default = hoje), input "Top N" (default 50), botão **Atualizar**, botão **Exportar Excel**.
+- **Tabs** "A Receber" | "A Pagar" (chamar API com `tipo=ambos` uma vez e alternar).
+- **Cards resumo** por aba:
+  - Total em aberto
+  - Total vencido (`v_1_30+v_31_60+v_61_90+v_90_mais`)
+  - % da carteira vencida
+  - Vencido crítico (`v_90_mais`)
+- **Tabela** por parceiro (DataTableBI): Código · Nome · A vencer · 1–30 · 31–60 · 61–90 · +90 · Total. Ordenada por Total desc, com `PaginationControl` client-side (top N do backend + paginação local se necessário).
+  - Células `v_90_mais > 0` em vermelho; `v_61_90 > 0` em âmbar.
+  - Rodapé com totais por faixa (usar `totais` do payload).
+- Export XLSX via `downloadAgingExcel` (fetch + blob, com toast de erro/sucesso).
 
-## 4. Novo componente: `DrillAglutinadorTree` (`src/components/contabil/DrillAglutinadorTree.tsx`)
+Dica de negócio (nota informativa acima da tabela): link para `/contabilidade/fluxo-caixa` — "Aging mostra o passado; a Projeção mostra o futuro".
 
-Tree-table expansível, recursivo:
+---
 
-- Cada nó mostra: `operador` (chip +/−), `descricao`, `valor` formatado, botão expandir.
-- Header do nó pai mostra `total` para conferência (soma dos filhos).
-- Ao expandir aglutinador → chama `useAglutinadorDrill(codagl)` e renderiza os `componentes[]`.
-- Ao clicar em componente `tipo=conta` (folha) → dispara callback `onOpenRazao({ ctared, params })`.
-- Loading skeleton por nível; erro inline.
-- Indentação por profundidade; sinal (+/−) já vem aplicado no `valor`.
+## 3. Página Kardex — `src/pages/contabilidade/KardexPage.tsx`
 
-## 5. Novo componente: `DrillIndicadorDrawer` (`src/components/contabil/DrillIndicadorDrawer.tsx`)
+Rota `/contabilidade/kardex`.
 
-Drawer aberto ao clicar num indicador na tela **Indicadores Contábeis**:
+Layout:
+- **Toolbar**:
+  - `AutocompleteAsync` de produto usando o fetcher já existente em `useCadastrosErp` que consome `/api/requisicoes/lookup/componentes`.
+  - Empresa/filial, período (data_ini/fim, default últimos 90 dias), campos opcionais depósito (`coddep`) e derivação (`codder`) via autocomplete/text, "Limite" opcional.
+  - Botão Atualizar + Exportar Excel.
+- **Header do produto** (após carregar): código, descrição, unidade.
+- **4 cards**: Saldo inicial (qtd/valor) · Entradas (qtd/valor) · Saídas (qtd/valor) · Saldo final (qtd/valor + custo médio).
+- **Banner de conferência**: "Saldo inicial + Entradas − Saídas = Saldo final" com valores calculados vs `saldo_final` do backend, ✔ se bater.
+- **Tabela de movimentos** (DataTableBI, ordenada por data): Data · Transação (código – descrição) · Depósito · Lote · Qtd movimento · Qtd saldo · Valor movimento · Valor saldo · Custo médio.
+  - Linha inteira colorida por `tipo`: entrada = verde suave, saída = vermelho suave (via `rowClassName`, tokens do design system — sem cores hardcoded).
+  - `qtd_movimento` já vem com sinal correto do backend; exibir como veio.
+- Export XLSX via `downloadKardexExcel`.
 
-- Header: nome do indicador, valor, unidade, fórmula.
-- Corpo: para cada item em `indicador.drill.aglutinadores` renderiza um `DrillAglutinadorTree` (múltiplos ramos, ex.: Margem = numerador ÷ denominador — dois ramos).
-- Para `indicador.drill.contas` (ex.: depreciação do EBITDA), renderiza linha direta com botão "Ver razão" → abre o `DrillDrawer` já existente (`@/components/dre-studio/DrillDrawer`) com `ctared` + período.
+---
 
-## 6. Reuso do razão existente
+## 4. Registro
 
-Reaproveitar `DrillDrawer` (dre-studio) — hoje ele consome `useDrillLancamentos(modelo_id, linha_id, …)`. Precisa aceitar um **modo alternativo por `ctared`** (sem `modelo_id`/`linha_id`), passando direto para `/api/contabil/drill-lancamentos?ctared=…&anomes_ini&anomes_fim&codemp`.
+- `src/App.tsx`: importar `AgingPage` e `KardexPage`, adicionar duas `<Route>` protegidas.
+- `src/config/menuCatalog.ts`: adicionar itens no submenu "Financeiro e Contábil":
+  - "Aging (Receber/Pagar)" → `/contabilidade/aging`
+  - "Kardex de Estoque" → `/contabilidade/kardex`
+- `src/config/featureCatalog.ts`: registrar features para Central de Liberações.
 
-- Adicionar em `DrillLancamentosParams` (opcional) `ctared?: number` e permitir ausência de `modelo_id`/`linha_id`.
-- Ajustar `useDrillLancamentos` para habilitar quando `ctared` OR (`modelo_id` + `linha_id`).
-- `DrillDrawer` aceita nova prop `modoConta?: { ctared, descricao }` — header muda para "Razão — conta {clacta} {descricao}".
+---
 
-## 7. Botão "Onde este número entra?" (rollup reverso)
+## 5. Integração com drills existentes (Kardex)
 
-No `DrillDrawer` (razão) adicionar botão no header. Ao clicar:
-
-- Chama `useContaRollup(ctared, codemp)`.
-- Abre popover/dialog `RollupContaPanel` mostrando:
-  - Cadeia de aglutinadores (badge "direto" quando `direto: true`).
-  - Lista de `indicadores_afetados` como chips clicáveis (fecha o razão e navega para `/contabilidade/indicadores` destacando o indicador).
-
-## 8. Integração na tela Indicadores Contábeis
-
-`src/pages/contabilidade/IndicadoresContabeisPage.tsx`:
-
-- Cada card/linha de indicador vira clicável (cursor-pointer + hover) quando tiver `indicador.drill`.
-- Estado local `indicadorSelecionado` abre o `DrillIndicadorDrawer`.
-- Ícone de lupa no canto do card para indicar drill disponível.
-
-## 9. Integração na tela Fluxo de Caixa (Indireto)
-
-`FluxoCaixaPage.tsx` — os blocos Operacional/Investimento/Financiamento do DFC Indireto usam aglutinadores. Se o backend devolver `codagl` em cada linha (a confirmar), plugar o `DrillAglutinadorTree` inline; caso contrário, deixar para próxima iteração e apenas documentar no arquivo `docs/`.
-
-## 10. Documentação
-
-`docs/backend-contabil-drill-cadeia.md` — contratos dos dois novos endpoints, exemplos JSON e mapa da UX (para o time de backend manter alinhamento).
-
-## Fora de escopo
-
-- Alterações no motor de razão (`DrillDrawer` só ganha um modo novo, sem refatorar auditoria/tooltips existentes).
-- Export XLSX específico do drill de aglutinador (backend ainda não expõe; adicionar depois).
-- Persistência do estado de expansão entre sessões.
+No `DrillDrawer` de razão (contábil), quando a linha tem `codpro`, adicionar botão "Abrir Kardex" que navega para `/contabilidade/kardex?codpro=...&data_ini=...&data_fim=...`. A KardexPage lê os query params na montagem e carrega automaticamente.
 
 ---
 
 ## Detalhes técnicos
 
-- **Recursão segura**: `DrillAglutinadorTree` limita profundidade a 8 níveis (guarda contra loops se o backend devolver referência circular).
-- **Cache**: `queryKey: ['contabil','aglutinador-drill', codagl, anomes_ini, anomes_fim, codemp, codfil, base]`.
-- **Sinal**: usar `valor` como veio do backend (já aplicado); mostrar `operador` só como badge visual.
-- **Conferência**: no header do aglutinador, mostrar `soma(componentes.valor)` vs `total` — se diferir por > 0.01, badge amarelo "diferença".
-- **Reuso do drawer de razão**: preservar todas as funcionalidades atuais (usuário origem, centro de custo, aumentar limite, histórico rolável).
-- **Navegação**: chips de "indicadores afetados" usam `useNavigate` para `/contabilidade/indicadores?highlight={slug}` e a página faz scroll/pulse no card correspondente.
+- HTTP: reusar `contabilApi.get` (já cuida do Bearer + ngrok-skip). Timeout padrão 15s serve para ambos.
+- Exports Excel: padrão já usado em Indicadores Contábeis (fetch autenticado → blob → `URL.createObjectURL` → `<a>` temporário). Extrair `filename` do `Content-Disposition`.
+- Formatação: usar `formatCurrency` / `formatNumber` de `@/lib/format`.
+- Estilo: apenas tokens semânticos (`bg-destructive/10`, `text-destructive`, `bg-amber-500/10 text-amber-700 dark:text-amber-400`, `bg-emerald-500/10`) — nada de `bg-red-500` cru.
+- Sem alterações no backend nem em `.env`.
+
+Sem migrations, sem edge functions, sem mudanças em componentes já existentes além de `menuCatalog`, `featureCatalog`, `App.tsx` e o botão opcional no `DrillDrawer`.
