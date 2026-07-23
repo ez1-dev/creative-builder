@@ -1,91 +1,44 @@
+# Drill-down na tela Fluxo de Caixa
 
-## Objetivo
+O restante do prompt (Projeção com gráfico + saldo editável, cards de Vencidos, Direto conciliado, Indireto em 3 blocos, IA via SSE e exportação Excel) já está implementado em `src/pages/contabilidade/FluxoCaixaPage.tsx` e `src/lib/contabil/fluxoCaixaApi.ts`. Esta iteração cobre apenas o que é novo no prompt de 23/07: **drill-down** a partir de cada visão.
 
-Adicionar duas telas novas consumindo a API contábil (`api-erp-renato.ngrok.app`):
+## O que muda
 
-1. **Aging** (títulos em aberto por faixa de atraso) — receber e pagar.
-2. **Kardex** (ficha de estoque por produto com saldo corrido).
+### 1. `src/lib/contabil/fluxoCaixaApi.ts` — novos endpoints
+- `fetchDiretoDrill({ origem, anomes_ini, anomes_fim, codemp, codfil?, limite? })` → `GET /api/contabil/fluxo-caixa/direto/drill`. Tipos: `lancamentos[]` (lancamento, data, conta_caixa, tipo, valor, historico, usuario), `total_lancamentos`, `truncado`.
+- `fetchProjecaoDrill({ tipo:'receber'|'pagar', venc_ini, venc_fim, vencidos?, codemp, codfil? })` → `GET /api/contabil/fluxo-caixa/projecao/drill`. Tipos: `titulos[]` (titulo, parceiro_codigo, parceiro, vencimento, valor_aberto), `total`, `total_titulos`.
+- Ampliar tipos existentes para incluir campos opcionais `drill` vindos do backend:
+  - `DiretoCategoria.drill?: { origem: string; params?: Record<string, unknown> }`
+  - `CurvaPonto.drill?: { receber?: {...}; pagar?: {...} }`
+  - `ProjecaoResponse.vencidos.drill?: { receber?: {...}; pagar?: {...} }`
+  - `IndiretoItem.drill?: { tipo:'aglutinador'|'razao'; codagl?: number; contas?: string[]; params?: Record<string, unknown> }`
 
-Ambas seguem os padrões já usados em Fluxo de Caixa / Indicadores Contábeis (Bearer via `contabilApi`, exports Excel via `fetch` + blob).
+### 2. Novo componente `src/components/contabil/FluxoCaixaDrillDrawer.tsx`
+Drawer único que renderiza três modos conforme o tipo do drill acionado:
+- **Modo `direto`**: tabela de lançamentos (data, conta caixa, tipo E/S com badge, valor, histórico truncado com tooltip, usuário). Badge "truncado" + botão "Aumentar limite" (dobra `limite`, refaz fetch) quando `truncado:true`. Rodapé com `total_lancamentos` e soma.
+- **Modo `projecao`**: tabela de títulos (título, parceiro, vencimento, valor_aberto), agrupável por parceiro (toggle). Cabeçalho mostra período/balde e se é `vencidos=true` (badge âmbar "Vencidos").
+- **Modo `indireto→aglutinador`**: reaproveita `DrillAglutinadorTree` já existente (via `DrillIndicadorDrawer` ou renderizando a árvore direto passando `codagl`).
+- **Modo `indireto→razao`**: reaproveita `DrillDrawer` (razão) já existente por conta.
 
----
+Estado (`loading`, `erro`, `dados`) e cancelamento via `AbortController`.
 
-## 1. API client
+### 3. `src/pages/contabilidade/FluxoCaixaPage.tsx` — tornar números clicáveis
+- **Aba Projeção**:
+  - Cards `Vencidos.receber` e `Vencidos.pagar` viram botões → abrem drawer modo `projecao` com `vencidos=true`.
+  - Gráfico: onClick num ponto/mês da curva → menu com "Ver a receber" / "Ver a pagar" para o período correspondente (calcular `venc_ini`/`venc_fim` a partir do `periodo` — mês `AAAA-MM` ou semana `AAAA-Www`).
+  - Tabela auxiliar da curva: colunas Entradas/Saídas viram links.
+- **Aba Direto**: cada linha da tabela de categorias com `drill` → clique abre drawer modo `direto` usando `drill.origem` e o período já selecionado.
+- **Aba Indireto**: cada `IndiretoItem` com `drill` vira link → abre drawer no modo apropriado (aglutinador ou razão), passando pelos componentes já existentes.
 
-Criar `src/lib/contabil/agingApi.ts`:
-- `fetchAging({ tipo, codemp, codfil?, data_base?, top? })` → GET `/api/contabil/financeiro/aging`
-- `buildAgingExportUrl(...)` + `downloadAgingExcel(...)` (fetch + blob autenticado)
-- Tipos: `AgingResponse`, `AgingFaixa`, `AgingParceiro`, `AgingTotais`.
+### 4. UX geral
+- Cursor pointer + hover destacado apenas em números com `drill` presente (não forçar clique quando o backend não expõe ponteiro).
+- Drawer largura ~880px, com header "Detalhe — <contexto>" e botão "Exportar" só quando o backend disponibilizar (fora do escopo desta iteração se não houver endpoint dedicado).
+- Todos os valores usam `formatCurrency`; datas via `formatDate` já existente.
 
-Criar `src/lib/contabil/kardexApi.ts`:
-- `fetchKardex({ codpro, data_ini, data_fim, codemp, codfil?, codder?, coddep?, limite? })` → GET `/api/contabil/estoque/kardex`
-- `downloadKardexExcel(...)` (fetch + blob autenticado)
-- Tipos: `KardexResponse`, `KardexMovimento`, `KardexSaldo`.
+## Fora de escopo
+- Alterações no fluxo de IA, no gráfico base, na exportação Excel ou nos endpoints principais — permanecem como estão.
+- Não mexer em `DrillAglutinadorTree`, `DrillIndicadorDrawer` nem `DrillDrawer` (razão) além de importá-los.
 
----
-
-## 2. Página Aging — `src/pages/contabilidade/AgingPage.tsx`
-
-Rota `/contabilidade/aging`.
-
-Layout:
-- **Toolbar**: seletor de empresa/filial (reusar padrão existente das telas contábeis), DatePicker "Data-base" (default = hoje), input "Top N" (default 50), botão **Atualizar**, botão **Exportar Excel**.
-- **Tabs** "A Receber" | "A Pagar" (chamar API com `tipo=ambos` uma vez e alternar).
-- **Cards resumo** por aba:
-  - Total em aberto
-  - Total vencido (`v_1_30+v_31_60+v_61_90+v_90_mais`)
-  - % da carteira vencida
-  - Vencido crítico (`v_90_mais`)
-- **Tabela** por parceiro (DataTableBI): Código · Nome · A vencer · 1–30 · 31–60 · 61–90 · +90 · Total. Ordenada por Total desc, com `PaginationControl` client-side (top N do backend + paginação local se necessário).
-  - Células `v_90_mais > 0` em vermelho; `v_61_90 > 0` em âmbar.
-  - Rodapé com totais por faixa (usar `totais` do payload).
-- Export XLSX via `downloadAgingExcel` (fetch + blob, com toast de erro/sucesso).
-
-Dica de negócio (nota informativa acima da tabela): link para `/contabilidade/fluxo-caixa` — "Aging mostra o passado; a Projeção mostra o futuro".
-
----
-
-## 3. Página Kardex — `src/pages/contabilidade/KardexPage.tsx`
-
-Rota `/contabilidade/kardex`.
-
-Layout:
-- **Toolbar**:
-  - `AutocompleteAsync` de produto usando o fetcher já existente em `useCadastrosErp` que consome `/api/requisicoes/lookup/componentes`.
-  - Empresa/filial, período (data_ini/fim, default últimos 90 dias), campos opcionais depósito (`coddep`) e derivação (`codder`) via autocomplete/text, "Limite" opcional.
-  - Botão Atualizar + Exportar Excel.
-- **Header do produto** (após carregar): código, descrição, unidade.
-- **4 cards**: Saldo inicial (qtd/valor) · Entradas (qtd/valor) · Saídas (qtd/valor) · Saldo final (qtd/valor + custo médio).
-- **Banner de conferência**: "Saldo inicial + Entradas − Saídas = Saldo final" com valores calculados vs `saldo_final` do backend, ✔ se bater.
-- **Tabela de movimentos** (DataTableBI, ordenada por data): Data · Transação (código – descrição) · Depósito · Lote · Qtd movimento · Qtd saldo · Valor movimento · Valor saldo · Custo médio.
-  - Linha inteira colorida por `tipo`: entrada = verde suave, saída = vermelho suave (via `rowClassName`, tokens do design system — sem cores hardcoded).
-  - `qtd_movimento` já vem com sinal correto do backend; exibir como veio.
-- Export XLSX via `downloadKardexExcel`.
-
----
-
-## 4. Registro
-
-- `src/App.tsx`: importar `AgingPage` e `KardexPage`, adicionar duas `<Route>` protegidas.
-- `src/config/menuCatalog.ts`: adicionar itens no submenu "Financeiro e Contábil":
-  - "Aging (Receber/Pagar)" → `/contabilidade/aging`
-  - "Kardex de Estoque" → `/contabilidade/kardex`
-- `src/config/featureCatalog.ts`: registrar features para Central de Liberações.
-
----
-
-## 5. Integração com drills existentes (Kardex)
-
-No `DrillDrawer` de razão (contábil), quando a linha tem `codpro`, adicionar botão "Abrir Kardex" que navega para `/contabilidade/kardex?codpro=...&data_ini=...&data_fim=...`. A KardexPage lê os query params na montagem e carrega automaticamente.
-
----
-
-## Detalhes técnicos
-
-- HTTP: reusar `contabilApi.get` (já cuida do Bearer + ngrok-skip). Timeout padrão 15s serve para ambos.
-- Exports Excel: padrão já usado em Indicadores Contábeis (fetch autenticado → blob → `URL.createObjectURL` → `<a>` temporário). Extrair `filename` do `Content-Disposition`.
-- Formatação: usar `formatCurrency` / `formatNumber` de `@/lib/format`.
-- Estilo: apenas tokens semânticos (`bg-destructive/10`, `text-destructive`, `bg-amber-500/10 text-amber-700 dark:text-amber-400`, `bg-emerald-500/10`) — nada de `bg-red-500` cru.
-- Sem alterações no backend nem em `.env`.
-
-Sem migrations, sem edge functions, sem mudanças em componentes já existentes além de `menuCatalog`, `featureCatalog`, `App.tsx` e o botão opcional no `DrillDrawer`.
+## Verificação
+- `tsgo` limpo.
+- Smoke manual: abrir /contabilidade/fluxo-caixa → clicar em card Vencidos, em uma categoria do Direto e em um item do Indireto, confirmando que cada drawer carrega os dados corretos.
