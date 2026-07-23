@@ -58,7 +58,7 @@ const columnsDetalhada: Column<any>[] = [
   { key: 'numero_projeto', header: 'Projeto', render: (v, row) => (v && v !== 0) ? String(v) : (row.projeto || '-') },
   { key: 'data_emissao', header: 'Emissão', render: (v) => formatDate(v) },
   { key: 'data_vencimento', header: 'Vencimento', render: (v) => formatDate(v) },
-  { key: 'data_ultimo_movimento', header: 'Data Pagamento', render: (v) => formatDate(v) },
+  { key: 'data_ultimo_movimento', header: 'Data do último movimento', render: (v) => formatDate(v) },
   { key: 'valor_original', header: 'Vlr. Original', align: 'right', render: (v) => formatCurrency(v) },
   { key: 'valor_aberto', header: 'Vlr. Aberto', align: 'right', render: (v) => formatCurrency(v) },
   { key: 'valor_movimentado', header: 'Vlr. Movim.', align: 'right', render: (v) => formatCurrency(v) },
@@ -161,14 +161,14 @@ export default function ContasPagarPage() {
         if (!params.somente_cheques) delete params.somente_cheques;
         if (!params.agrupar_por_fornecedor) delete params.agrupar_por_fornecedor;
         delete params.modo_arvore;
-        // Inclusão de títulos pagos: só se aplica quando não há Status específico selecionado.
-        const incluirPagos = !!params.incluir_pagos;
+        // Inclusão de títulos pagos: backend default = false (só em aberto).
+        // Enviar `incluir_pagos=true` apenas quando marcado; para status PAGO/LIQUIDADO,
+        // o backend ignora `incluir_pagos` — enviamos true por coerência.
+        const statusPagoLiquidado = params.status_titulo === 'PAGO' || params.status_titulo === 'LIQUIDADO';
+        const incluirPagos = !!params.incluir_pagos || statusPagoLiquidado;
         delete params.incluir_pagos;
-        if (!params.status_titulo) {
-          if (incluirPagos) params.incluir_pagos = true;
-          else params.excluir_pagos = true;
-        }
-        // Mapear filtros de "Data de Pagamento" (UI) para parâmetros do backend (data_movimento_*)
+        if (incluirPagos) params.incluir_pagos = true;
+        // Mapear filtros de "Data do último movimento" (UI) para parâmetros do backend (data_movimento_*)
         if (params.data_pagamento_ini) params.data_movimento_ini = params.data_pagamento_ini;
         if (params.data_pagamento_fim) params.data_movimento_fim = params.data_pagamento_fim;
         delete params.data_pagamento_ini;
@@ -308,6 +308,8 @@ export default function ContasPagarPage() {
 
   const columns = filters.agrupar_por_fornecedor ? columnsAgrupada : columnsDetalhada;
   const exportParams: any = { ...filters };
+  const statusPagoLiquidadoExp = exportParams.status_titulo === 'PAGO' || exportParams.status_titulo === 'LIQUIDADO';
+  if (statusPagoLiquidadoExp) exportParams.incluir_pagos = true;
   if (exportParams.data_pagamento_ini) exportParams.data_movimento_ini = exportParams.data_pagamento_ini;
   if (exportParams.data_pagamento_fim) exportParams.data_movimento_fim = exportParams.data_pagamento_fim;
   delete exportParams.data_pagamento_ini;
@@ -393,13 +395,13 @@ export default function ContasPagarPage() {
           <Input type="date" value={filters.data_vencimento_fim} onChange={(e) => set('data_vencimento_fim', e.target.value)} className="h-8 text-xs" />
         </div>
         <div>
-          <Label className="text-xs" htmlFor="dataPagamentoIniContasPag">Data Pagamento Inicial</Label>
+          <Label className="text-xs" htmlFor="dataPagamentoIniContasPag">Data do último movimento (início)</Label>
           <Input id="dataPagamentoIniContasPag" type="date" value={filters.data_pagamento_ini} onChange={(e) => set('data_pagamento_ini', e.target.value)} className="h-8 text-xs" />
         </div>
 
         {/* Linha 3 */}
         <div>
-          <Label className="text-xs" htmlFor="dataPagamentoFimContasPag">Data Pagamento Final</Label>
+          <Label className="text-xs" htmlFor="dataPagamentoFimContasPag">Data do último movimento (fim)</Label>
           <Input id="dataPagamentoFimContasPag" type="date" value={filters.data_pagamento_fim} onChange={(e) => set('data_pagamento_fim', e.target.value)} className="h-8 text-xs" />
         </div>
         <div>
@@ -424,14 +426,14 @@ export default function ContasPagarPage() {
           <Checkbox id="somente_cheques" checked={filters.somente_cheques} onCheckedChange={(v) => set('somente_cheques', !!v)} />
           <Label htmlFor="somente_cheques" className="text-xs">Somente cheques</Label>
         </div>
-        <div className="flex items-end gap-2 pb-1">
+        <div className="flex items-end gap-2 pb-1" title={filters.status_titulo === 'PAGO' || filters.status_titulo === 'LIQUIDADO' ? 'Ignorado quando o status é Pago/Liquidado' : undefined}>
           <Checkbox
             id="incluir_pagos"
-            checked={filters.incluir_pagos}
-            disabled={!!filters.status_titulo}
+            checked={filters.incluir_pagos || filters.status_titulo === 'PAGO' || filters.status_titulo === 'LIQUIDADO'}
+            disabled={filters.status_titulo === 'PAGO' || filters.status_titulo === 'LIQUIDADO'}
             onCheckedChange={(v) => set('incluir_pagos', !!v)}
           />
-          <Label htmlFor="incluir_pagos" className="text-xs">Incluir títulos pagos</Label>
+          <Label htmlFor="incluir_pagos" className="text-xs">Incluir títulos pagos/liquidados</Label>
         </div>
         <div className="flex items-end gap-2 pb-1">
           <Checkbox id="agrupar_por_fornecedor" checked={filters.agrupar_por_fornecedor} disabled={filters.modo_arvore} onCheckedChange={(v) => set('agrupar_por_fornecedor', !!v)} />

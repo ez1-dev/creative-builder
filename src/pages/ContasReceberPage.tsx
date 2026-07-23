@@ -118,6 +118,7 @@ const initialFilters = {
   data_recebimento_fim: '',
   valor_min: '',
   valor_max: '',
+  incluir_pagos: false,
   agrupar_por_cliente: false,
   modo_arvore: false,
 };
@@ -156,6 +157,16 @@ export default function ContasReceberPage() {
         if (!params.somente_saldo_aberto) delete params.somente_saldo_aberto;
         if (!params.agrupar_por_cliente) delete params.agrupar_por_cliente;
         delete params.modo_arvore;
+        // Inclusão de títulos pagos: backend default = false (só em aberto).
+        const statusPagoLiquidadoR = params.status_titulo === 'PAGO' || params.status_titulo === 'LIQUIDADO';
+        const incluirPagosR = !!params.incluir_pagos || statusPagoLiquidadoR;
+        delete params.incluir_pagos;
+        if (incluirPagosR) params.incluir_pagos = true;
+        // Mapear filtros de "Data do último movimento" (UI) para parâmetros do backend (data_movimento_*)
+        if (params.data_recebimento_ini) params.data_movimento_ini = params.data_recebimento_ini;
+        if (params.data_recebimento_fim) params.data_movimento_fim = params.data_recebimento_fim;
+        delete params.data_recebimento_ini;
+        delete params.data_recebimento_fim;
         Object.keys(params).forEach((k) => {
           if (params[k] === '' || params[k] === null || params[k] === undefined) delete params[k];
         });
@@ -289,7 +300,19 @@ export default function ContasReceberPage() {
 
 
   const columns = filters.agrupar_por_cliente ? columnsAgrupada : columnsDetalhada;
-  const exportParams = { ...filters };
+  const exportParams: any = { ...filters };
+  const statusPagoLiquidadoExpR = exportParams.status_titulo === 'PAGO' || exportParams.status_titulo === 'LIQUIDADO';
+  if (statusPagoLiquidadoExpR) exportParams.incluir_pagos = true;
+  if (exportParams.data_recebimento_ini) exportParams.data_movimento_ini = exportParams.data_recebimento_ini;
+  if (exportParams.data_recebimento_fim) exportParams.data_movimento_fim = exportParams.data_recebimento_fim;
+  delete exportParams.data_recebimento_ini;
+  delete exportParams.data_recebimento_fim;
+  const exportEndpointRec = modoArvoreAtivo
+    ? '/api/export/contas-receber-arvore'
+    : '/api/export/contas-receber';
+  const exportLabelRec = modoArvoreAtivo
+    ? 'Exportar Excel (Árvore)'
+    : 'Exportar Excel';
 
   return (
     <div className="space-y-4 p-4">
@@ -297,8 +320,9 @@ export default function ContasReceberPage() {
       <PageHeader
         title="Contas a Receber"
         description="Consulta analítica de títulos financeiros a receber"
-        actions={<ExportButton endpoint="/api/export/contas-receber" params={exportParams} />}
+        actions={<ExportButton endpoint={exportEndpointRec} params={exportParams} label={exportLabelRec} />}
       />
+
 
       <FilterPanel onSearch={() => search(1)} onClear={clearFilters}>
         {/* Linha 1 */}
@@ -359,13 +383,13 @@ export default function ContasReceberPage() {
           <Input type="date" value={filters.data_vencimento_fim} onChange={(e) => set('data_vencimento_fim', e.target.value)} className="h-8 text-xs" />
         </div>
         <div>
-          <Label className="text-xs">Recebimento de</Label>
+          <Label className="text-xs">Data do último movimento (início)</Label>
           <Input type="date" value={filters.data_recebimento_ini} onChange={(e) => set('data_recebimento_ini', e.target.value)} className="h-8 text-xs" />
         </div>
 
         {/* Linha 3 */}
         <div>
-          <Label className="text-xs">Recebimento até</Label>
+          <Label className="text-xs">Data do último movimento (fim)</Label>
           <Input type="date" value={filters.data_recebimento_fim} onChange={(e) => set('data_recebimento_fim', e.target.value)} className="h-8 text-xs" />
         </div>
         <div>
@@ -385,6 +409,15 @@ export default function ContasReceberPage() {
         <div className="flex items-end gap-2 pb-1">
           <Checkbox id="cr_somente_saldo_aberto" checked={filters.somente_saldo_aberto} onCheckedChange={(v) => set('somente_saldo_aberto', !!v)} />
           <Label htmlFor="cr_somente_saldo_aberto" className="text-xs">Somente saldo aberto</Label>
+        </div>
+        <div className="flex items-end gap-2 pb-1" title={filters.status_titulo === 'PAGO' || filters.status_titulo === 'LIQUIDADO' ? 'Ignorado quando o status é Pago/Liquidado' : undefined}>
+          <Checkbox
+            id="cr_incluir_pagos"
+            checked={filters.incluir_pagos || filters.status_titulo === 'PAGO' || filters.status_titulo === 'LIQUIDADO'}
+            disabled={filters.status_titulo === 'PAGO' || filters.status_titulo === 'LIQUIDADO'}
+            onCheckedChange={(v) => set('incluir_pagos', !!v)}
+          />
+          <Label htmlFor="cr_incluir_pagos" className="text-xs">Incluir títulos pagos/liquidados</Label>
         </div>
         <div className="flex items-end gap-2 pb-1">
           <Checkbox id="cr_agrupar_por_cliente" checked={filters.agrupar_por_cliente} disabled={filters.modo_arvore} onCheckedChange={(v) => set('agrupar_por_cliente', !!v)} />

@@ -72,6 +72,13 @@ export function ExportButton({ endpoint, params, label = 'Exportar Excel', varia
         );
         return;
       }
+      if ((response.status === 404 || response.status === 501) && endpoint.includes('/api/export/contas-receber-arvore')) {
+        toast.error(
+          'Exportação em árvore de Contas a Receber ainda não disponível no backend.',
+          { duration: 8000 },
+        );
+        return;
+      }
       if (!response.ok) {
         throw new Error(`Erro ${response.status}`);
       }
