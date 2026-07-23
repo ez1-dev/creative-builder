@@ -783,7 +783,9 @@ function StatCard({ label, value, colorful }: { label: string; value: number; co
   );
 }
 
-function IndiretoBloco({ data }: { data: IndiretoResponse }) {
+function IndiretoBloco({
+  data, onOpenDrill,
+}: { data: IndiretoResponse; onOpenDrill: (it: IndiretoItem) => void }) {
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -799,9 +801,9 @@ function IndiretoBloco({ data }: { data: IndiretoResponse }) {
         </Card>
       </div>
 
-      <AtividadeSecao titulo="Operacional" atv={data.atividades.operacional} />
-      <AtividadeSecao titulo="Investimento" atv={data.atividades.investimento} />
-      <AtividadeSecao titulo="Financiamento" atv={data.atividades.financiamento} />
+      <AtividadeSecao titulo="Operacional" atv={data.atividades.operacional} onOpenDrill={onOpenDrill} />
+      <AtividadeSecao titulo="Investimento" atv={data.atividades.investimento} onOpenDrill={onOpenDrill} />
+      <AtividadeSecao titulo="Financiamento" atv={data.atividades.financiamento} onOpenDrill={onOpenDrill} />
 
       {data.observacoes?.length ? (
         <Card>
@@ -817,7 +819,9 @@ function IndiretoBloco({ data }: { data: IndiretoResponse }) {
   );
 }
 
-function AtividadeSecao({ titulo, atv }: { titulo: string; atv: IndiretoAtividade }) {
+function AtividadeSecao({
+  titulo, atv, onOpenDrill,
+}: { titulo: string; atv: IndiretoAtividade; onOpenDrill: (it: IndiretoItem) => void }) {
   const [aberto, setAberto] = useState(true);
   return (
     <Card>
@@ -835,12 +839,23 @@ function AtividadeSecao({ titulo, atv }: { titulo: string; atv: IndiretoAtividad
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <tbody>
-                {atv.itens.map((it, i) => (
-                  <tr key={i} className="border-t border-border/60">
-                    <td className="px-4 py-2">{it.descricao}</td>
-                    <td className="px-4 py-2 text-right"><ValorPN v={it.valor} /></td>
-                  </tr>
-                ))}
+                {atv.itens.map((it, i) => {
+                  const podeDrill = !!it.drill;
+                  return (
+                    <tr key={i}
+                      className={cn('border-t border-border/60',
+                        podeDrill && 'hover:bg-muted/30 cursor-pointer')}
+                      onClick={() => podeDrill && onOpenDrill(it)}
+                    >
+                      <td className="px-4 py-2">
+                        <span className={cn(podeDrill && 'underline decoration-dotted underline-offset-2')}>
+                          {it.descricao}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-right"><ValorPN v={it.valor} /></td>
+                    </tr>
+                  );
+                })}
               </tbody>
               <tfoot className="bg-muted/30 font-semibold">
                 <tr className="border-t border-border">
