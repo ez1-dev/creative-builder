@@ -212,8 +212,28 @@ export function ResumoFolhaDrillDrawer({
               )}
 
               {!query.isLoading && !is422 && query.isError && (
-                <div className="text-xs text-destructive">
-                  {err?.message ?? "Falha ao carregar o drill."}
+                <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 space-y-2">
+                  <div className="flex items-start gap-2 text-xs text-destructive">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="font-medium">Não foi possível carregar o drill.</p>
+                      <p className="text-[11px] text-destructive/80">
+                        {err?.isTimeout || err?.code === "CLIENT_TIMEOUT"
+                          ? "A consulta demorou mais que 30s. Tente de novo — o backend faz cache de 90s, então a segunda chamada é instantânea."
+                          : err?.message ?? "Erro desconhecido ao consultar o drill."}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs"
+                    onClick={() => query.refetch()}
+                    disabled={query.isFetching}
+                  >
+                    <RefreshCw className={`h-3 w-3 mr-1 ${query.isFetching ? "animate-spin" : ""}`} />
+                    Tentar novamente
+                  </Button>
                 </div>
               )}
 
