@@ -118,6 +118,7 @@ const initialFilters = {
   data_recebimento_fim: '',
   valor_min: '',
   valor_max: '',
+  incluir_pagos: false,
   agrupar_por_cliente: false,
   modo_arvore: false,
 };
