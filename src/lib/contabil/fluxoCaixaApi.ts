@@ -135,16 +135,53 @@ export interface FCAnaliseStreamHandlers {
 export async function streamFluxoCaixaAnalise(
   params: FCAnaliseParams,
   handlers: FCAnaliseStreamHandlers = {},
+  extra?: {
+    projecao?: unknown;
+    direto?: unknown;
+    indireto?: unknown;
+  },
 ): Promise<void> {
-  const { url, headers } = buildContabilRequest(
-    '/api/contabil/fluxo-caixa/analise/stream',
-    { codemp: 1, ...params },
-    { Accept: 'text/event-stream' },
-  );
+  // Nova implementação: chama a edge function Lovable que usa a IA do Lovable
+  // (Gemini 2.5 Pro) — mantém exatamente o mesmo contrato SSE do backend antigo.
+  const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
+  const supabaseKey = (import.meta as any).env?.VITE_SUPABASE_PUBLISHABLE_KEY;
+  if (!supabaseUrl || !supabaseKey) {
+    handlers.onErro?.('Configuração do backend Lovable ausente (VITE_SUPABASE_URL).');
+    return;
+  }
+
+  const url = `${String(supabaseUrl).replace(/\/+$/, '')}/functions/v1/fluxo-caixa-analise-ia`;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Accept': 'text/event-stream',
+    'Authorization': `Bearer ${supabaseKey}`,
+    'apikey': String(supabaseKey),
+  };
+
+  const payload = {
+    periodo: {
+      anomes_ini: params.anomes_ini,
+      anomes_fim: params.anomes_fim,
+      codemp: params.codemp ?? 1,
+      codfil: params.codfil,
+      horizonte_dias: params.horizonte_dias,
+      granularidade: params.granularidade,
+      data_base: params.data_base,
+      saldo_inicial: params.saldo_inicial,
+    },
+    projecao: extra?.projecao ?? null,
+    direto: extra?.direto ?? null,
+    indireto: extra?.indireto ?? null,
+  };
 
   let resp: Response;
   try {
-    resp = await fetch(url, { method: 'GET', headers, signal: handlers.signal });
+    resp = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+      signal: handlers.signal,
+    });
   } catch (e: any) {
     if (e?.name === 'AbortError') return;
     handlers.onErro?.(e?.message || 'Falha de rede ao abrir o stream de análise.');
@@ -195,6 +232,7 @@ export async function streamFluxoCaixaAnalise(
     try { reader.releaseLock(); } catch { /* noop */ }
   }
 }
+
 
 // -------------------- Excel --------------------
 
