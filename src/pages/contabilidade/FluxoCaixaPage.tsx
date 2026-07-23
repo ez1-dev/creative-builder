@@ -442,7 +442,12 @@ function ProjecaoControles(props: {
   );
 }
 
-function ProjecaoBloco({ data }: { data: ProjecaoResponse }) {
+function ProjecaoBloco({
+  data, onOpenDrill,
+}: {
+  data: ProjecaoResponse;
+  onOpenDrill: (params: Record<string, any>, titulo: string, subTitulo?: string) => void;
+}) {
   const menorSaldoEm = data.resumo_horizonte?.menor_saldo_em;
   const menorSaldo = data.resumo_horizonte?.menor_saldo;
   const temAperto = (data.curva || []).some((p) => p.saldo_projetado < 0);
@@ -453,6 +458,29 @@ function ProjecaoBloco({ data }: { data: ProjecaoResponse }) {
     saidas_neg: -Math.abs(p.saidas),
     isMenor: p.periodo === menorSaldoEm,
   }));
+
+  const abrirVencidos = (tipo: 'receber' | 'pagar') => {
+    const backend = (data.vencidos as any)?.drill?.[tipo]?.params;
+    onOpenDrill(
+      backend ?? { tipo, vencidos: true },
+      `Títulos vencidos — ${tipo === 'receber' ? 'a receber' : 'a pagar'}`,
+      'Em atraso · não entram na curva de projeção',
+    );
+  };
+
+  const abrirPeriodo = (p: CurvaPonto, tipo: 'receber' | 'pagar') => {
+    const backend = p.drill?.[tipo]?.params;
+    const datas = backend ? null : periodoParaDatas(p.periodo);
+    const params = backend ?? {
+      tipo,
+      venc_ini: datas?.venc_ini,
+      venc_fim: datas?.venc_fim,
+    };
+    onOpenDrill(
+      params,
+      `Títulos ${tipo === 'receber' ? 'a receber' : 'a pagar'} — ${p.periodo}`,
+    );
+  };
 
   return (
     <>
@@ -479,20 +507,28 @@ function ProjecaoBloco({ data }: { data: ProjecaoResponse }) {
             </p>
           </CardContent>
         </Card>
-        <Card className="border-[hsl(var(--warning))]/40">
-          <CardContent className="p-4 space-y-1">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Vencidos — a receber</p>
-            <p className="text-lg font-bold tabular-nums text-[hsl(var(--warning))]">{fmt(data.vencidos?.receber)}</p>
-            <p className="text-[10px] text-muted-foreground">Dinheiro parado em atraso · não entra na curva</p>
-          </CardContent>
-        </Card>
-        <Card className="border-destructive/40">
-          <CardContent className="p-4 space-y-1">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Vencidos — a pagar</p>
-            <p className="text-lg font-bold tabular-nums text-destructive">{fmt(data.vencidos?.pagar)}</p>
-            <p className="text-[10px] text-muted-foreground">Compromissos em atraso · não entra na curva</p>
-          </CardContent>
-        </Card>
+        <button type="button" onClick={() => abrirVencidos('receber')} className="text-left">
+          <Card className="border-[hsl(var(--warning))]/40 hover:bg-muted/30 transition-colors cursor-pointer h-full">
+            <CardContent className="p-4 space-y-1">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Vencidos — a receber</p>
+              <p className="text-lg font-bold tabular-nums text-[hsl(var(--warning))] underline decoration-dotted underline-offset-2">
+                {fmt(data.vencidos?.receber)}
+              </p>
+              <p className="text-[10px] text-muted-foreground">Clique para ver os títulos em atraso</p>
+            </CardContent>
+          </Card>
+        </button>
+        <button type="button" onClick={() => abrirVencidos('pagar')} className="text-left">
+          <Card className="border-destructive/40 hover:bg-muted/30 transition-colors cursor-pointer h-full">
+            <CardContent className="p-4 space-y-1">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Vencidos — a pagar</p>
+              <p className="text-lg font-bold tabular-nums text-destructive underline decoration-dotted underline-offset-2">
+                {fmt(data.vencidos?.pagar)}
+              </p>
+              <p className="text-[10px] text-muted-foreground">Clique para ver os compromissos em atraso</p>
+            </CardContent>
+          </Card>
+        </button>
         <Card className={cn(typeof menorSaldo === 'number' && menorSaldo < 0 && 'border-destructive/50')}>
           <CardContent className="p-4 space-y-1">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
