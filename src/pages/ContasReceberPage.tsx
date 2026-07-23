@@ -410,6 +410,15 @@ export default function ContasReceberPage() {
           <Checkbox id="cr_somente_saldo_aberto" checked={filters.somente_saldo_aberto} onCheckedChange={(v) => set('somente_saldo_aberto', !!v)} />
           <Label htmlFor="cr_somente_saldo_aberto" className="text-xs">Somente saldo aberto</Label>
         </div>
+        <div className="flex items-end gap-2 pb-1" title={filters.status_titulo === 'PAGO' || filters.status_titulo === 'LIQUIDADO' ? 'Ignorado quando o status é Pago/Liquidado' : undefined}>
+          <Checkbox
+            id="cr_incluir_pagos"
+            checked={filters.incluir_pagos || filters.status_titulo === 'PAGO' || filters.status_titulo === 'LIQUIDADO'}
+            disabled={filters.status_titulo === 'PAGO' || filters.status_titulo === 'LIQUIDADO'}
+            onCheckedChange={(v) => set('incluir_pagos', !!v)}
+          />
+          <Label htmlFor="cr_incluir_pagos" className="text-xs">Incluir títulos pagos/liquidados</Label>
+        </div>
         <div className="flex items-end gap-2 pb-1">
           <Checkbox id="cr_agrupar_por_cliente" checked={filters.agrupar_por_cliente} disabled={filters.modo_arvore} onCheckedChange={(v) => set('agrupar_por_cliente', !!v)} />
           <Label htmlFor="cr_agrupar_por_cliente" className="text-xs">Agrupar por cliente</Label>
