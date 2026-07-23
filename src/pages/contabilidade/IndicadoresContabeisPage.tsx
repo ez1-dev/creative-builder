@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
-import { AlertTriangle, Info, Sparkles, RefreshCw, Landmark } from 'lucide-react';
+import { AlertTriangle, Info, Sparkles, RefreshCw, Landmark, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +19,8 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { formatCurrency, formatNumberBR } from '@/lib/format';
 import { CODEMP } from '@/lib/contabilConfig';
-import { useIndicadores, useIndicadoresAnalise } from '@/hooks/contabil/useIndicadores';
+import { useIndicadores } from '@/hooks/contabil/useIndicadores';
+import { streamIndicadoresAnalise, downloadIndicadoresExcel } from '@/lib/contabil/indicadoresApi';
 import type { Indicador, IndicadorUnidade, IndicadorStatus } from '@/lib/contabil/indicadoresApi';
 
 // ---- Seções (agrupamento por nome) ----
@@ -200,7 +201,34 @@ export default function IndicadoresContabeisPage() {
 
   const params = { anomes_ini: anomesIni, anomes_fim: anomesFim, codemp, codfil };
   const { data, isLoading, error, refetch, isFetching } = useIndicadores(params);
-  const analise = useIndicadoresAnalise(params);
+
+  // ---- Streaming da análise IA ----
+  type StreamStatus = 'idle' | 'streaming' | 'done' | 'erro';
+  const [narrativaStream, setNarrativaStream] = useState('');
+  const [streamStatus, setStreamStatus] = useState<StreamStatus>('idle');
+  const [streamErro, setStreamErro] = useState<string | undefined>();
+  const [modeloIA, setModeloIA] = useState<string | undefined>();
+  const streamAbortRef = useRef<AbortController | null>(null);
+
+  // Abortar stream ativo ao trocar filtros/desmontar
+  useEffect(() => {
+    return () => {
+      streamAbortRef.current?.abort();
+    };
+  }, []);
+  useEffect(() => {
+    // Se filtros mudaram, cancela stream em curso e limpa análise antiga.
+    streamAbortRef.current?.abort();
+    streamAbortRef.current = null;
+    setNarrativaStream('');
+    setStreamStatus('idle');
+    setStreamErro(undefined);
+    setModeloIA(undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anomesIni, anomesFim, codemp, codfil]);
+
+  // ---- Exportar Excel ----
+  const [exporting, setExporting] = useState(false);
 
   const aplicarFiltros = () => {
     const sp = new URLSearchParams();
@@ -217,18 +245,42 @@ export default function IndicadoresContabeisPage() {
   );
 
   const gerarAnalise = async () => {
+    streamAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    streamAbortRef.current = ctrl;
+    setNarrativaStream('');
+    setStreamErro(undefined);
+    setModeloIA(undefined);
+    setStreamStatus('streaming');
+    await streamIndicadoresAnalise(params, {
+      signal: ctrl.signal,
+      onMeta: (m) => { if (m?.modelo) setModeloIA(m.modelo); },
+      onDelta: (t) => setNarrativaStream((prev) => prev + t),
+      onDone: () => setStreamStatus('done'),
+      onErro: (msg) => {
+        setStreamErro(msg);
+        setStreamStatus('erro');
+        toast.error(msg);
+      },
+    });
+    // Se o stream fechou sem `done` nem `erro`, considera concluído.
+    setStreamStatus((s) => (s === 'streaming' ? 'done' : s));
+  };
+
+  const exportarExcel = async () => {
+    setExporting(true);
     try {
-      const r = await analise.refetch();
-      if (r.data?.analise?.erro) toast.error(r.data.analise.erro);
-      else if (r.data?.analise?.narrativa) toast.success('Análise gerada.');
-      else if (r.error) toast.error(r.error.message || 'Falha ao gerar análise.');
+      await downloadIndicadoresExcel(params);
     } catch (e: any) {
-      toast.error(e?.message || 'Falha ao gerar análise.');
+      toast.error(e?.message || 'Falha ao exportar planilha.');
+    } finally {
+      setExporting(false);
     }
   };
 
-  const narrativa = analise.data?.analise?.narrativa;
-  const analiseErro = analise.data?.analise?.erro || (analise.error?.message);
+  const narrativa = narrativaStream;
+  const analiseErro = streamErro;
+  const analiseCarregando = streamStatus === 'streaming';
 
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-[1600px] mx-auto">
@@ -242,6 +294,21 @@ export default function IndicadoresContabeisPage() {
             Analytics de gestão contábil — valores auditáveis, calculados no backend.
           </p>
         </div>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="sm" variant="outline" onClick={exportarExcel} disabled={exporting || isLoading}>
+                {exporting
+                  ? <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  : <FileSpreadsheet className="h-4 w-4 mr-1" />}
+                {exporting ? 'Gerando Excel…' : 'Exportar Excel'}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs text-xs">
+              Baixa a planilha com os números auditáveis conta a conta, para a contabilidade validar.
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching}>
           <RefreshCw className={cn('h-4 w-4 mr-1', isFetching && 'animate-spin')} /> Atualizar
         </Button>
@@ -369,10 +436,16 @@ export default function IndicadoresContabeisPage() {
                   size="sm"
                   className="w-full"
                   onClick={gerarAnalise}
-                  disabled={analise.isFetching}
+                  disabled={analiseCarregando}
                 >
-                  <Sparkles className="h-4 w-4 mr-1" />
-                  {analise.isFetching ? 'Gerando… (pode levar até 90s)' : narrativa ? 'Gerar novamente' : 'Gerar análise'}
+                  {analiseCarregando
+                    ? <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    : <Sparkles className="h-4 w-4 mr-1" />}
+                  {analiseCarregando
+                    ? 'Gerando…'
+                    : narrativa
+                      ? 'Gerar novamente'
+                      : 'Gerar análise'}
                 </Button>
                 {analiseErro && !narrativa && (
                   <Alert variant="destructive">
@@ -383,9 +456,9 @@ export default function IndicadoresContabeisPage() {
                 {narrativa && (
                   <div className="prose prose-sm max-w-none text-sm dark:prose-invert">
                     <ReactMarkdown>{narrativa}</ReactMarkdown>
-                    {analise.data?.analise?.modelo && (
+                    {modeloIA && (
                       <p className="text-[10px] text-muted-foreground mt-2">
-                        Modelo: {analise.data.analise.modelo}
+                        Modelo: {modeloIA}
                       </p>
                     )}
                   </div>
