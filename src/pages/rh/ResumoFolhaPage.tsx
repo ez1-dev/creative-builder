@@ -14,8 +14,10 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 
-import { ChevronDown, Info, RefreshCw, Loader2, AlertTriangle, FileSpreadsheet } from "lucide-react";
+import { ChevronDown, Info, RefreshCw, Loader2, AlertTriangle, FileSpreadsheet, ShieldCheck } from "lucide-react";
 import { RhPageHeader } from "@/components/rh/RhPageHeader";
 import { BotaoRelatorioModuloPdf } from "@/components/rh/BotaoRelatorioModuloPdf";
 import { RhDashboardWithBiLibrary } from "@/components/rh/RhDashboardWithBiLibrary";
@@ -415,6 +417,12 @@ export default function ResumoFolhaPage() {
           <CardContent className="space-y-3">
             {(["provento", "desconto", "total_liquido"] as const).map((key) => {
               const label = key === "provento" ? "Provento" : key === "desconto" ? "Desconto" : "Total Líquido";
+              const tip =
+                key === "provento"
+                  ? "Soma dos eventos com tipeve ∈ {1,2} — proventos base + benefícios. Bate exato com o relatório oficial FPRF001 (Senior)."
+                  : key === "desconto"
+                  ? "Soma dos eventos com tipeve = 3 — INSS, IRRF, consignados, adiantamentos etc. Inclui o evento 264 “Líquido Rescisão”, que é pago à parte (a rescisão sai da folha do mês)."
+                  : "Proventos − Descontos (com tipeve=3 inteiro). Considera o evento 264 “Líquido Rescisão” como saída, já que a rescisão é paga separadamente. Metodologia validada contra o FPRF001.";
               const colorCls =
                 key === "desconto" ? "text-destructive" :
                 key === "total_liquido" ? "text-primary" : "";
@@ -423,7 +431,26 @@ export default function ResumoFolhaPage() {
               const drillable = drillsMap.has(key);
               const inner = (
                 <>
-                  <div className="text-[11px] text-muted-foreground">{label}</div>
+                  <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+                    <span>{label}</span>
+                    <TooltipProvider delayDuration={150}>
+                      <UITooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            className="inline-flex text-muted-foreground/70 hover:text-foreground focus:outline-none"
+                            onClick={(e) => e.stopPropagation()}
+                            aria-label={`Metodologia do card ${label}`}
+                          >
+                            <Info className="h-3 w-3" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-xs text-xs">
+                          {tip}
+                        </TooltipContent>
+                      </UITooltip>
+                    </TooltipProvider>
+                  </div>
                   <div className={`${sizeCls} font-bold tabular-nums ${colorCls}`}>
                     <ValueOrMissing value={kpis?.[key]} missing={isMissing(key)} field={key} />
                   </div>
@@ -450,7 +477,7 @@ export default function ResumoFolhaPage() {
 
         </Card>
         
-        <KpiOrMissing title="Salário Bruto" value={kpis?.salario_bruto} missing={isMissing("salario_bruto")} field="salario_bruto" loading={isLoading} {...kpiDrill("salario_bruto")} />
+        <KpiOrMissing title="Salário Bruto" value={kpis?.salario_bruto} missing={isMissing("salario_bruto")} field="salario_bruto" loading={isLoading} tooltip="Salário nominal mensal por colaborador. Horistas = taxa/h × horas contratuais (R016/jornada); mensalistas = salemp. Não usa o campo salemp cru dos horistas." {...kpiDrill("salario_bruto")} />
         <KpiOrMissing title="Outras Gratificações" value={kpis?.outras_gratificacoes} missing={isMissing("outras_gratificacoes")} field="outras_gratificacoes" loading={isLoading} {...kpiDrill("outras_gratificacoes")} />
         <KpiOrMissing title="Benefícios" value={kpis?.beneficios} missing={isMissing("beneficios")} field="beneficios" loading={isLoading} tooltip="Benefícios oficiais do período (inclui V.A.)." {...kpiDrill("beneficios")} />
         <KpiOrMissing title="INSS (empregado)" value={kpis?.inss_total} missing={isMissing("inss_total")} field="inss_total" loading={isLoading} tooltip="Descontos de INSS dos colaboradores. Não representa GPS patronal." {...kpiDrill("inss_total")} />
@@ -837,6 +864,19 @@ export default function ResumoFolhaPage() {
         hideSync
         actions={
           <>
+            <TooltipProvider delayDuration={150}>
+              <UITooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="outline" className="gap-1 border-success/40 text-success bg-success/5 cursor-help">
+                    <ShieldCheck className="h-3 w-3" />
+                    Validado FPRF001
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs text-xs">
+                  Metodologia conferida contra o relatório oficial Senior FPRF001 — Relação de Cálculo (competência 202606, empresa 1). Proventos batem exato; Líquido segue a regra tipeve=3 inteiro (inclui evento 264).
+                </TooltipContent>
+              </UITooltip>
+            </TooltipProvider>
             <RhLayoutToolbar
               editing={layout.editing}
               onToggle={layout.setEditing}

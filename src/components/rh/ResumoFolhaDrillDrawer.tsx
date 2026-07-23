@@ -412,6 +412,16 @@ export function ResumoFolhaDrillDrawer({
                       )}
                     </div>
                   </div>
+                  {richMode === "analitico" && (
+                    <div className="rounded-md border border-primary/20 bg-primary/5 p-2 text-[11px] text-muted-foreground leading-relaxed">
+                      Este drill reproduz a mesma classificação do relatório oficial Senior{" "}
+                      <span className="font-semibold text-foreground">FPRF001 (Relação de Cálculo)</span>:
+                      cada evento é agrupado pela sua classe (<span className="font-mono">codclc</span>/
+                      <span className="font-mono">tipeve</span>) configurada no cadastro. O total acima
+                      é somado <span className="font-semibold">antes</span> do corte da lista, então fecha com o card
+                      mesmo quando a exibição é truncada em {formatNumber(DEEP_LIMITE, 0)} linhas.
+                    </div>
+                  )}
                 </>
               )}
 

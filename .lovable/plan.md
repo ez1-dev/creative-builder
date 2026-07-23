@@ -1,35 +1,53 @@
-# Refino da tela Kardex (ficha de estoque)
+## Contexto
 
-A tela `/contabilidade/kardex` já implementa a maior parte do contrato descrito no prompt (autocomplete de componente, período, filtros opcionais, cabeçalho com conta contábil, cards de saldos/entradas/saídas, giro, tabela com sinal e cores por tipo, conferência e exportação Excel via fetch+blob). Os ajustes abaixo alinham o restante do payload validado em 23/07/2026.
+Validação contra o relatório oficial **FPRF001 (Relação de Cálculo)** — competência 202606, empresa 1 — confirmou:
 
-## Alterações
+- **Proventos 2.360.315,61** bate exato (tipeve 1+2).
+- **Líquido atual 1.064.077,31** subtrai `tipeve=3` inteiro (inclui evento 264 "Líquido Rescisão", codclc=13). Decisão do usuário: **manter como está**.
+- **Salário Base 1.660.337,57** = salário nominal mensal por colaborador (horista = taxa/h × horas contratuais R016; mensalista = salemp). Decisão: **manter como referência oficial**.
+- **INSS Patronal 410.641,63** = 20% × base INSS `R046INF.basins` (não é evento). Card já existe.
 
-### 1. Tipos (`src/lib/contabil/kardexApi.ts`)
-- Estender `KardexProduto` com `origem?: string` e `familia?: string` (backend passou a devolver esses campos junto do produto).
+Como os números já batem com a fonte da verdade, a mudança é apenas **explicativa**: hoje o usuário não sabe *o que compõe* cada card e por que o líquido difere do "proventos − descontos".
 
-### 2. Cabeçalho do produto (`KardexPage.tsx`)
-- Após "Descrição" e "Unidade", exibir dois novos mini-campos quando presentes:
-  - **Origem** (`produto.origem`)
-  - **Família** (`produto.familia`)
-- Manter conta contábil, total de movimentos, transferências e giro como já estão.
+## O que vai mudar (frontend only)
 
-### 3. Card de Transferências
-- Hoje o bloco de transferências só aparece quando `transferencias_qtd > 0`. Alterar para exibir quando **qtd ou valor** forem diferentes de zero (transferência pode ter apenas valor, sem quantidade — mesmo padrão da regra de sinal do `ESTEOS`).
+### 1. `src/pages/rh/ResumoFolhaPage.tsx` — tooltips e legendas
 
-### 4. Conferência (selo)
-- Incluir transferências no cálculo, conforme fórmula oficial:
-  - `esperadoQtd = saldo_inicial + entradas − saídas + transferencias_qtd`
-  - Renderizar o texto com `± transferências` quando `transferencias_qtd !== 0`.
-- Manter tolerância de 0,001; o selo continua verde/âmbar.
+Enriquecer os tooltips (`Info` icon) dos 4 cards principais com a metodologia validada:
 
-### 5. Nada mais muda
-- Autocomplete via `/api/requisicoes/lookup/componentes`: já ok.
-- Exportação Excel via `fetch` + blob com `Authorization`: já ok.
-- Tabela: colunas, sinal, cores (entrada verde / saída vermelha / transferência azul) e ordenação por data: já ok.
-- Rota, permissões (`CONT_KARDEX`) e integração com Conciliação Estoque × Contábil: já registradas em turnos anteriores.
+- **Proventos**: "Soma de eventos com `tipeve ∈ {1,2}` — proventos base + benefícios. Bate com FPRF001."
+- **Descontos**: "Soma de `tipeve = 3` — inclui INSS, IRRF, consignados, adiantamentos e o evento 264 (Líquido Rescisão, pago à parte)."
+- **Líquido**: "Proventos − Descontos (tipeve=3 inteiro). Inclui o evento 264 (Líquido Rescisão) como saída, já que a rescisão é paga separadamente."
+- **Salário Base**: "Salário nominal mensal por colaborador (horista = taxa/h × horas contratuais; mensalista = salemp)."
+- **INSS Patronal**: já explicado no card; manter.
+
+### 2. `src/pages/rh/ResumoFolhaPage.tsx` — badge "Validado FPRF001"
+
+Adicionar um pequeno badge discreto no cabeçalho da página (ao lado do título ou do seletor de período) com tooltip:
+
+> "Metodologia conferida contra o relatório oficial Senior **FPRF001 - Relação de Cálculo** em 23/07/2026 (competência 202606)."
+
+Sinaliza confiabilidade sem poluir a UI.
+
+### 3. `ResumoFolhaDrillDrawer.tsx` — nota no drill Analítico
+
+No nível **Analítico** (evento × colaborador), adicionar uma nota discreta no rodapé do drawer:
+
+> "Este drill reproduz a mesma classificação do FPRF001 (evento pela classe `codclc`/`tipeve`). O total é somado antes do corte da lista, então fecha mesmo quando truncado em 5.000 linhas."
+
+## Fora de escopo
+
+- Nenhuma alteração em cálculo, endpoint ou fórmula: os números já estão corretos.
+- Nenhuma alteração no backend FastAPI.
+- Não vamos mexer no evento 264 nem separar rescisão em card próprio (decisão do usuário: manter como está).
 
 ## Detalhes técnicos
 
-- Único arquivo de lógica alterado: `src/lib/contabil/kardexApi.ts` (2 campos opcionais em `KardexProduto`).
-- Único arquivo de UI alterado: `src/pages/contabilidade/KardexPage.tsx` (cabeçalho + `conferencia` no `useMemo` + condição do card de transferências).
-- Sem mudanças em rotas, menu, tipos globais ou backend.
+Arquivos a editar:
+
+```text
+src/pages/rh/ResumoFolhaPage.tsx           # tooltips dos cards + badge FPRF001
+src/components/rh/ResumoFolhaDrillDrawer.tsx  # nota metodológica no drill analítico
+```
+
+Nenhum novo componente, hook, tipo ou dependência. Nenhuma migração.
